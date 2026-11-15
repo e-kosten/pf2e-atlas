@@ -3,7 +3,7 @@ use crate::{
     IndexError, SourceArtifactBuildContext,
     codec::{checked_hash, sha256},
 };
-use atlas_storage::Workspace;
+use atlas_storage::{UpdateOwner, Workspace};
 use rusqlite::{Connection, OptionalExtension};
 
 /// Read authenticated component metadata without requiring the current query
@@ -94,24 +94,35 @@ pub fn classify_reference_upgrade(c: &Connection) -> Result<ReferenceUpgrade, In
     Ok(upgrade_plan(c)?.0)
 }
 
+// This predecessor is replaced from source and has no decoder in this build.
+pub(crate) fn uses_retired_snapshot_contract(context: &SourceArtifactBuildContext) -> bool {
+    context.snapshot_version == 1
+        && context.source_contract
+            == "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8"
+}
+
+pub(crate) fn check_snapshot_contract(
+    context: &SourceArtifactBuildContext,
+) -> Result<(), IndexError> {
+    if !uses_retired_snapshot_contract(context)
+        && (context.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
+            || context.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID)
+    {
+        return Err(IndexError::Unsupported(
+            "stored source snapshot contract is unsupported".into(),
+        ));
+    }
+    Ok(())
+}
+
 fn upgrade_plan(
     c: &Connection,
 ) -> Result<(ReferenceUpgrade, Option<SourceArtifactBuildContext>), IndexError> {
     let Some(original) = read_stored_reference_context(c)? else {
         return Ok((ReferenceUpgrade::Current, None));
     };
-    // This predecessor is replaced from source, never decoded by the new model.
-    let replace_source = original.snapshot_version == 1
-        && original.source_contract
-            == "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8";
-    if !replace_source
-        && (original.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
-            || original.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID)
-    {
-        return Err(IndexError::Unsupported(
-            "stored source snapshot contract is unsupported".into(),
-        ));
-    }
+    check_snapshot_contract(&original)?;
+    let replace_source = uses_retired_snapshot_contract(&original);
     let current_catalog = crate::query::QUERY_CAPABILITY_VERSION;
     if original.query_catalog_version == 0 || original.query_catalog_version > current_catalog {
         return Err(IndexError::Unsupported(
@@ -244,79 +255,112 @@ pub fn ensure_reference_projections(
         crate::recover_reference_publication(&owner, schema)?;
         return Ok(false);
     };
-    let scratch = crate::BuildScratch::new(&owner)?;
-    maintenance.publish(|c| {
-        let stored = read_stored_reference_context(c)?.ok_or_else(|| {
-            IndexError::Invalid("projection upgrade lost its reference context".into())
-        })?;
-        let query_changed = stored.query_catalog_version != target.query_catalog_version
-            || stored.query_projection_version != target.query_projection_version;
-        let lexical_changed = stored.lexical_selection_version != target.lexical_selection_version;
-        let core_changed = stored.core_sections_recipe != target.core_sections_recipe;
-        let mut lexical = if lexical_changed {
-            Some(crate::BuildFrameStream::<crate::SourceLexicalUnitInput>::new_in(scratch.path())?)
-        } else {
-            None
-        };
-        let mut ids = std::collections::BTreeMap::new();
-        if query_changed || lexical_changed {
-            crate::visit_persisted_inputs(c, &target, &mut |source| {
-                let (id, label): (i64, String) = c.query_row(
+    maintenance.publish(|connection| apply_projections(&owner, connection, &target))
+}
+
+/// Update projections with the caller's current-workspace publication owner.
+/// A pre-existing maintenance marker is an error for this path.
+pub fn refresh_reference_projections(
+    workspace: &Workspace,
+    owner: &UpdateOwner,
+    schema: u32,
+    check_destination: impl Fn() -> Result<(), IndexError>,
+) -> Result<bool, IndexError> {
+    if workspace.path() != owner.path() {
+        return Err(IndexError::Invalid(
+            "projection owner belongs to a different workspace".into(),
+        ));
+    }
+    let target = upgrade_context(workspace.read(schema)?.connection())?;
+    let Some(target) = target else {
+        return Ok(false);
+    };
+    owner.publish(schema, |connection| {
+        check_destination()?;
+        let applied = apply_projections(owner, connection, &target)?;
+        check_destination()?;
+        Ok(applied)
+    })
+}
+
+fn apply_projections(
+    owner: &UpdateOwner,
+    c: &rusqlite::Connection,
+    target: &SourceArtifactBuildContext,
+) -> Result<bool, IndexError> {
+    let scratch = crate::BuildScratch::new(owner)?;
+    let stored = read_stored_reference_context(c)?.ok_or_else(|| {
+        IndexError::Invalid("projection upgrade lost its reference context".into())
+    })?;
+    let query_changed = stored.query_catalog_version != target.query_catalog_version
+        || stored.query_projection_version != target.query_projection_version;
+    let lexical_changed = stored.lexical_selection_version != target.lexical_selection_version;
+    let core_changed = stored.core_sections_recipe != target.core_sections_recipe;
+    let mut lexical = if lexical_changed {
+        Some(crate::BuildFrameStream::<crate::SourceLexicalUnitInput>::new_in(scratch.path())?)
+    } else {
+        None
+    };
+    let mut ids = std::collections::BTreeMap::new();
+    if query_changed || lexical_changed {
+        crate::visit_persisted_inputs(c, target, &mut |source| {
+            let (id, label): (i64, String) = c.query_row(
                     "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
                     [source.record.key().to_string()],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?;
-                if let Some(frames) = &mut lexical {
-                    ids.insert(source.record.key().clone(), id);
-                    let selection = atlas_record::source_record::select_record_search(
-                        &source.record,
-                        &source.content,
-                        target.audience,
-                        &label,
-                        &target.used_trait_labels,
-                    )
-                    .map_err(|error| IndexError::Invalid(error.to_string()))?;
-                    let aliases = c
-                        .prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?
-                        .query_map([id], |row| row.get::<_, String>(0))?
-                        .collect::<Result<Vec<_>, _>>()?;
-                    for unit in crate::project_lexical_units(&selection, &aliases) {
-                        frames.push(&unit)?;
-                    }
+            if let Some(frames) = &mut lexical {
+                ids.insert(source.record.key().clone(), id);
+                let selection = atlas_record::source_record::select_record_search(
+                    &source.record,
+                    &source.content,
+                    target.audience,
+                    &label,
+                    &target.used_trait_labels,
+                )
+                .map_err(|error| IndexError::Invalid(error.to_string()))?;
+                let aliases = c
+                    .prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?
+                    .query_map([id], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                for unit in crate::project_lexical_units(&selection, &aliases) {
+                    frames.push(&unit)?;
                 }
-                if !query_changed {
-                    return Ok(());
-                }
-                let mut footprint = crate::projections::ProjectionIds::default();
-                let rows = crate::projections::root_rows(&source, &label, id, &mut footprint)?;
-                crate::publication_delta::replace_query_rows(c, id, footprint.end(), rows)?;
-                c.execute(
-                    "DELETE FROM developer_diagnostics WHERE record_id=? AND stage='projection'",
-                    [id],
-                )?;
-                for diagnostic in crate::projections::projection_diagnostics(&source.record) {
-                    crate::writer::write_diagnostic(c, id, &diagnostic)?;
-                }
-                Ok(())
-            })?;
-        }
-        if let Some(frames) = &lexical {
-            crate::publication_delta::lexical_stream(c, &ids, &mut |visitor| {
-                frames.visit(&mut |row| visitor(&row))
-            })?;
-        }
-        // Core lexical membership names concrete lexical unit IDs. Rebuilding
-        // lexical rows can replace those IDs even when the Core recipe is current.
-        if core_changed || lexical_changed {
-            crate::core_projection::backfill_core_sections(c, &target)?;
-        }
-        let json = serde_json::to_string(&target)?;
-        let catalog_changed = stored.query_catalog_version != target.query_catalog_version;
-        let catalog_fingerprint = catalog_changed.then(crate::catalog_fingerprint::current).transpose()?;
-        c.execute("UPDATE artifact_context SET context_hash=?,context_json=?,query_catalog_sha256=coalesce(?,query_catalog_sha256) WHERE singleton=1",
+            }
+            if !query_changed {
+                return Ok(());
+            }
+            let mut footprint = crate::projections::ProjectionIds::default();
+            let rows = crate::projections::root_rows(&source, &label, id, &mut footprint)?;
+            crate::publication_delta::replace_query_rows(c, id, footprint.end(), rows)?;
+            c.execute(
+                "DELETE FROM developer_diagnostics WHERE record_id=? AND stage='projection'",
+                [id],
+            )?;
+            for diagnostic in crate::projections::projection_diagnostics(&source.record) {
+                crate::writer::write_diagnostic(c, id, &diagnostic)?;
+            }
+            Ok(())
+        })?;
+    }
+    if let Some(frames) = &lexical {
+        crate::publication_delta::lexical_stream(c, &ids, &mut |visitor| {
+            frames.visit(&mut |row| visitor(&row))
+        })?;
+    }
+    // Core lexical membership names concrete lexical unit IDs. Rebuilding
+    // lexical rows can replace those IDs even when the Core recipe is current.
+    if core_changed || lexical_changed {
+        crate::core_projection::backfill_core_sections(c, target)?;
+    }
+    let json = serde_json::to_string(target)?;
+    let catalog_changed = stored.query_catalog_version != target.query_catalog_version;
+    let catalog_fingerprint = catalog_changed
+        .then(crate::catalog_fingerprint::current)
+        .transpose()?;
+    c.execute("UPDATE artifact_context SET context_hash=?,context_json=?,query_catalog_sha256=coalesce(?,query_catalog_sha256) WHERE singleton=1",
             rusqlite::params![sha256(json.as_bytes()), json, catalog_fingerprint.map(|digest| digest.as_slice())])?;
-        crate::component_digests::refresh_present(c, &target)?;
-        crate::validate_reference(c)?;
-        Ok::<_, IndexError>(true)
-    })
+    crate::component_digests::refresh_present(c, target)?;
+    crate::validate_reference(c)?;
+    Ok::<_, IndexError>(true)
 }

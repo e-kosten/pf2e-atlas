@@ -359,8 +359,9 @@ active reference output. Explicit setup overrides update that intent; omitted
 options preserve it. Adding a profile retains already requested profiles.
 
 Runtime composes reference and saved-domain SQL into the release checkpoint and
-one ordered migration ledger. Storage creates new workspaces at schema 42 and
-upgrades authenticated schema 41 workspaces after taking a backup. See
+one ordered migration ledger. Storage creates new workspaces at schema 43 and
+upgrades authenticated schema 42 workspaces after runtime captures saved state
+in a recovery archive. See
 [release schema and migration admission](decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
 Supported query-catalog changes rebuild typed projections from retained DTOs
 without source admission or inference. Other component changes require their corresponding

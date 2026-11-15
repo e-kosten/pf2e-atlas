@@ -6,20 +6,14 @@ export function AtlasMark() {
       aria-hidden="true"
       focusable="false"
     >
-      <circle className="atlas-mark__ring" cx="80" cy="80" r="58" />
-      <circle className="atlas-mark__ring-inner" cx="80" cy="80" r="50" />
-
-      <g className="atlas-mark__ticks">
-        <path d="M80 31v7M80 122v7M31 80h7M122 80h7" />
-        <path d="m45.4 45.4 5 5M109.6 109.6l5 5M114.6 45.4l-5 5M50.4 109.6l-5 5" />
-      </g>
-
-      <g className="atlas-mark__secondary-points">
-        <path d="M119 41 91.3 80 80 68.7Z" />
-        <path d="M119 119 80 91.3 91.3 80Z" />
-        <path d="M41 119 68.7 80 80 91.3Z" />
-        <path d="M41 41 80 68.7 68.7 80Z" />
-      </g>
+      <circle
+        className="atlas-mark__ring"
+        cx="80"
+        cy="80"
+        r="54"
+        fill="none"
+        strokeWidth="8"
+      />
 
       <g className="atlas-mark__cardinal-points">
         <path d="M80 6 94.5659 70 80 66 65.4341 70Z" />
@@ -34,7 +28,7 @@ export function AtlasMark() {
         <path d="M6 80H66L70 93.042Z" />
       </g>
 
-      <g transform="translate(59 55.8752) scale(.42)">
+      <g transform="translate(48.5 43.8128) scale(.63)">
         <path
           className="atlas-mark__die-rim"
           d="M50 0 100 28.72 100 86.16 50 114.88 0 86.16 0 28.72Z"

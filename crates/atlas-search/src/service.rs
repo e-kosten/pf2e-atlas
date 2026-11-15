@@ -31,15 +31,19 @@ impl AtlasRetrievalService {
         query_embedding: Option<PreparedQueryEmbedding>,
     ) -> Result<Self, SearchError> {
         if let Some(prepared) = &query_embedding
-            && index
+            && !index
                 .context()
-                .search_profile(&prepared.profile.profile_id)?
-                != &prepared.profile
+                .search_profile(prepared.profile_id())
+                .is_ok_and(|profile| profile == &prepared.profile)
         {
             return Err(SearchError::vector_readiness_required(
                 "query model changed during preparation; retry",
             ));
         }
+        let default_profile = query_embedding
+            .as_ref()
+            .map(|query| query.profile_id().clone())
+            .unwrap_or(default_profile);
         Ok(Self {
             index,
             bestiary_glossary: std::cell::OnceCell::new(),
@@ -134,6 +138,10 @@ pub struct PreparedQueryEmbedding {
     vector: Vec<f32>,
 }
 impl PreparedQueryEmbedding {
+    pub fn profile_id(&self) -> &SearchProfileId {
+        &self.profile.profile_id
+    }
+
     #[cfg(test)]
     pub(crate) fn for_fixture(
         profile: atlas_index::SourceSearchProfileIdentity,

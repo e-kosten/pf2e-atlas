@@ -35,6 +35,7 @@ pub struct PreparedPublication<'owner> {
     cache_bytes: u64,
     cache_limit: u64,
     rebuild: Option<Rebuild<'owner>>,
+    check_destination: Option<&'owner dyn Fn() -> Result<(), IndexError>>,
 }
 impl<'owner> PreparedPublication<'owner> {
     pub fn new_in(
@@ -43,7 +44,24 @@ impl<'owner> PreparedPublication<'owner> {
         scratch: &Path,
         metadata: PublicationSpool,
     ) -> Result<Self, IndexError> {
-        Self::prepare(owner, schema, scratch, metadata, None)
+        Self::prepare(owner, schema, scratch, metadata, None, None)
+    }
+
+    pub fn new_checked(
+        owner: &'owner UpdateOwner,
+        schema: u32,
+        scratch: &Path,
+        metadata: PublicationSpool,
+        check_destination: &'owner dyn Fn() -> Result<(), IndexError>,
+    ) -> Result<Self, IndexError> {
+        Self::prepare(
+            owner,
+            schema,
+            scratch,
+            metadata,
+            None,
+            Some(check_destination),
+        )
     }
 
     /// Stage a complete rebuild privately, with no published or pending reuse.
@@ -62,6 +80,7 @@ impl<'owner> PreparedPublication<'owner> {
                 repair,
                 configuration,
             }),
+            None,
         )
     }
 
@@ -71,11 +90,12 @@ impl<'owner> PreparedPublication<'owner> {
         scratch: &Path,
         metadata: PublicationSpool,
         rebuild: Option<Rebuild<'owner>>,
+        check_destination: Option<&'owner dyn Fn() -> Result<(), IndexError>>,
     ) -> Result<Self, IndexError> {
         let validation_started = std::time::Instant::now();
         crate::writer::validate_input(&metadata)?;
         tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,"Completed publication input validation");
-        Self::stage(owner, schema, scratch, metadata, rebuild)
+        Self::stage(owner, schema, scratch, metadata, rebuild, check_destination)
     }
 
     fn stage(
@@ -84,6 +104,7 @@ impl<'owner> PreparedPublication<'owner> {
         scratch: &Path,
         metadata: PublicationSpool,
         rebuild: Option<Rebuild<'owner>>,
+        check_destination: Option<&'owner dyn Fn() -> Result<(), IndexError>>,
     ) -> Result<Self, IndexError> {
         let workspace = Workspace::at(owner.path())?;
         let (cache_bytes, previous) = if rebuild.is_some() {
@@ -102,6 +123,7 @@ impl<'owner> PreparedPublication<'owner> {
             drop(read);
             if has_overlaps {
                 let write = workspace.write(schema)?;
+                check_destination.map_or(Ok(()), |check| check())?;
                 crate::writer::check_expected(write.connection(), &metadata)?;
                 write.connection().execute(
                     "DELETE FROM pending_embedding_values WHERE EXISTS(
@@ -152,6 +174,7 @@ impl<'owner> PreparedPublication<'owner> {
             cache_bytes,
             cache_limit: CACHE_PAYLOAD_LIMIT,
             rebuild,
+            check_destination,
         };
         if publication.rebuild.is_none() {
             publication.evict_cache()?;
@@ -355,6 +378,7 @@ impl<'owner> PreparedPublication<'owner> {
         }
         if self.rebuild.is_none() {
             let write = self.workspace.write(self.schema)?;
+            self.check_location()?;
             crate::writer::check_expected(write.connection(), &self.metadata)?;
             let mut next_cache_bytes = self.cache_bytes;
             {
@@ -399,17 +423,42 @@ impl<'owner> PreparedPublication<'owner> {
         Ok(())
     }
     pub fn publish(self) -> Result<(), IndexError> {
-        self.publish_inner(false)
+        self.publish_inner(false, None)
     }
 
     /// Activate the first stored profiles while the published keyword snapshot
     /// remains readable. The storage owner will reject unrelated structural work.
     pub fn publish_first_profiles(self) -> Result<(), IndexError> {
-        self.publish_inner(true)
+        self.publish_inner(true, None)
     }
 
-    fn publish_inner(self, shared: bool) -> Result<(), IndexError> {
+    pub fn publish_model_change(
+        self,
+        change: &crate::WorkspaceModelChange,
+    ) -> Result<(), IndexError> {
+        if self
+            .metadata
+            .context
+            .canonical_profiles()?
+            .iter()
+            .map(|profile| &profile.profile_id)
+            .ne(change.configuration.search_profiles.iter())
+        {
+            return Err(invalid("model selection differs from prepared publication"));
+        }
+        self.publish_inner(false, Some(change))
+    }
+
+    fn publish_inner(
+        self,
+        shared: bool,
+        models: Option<&crate::WorkspaceModelChange>,
+    ) -> Result<(), IndexError> {
         let admit = |connection: &rusqlite::Connection| -> Result<bool, IndexError> {
+            self.check_location()?;
+            if let Some(models) = models {
+                models.check(connection)?;
+            }
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
             if self.rebuild.is_some() {
@@ -472,7 +521,12 @@ impl<'owner> PreparedPublication<'owner> {
                 crate::validate_reference_with_token_count_digests(connection)?;
                 crate::requested_config::write_configuration(connection, &rebuild.configuration)?;
             }
-            Ok(())
+            if let Some(models) = models {
+                models.commit(connection)?;
+            } else if self.schema >= crate::WORKSPACE_SETTINGS_SCHEMA_VERSION {
+                crate::workspace_settings::retain_published_preference(connection)?;
+            }
+            self.check_location()
         };
         let ordinary = |connection: &rusqlite::Connection| apply(connection, admit(connection)?);
         if let Some(rebuild) = &self.rebuild {
@@ -539,6 +593,7 @@ impl<'owner> PreparedPublication<'owner> {
     fn evict_cache(&mut self) -> Result<(), IndexError> {
         while self.cache_bytes > self.cache_limit {
             let write = self.workspace.write(self.schema)?;
+            self.check_location()?;
             let mut next_cache_bytes = self.cache_bytes;
             let oldest = write.connection().prepare("SELECT p.input_id,length(p.vector),i.model_id FROM pending_embedding_values p LEFT JOIN embedding_inputs i USING(input_id) ORDER BY p.cached_at,p.input_id LIMIT 128")?.query_map([], |r| Ok((r.get::<_,i64>(0)?,r.get::<_,u64>(1)?,r.get::<_,Option<i64>>(2)?)))?.collect::<Result<Vec<_>,_>>()?;
             if oldest.is_empty() {
@@ -566,6 +621,10 @@ impl<'owner> PreparedPublication<'owner> {
             self.cache_bytes = next_cache_bytes;
         }
         Ok(())
+    }
+
+    fn check_location(&self) -> Result<(), IndexError> {
+        self.check_destination.map_or(Ok(()), |check| check())
     }
     fn install_staged(
         &self,

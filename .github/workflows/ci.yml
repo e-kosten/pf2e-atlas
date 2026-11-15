@@ -8,6 +8,22 @@ on:
         type: string
   pull_request:
   workflow_dispatch:
+    inputs:
+      full-embedding-probe:
+        description: Run the full embedding compatibility comparison
+        type: boolean
+        default: false
+      capture-embedding-fixtures:
+        description: Generate unpublished v2 fixture artifacts on all release targets
+        type: boolean
+        default: false
+      capture-workspace-only:
+        description: Capture a workspace and replay with published numerical fixtures
+        type: boolean
+        default: false
+      fixture-producer-receipt:
+        description: Optional checked-in producer receipt path
+        type: string
   push:
     branches:
       - main
@@ -30,6 +46,8 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       rust: ${{ steps.select.outputs.rust }}
+      corpus: ${{ steps.select.outputs.corpus }}
+      desktop: ${{ steps.select.outputs.desktop }}
       windows: ${{ steps.select.outputs.windows }}
       audit: ${{ steps.select.outputs.audit }}
       web: ${{ steps.select.outputs.web }}
@@ -43,17 +61,39 @@ jobs:
       tooling: ${{ steps.select.outputs.tooling }}
       embedding: ${{ steps.select.outputs.embedding }}
       embedding-runners: ${{ steps.select.outputs.embedding-runners }}
+      embedding-build: ${{ steps.select.outputs.embedding-build }}
+      embedding-near-limit: ${{ steps.select.outputs.embedding-near-limit }}
+      workspace: ${{ steps.select.outputs.workspace }}
+      workspace-runners: ${{ steps.select.outputs.workspace-runners }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
           fetch-depth: 0
+      - name: Validate fixture capture inputs
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          CAPTURE: ${{ inputs.capture-embedding-fixtures }}
+          WORKSPACE_ONLY: ${{ inputs.capture-workspace-only }}
+          PRODUCER_RECEIPT: ${{ inputs.fixture-producer-receipt }}
+          FULL_PROBE: ${{ inputs.full-embedding-probe }}
+        run: |
+          if [[ "$CAPTURE" != true && ( "$WORKSPACE_ONLY" == true || -n "$PRODUCER_RECEIPT" ) ]]; then
+            echo 'Enable capture-embedding-fixtures to select a producer or capture only a workspace.' >&2
+            exit 1
+          fi
+          if [[ "$WORKSPACE_ONLY" == true && "$FULL_PROBE" == true ]]; then
+            echo 'Run workspace-only capture and the full manual probe separately.' >&2
+            exit 1
+          fi
       - name: Select validation surfaces
         id: select
         env:
           EVENT: ${{ github.event_name }}
           SOURCE_REF: ${{ inputs.source-ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EMBEDDING_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           if [[ "$EVENT" == pull_request && -z "$SOURCE_REF" ]]; then
@@ -61,31 +101,71 @@ jobs:
           else
             scripts/verify-changed.sh --all --list > selected-checks
           fi
-          embedding_args=(--select --base "$BASE_SHA")
+          if [[ "$EVENT" == pull_request ]] && grep -qx 'fanout=true' selected-checks; then
+            EMBEDDING_BASE=
+            BASE_SHA=
+          fi
+          embedding_args=(--select --base "$EMBEDDING_BASE")
+          if [[ -n "$SOURCE_REF" ]]; then embedding_args+=(--reusable); fi
           if [[ "$EVENT" == workflow_dispatch ]]; then
             embedding_args+=(--manual)
           fi
-          embedding_runners="$(python3 scripts/validation/embedding-stack.py "${embedding_args[@]}")"
-          echo "embedding-runners=$embedding_runners" >> "$GITHUB_OUTPUT"
-          if [[ "$embedding_runners" == '[]' ]]; then
-            echo "embedding=false" >> selected-checks
-          else
-            echo "embedding=true" >> selected-checks
-          fi
+          matrices="$(python3 scripts/validation/embedding-stack.py "${embedding_args[@]}")"
+          echo "embedding-build=$(jq -r '.build' <<< "$matrices")" >> "$GITHUB_OUTPUT"
+          echo "embedding-near-limit=$(jq -r '.near_limit' <<< "$matrices")" >> "$GITHUB_OUTPUT"
+          for pair in embedding:model workspace:workspace; do
+            flag="${pair%:*}"
+            key="${pair#*:}"
+            runners="$(jq -c --arg key "$key" '.[$key]' <<< "$matrices")"
+            echo "$flag-runners=$runners" >> "$GITHUB_OUTPUT"
+            if [[ "$runners" == '[]' ]]; then
+              echo "$flag=false" >> selected-checks
+            else
+              echo "$flag=true" >> selected-checks
+            fi
+          done
           windows=false
           if grep -q '^rust=true$' selected-checks; then
             windows="$(python3 scripts/validation/windows-selection.py --base "$BASE_SHA")"
           fi
           echo "windows=$windows" >> selected-checks
+          if [[ "$EVENT" != pull_request ]]; then
+            sed -i 's/^desktop=true$/desktop=false/' selected-checks
+          elif grep -qx 'rust=true' selected-checks && grep -qx 'dev=false' selected-checks; then
+            dev="$(python3 scripts/validation/windows-selection.py --developer --base "$BASE_SHA")"
+            sed -i "s/^dev=false$/dev=$dev/" selected-checks
+          fi
           cat selected-checks >> "$GITHUB_OUTPUT"
           cat selected-checks >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-node@v7
+
+  workspace:
+    name: offline workspace upgrade (${{ matrix.os }})
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.workspace == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.changes.outputs.workspace-runners) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
         with:
-          node-version: 26
-      - name: Check reviewed embedding dependencies
-        run: python3 scripts/validation/embedding-stack.py
-      - name: Validation routing regression tests
-        run: node scripts/validation/tooling.mjs
+          ref: ${{ inputs.source-ref || github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-workspace-crates: false
+      - name: Check setup and migration without loading models
+        shell: bash
+        run: |
+          cargo build --locked -p atlas-cli --no-default-features
+          cargo test --locked -p atlas-runtime release_migration_tests
+          candidate=target/debug/atlas
+          if [[ "$RUNNER_OS" == Windows ]]; then candidate+=.exe; fi
+          python scripts/validation/check-workspace-upgrade.py "$candidate"
 
   embedding:
     name: embedding compatibility (${{ matrix.os }})
@@ -96,12 +176,13 @@ jobs:
       matrix:
         os: ${{ fromJSON(needs.changes.outputs.embedding-runners) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && (inputs.full-embedding-probe || inputs.capture-embedding-fixtures) && 60 || 35 }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -109,43 +190,117 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           cache-workspace-crates: false
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
+        id: model-cache
         with:
           path: target/embedding-models
           key: embedding-models-v1-${{ hashFiles('crates/atlas-embedding/src/catalog.rs', 'crates/atlas-embedding/src/model_cache.rs') }}
       - name: Build candidate and verify pinned models
         run: |
           cargo build --locked -p atlas-cli --no-default-features
-          cargo build --locked -p atlas-runtime --example migrate-fixture-workspace
+          cargo build --locked -p atlas-runtime --example migrate-fixture-workspace --example read-fixture-vectors --example check-fixture-inference
           cargo run --locked -p atlas-embedding --example prepare-model-cache -- target/embedding-models
-      - name: Check native token IDs
+      - name: Check tokenizer goldens and ingest reuse
         shell: bash
         run: |
           ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
           export ATLAS_TEST_MODEL_CACHE
-          # Each test loads full model sessions; bound peak memory on release runners.
-          cargo test --locked -p atlas-embedding compatibility_tests -- --ignored --test-threads=1
+          cargo test --locked -p atlas-embedding pinned_query_and_document_token_ids_match_the_compatibility_baseline -- --ignored
+          cargo test --locked -p atlas-ingest edited_passage_only_sends_new_inputs_to_inference -- --ignored
+      - name: Check native near-limit batches separately for full manual probe
+        if: github.event_name == 'workflow_dispatch' && inputs.full-embedding-probe
+        shell: bash
+        run: |
+          ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
+          export ATLAS_TEST_MODEL_CACHE
+          cargo test --locked -p atlas-embedding mixed_length_unicode_batches_match_single_input_inference -- --ignored
       - name: Check search against release fixtures
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.capture-embedding-fixtures && inputs.capture-workspace-only) }}
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           GH_TOKEN: ${{ github.token }}
+          FULL_PROBE: ${{ github.event_name == 'workflow_dispatch' && inputs.full-embedding-probe }}
+          CHECK_BUILD: ${{ needs.changes.outputs.embedding-build }}
+          NEAR_LIMIT: ${{ needs.changes.outputs.embedding-near-limit }}
         run: |
           candidate=target/debug/atlas
           migrator=target/debug/examples/migrate-fixture-workspace
+          reader=target/debug/examples/read-fixture-vectors
+          inference=target/debug/examples/check-fixture-inference
           if [[ "$RUNNER_OS" == Windows ]]; then
             candidate+=.exe
             migrator+=.exe
+            reader+=.exe
+            inference+=.exe
           fi
-          python scripts/validation/probe-embedding-upgrade.py --pins \
+          if [[ -n "$BASE_SHA" ]] && ! git cat-file -e "$BASE_SHA^{commit}"; then BASE_SHA=; fi
+          compact=()
+          if [[ "$FULL_PROBE" != true ]]; then
+            compact+=(--compact-vector-reader "$reader" --fixture-inference "$inference")
+            if [[ "$CHECK_BUILD" == true ]]; then compact+=(--check-build); fi
+            if [[ "$NEAR_LIMIT" == true ]]; then compact+=(--near-limit); fi
+          fi
+          python scripts/validation/probe-embedding-upgrade.py --pins "${compact[@]}" \
             --base-ref "$BASE_SHA" --repository "$GITHUB_REPOSITORY" \
             --workspace-migrator "$migrator" \
             --candidate "$candidate" --model-cache target/embedding-models \
             --output "$RUNNER_TEMP/embedding-compatibility"
+      - name: Capture and check unpublished v2 fixtures
+        id: fixture-capture
+        if: github.event_name == 'workflow_dispatch' && inputs.capture-embedding-fixtures
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKSPACE_ONLY: ${{ inputs.capture-workspace-only }}
+          PRODUCER_RECEIPT: ${{ inputs.fixture-producer-receipt }}
+        run: |
+          candidate=target/debug/atlas
+          migrator=target/debug/examples/migrate-fixture-workspace
+          reader=target/debug/examples/read-fixture-vectors
+          inference=target/debug/examples/check-fixture-inference
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            candidate+=.exe
+            migrator+=.exe
+            reader+=.exe
+            inference+=.exe
+          fi
+          capture="$RUNNER_TEMP/embedding-v2-capture"
+          receipt=()
+          if [[ -n "$PRODUCER_RECEIPT" ]]; then receipt+=("--producer-receipt=$PRODUCER_RECEIPT"); fi
+          mode=(--compact-vector-reader "$reader")
+          if [[ "$WORKSPACE_ONLY" == true ]]; then mode=(--workspace-only); fi
+          python scripts/validation/probe-embedding-upgrade.py --produce-v2 \
+            --repository "$GITHUB_REPOSITORY" "${receipt[@]}" "${mode[@]}" \
+            --model-cache target/embedding-models --output "$capture"
+          workspace=("$capture"/workspace-*.tar.gz)
+          digest() { python -c 'from pathlib import Path; import hashlib,sys; print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())' "$1"; }
+          if [[ "$WORKSPACE_ONLY" == true ]]; then
+            replay=(--workspace-only --repository "$GITHUB_REPOSITORY" "${receipt[@]}")
+          else
+            numerical=("$capture"/numerical-*.json.gz)
+            replay=(--numerical "${numerical[0]}" --numerical-sha256 "$(digest "${numerical[0]}")")
+            unset GH_TOKEN
+          fi
+          python scripts/validation/probe-embedding-upgrade.py --v2-workspace "${workspace[0]}" \
+            --sha256 "$(digest "${workspace[0]}")" "${replay[@]}" --fixture-inference "$inference" \
+            --candidate "$candidate" --workspace-migrator "$migrator" --compact-vector-reader "$reader" \
+            --model-cache target/embedding-models --output "$RUNNER_TEMP/embedding-v2-check"
+      - uses: actions/upload-artifact@v7
+        if: steps.fixture-capture.outcome == 'success'
+        with:
+          name: embedding-v2-fixtures-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/embedding-v2-capture/workspace-*.tar.gz
+            ${{ runner.temp }}/embedding-v2-capture/numerical-*.json.gz
+            ${{ runner.temp }}/embedding-v2-capture/fixture-digests.json
+            ${{ runner.temp }}/embedding-v2-check/fixture-replay.json
+          if-no-files-found: error
       - name: Summarize results
         if: ${{ always() }}
         shell: bash
         run: |
+          echo "Model cache hit: ${{ steps.model-cache.outputs.cache-hit }}" >> "$GITHUB_STEP_SUMMARY"
           for report in "$RUNNER_TEMP"/embedding-compatibility/bundle-*/result.json; do
             if [[ -f "$report" ]]; then
               { echo '~~~json'; cat "$report"; echo '~~~'; } >> "$GITHUB_STEP_SUMMARY"
@@ -156,37 +311,6 @@ jobs:
         with:
           name: embedding-compatibility-${{ matrix.os }}
           path: ${{ runner.temp }}/embedding-compatibility/bundle-*/*.json
-
-  advisories:
-    name: advisories
-    needs: changes
-    if: needs.changes.outputs.audit == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-      - name: Scan Cargo and npm lockfiles
-        run: python3 scripts/validation/dependency-audit.py
-
-  skill:
-    name: bundled skill
-    needs: changes
-    if: needs.changes.outputs.skill == 'true'
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-      - run: node --test scripts/validation/skill.test.ts
-      - run: node scripts/validation/skill.ts
 
   web-bundle:
     needs: changes
@@ -235,7 +359,7 @@ jobs:
           name: web-bundle
           path: web/atlas-ui/dist
       - name: Install nextest
-        uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68 # v2
+        uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2
         with:
           tool: cargo-nextest@0.9.150
       - uses: actions/setup-node@v7
@@ -341,39 +465,60 @@ jobs:
           path: scratch/responsive-validation/browser/
           retention-days: 3
 
-  windows-artifact:
+  windows:
     needs: changes
-    if: needs.changes.outputs.windows == 'true' || needs.changes.outputs.tooling == 'true'
-    name: Windows artifact publication
+    if: needs.changes.outputs.windows == 'true' || needs.changes.outputs.tooling == 'true' || needs.changes.outputs.release == 'true'
+    name: Windows checks
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
+        id: checkout
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
         if: needs.changes.outputs.windows == 'true'
       - name: Verify bounded storage sessions and file release
+        id: storage
         if: needs.changes.outputs.windows == 'true'
         run: cargo test -p atlas-storage --locked
       - name: Verify artifact coherence and publication
+        id: publication
         if: needs.changes.outputs.windows == 'true'
         run: cargo test -p atlas-index --lib --locked foundation_tests
       - name: Verify atomic publication and vector repacking after process crashes
+        id: crashes
         if: needs.changes.outputs.windows == 'true'
         run: cargo test -p atlas-index --lib --locked publication_crash_tests
 
       - uses: actions/setup-node@v7
-        if: needs.changes.outputs.tooling == 'true'
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && (needs.changes.outputs.tooling == 'true' || needs.changes.outputs.release == 'true') }}
+        id: node
         with:
           node-version: 26
       - name: Native Windows validation cancellation
-        if: needs.changes.outputs.tooling == 'true'
+        id: cancellation
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.tooling == 'true' }}
         shell: bash
         run: node --test scripts/validation/native-cancellation.test.mjs
 
+      - name: Verify private release tools and Windows installer
+        id: release
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.release == 'true' }}
+        shell: bash
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run verify
+          pwsh -NoProfile -File scripts/release/test-installer.ps1
+      - name: Require selected checks to complete
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        env:
+          SELECTION_JSON: ${{ toJSON(needs.changes.outputs) }}
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: node scripts/validation/ci-results.mjs windows
+
   atlas-dev:
     needs: changes
-    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.dev == 'true'
+    if: needs.changes.outputs.dev == 'true'
     name: atlas dev (no web bundle)
     runs-on: ubuntu-24.04
     steps:
@@ -428,44 +573,112 @@ jobs:
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run test
 
-  source-contracts:
+  repository-tooling:
+    name: repository tooling
     needs: changes
-    if: needs.changes.outputs.source == 'true'
-    name: source contracts
+    if: >-
+      needs.changes.outputs.audit == 'true' || needs.changes.outputs.skill == 'true' ||
+      needs.changes.outputs.research == 'true' || needs.changes.outputs.source == 'true' ||
+      needs.changes.outputs.release == 'true' || needs.changes.outputs.tooling == 'true' ||
+      needs.changes.outputs.corpus == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        id: checkout
         with:
           ref: ${{ inputs.source-ref || github.sha }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
       - uses: actions/setup-node@v7
+        id: node
         with:
           node-version: 26
           cache: npm
-          cache-dependency-path: dev-tools/source-contracts/package-lock.json
+          cache-dependency-path: |
+            web/atlas-ui/package-lock.json
+            dev-tools/source-contracts/package-lock.json
+            dev-tools/release/package-lock.json
+      - name: Check reviewed embedding dependencies
+        id: embedding-receipt
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && (needs.changes.outputs.audit == 'true' || needs.changes.outputs.tooling == 'true') }}
+        run: python3 scripts/validation/embedding-stack.py
+      - name: Scan Cargo and npm lockfiles
+        id: audit
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.audit == 'true' }}
+        timeout-minutes: 10
+        run: python3 scripts/validation/dependency-audit.py
+      - name: Bundled skill
+        id: skill
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.skill == 'true' }}
+        run: |
+          node --test scripts/validation/skill.test.ts
+          node scripts/validation/skill.ts
+      - name: Research evidence
+        id: research
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.research == 'true' }}
+        run: sh scripts/validation/research.sh
+      - name: Validation routing regression tests
+        id: tooling
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.tooling == 'true' }}
+        run: node scripts/validation/tooling.mjs
+      - name: Discover full-corpus Playwright tests
+        id: corpus
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.corpus == 'true' }}
+        env:
+          STATIC_CHECKS_IN_BUNDLE: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.browser == 'true' }}
+        run: |
+          npm --prefix web/atlas-ui ci
+          if [[ "$STATIC_CHECKS_IN_BUNDLE" != true ]]; then
+            npm --prefix web/atlas-ui run check
+          fi
+          npm --prefix web/atlas-ui run test:e2e:list
+          echo 'Full-corpus Playwright discovery passed. Test execution requires a prepared Atlas server.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && needs.changes.outputs.source == 'true' }}
+        id: source-rust
+        with:
+          components: rustfmt
       - name: Prepare repository Rust formatter
+        if: ${{ !cancelled() && steps.source-rust.outcome == 'success' }}
+        id: source-formatter
         # Node test files run concurrently; resolve/install the repo-pinned
         # toolchain before their rustfmt subprocesses can race rustup.
         run: rustfmt --version
       - name: Source contract fixture tests
+        if: ${{ !cancelled() && steps.source-formatter.outcome == 'success' && steps.node.outcome == 'success' }}
+        id: source-tests
         run: |
           npm --prefix dev-tools/source-contracts ci --ignore-scripts
           cargo fetch --locked
           npm --prefix dev-tools/source-contracts run verify
       - name: Verify Rust portfolio from the pinned Foundry source
+        id: source-generate
+        if: ${{ !cancelled() && steps.source-tests.outcome == 'success' }}
         run: npm --prefix dev-tools/source-contracts run verify-generated
+
+      - name: Linux release tools and installer smoke tests
+        id: release
+        if: ${{ !cancelled() && steps.node.outcome == 'success' && needs.changes.outputs.release == 'true' }}
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          scripts/release/validate-release-tooling.sh
+          scripts/release/test-release-tools.sh
+          scripts/release/test-prepare-release.sh
+      - name: Require selected checks to complete
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
+        env:
+          SELECTION_JSON: ${{ toJSON(needs.changes.outputs) }}
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: node scripts/validation/ci-results.mjs repository-tooling
+
+  desktop:
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    uses: ./.github/workflows/macos-desktop.yml
 
   release-tools:
     needs: changes
     if: needs.changes.outputs.release == 'true'
-    name: release tools (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-26, windows-2022]
-    runs-on: ${{ matrix.os }}
+    name: macOS release tools
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
         with:
@@ -477,42 +690,16 @@ jobs:
           cache-dependency-path: dev-tools/release/package-lock.json
       - name: Install release tool dependencies
         run: npm --prefix dev-tools/release ci --ignore-scripts
-      - name: Verify private release tools on Windows
-        if: runner.os == 'Windows'
-        # Archive fixtures also need Git Bash's XZ-capable tar.
-        shell: bash
-        run: npm --prefix dev-tools/release run verify
       - name: Unix installer and preparation smoke tests
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           scripts/release/validate-release-tooling.sh
           scripts/release/test-release-tools.sh
           scripts/release/test-prepare-release.sh
-      - name: Windows installer smoke tests
-        if: runner.os == 'Windows'
-        # Git Bash supplies XZ-capable tar; Windows' bundled tar cannot create XZ.
-        shell: bash
-        run: pwsh -NoProfile -File scripts/release/test-installer.ps1
-
-  research:
-    name: research evidence
-    needs: changes
-    if: needs.changes.outputs.research == 'true'
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-      - run: sh scripts/validation/research.sh
-
   validation:
     name: validation complete
     if: ${{ !cancelled() }}
-    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding, advisories]
+    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows, atlas-dev, web-ui, repository-tooling, release-tools, embedding, workspace, desktop]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

@@ -110,8 +110,9 @@ it("keeps a keyword session stable when stored vectors become ready", async () =
   expect(result.current.keywordSearch).toBe(false);
   expect(result.current.usable).toBe(true);
   rerender({ readiness: { ...ready, search_profiles: [] } });
-  expect(result.current.keywordSearch).toBe(true);
-  expect(result.current.error).toBeNull();
+  expect(result.current.keywordSearch).toBe(false);
+  expect(result.current.canResetLink).toBe(true);
+  expect(result.current.id).toBe("bge-base");
 });
 
 it("keeps live tabs independent, retains route changes, and honors explicit Back URLs", async () => {

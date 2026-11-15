@@ -46,15 +46,44 @@ counts; JSON output includes excluded file paths and reasons under
 
 ### Upgrade an older prerelease workspace
 
-The release upgrades an existing SQLite workspace from schema 41. If setup
-reports an older schema, [back up your workspace](#back-up-and-restore-your-workspace)
-first. Run `atlas setup` on that workspace with the
-[schema 41 prerelease](https://github.com/e-kosten/pf2e-atlas/releases/tag/v0.1.0-nightly.20261109050726.g787c00b3b26e).
-Once it succeeds, switch to the current Atlas and run setup again. Atlas keeps
-a separate upgrade backup beside the workspace.
+The current Atlas upgrades schema 42 workspaces in place. Choose **Upgrade
+workspace** in the macOS app or run `atlas setup` in the terminal. Close other
+Atlas desktop and `atlas web` sessions for that workspace first. For an older
+schema, use the [schema 42 prerelease](https://github.com/e-kosten/pf2e-atlas/releases/tag/v0.1.0-nightly.20261112173917.g449cf4c9315c)
+to reach schema 42 before switching to the current Atlas.
+
+Before changing the schema, Atlas retains one saved-state archive beside the
+database at `workspace.sqlite.upgrade-archive.json`. It includes saved lists,
+parties, encounters and the requested reference configuration. Reference data
+and embeddings stay in the workspace. If capture fails, Atlas stops before
+changing the database. If migration fails after capture, the database rolls back
+and the archive stays available.
+
+To recover saved work explicitly, initialize a separate workspace with empty
+saved state, then run `atlas workspace restore PATH_TO_ARCHIVE --index PATH_TO_WORKSPACE`.
+Run reference setup separately if the recovery workspace needs it.
 
 If your old version stored reference and saved state in separate files, follow
 the reported error and keep those files for recovery.
+
+## Manage search models in the macOS app
+
+Open the gear next to Theme for **Setup and Updates**. **Search models** lets
+you keep BGE Base, EmbeddingGemma, both, or keyword-only search. Choose a
+default and select **Apply search models**. Automatic uses the only installed
+model, or BGE Base when both are installed. Similar records needs a model.
+
+Adding or removing models keeps browsing and the previous search index available
+during preparation. Editing pauses until setup finishes. Reference data must
+match the bundled version before changing which models are installed. You can
+change the default among usable installed models without rebuilding the index.
+An open search keeps its selected model until you submit a new search or
+choose to rerun it. A model specified in a link or your Search settings takes
+precedence over the workspace default.
+
+Use **Terminal and agent access** in the same drawer to link the bundled command
+at `~/.local/bin/atlas`. Run `command -v atlas` to see which command your shell
+uses. The native setup window still accepts a custom bin folder.
 
 ## Run setup without downloads
 

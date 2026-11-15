@@ -93,7 +93,9 @@ pub struct OwnedContentLocator {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum OwnedContentIdentity {
     /// A source ID whose validity and uniqueness were checked by the caller.
+    #[serde(rename = "Stable")]
     Stable(String),
     /// Missing/duplicate/invalid IDs retain content without claiming stable identity.
+    #[serde(rename = "SnapshotLocal")]
     SnapshotLocal { index: usize },
 }

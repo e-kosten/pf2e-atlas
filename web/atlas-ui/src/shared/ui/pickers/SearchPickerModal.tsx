@@ -15,7 +15,7 @@ import {
   Typography,
 } from "antd";
 import type { FormInstance, InputRef, ModalProps } from "antd";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
 import {
   SearchProfileContext,
@@ -126,21 +126,31 @@ export function SearchPickerModal<FormValues>({
   const { token } = theme.useToken();
   const narrow = !Grid.useBreakpoint().lg;
   const inheritedProfile = useSearchProfile();
-  const [promotedProfile, setPromotedProfile] = useState<string>();
-  const selected = inheritedProfile.profiles.find(
-    (model) => model.id === promotedProfile,
+  const [submittedProfile, setSubmittedProfile] = useState<{ id: string | null }>();
+  const submission = useRef(0);
+  useEffect(
+    () => () => {
+      submission.current += 1;
+    },
+    [open],
   );
-  const profile =
-    promotedProfile && inheritedProfile.keywordSearch && selected?.usable
-      ? {
-          ...inheritedProfile,
-          id: selected.id,
-          keywordSearch: false,
-          automaticKeyword: false,
-          storedVectors: true,
-          usable: true,
-        }
-      : inheritedProfile;
+  const selected = inheritedProfile.profiles.find(
+    (model) => model.id === submittedProfile?.id,
+  );
+  const profile = submittedProfile
+    ? {
+        ...inheritedProfile,
+        id: submittedProfile.id,
+        keywordSearch: submittedProfile.id === null,
+        automaticKeyword: submittedProfile.id === null,
+        storedVectors: selected?.stored_vectors ?? false,
+        usable: selected?.usable ?? false,
+        error:
+          submittedProfile.id && !selected
+            ? "This search model was removed. Submit a search to use the workspace default."
+            : null,
+      }
+    : inheritedProfile;
   const [search, setSearch] = useState<SearchFormState>(() => ({
     ...DEFAULT_SEARCH_STATE,
     ranking: profile.preferences.ranking,
@@ -337,7 +347,7 @@ export function SearchPickerModal<FormValues>({
     });
   }
   const currentRows =
-    recordResults.error || !profileReady ? [] : (recordResults.data?.rows ?? []);
+    recordResults.error && profileReady ? [] : (recordResults.data?.rows ?? []);
 
   const [openingReady, setOpeningReady] = useState(false);
   const ready = Boolean(
@@ -349,7 +359,8 @@ export function SearchPickerModal<FormValues>({
   if (open && ready && !openingReady) setOpeningReady(true);
   const initialLoading = open && profileReady && !openingReady && !ready;
   const reset = () => {
-    setPromotedProfile(undefined);
+    submission.current += 1;
+    setSubmittedProfile(undefined);
     setSearch({
       ...DEFAULT_SEARCH_STATE,
       ranking: profile.preferences.ranking,
@@ -376,6 +387,28 @@ export function SearchPickerModal<FormValues>({
       }
     />
   ) : undefined;
+  function submitWithWorkspaceModel(apply: () => void) {
+    const version = ++submission.current;
+    const resolve = inheritedProfile.resolveWorkspaceDefault;
+    if (!resolve && !profile.semanticDefault) {
+      apply();
+      return;
+    }
+    const latest = resolve ? resolve() : Promise.resolve(undefined);
+    void latest.then((current) => {
+      if (version !== submission.current) return;
+      const commit = () => {
+        if (version !== submission.current) return;
+        if (current) setSubmittedProfile({ id: current.id });
+        else if (profile.keywordSearch && profile.semanticDefault)
+          setSubmittedProfile({ id: profile.semanticDefault });
+        apply();
+      };
+      if (!current && profile.keywordSearch && profile.semanticDefault)
+        void retrieval.refresh(commit);
+      else void retrieval.applyGeneration(current?.generation, commit);
+    });
+  }
   const rerunSemantic =
     !disabled &&
     !request.connection_scope &&
@@ -385,11 +418,7 @@ export function SearchPickerModal<FormValues>({
     recordResults.data?.mode.kind === "text_search" &&
     recordResults.data.mode.mode === "lexical"
       ? () => {
-          const model = profile.semanticDefault;
-          void retrieval.refresh(() => {
-            setPromotedProfile(model);
-            setPageNumber(1);
-          });
+          submitWithWorkspaceModel(() => setPageNumber(1));
         }
       : undefined;
   useSemanticRerunOwner(open, rerunSemantic);
@@ -540,16 +569,15 @@ export function SearchPickerModal<FormValues>({
                     if (
                       intent === "submit" &&
                       next.query.trim() &&
-                      profile.automaticKeyword &&
-                      profile.semanticDefault &&
-                      !request.connection_scope
+                      !request.connection_scope &&
+                      (inheritedProfile.resolveWorkspaceDefault ||
+                        (profile.automaticKeyword && profile.semanticDefault))
                     ) {
-                      const model = profile.semanticDefault;
-                      void retrieval.refresh(() => {
-                        setPromotedProfile(model);
-                        apply();
-                      });
-                    } else apply();
+                      submitWithWorkspaceModel(apply);
+                    } else {
+                      submission.current += 1;
+                      apply();
+                    }
                   },
                   filterEditor: discovery.filterEditor,
                   refreshFilterInformation: refreshResults,

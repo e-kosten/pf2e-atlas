@@ -13,7 +13,7 @@
       "version": "0.1.10"
     },
     {
-      "checksum": "84639ce0e454b7ac28e1eb030a0be9c5258328ad479c8f9a2ce6ae30eddd5900",
+      "checksum": "44a9bc53955bbc057a9df08b50218b297ff24aa791f3559d0cce5696cdd425ab",
       "dependencies": [
         "ndarray",
         "ort",
@@ -25,7 +25,7 @@
       ],
       "name": "fastembed",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "version": "7.6.0"
+      "version": "7.6.1"
     },
     {
       "checksum": "a06de3016e9fae57a36fd14dba131fccf49f74b40b7fbdb472f96e361ec71a08",
@@ -201,7 +201,7 @@
       "features": [
         "ort-download-binaries-rustls-tls"
       ],
-      "version": "=7.6.0"
+      "version": "=7.6.1"
     },
     "text-splitter": {
       "default-features": false,

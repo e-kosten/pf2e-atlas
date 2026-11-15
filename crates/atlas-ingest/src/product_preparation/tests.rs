@@ -462,6 +462,74 @@ fn tokenizer_only_options(fixture: &SourceFixture) -> BuildArtifactOptions {
     options
 }
 
+#[test]
+#[ignore = "requires the pinned tokenizer, no model weights"]
+fn edited_passage_only_sends_new_inputs_to_inference() {
+    let fixture = SourceFixture::new();
+    let options = tokenizer_only_options(&fixture);
+    let publish = || {
+        let inputs = crate::build::publish_fixture_without_inference(&options).unwrap();
+        let unique: BTreeMap<_, _> = inputs
+            .iter()
+            .map(|input| (input.input_sha256.clone(), input.token_count))
+            .collect();
+        assert_eq!(inputs.len(), unique.len(), "duplicate inference");
+        unique
+    };
+    let first = publish();
+    assert!(!first.is_empty());
+    let read_values = |path: &std::path::Path| -> BTreeMap<String, (usize, String)> {
+        atlas_index::validate_artifact(path).unwrap();
+        Connection::open(path)
+            .unwrap()
+            .prepare(
+                "SELECT lower(hex(input_hash)), token_count, hex(published_hash)
+                      FROM embedding_inputs WHERE published_hash IS NOT NULL",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, (row.get(1)?, row.get(2)?))))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    };
+    let original = read_values(&options.output_path);
+    fixture.document(
+        "b",
+        "bbbbbbbbbbbbbbbb",
+        "Target",
+        "<p>Replacement prose about a blue lantern.</p>",
+    );
+    let inferred = publish();
+    let edited = read_values(&options.output_path);
+    assert!(!inferred.is_empty());
+    assert_eq!(
+        inferred,
+        edited
+            .iter()
+            .filter(|(hash, _)| !original.contains_key(*hash))
+            .map(|(hash, (tokens, _))| (hash.clone(), *tokens))
+            .collect()
+    );
+    let retained: Vec<_> = edited
+        .iter()
+        .filter(|(hash, _)| original.contains_key(*hash))
+        .collect();
+    assert!(!retained.is_empty());
+    for (hash, value) in retained {
+        assert_eq!(&original[hash], value, "{hash}");
+    }
+
+    let fresh = fixture.options("native-fresh");
+    let fresh = BuildArtifactOptions {
+        output_path: fresh.output_path,
+        ..options.clone()
+    };
+    crate::build::publish_fixture_without_inference(&fresh).unwrap();
+    assert_eq!(edited, read_values(&fresh.output_path));
+    assert!(publish().is_empty());
+    assert_eq!(edited, read_values(&options.output_path));
+}
+
 fn prepared_frames(prepared: &PreparedSourceBuild) -> Vec<String> {
     let mut output = Vec::new();
     prepared

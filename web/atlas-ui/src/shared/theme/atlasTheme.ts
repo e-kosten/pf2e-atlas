@@ -64,6 +64,7 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
   const token = antTheme.getDesignToken(antDesignTheme(scheme));
   return {
     "--theme-font": FONT_FAMILY,
+    "--font-size-small": `${token.fontSizeSM}px`,
     "--wordmark-font": WORDMARK_FONT_FAMILY,
     "--heading-color": palette.text,
     "--record-kind-text": palette.recordKind.text,
@@ -75,12 +76,9 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--shell-border": palette.shell.border,
     "--brand-text": palette.brand.text,
     "--brand-mark-ring": palette.brand.mark.ring,
-    "--brand-mark-inner": palette.brand.mark.inner,
     "--brand-mark-cardinal": palette.brand.mark.cardinal,
     "--brand-mark-shade": palette.brand.mark.shade,
     "--brand-mark-outline": palette.brand.mark.outline,
-    "--brand-mark-secondary": palette.brand.mark.secondary,
-    "--brand-mark-tick": palette.brand.mark.tick,
     "--brand-mark-die-rim": palette.brand.mark.dieRim,
     "--brand-mark-die-field": palette.brand.mark.dieField,
     ...Object.fromEntries(

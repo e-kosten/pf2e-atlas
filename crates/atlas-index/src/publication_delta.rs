@@ -93,7 +93,6 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
             // These associations reference the removable reference row, while
             // saved state references the enduring identity registry. Prune the
             // exact removed key before its deferred parent FK is deleted.
-            c.execute("DELETE FROM trait_references WHERE record_key=(SELECT key FROM records WHERE record_id=?)",[id])?;
             c.execute("DELETE FROM records WHERE record_id=?", [id])?;
             c.execute(
                 "UPDATE record_identity SET availability='unavailable' WHERE id=?",

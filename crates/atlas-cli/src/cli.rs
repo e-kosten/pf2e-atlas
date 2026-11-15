@@ -53,6 +53,8 @@ pub(crate) enum Command {
     Roll(RollArgs),
     #[command(about = "Install, repair, or check local Atlas runtime data")]
     Setup(SetupArgs),
+    #[command(about = "Export and restore saved workspace data")]
+    Workspace(commands::workspace::WorkspaceArgs),
     #[command(about = "Update and validate workspace reference data")]
     Index(IndexArgs),
     #[command(about = "Read Atlas records and definitions")]
@@ -148,6 +150,7 @@ impl Command {
             Self::BuildInfo(args) => args.json,
             Self::Roll(args) => args.json,
             Self::Setup(args) => args.paths.json,
+            Self::Workspace(_) => false,
             Self::Index(args) => match &args.command {
                 IndexCommand::Build(options) => options.json,
                 IndexCommand::Rebuild(options) => options.json,
@@ -209,6 +212,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         Command::BuildInfo(args) => commands::build_info::run(args),
         Command::Roll(args) => commands::roll::run_roll(args),
         Command::Setup(args) => commands::setup::run_setup(args),
+        Command::Workspace(args) => commands::workspace::run(args),
         Command::Index(index) => match index.command {
             IndexCommand::Build(options) => commands::index::run_index_build(options),
             IndexCommand::Rebuild(options) => commands::index::run_index_rebuild(options),

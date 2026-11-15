@@ -14,6 +14,7 @@ export function DefinitionDetailPane({
   retryLabel = "Retry",
   onReference,
   identityInHost = false,
+  identityActions,
 }: {
   detail?: DefinitionDetailView;
   loading: boolean;
@@ -22,6 +23,7 @@ export function DefinitionDetailPane({
   retryLabel?: string;
   onReference: RecordReferenceHandler;
   identityInHost?: boolean;
+  identityActions?: React.ReactNode;
 }) {
   return (
     <section className="detail-panel" aria-busy={loading}>
@@ -54,6 +56,7 @@ export function DefinitionDetailPane({
             <DocumentIdentityHeader
               title={detail.label}
               classification={definitionClassification(detail.definition_key)}
+              actions={identityActions}
               attribution={<DefinitionAttribution detail={detail} />}
             />
           )}

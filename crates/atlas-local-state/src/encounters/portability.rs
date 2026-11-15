@@ -2,6 +2,7 @@
 mod identities;
 mod restore;
 mod snapshot;
+pub(crate) mod workspace;
 
 use super::*;
 use crate::{LocalStateError, LocalStateResult};
@@ -114,22 +115,28 @@ impl EncounterDocument {
     }
 
     pub fn record_keys(&self) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
-        let outgoing = self
-            .outgoing
-            .iter()
-            .flat_map(|row| &row.turn.snapshot.participants);
-        self.snapshot
-            .participants
-            .iter()
-            .chain(outgoing)
-            .filter_map(|p| p.record_key.as_deref())
-            .map(|key| {
-                key.parse()
-                    .map_err(|err| invalid(format!("invalid record key {key}: {err}")))
-            })
-            .collect::<LocalStateResult<std::collections::BTreeSet<_>>>()
-            .map(|keys| keys.into_iter().collect())
+        snapshot_record_keys(&self.snapshot, self.outgoing.as_ref())
     }
+}
+
+fn snapshot_record_keys(
+    snapshot: &EncounterWithParticipants,
+    outgoing: Option<&Outgoing>,
+) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
+    let historical = outgoing
+        .into_iter()
+        .flat_map(|row| &row.turn.snapshot.participants);
+    snapshot
+        .participants
+        .iter()
+        .chain(historical)
+        .filter_map(|p| p.record_key.as_deref())
+        .map(|key| {
+            key.parse()
+                .map_err(|err| invalid(format!("invalid record key {key}: {err}")))
+        })
+        .collect::<LocalStateResult<std::collections::BTreeSet<_>>>()
+        .map(|keys| keys.into_iter().collect())
 }
 
 struct BoundedDocument(Vec<u8>);

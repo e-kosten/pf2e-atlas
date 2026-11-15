@@ -1,0 +1,30 @@
+{
+  "format": "pf2e-atlas-workspace",
+  "version": "1.0",
+  "saved": {
+    "owners": [
+      {
+        "key": "local",
+        "name": "Local",
+        "lists": [
+          {
+            "key": "recovery-fixture",
+            "slug": "fixture",
+            "name": "Fixture",
+            "description": "Frozen archive format fixture",
+            "revision": 4,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-02T00:00:00Z",
+            "tags": [{"name": "travel", "created_at": "2026-01-01T00:00:00Z"}],
+            "items": []
+          }
+        ],
+        "parties": [],
+        "encounters": []
+      }
+    ],
+    "references": [],
+    "condition_floor": 100
+  },
+  "reference_config": null
+}

@@ -3,8 +3,9 @@ crates/atlas-ingest/src/source_model/generated/** linguist-generated=true
 
 *.sql text eol=lf
 
-# Preserve the bytes used by the bundled reference manifest checksums.
+# Preserve the bytes used by bundled reference checksums and identities.
 crates/atlas-ingest/reference-data/*.json text eol=lf
+crates/atlas-record/src/remaster/correspondences.json text eol=lf
 
 # Reproducible HTTP contract and client.
 crates/atlas-web/openapi.json linguist-generated=true

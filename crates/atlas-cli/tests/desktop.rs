@@ -26,7 +26,7 @@ fn open_rejects_a_non_atlas_url_before_asking_macos_to_open_it() {
         .output()
         .unwrap();
     assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("Expected an Atlas v1 record link"));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("Expected an Atlas v1 link"));
 }
 
 #[test]

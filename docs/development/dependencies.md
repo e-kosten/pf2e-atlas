@@ -31,12 +31,16 @@ compatibility evidence below before landing.
 GitHub's advisory alerts and security update PRs are separate repository settings.
 PR CI scans the committed Rust and npm lockfiles on dependency changes and
 requires the result through `validation complete`. The separate dependency audit
-workflow runs the same scanner daily and on manual dispatch, including the locked
-dice prototypes. Cargo changes retain Rust/browser/native and embedding checks;
-they do not automatically rerun unrelated source generation, frontend unit tests
+workflow runs the same scanner daily and on manual dispatch. Both include the
+locked desktop app and dice prototypes. Cargo resolves the desktop lockfile for
+its supported Apple Silicon build target before scanning. Atlas workspace Cargo changes retain
+Rust, browser, native Windows, and embedding checks. Desktop-only Cargo changes
+select the native macOS job and advisory scan. Dependency changes in general
+do not automatically rerun unrelated source generation, frontend unit tests
 or the installer matrix. Those checks remain selected by their owning inputs
 and by full main verification. Run the same
-scanner locally with Python 3.11 or newer and a supported Node/npm installation.
+scanner locally with Python 3.11 or newer, the repository Rust toolchain, and a
+supported Node/npm installation.
 
 ```sh
 python3 scripts/validation/dependency-audit.py
@@ -63,12 +67,20 @@ describes when Atlas can compare new queries with stored document vectors. The
 [reviewed dependency set](../../scripts/validation/embedding-stack.json) records
 the relevant locked packages and manifest selections. CI detects changes to
 that set. Review the upstream change and test both profiles before updating
-the receipt. Once the first fixture is published and pinned, PR validation
-runs the probe on Linux x86_64 for Cargo lockfile changes and changes to code
-that prepares inputs, stores vectors, or executes retrieval. The first pin,
-watched native and tokenizer dependencies, Cargo native build settings, and
-Rust toolchain changes select the release platform matrix. Run the `ci`
-workflow manually to exercise all targets.
+the receipt. Schema-only changes run the offline setup and migration checks
+on the release targets without model assets. Retrieval and storage changes run
+the compact probe on Linux x86_64. Changes to numerical execution, its pinned
+dependencies, or native build settings qualify both profiles across the release
+matrix. The compact probe checks tokenizer goldens without loading ONNX. It replays
+frozen document samples and checks mixed-length batches in one session per
+profile, then runs a real CLI query against the pinned predecessor's vectors.
+Changes to native execution and batching exercise the token-limit case.
+Ingest changes, layout changes and execution ID transitions also compare a
+fresh index against the maintained predecessor. Compatible maintenance must
+preserve published vectors and saved data.
+Dispatch CI without options to time the compact check on all release targets.
+To run the wider comparison on demand, dispatch the CI workflow with
+`full-embedding-probe` enabled.
 
 Build the pre-upgrade and candidate Atlas binaries with the same pinned toolchain
 and features. Use disposable checkouts or save a copy of the baseline executable
@@ -95,6 +107,9 @@ Prepare or verify the cache with
 If the candidate uses a newer workspace schema, build
 `cargo build --locked -p atlas-runtime --example migrate-fixture-workspace`
 and pass `--workspace-migrator target/debug/examples/migrate-fixture-workspace`.
+The v2 path also uses this helper to read the candidate's profile contracts
+without building a fresh index. Pass `--check-build` or `--near-limit` to run
+the additional checks outside their usual CI routing.
 The helper runs the candidate's storage migrations on the private copy. For an
 unchanged profile, maintenance may refresh content and query projections before
 search becomes available. The probe requires zero inference, the same published input
@@ -102,7 +117,7 @@ identities and vector checksums, and successful deep vector validation before
 comparing queries with the frozen expectations. This exercises the supported
 setup migration window without replacing the numerical baseline.
 
-The probe checks ranked records, matching passages and absolute score drift
+The full manual probe checks ranked records, matching passages and absolute score drift
 within 0.00002. It verifies zero document inference on compatible maintenance,
 saved list preservation, and retrieval from a mixed index against a fresh
 index built from the same edited source. For an intentional passage layout
@@ -122,10 +137,15 @@ python3 scripts/validation/embedding-stack.py --print > scripts/validation/embed
 ```
 
 When execution is incompatible, bump the affected profile’s compatibility ID
-and set its `transition_to` to the new ID in the existing pin. Keep the old
-archive digest. CI checks that the candidate rejects the old query contract and
-rebuilds that profile, while the other profile retains its compatibility checks.
+and set its `transition_to` to the new ID in
+`scripts/validation/embedding-baseline.json`. Keep its old v2 workspace and
+numerical receipts pinned during the transition. CI checks that the candidate
+rejects the old query contract and rebuilds that profile, while the other
+profile retains its compatibility checks.
 Validate `atlas setup` and saved-state preservation for the migration and explain
 the affected profiles in the release notes. After publishing and verifying the
-[new fixture](releases.md#publish-an-embedding-compatibility-fixture), advance only
-the affected profile’s pin and remove its `transition_to`.
+[new fixture](releases.md#publish-an-embedding-compatibility-fixture), update
+only the affected profile’s entries in `scripts/validation/embedding-fixtures-v2.json`.
+Set that profile’s `execution_policy` to the new ID and remove its
+`transition_to` in `embedding-baseline.json` in the same PR.
+CI checks both the previous and replacement evidence.

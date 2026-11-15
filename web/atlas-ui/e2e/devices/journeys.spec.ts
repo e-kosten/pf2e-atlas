@@ -99,9 +99,10 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
   await expect(region).toBeVisible();
   const after = await geometry();
   expect(after).toEqual(before);
-  expect(after.buttons).toHaveLength(2);
-  expect(after.buttons[1].x - after.buttons[0].x - after.buttons[0].width).toBe(4);
-  for (const button of after.buttons) {
+  expect(after.buttons).toHaveLength(3);
+  for (const [index, button] of after.buttons.entries()) {
+    const previous = after.buttons[index - 1];
+    if (previous) expect(button.x - previous.x - previous.width).toBe(4);
     expect(button.width).toBe(34);
     expect(button.height).toBe(34);
     expect(Math.abs(button.center - after.badge.center)).toBeLessThanOrEqual(1);
@@ -859,7 +860,14 @@ test("list tags, editing and explicit Add survive constrained space", async ({
   let releaseAdd: (() => void) | undefined;
   try {
     await page.goto(`/lists/${list.slug}`);
-    await activate(page.getByRole("button", { name: "Edit list", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "List actions", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit list", exact: true }),
+      info,
+    );
     const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
     const description = "A retained description draft with a useful purpose.";
     await editor
@@ -1062,6 +1070,15 @@ test("encounter references retain their owner, scroll and native destination", a
     const originalSize = page.viewportSize()!;
     if (originalSize.width < 768)
       await page.setViewportSize({ width: originalSize.width, height: 560 });
+    const construct = page
+      .locator(".encounter-reference__identity")
+      .getByRole("link", { name: "Construct", exact: true });
+    await expect(construct).toBeVisible();
+    // Set keyboard modality before focusing a link on touch-oriented WebKit.
+    await page.keyboard.press("Tab");
+    await construct.focus();
+    await expect(construct).toBeFocused();
+    await expect(construct).toHaveCSS("outline-style", "solid");
     const pulse = page.getByRole("link", { name: "Signal Pulse", exact: true });
     // Encounter abilities now read inline with bounded continuation. Exercise
     // that continuation before opening this deliberately late owned ability.
@@ -1198,7 +1215,7 @@ test("encounter references retain their owner, scroll and native destination", a
       .filter({ hasText: "Saved, but the encounter could not refresh" });
     await expect(feedback).toBeVisible();
     const settingsAction = page.getByRole("button", {
-      name: "Encounter settings",
+      name: "Encounter actions",
       exact: true,
     });
     await expect(settingsAction).toBeVisible();
@@ -1314,7 +1331,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       info,
     );
     await activate(
-      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      page.getByRole("button", { name: "Encounter actions", exact: true }),
       info,
     );
     await activate(

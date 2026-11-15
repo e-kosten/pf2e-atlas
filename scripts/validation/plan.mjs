@@ -116,7 +116,7 @@ export function validationPlan(
     const touched = (name) => selected.has(name);
     if (
       touched("web") ||
-      touched("web-format") ||
+      (touched("web-format") && (!full || !touched("corpus") || touched("browser"))) ||
       (full && touched("browser") && !touched("rust"))
     ) {
       checks.push(
@@ -143,6 +143,11 @@ export function validationPlan(
     if (touched("dev") && !touched("rust") && !concurrent)
       checks.push(...(full ? developer : [fmt]));
     if (full) {
+      if (touched("corpus")) {
+        if (!touched("web") && !touched("browser"))
+          checks.push(npm("frontend static checks", "check"));
+        checks.push(npm("full-corpus Playwright discovery", "test:e2e:list"));
+      }
       if (touched("audit"))
         checks.push([
           "dependency advisories",

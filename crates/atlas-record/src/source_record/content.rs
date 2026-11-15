@@ -158,22 +158,6 @@ impl<'a> SourceNodeView<'a> {
     }
 }
 
-/// Explicit authored term references from the selected HTML fields, never expanded prose.
-pub fn trait_record_localization_references(
-    record: &SourceBackedRecord,
-    audience: ContentAudience,
-) -> Vec<crate::source_content::TraitLocalizationReference> {
-    selected_localization_references(
-        record,
-        |_, _| true,
-        |locator, text, visibility| {
-            crate::source_content::trait_localization_references(
-                locator, text, audience, visibility,
-            )
-        },
-    )
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordLocalizationOccurrence {
     pub locator: SourceContentLocator,

@@ -1,4 +1,7 @@
 //! Explicit setup is the sole runtime path allowed to inspect or acquire the managed source snapshot.
+use crate::desktop_reference::{
+    DesktopModelSelection, DesktopReferenceOutcome, DesktopRefreshError, Refresh,
+};
 use crate::setup_freshness::{
     capture_build_inputs, has_current_reference_preparation, source_is_fresh,
 };
@@ -52,6 +55,25 @@ fn configuration_failure(
         embedding_coverage_gap: None,
     }
 }
+
+fn reference_failure(
+    paths: &ResolvedAtlasPaths,
+    options: &RuntimeSetupOptions,
+    error: DesktopRefreshError,
+    refresh_request: &mut Option<RefreshRequest<'_>>,
+) -> RuntimeSetupReport {
+    let message = match error {
+        DesktopRefreshError::Busy => {
+            if let Some(request) = refresh_request {
+                (request.on_complete)(DesktopReferenceOutcome::Busy);
+            }
+            "workspace is busy; retry after the current operation finishes".into()
+        }
+        DesktopRefreshError::Other(message) => message,
+    };
+    configuration_failure(paths, options, message)
+}
+
 fn stored_reference(
     path: &std::path::Path,
 ) -> Result<
@@ -129,19 +151,30 @@ fn desktop_stage(
     match context {
         None if revision == 0 => Ok((DesktopSetupStage::FirstRun, None)),
         Some(context)
-            if context.search_profiles.is_empty()
-                && context.indexing_locale == "en"
-                && has_current_reference_preparation(&context)
-                && context.source_revision.as_deref()
-                    == Some(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT)
-                && config
-                    .as_ref()
-                    .is_some_and(|config| !config.search_profiles.is_empty()) =>
+            if config
+                .as_ref()
+                .is_some_and(|config| can_resume_desktop_stage(paths, config, &context)) =>
         {
             Ok((DesktopSetupStage::Resume, config))
         }
         _ => Err("the workspace does not need staged semantic setup".into()),
     }
+}
+
+pub(crate) fn can_resume_desktop_stage(
+    paths: &ResolvedAtlasPaths,
+    config: &atlas_index::RequestedReferenceConfig,
+    context: &atlas_index::SourceArtifactBuildContext,
+) -> bool {
+    config.source_root == paths.managed_source_root
+        && config.manifest_path.is_none()
+        && config.indexing_locale == "en"
+        && !config.search_profiles.is_empty()
+        && context.search_profiles.is_empty()
+        && context.indexing_locale == "en"
+        && has_current_reference_preparation(context)
+        && context.source_revision.as_deref()
+            == Some(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT)
 }
 
 fn report_publication(
@@ -182,6 +215,34 @@ pub(crate) fn staged_desktop_setup(
         &mut crate::embedding_seeds::open_published,
         atlas_ingest::SeedBuildPolicy::Strict,
         Some((stage, &mut on_publish)),
+        None,
+    )
+}
+
+struct RefreshRequest<'a> {
+    offer: &'a str,
+    models: Option<&'a DesktopModelSelection>,
+    on_complete: &'a mut dyn FnMut(DesktopReferenceOutcome),
+}
+
+pub(crate) fn refresh_desktop_reference(
+    paths: &ResolvedAtlasPaths,
+    options: RuntimeSetupOptions,
+    offer: &str,
+    models: Option<&DesktopModelSelection>,
+    mut on_complete: impl FnMut(DesktopReferenceOutcome),
+) -> RuntimeSetupReport {
+    run_setup(
+        paths,
+        options,
+        &mut crate::embedding_seeds::open_published,
+        atlas_ingest::SeedBuildPolicy::Strict,
+        None,
+        Some(RefreshRequest {
+            offer,
+            models,
+            on_complete: &mut on_complete,
+        }),
     )
 }
 
@@ -191,7 +252,7 @@ pub(crate) fn ensure_setup_with_seed_policy(
     seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
     seed_policy: atlas_ingest::SeedBuildPolicy,
 ) -> RuntimeSetupReport {
-    run_setup(paths, options, seed_source, seed_policy, None)
+    run_setup(paths, options, seed_source, seed_policy, None, None)
 }
 
 fn run_setup(
@@ -200,6 +261,7 @@ fn run_setup(
     seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
     seed_policy: atlas_ingest::SeedBuildPolicy,
     mut staged: Option<(DesktopSetupStage, &mut dyn FnMut(SetupPublication))>,
+    mut refresh_request: Option<RefreshRequest<'_>>,
 ) -> RuntimeSetupReport {
     // Emit progress before configuration and workspace checks, which can take
     // noticeable time on a fresh install or a large existing workspace.
@@ -207,15 +269,66 @@ fn run_setup(
     let _setup = if options.check {
         None
     } else {
-        match atlas_storage::Workspace::at(&paths.index_path)
-            .and_then(|workspace| workspace.setup_guard())
-        {
-            Ok(guard) => Some(guard),
+        let workspace = if refresh_request.is_some() {
+            atlas_storage::Workspace::existing(&paths.index_path)
+        } else {
+            atlas_storage::Workspace::at(&paths.index_path)
+        };
+        match workspace.and_then(|workspace| Ok((workspace.setup_guard()?, workspace))) {
+            Ok(guarded) => Some(guarded),
             Err(atlas_storage::StorageError::Busy) => {
+                if let Some(request) = &mut refresh_request {
+                    (request.on_complete)(DesktopReferenceOutcome::Busy);
+                }
                 return configuration_failure(paths, &options, "setup already running".into());
             }
             Err(error) => return configuration_failure(paths, &options, error.to_string()),
         }
+    };
+    let refresh = if let (Some(request), Some((_, workspace))) = (&refresh_request, &_setup) {
+        let admitted = match request.models {
+            Some(selection) => Refresh::admit_models(
+                paths,
+                workspace,
+                request.offer,
+                selection,
+                options.build_embeddings_locally,
+            ),
+            None => Refresh::admit(paths, workspace, request.offer),
+        };
+        match admitted {
+            Ok(refresh) => {
+                options.target = if refresh.configuration.search_profiles.is_empty() {
+                    SetupTarget::Records
+                } else {
+                    SetupTarget::Full
+                };
+                Some(refresh)
+            }
+            Err(error) => {
+                return reference_failure(paths, &options, error, &mut refresh_request);
+            }
+        }
+    } else {
+        None
+    };
+    let changing_models = refresh
+        .as_ref()
+        .is_some_and(|refresh| refresh.models.is_some());
+    let _model_pause = if changing_models {
+        match atlas_storage::Workspace::existing(&paths.index_path)
+            .and_then(|workspace| workspace.pause_saved_writes())
+        {
+            Ok(guard) => {
+                progress("saved_writes_paused", "Preparing search models");
+                Some(guard)
+            }
+            Err(error) => {
+                return reference_failure(paths, &options, error.into(), &mut refresh_request);
+            }
+        }
+    } else {
+        None
     };
     let mut resume_config = None;
     let _pause = if let Some((stage, _)) = &staged {
@@ -260,7 +373,7 @@ fn run_setup(
     } else {
         None
     };
-    let _upgrade = if !options.check && paths.index_path.is_file() {
+    let _upgrade = if refresh.is_none() && !options.check && paths.index_path.is_file() {
         let workspace = match atlas_storage::Workspace::existing(&paths.index_path) {
             Ok(workspace) => workspace,
             Err(error) => return configuration_failure(paths, &options, error.to_string()),
@@ -284,9 +397,14 @@ fn run_setup(
     } else {
         None
     };
-    let configuration = match resume_config.map(Ok).unwrap_or_else(|| {
-        crate::source_configuration::resolve_setup_configuration(paths, &options)
-    }) {
+    let configuration = match refresh
+        .as_ref()
+        .map(|refresh| refresh.configuration.clone())
+        .or(resume_config)
+        .map(Ok)
+        .unwrap_or_else(|| {
+            crate::source_configuration::resolve_setup_configuration(paths, &options)
+        }) {
         Ok(configuration) => configuration,
         Err(error) => return configuration_failure(paths, &options, error),
     };
@@ -295,6 +413,9 @@ fn run_setup(
     effective_paths.source_root = configuration.source_root.clone();
     let paths = &effective_paths;
     options.search_profiles = configuration.search_profiles.clone();
+    if options.search_profiles.is_empty() {
+        options.target = SetupTarget::Records;
+    }
     let use_seeds = managed_source
         && !paths.source_root_explicit
         && configuration.manifest_path.is_none()
@@ -335,7 +456,7 @@ fn run_setup(
     }
     let mut source_issue = None;
     let mut captured = None;
-    if !source_ready && managed_source && profile_error.is_none() {
+    if !source_ready && managed_source && profile_error.is_none() && !changing_models {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::FetchSource,
@@ -372,7 +493,9 @@ fn run_setup(
         }
     }
     if source_ready {
-        let validation = if managed_source {
+        let validation = if managed_source
+            && !(options.offline && crate::desktop_reference::fixture(paths))
+        {
             crate::source_acquisition::validate(&paths.source_root).map_err(|error| (error, false))
         } else {
             Ok(())
@@ -414,6 +537,18 @@ fn run_setup(
                 ));
             }
         }
+    }
+    if changing_models
+        && !captured.as_ref().is_some_and(|inputs| {
+            stored_reference(&paths.index_path)
+                .is_ok_and(|(context, _)| source_is_fresh(inputs, &context))
+        })
+    {
+        return configuration_failure(
+            paths,
+            &options,
+            "Update reference data before changing the installed search models.".into(),
+        );
     }
     let staged_revision = if let Some((stage, on_publish)) = &mut staged {
         let result = (|| -> Result<u64, String> {
@@ -496,7 +631,20 @@ fn run_setup(
     }
     progress("check_workspace", "Checking workspace index");
     let locale = configuration.indexing_locale.clone();
-    let prior = stored_reference(&paths.index_path);
+    let refresh_owner = match refresh
+        .as_ref()
+        .map(|refresh| refresh.publication_owner(paths))
+        .transpose()
+    {
+        Ok(owner) => owner,
+        Err(error) => return reference_failure(paths, &options, error, &mut refresh_request),
+    };
+    let reference_path = refresh
+        .as_ref()
+        .map_or(paths.index_path.as_path(), |refresh| {
+            refresh.workspace.path()
+        });
+    let prior = stored_reference(reference_path);
     let freshness: Result<bool, String> = if options.force_rebuild {
         Ok(false)
     } else if let Some(inputs) = &captured {
@@ -506,6 +654,21 @@ fn run_setup(
     } else {
         Err("source checkout is unavailable for explicit freshness checking".into())
     };
+    if changing_models
+        && (!matches!(freshness, Ok(true))
+            || !prior.as_ref().is_ok_and(|(context, upgrade)| {
+                *upgrade == atlas_index::ReferenceUpgrade::Current
+                    && context.source_revision.as_deref()
+                        == Some(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT)
+                    && context.indexing_locale == locale
+            }))
+    {
+        return configuration_failure(
+            paths,
+            &options,
+            "Update reference data before changing the installed search models.".into(),
+        );
+    }
     match &freshness {
         Ok(true) => checks.push(SetupAction::new(
             SetupActionKind::AnalyzeSource,
@@ -545,6 +708,9 @@ fn run_setup(
         || (source_ready && freshness.is_err())
         || prior.as_ref().is_ok_and(|(context, upgrade)| {
             context.indexing_locale != locale
+                || (refresh.is_some()
+                    && context.source_revision.as_deref()
+                        != Some(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT))
                 || matches!(
                     upgrade,
                     atlas_index::ReferenceUpgrade::SourcePreparation
@@ -557,7 +723,21 @@ fn run_setup(
             .as_ref()
             .is_ok_and(|(_, upgrade)| *upgrade != atlas_index::ReferenceUpgrade::Current)
     {
-        let upgraded = (|| -> Result<(), String> {
+        let upgraded = (|| -> Result<(), DesktopRefreshError> {
+            if let Some((refresh, owner)) = refresh.as_ref().zip(refresh_owner.as_ref()) {
+                refresh.check_location(paths)?;
+                atlas_index::refresh_reference_projections(
+                    &refresh.workspace,
+                    owner,
+                    crate::WORKSPACE_SCHEMA_VERSION,
+                    || {
+                        refresh
+                            .check_location(paths)
+                            .map_err(atlas_index::IndexError::Operation)
+                    },
+                )?;
+                return Ok(());
+            }
             let workspace =
                 crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
             atlas_index::ensure_reference_projections(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
@@ -565,12 +745,12 @@ fn run_setup(
             Ok(())
         })();
         if let Err(error) = upgraded {
-            return configuration_failure(paths, &options, error);
+            return reference_failure(paths, &options, error, &mut refresh_request);
         }
     }
-    let old = open_workspace_index(&paths.index_path).map(|reader| reader.context().clone());
+    let old = open_workspace_index(reference_path).map(|reader| reader.context().clone());
     let old_semantic = if prepare_embeddings {
-        open_workspace_index(&paths.index_path)
+        open_workspace_index(reference_path)
             .and_then(|index| {
                 index.require_vectors()?;
                 Ok(index)
@@ -609,6 +789,12 @@ fn run_setup(
             progress("build_index", "Building search index");
             let mut load = |model: &atlas_index::SourceSearchProfileIdentity,
                             scratch: &std::path::Path| {
+                if refresh.is_some() && !use_seeds && !options.build_embeddings_locally {
+                    return Err(
+                        "No precomputed embeddings are available for this indexing configuration"
+                            .into(),
+                    );
+                }
                 seed_source(model, scratch, options.offline)
             };
             let result = (|| -> Result<BuildArtifactReport, atlas_ingest::IngestError> {
@@ -617,7 +803,20 @@ fn run_setup(
                         "source inputs were not captured".into(),
                     )
                 })?;
-                if let Some(revision) = staged_revision {
+                if let Some((refresh, owner)) = refresh.as_ref().zip(refresh_owner.as_ref()) {
+                    inputs.refresh_reference(
+                        &refresh.workspace,
+                        owner,
+                        crate::WORKSPACE_SCHEMA_VERSION,
+                        (use_seeds || !options.build_embeddings_locally).then_some(&mut load),
+                        &|| {
+                            refresh
+                                .check_location(paths)
+                                .map_err(atlas_index::IndexError::Operation)
+                        },
+                        refresh.models.as_ref(),
+                    )
+                } else if let Some(revision) = staged_revision {
                     let workspace = atlas_storage::Workspace::existing(&paths.index_path)?;
                     inputs.build_semantic_stage(
                         &workspace,
@@ -647,6 +846,16 @@ fn run_setup(
                     ));
                 }
                 Err(e) => {
+                    if refresh.is_some()
+                        && matches!(&e, atlas_ingest::IngestError::Storage(error) if error.is_contention())
+                    {
+                        return reference_failure(
+                            paths,
+                            &options,
+                            DesktopRefreshError::Busy,
+                            &mut refresh_request,
+                        );
+                    }
                     build_failed = true;
                     let (kind, reason) = match &e {
                         atlas_ingest::IngestError::EmbeddingCoverageGap(gap) => {
@@ -675,7 +884,7 @@ fn run_setup(
             SetupActionStatus::Skipped,
         ));
     }
-    if staged.is_none() && !options.check && !build_failed && build.is_none() {
+    if staged.is_none() && refresh.is_none() && !options.check && !build_failed && build.is_none() {
         let reclaimed = (|| -> Result<(), String> {
             let workspace =
                 crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
@@ -694,11 +903,16 @@ fn run_setup(
         }
     }
     // Publication updates reference rows transactionally, preserving saved domains.
-    let current = open_workspace_index(&paths.index_path);
+    if let Some(refresh) = &refresh
+        && let Err(error) = refresh.check_location(paths)
+    {
+        return configuration_failure(paths, &options, error);
+    }
+    let current = open_workspace_index(reference_path);
     let records_ready = current.is_ok() && !build_failed && (!needs_build || build.is_some());
     let semantic_ready = records_ready
         && model_ready
-        && open_workspace_index(&paths.index_path)
+        && open_workspace_index(reference_path)
             .and_then(|index| {
                 index.require_vectors()?;
                 Ok(index)
@@ -794,6 +1008,32 @@ fn run_setup(
         build,
         embedding_coverage_gap,
     };
+    if let Some((refresh, RefreshRequest { on_complete, .. })) = refresh.zip(refresh_request) {
+        if let Err(error) = refresh.check_location(paths) {
+            return configuration_failure(paths, &options, error);
+        }
+        if report.ready
+            && let Ok(index) = current
+        {
+            let generation = index.artifact_instance().generation();
+            on_complete(DesktopReferenceOutcome::Ready {
+                updated: refresh.generation != generation,
+                model_repaired: report.actions.iter().any(|action| {
+                    action.kind == SetupActionKind::PrepareEmbeddingModel
+                        && action.status == SetupActionStatus::Done
+                }),
+                generation,
+            });
+        } else if !options.build_embeddings_locally
+            && report.actions.iter().any(|action| {
+                action.kind == SetupActionKind::PrepareEmbeddingSeed
+                    && action.status == SetupActionStatus::Failed
+            })
+            && let Some(retry_offer) = refresh.retry_offer(paths)
+        {
+            on_complete(DesktopReferenceOutcome::SeedUnavailable { retry_offer });
+        }
+    }
     tracing::info!(target:"atlas_progress", complete=true, "Setup finished");
     report
 }

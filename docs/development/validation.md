@@ -122,8 +122,9 @@ sh scripts/validation/run-check.sh 'frontend verify' npm --prefix web/atlas-ui r
 Developer-only `atlas-dev` changes use the standalone developer gate selected by
 `verify-changed --full`: formatting, both Clippy policies, tests for `atlas-dev`
 and `atlas-cli-support`, and an `atlas-dev` build. This owner builds independently
-of the web UI per ADR0033. The standalone CI job uses the same phase definitions
-and retains its validation evidence. When CI also runs the workspace gate, the
+of the web UI per ADR0033. The standalone CI job uses the same phase definitions and retains evidence.
+On PRs, changes to its packages, their dependency closure, and global Rust
+build inputs select it. Main and full nightly verification retain the gate. When CI also runs the workspace gate, the
 standalone job runs the build and tests, with formatting and Clippy covered by the
 workspace gate. Shared/runtime changes still select the workspace gate.
 
@@ -423,34 +424,44 @@ a gate.
 
 | Changed surface | Local full validation / PR CI coverage |
 | --- | --- |
-| Core Rust | Workspace gate; CI also checks standalone atlas-dev and applicable real-app browsers; native Windows storage checks follow their dependency owners |
+| Core Rust | Workspace gate and applicable real-app browsers. Standalone atlas-dev and native Windows storage checks follow their respective dependencies. |
 | Developer-only atlas-dev Rust | Standalone developer gate; no frontend bundle or device matrix |
 | Known development/validation/hook launchers | Shared tooling regressions; CI includes native Windows cancellation, without application builds |
 | Browser packaging/runner scripts | Tooling regressions plus affected local browser flows; CI fixture/browser matrix |
 | Frontend | Frontend gate and affected local browser flows; CI builds the real Rust fixture and runs the browser matrix, without unrelated full Rust workspace verification |
-| Browser specs/configuration | Frontend checks/bundle and affected local browser flows; CI fixture/matrix, without unrelated Vitest or full Rust workspace verification |
+| Device browser specs/configuration | Frontend checks/bundle and affected local browser flows. CI runs the authenticated fixture and device matrix. |
+| Full-corpus browser specs/configuration | Frontend static checks and Playwright discovery. Execute tests locally against a prepared Atlas server with `npm --prefix web/atlas-ui run test:e2e`. |
+| macOS desktop host or bundle | Native Apple Silicon app build, host and CLI tests, and an empty-home bundled CLI smoke check. Release-only scripts select release tooling. Use the nonpublishing packaged DMG check for end-to-end release coverage. |
 | HTTP routes, app-model contracts, or generated client | Rust and frontend gates plus the [OpenAPI freshness check](#openapi-freshness) |
 | Foundry model | Rust and source-contract generation |
 | Source-contract tooling | Fixture tests and pinned generation |
 | Release tooling | Tool tests, notices and installer checks; CI includes three OSes |
 | Research datasets, including hash-bound Markdown | Each dataset's offline `verify.ts`, with no inference |
 | Prose documentation | Diff/links/examples review; no application builds |
+| Workspace release schema or migration fixture | Offline setup smoke and migration tests on all release targets |
+| Embedding numerical execution | Compact compatibility probe on affected targets, including actual old/candidate document vectors and cross-version search |
 | Cargo manifests/lockfile | Rust, production frontend bundle/typecheck, applicable browsers, native Windows checks, dependency advisories and embedding selection |
 | npm manifests/lockfiles | Owning package checks plus dependency advisories |
 | Shipped agent skill | Metadata and bundled-file coverage checks (`node scripts/validation/skill.ts`); no application build |
 | Unknown paths or workflow infrastructure | All surfaces |
 
 `--list` exposes the shared decisions: `rust`, `web`, `web-format`, `browser`,
-`dev`, `source`, `release`, `research`, `skill`, `tooling` and `audit`.
-`browser` owns the real-app fixture/matrix;
-`dev` owns the standalone developer gate. PR CI uses this same path classifier.
-Renames include the old and new paths;
-executable/symlink mode changes select all. Main pushes and fresh nightly
-verification run every surface. Nightly reuses
-a successful main-push run only for its exact planned SHA, including completed
-aggregate and advisory jobs; otherwise it waits boundedly or verifies afresh.
+`dev`, `source`, `release`, `research`, `skill`, `tooling` and `audit`, plus `desktop`, `corpus`, and `fanout`. PR CI uses this
+classifier, then resolves the standalone developer and Windows crate dependencies.
+Changes to fan-out exercise all PR surfaces and the compact embedding and offline
+workspace platform matrices.
+Renames include both paths. Executable mode changes and symlink edits trigger
+conservative selection. Main pushes and fresh nightly verification keep full
+workspace and tooling checks, with the existing embedding and workspace-upgrade
+selection for those events. The native macOS app bundle runs on selected PRs
+and on manual dispatch. Nightly reuses a successful main-push run only for its
+exact planned SHA and requires the completed aggregate and lockfile scan.
+Otherwise it waits boundedly or verifies afresh.
 The `validation complete` job rejects failed or unexpectedly skipped selected jobs;
-use it as the aggregate required check, including selected dependency advisories.
+it is the aggregate required check. Selected PR checks include the native
+macOS app bundle and dependency advisories. The native check remains available
+for manual dispatch. The Linux repository tooling and Windows checks jobs each
+verify their selected steps. Rerunning either job repeats its applicable checks.
 CI additionally selects native Windows checks from the transitive workspace
 dependencies of storage, index and runtime (including development, build, target
 and optional edges). Cargo manifests/lockfile, toolchain and unknown global inputs
@@ -485,9 +496,9 @@ Formatting checks read files in the working tree; whitespace checks read the sta
 ## Database changes
 
 The [artifact contract](../architecture/artifact-contract.md) links to the domain
-DDL for the current release checkpoint. Runtime composes the ledger and the
-schema 41 bridge. Storage executes upgrades with checksums, backup and atomic
-validation. Append migrations above the released checkpoint and keep tests for
+DDL for the current release checkpoint. Runtime composes the ledger and
+captures a saved-state archive under storage’s exclusive migration admission.
+Storage executes the SQL and backfills in one validated transaction. Append migrations above the released checkpoint and keep tests for
 failed-upgrade rollback and saved-state preservation. Query-only changes can use
 the supported DTO-based projection backfill. Physical schema changes alone do
 not require source admission or inference.

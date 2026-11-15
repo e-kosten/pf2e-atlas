@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
-      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
       - id: version
@@ -43,11 +42,6 @@ jobs:
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          if [[ "$version" == *-* ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
 
   package:
     needs: validate-tag
@@ -66,7 +60,6 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG: ${{ needs.validate-tag.outputs.tag }}
-      PRERELEASE: ${{ needs.validate-tag.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -84,9 +77,6 @@ jobs:
         with:
           name: release-build-check-${{ needs.validate-tag.outputs.tag }}
           path: target/distrib
-      - name: Validate downloaded assets
-        shell: bash
-        run: node dev-tools/release/dist/src/cli/validate-release-assets.js "$TAG" target/distrib
       - name: Wait for draft release
         shell: bash
         run: |
@@ -99,15 +89,6 @@ jobs:
           done
           echo "release $TAG was not created by the release helper" >&2
           exit 1
-      - name: Upload assets to draft release
+      - name: Verify, upload and publish release
         shell: bash
-        run: gh release upload "$TAG" target/distrib/* --clobber
-      - name: Publish release
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$PRERELEASE" == "true" ]]; then
-            gh release edit "$TAG" --draft=false --prerelease=true --latest=false
-          else
-            gh release edit "$TAG" --draft=false --prerelease=false --latest=true
-          fi
+        run: node dev-tools/release/dist/src/cli/publish-official.js "$TAG" "$(git rev-parse HEAD)" target/distrib

@@ -9,7 +9,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def dependency_closure(root):
+def dependency_closure(root, owners=("atlas-storage", "atlas-index", "atlas-runtime")):
     workspace = tomllib.loads((root / 'Cargo.toml').read_text())['workspace']
     shared = workspace.get('dependencies', {})
     packages = {}
@@ -30,9 +30,9 @@ def dependency_closure(root):
                         spec = shared[alias]
                     visit(spec.get('package', alias) if isinstance(spec, dict) else alias)
 
-    for name in ['atlas-storage', 'atlas-index', 'atlas-runtime']:
+    for name in owners:
         if name not in packages:
-            raise ValueError(f'Missing native check owner: {name}')
+            raise ValueError(f'Missing validation owner: {name}')
         visit(name)
     return {packages[name][0] for name in selected}, {row[0] for row in packages.values()}
 
@@ -52,6 +52,17 @@ def needs_windows(paths, root=ROOT):
     return False
 
 
+def needs_developer(paths, root=ROOT):
+    dependencies, known = dependency_closure(root, ("atlas-dev", "atlas-cli-support"))
+    return any(
+        path.startswith(".cargo/")
+        or path in {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "build.rs"}
+        or (len(parts := Path(path).parts) >= 3 and parts[0] == "crates"
+            and (parts[1] in dependencies or parts[1] not in known))
+        for path in paths
+    )
+
+
 def changed_paths(base, root=ROOT):
     with tempfile.TemporaryDirectory(prefix='atlas-native-selection-') as directory:
         paths = Path(directory) / 'paths'
@@ -63,6 +74,8 @@ def changed_paths(base, root=ROOT):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base', default='')
+    parser.add_argument('--developer', action='store_true')
     args = parser.parse_args()
     paths = changed_paths(args.base) if args.base else None
-    print('true' if paths is None or needs_windows(paths) else 'false')
+    select = needs_developer if args.developer else needs_windows
+    print('true' if paths is None or select(paths) else 'false')

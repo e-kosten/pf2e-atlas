@@ -2,7 +2,9 @@
 from pathlib import Path
 from contextlib import closing
 import hashlib
+import gzip
 import json
+import os
 import runpy
 import shutil
 import sqlite3
@@ -29,7 +31,7 @@ class Routing(unittest.TestCase):
         self.git("add", ".")
         self.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
                  "commit", "-qm", "baseline")
-        self.select = STACK["selected_runners"]
+        self.select = STACK["selected_checks"]
         self.enterContext(patch.dict(self.select.__globals__, ROOT=self.root))
 
     def git(self, *args):
@@ -39,17 +41,24 @@ class Routing(unittest.TestCase):
     def test_unrelated_change_skips_probe(self):
         (self.root / "README.md").write_text("Docs")
         self.git("add", "README.md")
-        self.assertEqual(self.select("HEAD", False), [])
+        self.assertEqual(self.select("HEAD", False), {"model": [], "workspace": []})
+
+    def test_isolated_desktop_workspace_does_not_select_embedding_or_upgrade(self):
+        manifest = self.root / "desktop/src-tauri/Cargo.toml"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("[workspace]\n")
+        self.git("add", str(manifest))
+        self.assertEqual(self.select("HEAD", False), {"model": [], "workspace": []})
+        self.assertFalse(STACK["probe_depth"]("HEAD")["near_limit"])
 
     def test_embedding_implementation_change_selects_linux(self):
-        for name in ("atlas-embedding/src/inference.rs", "atlas-ingest/src/native_execution.rs",
-                     "atlas-search/src/text.rs", "atlas-runtime/src/workspace.rs"):
+        for name in ("atlas-search/src/similar.rs", "atlas-runtime/src/workspace.rs"):
             with self.subTest(name=name):
                 path = self.root / "crates" / name
                 path.parent.mkdir(parents=True)
                 path.write_text("// changed")
                 self.git("add", str(path))
-                self.assertEqual(self.select("HEAD", False), ["ubuntu-24.04"])
+                self.assertEqual(self.select("HEAD", False)["model"], ["ubuntu-24.04"])
                 self.git("rm", "-f", str(path))
 
     def test_native_lockfile_change_runs_matrix_even_with_receipt_update(self):
@@ -60,7 +69,7 @@ class Routing(unittest.TestCase):
         receipt = self.pin.with_name("embedding-stack.json")
         receipt.write_text("{}")
         self.git("add", ".")
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_removing_an_active_pin_fails(self):
         self.pin.unlink()
@@ -73,7 +82,7 @@ class Routing(unittest.TestCase):
             'name = "unicode-normalization-alignments"\nversion = "',
             'name = "unicode-normalization-alignments"\nversion = "fixture-',
         ))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_daachorse_only_update_requires_review_and_runs_matrix(self):
         before = STACK["snapshot"]()
@@ -85,7 +94,7 @@ class Routing(unittest.TestCase):
         )
         self.assertNotEqual(original, updated, "Fixture must contain daachorse")
         lockfile.write_text(updated)
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
         after = STACK["snapshot"]()
         self.assertNotEqual(before, after, "Reviewed receipt must detect the update")
         self.assertEqual(
@@ -95,14 +104,14 @@ class Routing(unittest.TestCase):
         receipt = self.pin.with_name("embedding-stack.json")
         receipt.write_text(json.dumps(after))
         self.git("add", ".")
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_native_link_settings_run_matrix(self):
         config = self.root / ".cargo/config.toml"
         config.parent.mkdir()
         config.write_text('[target.x86_64-pc-windows-msvc]\nrustflags = ["-C", "opt-level=2"]\n')
         self.git("add", str(config))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_first_pin_runs_matrix(self):
         self.git("rm", str(self.pin))
@@ -111,34 +120,350 @@ class Routing(unittest.TestCase):
         self.pin.parent.mkdir(parents=True, exist_ok=True)
         self.pin.write_text("{}")
         self.git("add", str(self.pin))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_schema_cutover_runs_all_four_targets(self):
         cutoff = self.root / STACK["RELEASE_PREDECESSOR_PIN"]
         cutoff.write_text("{}")
         self.git("add", str(cutoff))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
 
-    def test_release_schema_changes_run_all_four_targets(self):
+    def test_release_schema_changes_run_offline_checks_on_all_targets(self):
         for name in ("atlas-runtime/src/release_history.rs",
                      "atlas-index/src/release_schema.sql",
-                     "atlas-local-state/src/release.rs",
+                     "atlas-runtime/src/workspace_settings.sql",
                      "atlas-local-state/src/release/encounters.sql",
-                     "atlas-runtime/tests/fixtures/schema-41.sqlite.gz"):
+                     "atlas-runtime/tests/fixtures/schema-42.sqlite.gz"):
             with self.subTest(name=name):
                 path = self.root / "crates" / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"fixture change")
                 self.git("add", str(path))
-                self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+                self.assertEqual(self.select("HEAD", False), {"model": [], "workspace": STACK["FULL_MATRIX"]})
                 self.git("rm", "-f", str(path))
+
+    def test_numerical_changes_keep_full_matrix_even_with_schema_changes(self):
+        for name in ("atlas-embedding/src/inference.rs", "atlas-ingest/src/native_execution.rs",
+                     "atlas-runtime/src/release_history.rs"):
+            path = self.root / "crates" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("// changed")
+            self.git("add", str(path))
+        self.assertEqual(self.select("HEAD", False), {
+            "model": STACK["FULL_MATRIX"], "workspace": STACK["FULL_MATRIX"],
+        })
+
+    def test_unknown_base_and_manual_keep_both_checks(self):
+        expected = {"model": STACK["FULL_MATRIX"], "workspace": STACK["FULL_MATRIX"]}
+        self.assertEqual(self.select("", False), expected)
+        self.assertEqual(self.select("HEAD", True), expected)
+        self.assertEqual(self.select("no-such-commit", False), expected)
+        self.assertEqual(self.select("", False, True), {"model": [], "workspace": []})
+
+    def test_probe_depth_distinguishes_workflow_ingest_and_native_changes(self):
+        depth = STACK["probe_depth"]
+        for name, expected in (
+            (".github/workflows/ci.yml", {"build": False, "near_limit": False}),
+            ("crates/atlas-ingest/src/build.rs", {"build": True, "near_limit": False}),
+            ("crates/atlas-embedding/src/inference.rs", {"build": False, "near_limit": True}),
+            ("crates/atlas-ingest/src/native_execution.rs", {"build": True, "near_limit": True}),
+            ("dist-workspace.toml", {"build": False, "near_limit": True}),
+            (".github/workflows/release-build-check.yml", {"build": False, "near_limit": True}),
+        ):
+            with self.subTest(name=name):
+                path = self.root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("// changed")
+                self.git("add", name)
+                self.assertEqual(depth("HEAD"), expected)
+                self.git("rm", "-f", name)
+
+
+class PredecessorSearch(unittest.TestCase):
+    def test_requires_known_semantic_hit_without_fixing_unrelated_ranks(self):
+        compare = PROBE["compare_predecessor_hit"]
+        expected = [["known", [["passage", 0.75]]], ["other", [["elsewhere", 0.5]]]]
+        compare(expected, [expected[0], ["unrelated", [["different", 0.4]]]], "bge-base")
+        for actual in (
+            list(reversed(expected)),
+            [["other", [["elsewhere", 0.75]]]],
+            [["known", [["wrong passage", 0.75]]]],
+            [["known", [["passage", 0.6]]]],
+        ):
+            with self.subTest(actual=actual):
+                with self.assertRaisesRegex(RuntimeError, "witness changed"):
+                    compare(expected, actual, "bge-base")
+
+
+class FrozenNumerical(unittest.TestCase):
+    def setUp(self):
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+        self.path = Path(directory) / "samples.json.gz"
+        self.profile = "bge-base"
+        self.target = "aarch64-apple-darwin"
+        self.policy = "test-policy"
+        self.payload = {
+            "format": 2, "producer": {"target": self.target},
+            "profiles": {self.profile: {
+                "contract": {"profile_id": self.profile, "execution_policy": self.policy},
+                "samples": [{"kind": "identity"}, {"kind": "passage"}],
+            }},
+        }
+
+    def load(self, *, target=None, digest=None):
+        self.path.write_bytes(gzip.compress(json.dumps(self.payload).encode()))
+        return PROBE["load_v2_numerical"](
+            self.path, digest or PROBE["sha256"](self.path), target or self.target,
+            {self.profile: self.policy},
+        )
+
+    def test_numerical_evidence_loads_without_a_workspace(self):
+        self.assertEqual(self.load(), self.payload)
+
+    def test_checksum_target_policy_and_sample_coverage_are_required(self):
+        with self.assertRaisesRegex(RuntimeError, "checksum"):
+            self.load(digest="0" * 64)
+        with self.assertRaisesRegex(RuntimeError, "target"):
+            self.load(target="x86_64-unknown-linux-gnu")
+        data = self.payload["profiles"][self.profile]
+        data["contract"]["execution_policy"] = "changed"
+        with self.assertRaisesRegex(RuntimeError, "policy"):
+            self.load()
+        data["contract"]["execution_policy"] = self.policy
+        data["samples"].pop()
+        with self.assertRaisesRegex(RuntimeError, "incomplete"):
+            self.load()
+
+    def test_workspace_refresh_keeps_numeric_pin_and_producer(self):
+        from copy import deepcopy
+
+        pins = {self.profile: {"execution_policy": self.policy, "asset": "test-bundle"}}
+        target = self.target
+        row = {kind: {
+            "tag": "fixtures/embedding-compatibility/v2",
+            "asset": f"{kind}-{target}.{extension}", "commit": "a" * 40,
+            "sha256": "a" * 64,
+        } for kind, extension in (("workspace", "tar.gz"), ("numerical", "json.gz"))}
+        previous = {target: {self.profile: row}}
+        current = deepcopy(previous)
+        current[target][self.profile]["workspace"]["sha256"] = "b" * 64
+        current[target][self.profile]["workspace"]["commit"] = "b" * 40
+        PROBE["validate_v2_receipts"](current, previous, {target}, pins, pins)
+        current[target][self.profile]["numerical"]["sha256"] = "b" * 64
+        with self.assertRaisesRegex(RuntimeError, "rotated without transition"):
+            PROBE["validate_v2_receipts"](current, previous, {target}, pins, pins)
+        with self.assertRaisesRegex(RuntimeError, "all release targets"):
+            PROBE["validate_v2_receipts"](current, previous, {target, "missing"}, pins, pins)
+
+
+class FixtureCapture(unittest.TestCase):
+    def test_manual_replacement_can_follow_a_previously_rotated_workspace(self):
+        receipts = json.loads((HERE / "embedding-fixtures-v2.json").read_bytes())
+        target = next(iter(receipts))
+        profile = next(iter(receipts[target]))
+        receipts[target][profile]["workspace"]["commit"] = "b" * 40
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        receipt_path = root / PROBE["V2_PIN_PATH"]
+        receipt_path.parent.mkdir(parents=True)
+        receipt_path.write_text(json.dumps(receipts))
+        shutil.copyfile(HERE / "schema-42-predecessor.json", root / PROBE["RELEASE_PIN"])
+        pins, _ = PROBE["read_pins"](None)
+        read = PROBE["v2_receipts"]
+        with patch.dict(read.__globals__, ROOT=root, read_pins=lambda _: (pins, {}),
+                        release_target=lambda: target), patch.object(subprocess, "check_output", return_value=""):
+            self.assertEqual(read(None), (receipts[target], {}))
+            with self.assertRaisesRegex(RuntimeError, "initial v2 producer"):
+                read("first-activation-base")
+
+    def test_conflicting_capture_and_replay_modes_are_rejected(self):
+        main = PROBE["main"]
+        common = ["probe", "--model-cache", "cache", "--output", "output"]
+        cases = (
+            (["--pins", "--workspace-only"], "require split fixture"),
+            (["--produce-v2", "--repository", "owner/repo"], "fixture vector reader"),
+            (["--v2-workspace", "workspace", "--producer-receipt", "producer.json"],
+             "requires workspace-only mode"),
+            (["--v2-workspace", "workspace", "--workspace-only", "--candidate", "atlas",
+              "--sha256", "digest", "--fixture-inference", "inference", "--workspace-migrator", "migrator",
+              "--compact-vector-reader", "reader", "--repository", "owner/repo", "--numerical", "local"],
+             "uses published numerical pins"),
+        )
+        for flags, error in cases:
+            with self.subTest(flags=flags), patch("sys.argv", common + flags), patch("sys.stderr") as stderr:
+                with self.assertRaises(SystemExit) as failure:
+                    main()
+                self.assertEqual(failure.exception.code, 2)
+                self.assertIn(error, "".join(call.args[0] for call in stderr.write.call_args_list))
+
+    def test_replay_rejects_different_workspace_numerical_contract(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        profile = PROBE["PROFILES"][0]
+        target = PROBE["release_target"]()
+        contract = {"execution_policy": "compatible-id", "tokenizer_sha256": "before"}
+        numerical = {"profiles": {profile: {"contract": contract, "samples": []}}}
+        manifest = {"producer": {"target": target, "workspace_schema": 43, "ledger_sha256": "ledger"},
+                    "profiles": {profile: {**contract, "tokenizer_sha256": "after"}}}
+        replay = PROBE["check_v2_payloads"]
+        with patch.dict(replay.__globals__, load_v2_numerical=Mock(return_value=numerical),
+                        extract_bundle=Mock(return_value=manifest), workspace_schema=lambda _: 43,
+                        predecessor_ledger=lambda _: "ledger"), patch.object(subprocess, "run"):
+            with self.assertRaisesRegex(RuntimeError, "workspace numerical contract mismatch"):
+                replay(None, root, root, None, None, Path("inference"), (None, None), (None, None),
+                       {profile: "compatible-id"}, {})
+
+    def test_producer_receipt_checks_tag_and_archive_names(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        load = PROBE["producer_receipt"]
+        receipt_path = root / PROBE["RELEASE_PIN"]
+        receipt_path.parent.mkdir(parents=True)
+        original = (HERE.parent.parent / PROBE["RELEASE_PIN"]).read_bytes()
+        receipt_path.write_bytes(original.replace(b"\n", b"\r\n"))
+        receipt = json.loads(original)
+        commit = Mock(return_value=receipt["commit"] + "\n")
+        self.enterContext(patch.dict(load.__globals__, ROOT=root))
+        self.enterContext(patch.object(subprocess, "check_output", commit))
+        tracked = self.enterContext(patch.object(subprocess, "run"))
+        self.assertEqual(load(), (receipt, PROBE["RELEASE_DIGEST"]))
+
+        receipt.update(tag="v0.1.1", schema=43, commit="b" * 40)
+        receipt_path.write_text(json.dumps(receipt))
+        commit.return_value = receipt["commit"] + "\n"
+        self.assertEqual(load(receipt_path.relative_to(root))[0], receipt)
+        self.assertEqual(tracked.call_args.args[0][-1], PROBE["RELEASE_PIN"])
+        self.assertEqual(commit.call_args.args[0][-1], "refs/tags/v0.1.1^{commit}")
+        commit.return_value = "a" * 40
+        with self.assertRaisesRegex(RuntimeError, "tag does not match"):
+            load(receipt_path.relative_to(root))
+        receipt["assets"][PROBE["RELEASE_TARGETS"][0]]["asset"] = "../atlas.tar.xz"
+        receipt_path.write_text(json.dumps(receipt))
+        with self.assertRaisesRegex(RuntimeError, "Invalid packaged producer archive"):
+            load(receipt_path.relative_to(root))
+        with self.assertRaises(ValueError):
+            load(Path("../outside.json"))
+
+    def test_workspace_only_capture_skips_numerical_export(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        produce = PROBE["produce_v2"]
+        capture = Mock(return_value={"producer": {}})
+        export = Mock(side_effect=AssertionError("Unexpected numerical export"))
+        with patch.dict(produce.__globals__, capture_release_predecessor=capture,
+                        capture_numerical_payload=export,
+                        archive_bundle=lambda _, path: path.write_bytes(b"workspace")):
+            produce("owner/repo", root, root, None, receipt=Path("new.json"), workspace_only=True)
+        self.assertEqual(capture.call_args.kwargs, {"receipt": Path("new.json"), "compact": True})
+        self.assertEqual(list(json.loads((root / "fixture-digests.json").read_bytes())["assets"]),
+                         [f"workspace-{PROBE['release_target']()}.tar.gz"])
+
+    def test_replacement_replays_each_pinned_numerical_asset_without_old_workspace(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        profiles = PROBE["PROFILES"]
+        pins = {profile: {"execution_policy": profile} for profile in profiles}
+        receipts = {profile: {"workspace": {"asset": "unreadable"}, "numerical": {
+            "asset": f"{profile}.gz", "tag": "v2", "commit": profile, "sha256": profile,
+        }} for profile in profiles}
+        workspace = (root / "new.tar.gz", {"commit": "new", "sha256": "new-hash",
+                                            "release_receipt_sha256": "receipt-hash"})
+        replay = PROBE["check_published_v2"]
+
+        def validate(*args, **_kwargs):
+            self.assertEqual(args[6], (workspace[0], "new-hash"))
+            profile, = args[8]
+            self.assertEqual(args[7][1], profile)
+            self.assertEqual(args[10]["numerical"], profile)
+            PROBE["write_json"](args[2] / "result.json", {"workspace_schema": {"from": 43, "to": 44}})
+
+        verifier = Mock(side_effect=validate)
+        with patch.dict(replay.__globals__, read_pins=lambda _: (pins, {}), check_v2_payloads=verifier), \
+                patch.object(subprocess, "run") as download:
+            result = replay(None, None, root, None, "owner/repo", None, True, True,
+                            receipts, {}, replacement=workspace)
+            self.assertEqual(result, {profile: {"numerical": receipts[profile]["numerical"],
+                                               "workspace_schema": {"from": 43, "to": 44}}
+                                      for profile in profiles})
+            self.assertEqual([call.args[0][7] for call in download.call_args_list],
+                             [f"{profile}.gz" for profile in profiles])
+            pins[profiles[0]]["transition_to"] = "new-policy"
+            with self.assertRaisesRegex(RuntimeError, "separate execution-policy transition"):
+                replay(None, None, root, None, "owner/repo", None, True, True,
+                       receipts, {}, replacement=workspace)
+
+    @unittest.skipUnless(os.name == "posix", "Exercises the workflow's bash script")
+    def test_workspace_dispatch_routes_to_replacement_and_requires_replay_for_upload(self):
+        workflow = (HERE.parent.parent / ".github/workflows/ci.yml").read_text()
+        normal = workflow.split("- name: Check search against release fixtures\n", 1)[1]
+        self.assertEqual(normal.splitlines()[0].strip(),
+                         "if: ${{ !(github.event_name == 'workflow_dispatch' && "
+                         "inputs.capture-embedding-fixtures && inputs.capture-workspace-only) }}")
+        capture, upload = workflow.split("- name: Capture and check unpublished v2 fixtures\n", 1)[1].split(
+            "- uses: actions/upload-artifact@v7", 1)
+        self.assertIn("if: steps.fixture-capture.outcome == 'success'", upload.split("      - name:", 1)[0])
+        script = capture.split("run: |\n", 1)[1]
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        commands = root / "commands"
+        fake = root / "python"
+        fake.write_text('''#!/bin/bash
+case " $* " in
+  *" --produce-v2 "*) mkdir -p "$RUNNER_TEMP/embedding-v2-capture"
+    touch "$RUNNER_TEMP/embedding-v2-capture/workspace-new.tar.gz" ;;
+  *" --v2-workspace "*) [[ " $* " == *" --workspace-only "* ]] || exit 91
+    printf '%s\\n' "$*" > "$COMMANDS"
+    exit "$REPLAY_STATUS" ;;
+  *" -c "*) printf 'digest' ;;
+  *) exit 92 ;; # Includes the old published workspace route.
+esac
+''')
+        fake.chmod(0o700)
+        env = dict(os.environ, PATH=f"{root}{os.pathsep}{os.environ['PATH']}",
+                   RUNNER_TEMP=str(root), COMMANDS=str(commands), WORKSPACE_ONLY="true",
+                   PRODUCER_RECEIPT="scripts/validation/new.json", GITHUB_REPOSITORY="owner/repo")
+        for status in ("0", "17"):
+            with self.subTest(status=status):
+                result = subprocess.run(["bash", "-eo", "pipefail", "-c", script],
+                                        env={**env, "REPLAY_STATUS": status})
+                self.assertEqual(result.returncode, int(status))
+                self.assertIn("--producer-receipt=scripts/validation/new.json", commands.read_text())
+                self.assertNotIn("--numerical ", commands.read_text())
+
+
+class CompactDocumentSamples(unittest.TestCase):
+    def test_equal_input_hash_with_changed_token_count_fails_before_reading(self):
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+        path = Path(directory) / "fixture.sqlite"
+        with closing(sqlite3.connect(path)) as db, db:
+            db.executescript("""
+                CREATE TABLE semantic_units(input_id, unit_kind, profile_id);
+                CREATE TABLE embedding_inputs(input_id, input_hash);
+                INSERT INTO semantic_units VALUES(1, 'identity', 'bge-base');
+                INSERT INTO embedding_inputs VALUES(1, x'12');
+            """)
+        before = {"bge-base": {("{}", "12", 6): "old"}}
+        after = {"bge-base": {("{}", "12", 7): "new"}}
+        with self.assertRaisesRegex(RuntimeError, "token count changed"):
+            PROBE["check_document_samples"](None, path, path, "bge-base", before, after, layout_changed=True)
+
+    def test_same_policy_vector_drift_fails(self):
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+        path = Path(directory) / "fixture.sqlite"
+        with closing(sqlite3.connect(path)) as db, db:
+            db.executescript("""
+                CREATE TABLE semantic_units(input_id, unit_kind, profile_id);
+                CREATE TABLE embedding_inputs(input_id, input_hash);
+                INSERT INTO semantic_units VALUES(1, 'identity', 'bge-base');
+                INSERT INTO embedding_inputs VALUES(1, x'12');
+            """)
+        receipt = {"bge-base": {("{}", "12", 6): "hash"}}
+        vectors = [json.dumps([{"hash": "12", "tokens": 6, "values": [value]}])
+                   for value in (0.1, 0.2)]
+        with patch.object(subprocess, "check_output", side_effect=vectors):
+            with self.assertRaisesRegex(RuntimeError, "vector drift"):
+                PROBE["check_document_samples"](None, path, path, "bge-base", receipt, receipt, layout_changed=True)
 
 
 class PinTransition(unittest.TestCase):
     def test_exact_schema_cutover_keeps_execution_ids_and_retires_old_fixture(self):
-        old = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_29_PIN"])
-        current = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_41_PIN"])
+        old = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_41_PIN"])
+        current = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_42_PIN"])
         checks = PROBE["pinned_checks"](current, old)
         self.assertEqual(len(checks), 1)
         self.assertEqual(next(iter(checks)), (
@@ -150,7 +475,7 @@ class PinTransition(unittest.TestCase):
 
     def test_packaged_pin_still_requires_reviewed_id_for_future_replacement(self):
         profile = "bge-base"
-        old = PROBE["SCHEMA_41_PIN"]
+        old = PROBE["SCHEMA_42_PIN"]
         new = {**PROBE["SCHEMA_29_PIN"], "tag": "embedding-baseline-v2",
                "sha256": "b" * 64, "execution_policy": "next"}
         with self.assertRaisesRegex(RuntimeError, "approved ID transition"):

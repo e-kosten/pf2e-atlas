@@ -19,6 +19,103 @@ use args::{
 
 pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
     let json = args.paths.json;
+    if args.desktop_upgrade_workspace {
+        if !cfg!(feature = "web")
+            || args.command.is_some()
+            || !matches!(args.paths.path_mode, atlas_cli_support::CliPathMode::Global)
+            || args.paths.source.is_some()
+            || args.run.check
+            || args.run.no_embeddings
+            || args.run.offline
+            || args.run.force_rebuild
+            || args.run.audit_embedding_coverage
+            || args.run.build_embeddings_locally
+            || args.run.locale.is_some()
+            || !args.run.search_profiles.is_empty()
+        {
+            return invalid_setup_input(json, "invalid desktop workspace upgrade options".into());
+        }
+        let runtime = setup_runtime(args.paths)?;
+        if let Err(message) = runtime.upgrade_desktop_workspace() {
+            write_json_error("workspace_upgrade_failed", message)?;
+            return Ok(ExitCode::FAILURE);
+        }
+        write_json_data(serde_json::json!({"ready": true}))?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Some(offer) = args.desktop_reference_offer.as_deref() {
+        if !cfg!(feature = "web")
+            || args.command.is_some()
+            || !matches!(args.paths.path_mode, atlas_cli_support::CliPathMode::Global)
+            || args.paths.source.is_some()
+            || args.paths.index.is_some()
+            || args.paths.embedding_cache_path.is_some()
+            || args.run.check
+            || args.run.no_embeddings
+            || args.run.offline
+            || args.run.force_rebuild
+            || args.run.audit_embedding_coverage
+            || args.run.locale.is_some()
+            || !args.run.search_profiles.is_empty()
+            || offer.len() != 64
+            || !offer.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return invalid_setup_input(json, "invalid desktop reference refresh options".into());
+        }
+        #[cfg(feature = "web")]
+        {
+            let runtime = match setup_runtime(args.paths) {
+                Ok(runtime) => runtime,
+                Err(message) => return invalid_setup_input(json, message),
+            };
+            let models = args
+                .desktop_model_selection
+                .as_deref()
+                .map(serde_json::from_str::<atlas_desktop_protocol::ModelSelection>)
+                .transpose()
+                .map_err(|_| "Invalid desktop search model selection.")?
+                .map(|selection| atlas_runtime::DesktopModelSelection {
+                    profiles: selection.profiles,
+                    preferred: selection.preferred,
+                });
+            if args.desktop_set_default {
+                if args.run.build_embeddings_locally {
+                    return invalid_setup_input(
+                        json,
+                        "invalid desktop default model options".into(),
+                    );
+                }
+                let selection = models.as_ref().ok_or("Select a default search model.")?;
+                if let Err(error) = runtime.set_desktop_search_default(offer, selection) {
+                    if matches!(error, atlas_runtime::DesktopRefreshError::Busy) {
+                        emit_desktop_outcome(atlas_runtime::DesktopReferenceOutcome::Busy);
+                    }
+                    write_json_error("search_model_default_failed", error.to_string())?;
+                    return Ok(ExitCode::FAILURE);
+                }
+                super::web::managed::notify_semantic_publication(&runtime);
+                write_json_data(serde_json::json!({"ready": true}))?;
+                return Ok(ExitCode::SUCCESS);
+            }
+            #[cfg(debug_assertions)]
+            if runtime.holds_desktop_reference_fixture() {
+                tracing::info!(target:"atlas_progress", phase="check_setup", "Checking reference data");
+                loop {
+                    std::thread::park();
+                }
+            }
+            let report = runtime.refresh_desktop_reference(
+                args.run.build_embeddings_locally,
+                offer,
+                models.as_ref(),
+                emit_desktop_outcome,
+            );
+            if report.ready && !report.search_profiles.is_empty() {
+                super::web::managed::notify_semantic_publication(&runtime);
+            }
+            return finish_setup_report(&report, true, false);
+        }
+    }
     let fixture = cfg!(debug_assertions)
         && matches!(args.desktop_stage, Some(DesktopStage::FirstRun))
         && std::env::var_os("ATLAS_PILOT_SMOKE")
@@ -72,6 +169,34 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
             };
             run_setup_install(runtime, args.run, args.desktop_stage, fixture, json)
         }
+    }
+}
+
+#[cfg(feature = "web")]
+fn emit_desktop_outcome(outcome: atlas_runtime::DesktopReferenceOutcome) {
+    use atlas_desktop_protocol::ReferenceRefreshOutcome;
+    use atlas_runtime::DesktopReferenceOutcome;
+    let outcome = match outcome {
+        DesktopReferenceOutcome::Ready {
+            generation,
+            updated,
+            model_repaired,
+        } => ReferenceRefreshOutcome::Ready {
+            generation,
+            updated,
+            model_repaired,
+        },
+        DesktopReferenceOutcome::SeedUnavailable { retry_offer } => {
+            ReferenceRefreshOutcome::SeedUnavailable { retry_offer }
+        }
+        DesktopReferenceOutcome::Busy => ReferenceRefreshOutcome::Busy,
+    };
+    let event = atlas_desktop_protocol::ReferenceRefreshResult {
+        reference_refresh_version: atlas_desktop_protocol::REFERENCE_REFRESH_VERSION,
+        outcome,
+    };
+    if let Ok(json) = serde_json::to_string(&event) {
+        eprintln!("{json}");
     }
 }
 
@@ -147,17 +272,25 @@ fn run_setup_install(
     if desktop_stage.is_some() && report.ready {
         super::web::managed::notify_semantic_publication(&runtime);
     }
+    finish_setup_report(&report, json, options.audit_embedding_coverage)
+}
+
+fn finish_setup_report(
+    report: &atlas_runtime::RuntimeSetupReport,
+    json: bool,
+    audit_embedding_coverage: bool,
+) -> Result<ExitCode, String> {
     tracing::info!(target:"atlas_progress",complete=true,"Setup finished");
     let exit_class = report.exit_code_class();
 
     if json {
-        let mut data = setup_json_data(&report);
-        if options.audit_embedding_coverage {
+        let mut data = setup_json_data(report);
+        if audit_embedding_coverage {
             data.embedding_seed_pins = Some(atlas_runtime::published_embedding_seed_pins()?);
         }
         write_json_data(data)?;
     } else {
-        print_setup_report(&report);
+        print_setup_report(report);
     }
 
     Ok(match exit_class {
