@@ -64,6 +64,30 @@ it("exposes workspace setup only for an attached desktop document", () => {
   expect(screen.queryByRole("button", { name: "Setup and Updates" })).toBeNull();
 });
 
+it("keeps the setup warning on the trigger until desktop reports completion", () => {
+  attach();
+  const updateSetup = (status: string, sequence: number) => {
+    host.__ATLAS_DESKTOP_SETUP__ = {
+      ...host.__ATLAS_DESKTOP_SETUP__,
+      setup: { job: 2, sequence, status },
+    };
+    fireEvent(window, new Event("atlas-desktop-setup"));
+  };
+  renderPanel();
+  const trigger = screen.getByRole("button", { name: "Setup and Updates" });
+  trigger.focus();
+
+  updateSetup("available", 6);
+  expect(trigger).toHaveAccessibleName("Setup and Updates (setup incomplete)");
+  updateSetup("running", 7);
+  expect(trigger).toHaveAccessibleName("Setup and Updates (setup in progress)");
+  updateSetup("failed", 8);
+  expect(trigger).toHaveAccessibleName("Setup and Updates (setup incomplete)");
+  updateSetup("idle", 9);
+  expect(trigger).toHaveAccessibleName("Setup and Updates");
+  expect(trigger).toHaveFocus();
+});
+
 it.each([
   { current: 20, percent: "40" },
   { current: 50, percent: "100" },
@@ -118,7 +142,9 @@ it("prevents resuming while another operation holds the workspace write lock", a
     setup: { job: 2, sequence: 5, status: "available", can_resume: true },
   };
   renderPanel(true);
-  fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Setup and Updates (setup incomplete)" }),
+  );
   const resume = await screen.findByRole("button", { name: "Resume semantic setup" });
   expect(resume).toBeDisabled();
   fireEvent.click(resume);

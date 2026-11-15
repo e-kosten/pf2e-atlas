@@ -3,11 +3,13 @@ import "./desktopSetupPanel.css";
 import { useSavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import {
   Alert,
+  Badge,
   Button,
   Checkbox,
   Progress,
   Select,
   Space,
+  theme,
   Tooltip,
   Typography,
 } from "antd";
@@ -73,6 +75,7 @@ function subscribe(callback: () => void) {
 
 export function DesktopSetupPanel() {
   const attachment = useSyncExternalStore(subscribe, readAttachment);
+  const { token: themeToken } = theme.useToken();
   const writesPaused = useSavedWritesPaused();
   const [open, setOpen] = useState(false);
   const terminalSection = useRef<HTMLDivElement>(null);
@@ -112,6 +115,12 @@ export function DesktopSetupPanel() {
   const { status, progress } = setup;
   const { reference, referenceLoading } = attachment;
   const running = status === "running" || status === "cancelling";
+  const setupIncomplete = status !== "idle";
+  const triggerLabel = running
+    ? "Setup and Updates (setup in progress)"
+    : setupIncomplete
+      ? "Setup and Updates (setup incomplete)"
+      : "Setup and Updates";
   const pendingPin = reference && reference.revision !== reference.target;
   const confirming = confirmation === setup.sequence;
   const percent =
@@ -148,15 +157,23 @@ export function DesktopSetupPanel() {
   return (
     <>
       <Tooltip
-        title="Setup and Updates"
+        title={triggerLabel}
         trigger={["hover", "focus"]}
         open={open ? false : undefined}
       >
         <Button
           ref={trigger}
           type="text"
-          aria-label="Setup and Updates"
-          icon={<Settings size={18} />}
+          aria-label={triggerLabel}
+          icon={
+            <Badge
+              dot={setupIncomplete}
+              color={themeToken.colorWarning}
+              aria-hidden="true"
+            >
+              <Settings size={18} />
+            </Badge>
+          }
           onClick={() => {
             setConfirmation(undefined);
             setOpen(true);
