@@ -214,7 +214,9 @@ CLI. The same check runs locally with
 Full-corpus coverage runs during release packaging. Ordinary PR validation can
 pass while a staged migration still needs refreshed assets. To check a change
 early, run the nonpublishing **release build check** workflow on its branch or
-run the local checker with `--advisory` to report known gaps.
+run the local checker with `--advisory` to report known gaps. Enable
+`strict-embedding-coverage` when dispatching the workflow with nightly rehearsal
+off to certify public pins on the packaged Linux x64 CLI.
 A shared nightly can publish a known gap if other checks pass. Its release notes
 name the affected profiles and show **Build embeddings locally** and
 `atlas setup --build-embeddings-locally`. That explicit choice can take an hour
