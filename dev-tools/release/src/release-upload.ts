@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { macosDmg, sha256 } from './release-data.js';
+import { desktopAssets, sha256 } from './release-data.js';
 
 export type Run = (program: string, args: string[]) => string;
 
@@ -28,9 +28,11 @@ export function verifyReleaseSource(run: Run, release: Release, tag: string, sha
   }
 }
 
-export async function verifyUploadedDmg(release: Release, dist: string): Promise<void> {
-  const matching = release.assets?.filter((asset) => asset.name === macosDmg);
-  if (matching?.length !== 1 || matching[0].digest !== `sha256:${await sha256(path.join(dist, macosDmg))}`) {
-    throw new Error(`Uploaded DMG digest mismatch for ${release.tag_name}`);
+export async function verifyUploadedDesktop(release: Release, dist: string): Promise<void> {
+  for (const { name, label } of desktopAssets(release.tag_name)) {
+    const matching = release.assets?.filter((asset) => asset.name === name);
+    if (matching?.length !== 1 || matching[0].digest !== `sha256:${await sha256(path.join(dist, name))}`) {
+      throw new Error(`Uploaded ${label} digest mismatch for ${release.tag_name}`);
+    }
   }
 }

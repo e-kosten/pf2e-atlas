@@ -21,8 +21,9 @@ target with its default libraries disabled. This adds the standard Apple runtime
 helper without changing the deployment target or embedding policy.
 
 The [Windows desktop build](../../desktop/README.md#windows-x64) produces
-an unsigned per-user NSIS installer. The Windows desktop workflow uploads
-it as a CI artifact for testing.
+an unsigned per-user NSIS installer. The Windows desktop workflow uploads a
+test build as a CI artifact. Nightly packaging builds the published installer
+from the full Windows CLI archive for that exact release.
 
 Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
 archive (`atlas-cli-only-<target>.*`). Both contain `atlas`; full is the default.
@@ -78,16 +79,20 @@ that the hosted platform builds or live installation succeeded.
 
 The Apple Silicon full build also packages the optimized desktop app using
 its packaged CLI. The DMG is a required asset for nightly and official
-releases. The release jobs verify its uploaded digest before publishing,
-and nightly checks it again before updating the channel. Keep the original
-assembled artifact when retrying a partially published release.
+releases. The Windows x64 full build packages and smoke-tests the nightly
+desktop installer. Assembly checks the desktop build receipts against the
+matching CLI archive and installer bytes. Nightly verifies both uploaded
+desktop digests before publishing and again before advancing the channel.
+Keep the original assembled artifact when retrying a partially published release.
 
 For an unpublished rehearsal, dispatch **release build check** on the
 candidate ref. Use the checked-in CLI version for the official-style build.
 For the nightly-style build, enable the `nightly` input and supply a nightly
 tag with the candidate's version core, timestamp, and 12-character commit
-suffix. Download the assembled artifact and test the DMG from a clean macOS
-account. See [macOS desktop installation](../installation.md#macos-desktop-app).
+suffix. Download the assembled artifact and test the
+[DMG](../installation.md#macos-desktop-app) and, for a nightly rehearsal, the
+[Windows installer](../installation.md#windows-desktop-app) from disposable
+accounts.
 
 Local release-tooling checks:
 
