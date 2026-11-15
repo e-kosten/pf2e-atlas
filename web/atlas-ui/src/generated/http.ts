@@ -512,6 +512,13 @@ export interface ActorDefenseNotesView {
   will: FactViewString;
 }
 
+export interface ActorEmbeddedConditionView {
+  name: string;
+  navigation: RecordNavigationView;
+  /** @nullable */
+  value: number | null;
+}
+
 export type FactViewVecActorModifierViewValue = {
   help?: ReferenceHelpView;
   key: string;
@@ -644,6 +651,7 @@ export interface ActorPresentationView {
   activities: FactViewVecActorActivityView;
   armor_class: NumberFactView;
   defense_notes: ActorDefenseNotesView;
+  embedded_conditions?: ActorEmbeddedConditionView[];
   hardness: NumberFactView;
   immunities: FactViewVecIwrEntryView;
   land_speed: NumberFactView;

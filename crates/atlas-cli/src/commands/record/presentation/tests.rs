@@ -648,6 +648,7 @@ fn actor() -> ActorPresentationView {
         perception_details: missing(),
         languages: known(vec!["common".into()]),
         language_details: missing(),
+        embedded_conditions: vec![],
         activities: known(vec![ActorActivityView {
             help: None,
 

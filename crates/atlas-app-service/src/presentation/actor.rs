@@ -142,10 +142,37 @@ pub(crate) fn authored_actor(
                 .map(|languages| languages.iter().filter_map(token).map(Into::into).collect()),
         ),
         language_details,
+        embedded_conditions: if matches!(node, SourceNodeView::Actor(ActorSourcePF2e::NPCSource(_)))
+        {
+            authored_embedded_conditions(record, fingerprint)
+        } else {
+            vec![]
+        },
         activities: authored_activities(record, node, fingerprint),
         runtime: None,
     }
 }
+fn authored_embedded_conditions(
+    record: &SourceBackedRecord,
+    fingerprint: &str,
+) -> Vec<ActorEmbeddedConditionView> {
+    let mut conditions = vec![];
+    record.visit_immediate_actor_items(|_, owner, item| {
+        if matches!(item, ItemSourceView::ConditionSource(_)) {
+            conditions.push(ActorEmbeddedConditionView {
+                name: node_title(SourceNodeView::Item(item)),
+                value: item.authored_condition_value(),
+                navigation: crate::definitions::record_navigation(
+                    record.key().clone(),
+                    vec![owner.clone()],
+                    fingerprint,
+                ),
+            });
+        }
+    });
+    conditions
+}
+
 pub(crate) fn authored_activities(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
@@ -955,6 +982,7 @@ pub(crate) fn manual_presentation(
             perception_details: unavailable(),
             languages: unavailable(),
             language_details: unavailable(),
+            embedded_conditions: vec![],
             activities: unavailable(),
             runtime: Some(ActorRuntimeView {
                 action_budget: block.action_budget.clone(),

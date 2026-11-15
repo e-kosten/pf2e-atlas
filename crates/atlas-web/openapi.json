@@ -287,6 +287,29 @@
         ],
         "type": "object"
       },
+      "ActorEmbeddedConditionView": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "navigation": {
+            "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "value": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "navigation"
+        ],
+        "type": "object"
+      },
       "ActorPresentationView": {
         "properties": {
           "abilities": {
@@ -300,6 +323,12 @@
           },
           "defense_notes": {
             "$ref": "#/components/schemas/ActorDefenseNotesView"
+          },
+          "embedded_conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ActorEmbeddedConditionView"
+            },
+            "type": "array"
           },
           "hardness": {
             "$ref": "#/components/schemas/NumberFactView"

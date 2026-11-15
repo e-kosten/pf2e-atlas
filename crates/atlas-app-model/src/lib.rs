@@ -203,9 +203,9 @@ pub use prepared_content::{
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
     ActorAbilityGroupView, ActorActivityKindView, ActorActivityView, ActorDefenseNotesView,
-    ActorModifierView, ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView,
-    ActorSenseView, ActorSkillView, AmmunitionReferenceView, ArmorReferenceView,
-    CastingEntryContextView, ConditionalSkillView, ConsumableDamageView,
+    ActorEmbeddedConditionView, ActorModifierView, ActorMovementView, ActorPresentationView,
+    ActorRuntimeView, ActorSavesView, ActorSenseView, ActorSkillView, AmmunitionReferenceView,
+    ArmorReferenceView, CastingEntryContextView, ConditionalSkillView, ConsumableDamageView,
     ConsumablePresentationView, ContainerReferenceView, DamageComponentView, EffectDurationView,
     EmbeddedRecordLinkView, EncounterContextualArmorClassView, EncounterSenseView, FactView,
     HazardPresentationView, HeighteningDamageView, IwrEntryView, JournalPagePresentationView,

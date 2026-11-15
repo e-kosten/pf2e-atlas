@@ -177,10 +177,21 @@ pub struct ActorPresentationView {
     pub perception_details: FactView<String>,
     pub languages: FactView<Vec<crate::ReferenceValueView>>,
     pub language_details: FactView<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub embedded_conditions: Vec<ActorEmbeddedConditionView>,
     pub activities: FactView<Vec<ActorActivityView>>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub runtime: Option<ActorRuntimeView>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ActorEmbeddedConditionView {
+    pub name: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub value: Option<i64>,
+    pub navigation: RecordNavigationView,
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorDefenseNotesView {

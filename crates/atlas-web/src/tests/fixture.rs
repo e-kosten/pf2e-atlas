@@ -84,6 +84,32 @@ impl Fixture {
     pub fn with_actor_armor_class(armor_class: i64) -> Self {
         Self::with_reference_data(false, None, None, armor_class, Vec::new())
     }
+    pub fn with_embedded_conditions() -> Self {
+        let conditions = record(
+            "actors",
+            "Actor",
+            json!({
+                "_id": "conditionactor01", "type": "npc", "name": "Condition Fixture",
+                "system": {"details":{"level":{"value":1}}, "attributes":{"ac":{"value":16}}},
+                "items": [
+                    {"_id":"conditionitem001", "type":"condition", "name":"Clumsy",
+                        "system":{"slug":"clumsy","value":{"isValued":true,"value":2},
+                            "description":{"value":"<p>A clumsy movement.</p>"}}},
+                    {"_id":"conditionitem002", "type":"condition", "name":"Slowed",
+                        "system":{"slug":"slowed","value":{"isValued":true,"value":1}}},
+                    {"_id":"conditionitem003", "type":"condition", "name":"Invisible",
+                        "system":{"slug":"invisible","value":{"isValued":false,"value":null}}},
+                    {"_id":"conditionitem004", "type":"condition", "name":"Sickened",
+                        "system":{"slug":"sickened","value":{"isValued":true,"value":null}}},
+                    {"_id":"conditionitem005", "type":"condition", "name":"Frightened",
+                        "system":{"slug":"frightened","value":{"isValued":true,"value":2.5}}},
+                    {"_id":"conditionitem006", "type":"action", "name":"Slow",
+                        "system":{"description":{"value":"<p>Permanently Slowed 1.</p>"}}}
+                ]
+            }),
+        );
+        Self::with_reference_data(false, None, None, 16, vec![conditions])
+    }
     pub fn with_jolt_coil() -> Self {
         let records = [
             ("0gxqSZhYdOeJhPrp", "Jolt Coil", 3),

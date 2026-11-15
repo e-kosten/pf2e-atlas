@@ -325,3 +325,69 @@ it("opens the exact owned ability from its title without an inline general defin
   expect(onHelp).not.toHaveBeenCalled();
   expect(screen.queryByText("General definition")).toBeNull();
 });
+
+it("lists authored conditions alongside defenses and preserves embedded landing", () => {
+  const actor = actorFixture();
+  const clumsy = {
+    ...activityFixture("Clumsy"),
+    family: "condition",
+    kind: "other" as const,
+  };
+  actor.activities = knownFact([clumsy]);
+  actor.embedded_conditions = [
+    { name: "Clumsy", value: 2, navigation: clumsy.navigation },
+  ];
+
+  const onReference = vi.fn();
+  const onLandingReady = vi.fn();
+  const { rerender } = render(
+    <CreatureReference
+      actor={actor}
+      recordKey="actors:ghoul"
+      prose={null}
+      onReference={onReference}
+    />,
+  );
+  const link = screen.getByRole("link", { name: "Clumsy 2" });
+  expect(
+    screen.getByRole("heading", { name: "Defenses" }).parentElement,
+  ).toContainElement(link);
+  expect(screen.queryByText("Other entries")).toBeNull();
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith("actors:ghoul", link, clumsy.navigation);
+
+  rerender(
+    <CreatureReference
+      actor={actor}
+      recordKey="actors:ghoul"
+      prose={null}
+      onReference={onReference}
+      reading={{
+        generation: "test",
+        parent: { ...clumsy.navigation, embedded_path: [] },
+        landing: clumsy.navigation,
+        onLandingReady,
+      }}
+    />,
+  );
+  expect(link).toHaveFocus();
+  expect(onLandingReady).toHaveBeenCalledWith(link.parentElement);
+
+  rerender(
+    <CreatureReference
+      actor={actor}
+      recordKey="actors:ghoul"
+      prose={null}
+      onReference={onReference}
+      encounter
+      encounterContent={{
+        participantKey: "p1",
+        durability: null,
+        conditions: <button>Add condition</button>,
+      }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Add condition" })).toBeVisible();
+  expect(screen.queryByText("Clumsy 2")).toBeNull();
+  expect(screen.getByRole("link", { name: "Clumsy" })).toBeVisible();
+});
