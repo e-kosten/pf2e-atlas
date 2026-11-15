@@ -131,7 +131,16 @@ test("the Actions picker shows the selected row when reopened after a search", a
   await search.press("Escape");
   await expect(picker).toBeHidden();
   await trigger.click();
+  await expect(search).toBeFocused();
   await expect(
     picker.getByRole("button", { name: "Actions: Grab, selected; activate to remove" }),
   ).toBeVisible();
+  await search.press("Escape");
+  await expect(picker).toBeHidden();
+  const remove = builder.getByRole("button", {
+    name: "Remove selected Grab from Actions",
+  });
+  await remove.press("Enter");
+  await expect(remove).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });

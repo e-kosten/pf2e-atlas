@@ -639,12 +639,12 @@ it("retains a chosen action's label while searching and reopening its picker", a
     }),
   ).toBeEnabled();
   fireEvent.keyDown(search(), { key: "Escape" });
+  await waitFor(() => expect(reopened).not.toBeInTheDocument());
   const remove = screen.getByRole("button", {
     name: "Remove selected Grab from Actions",
   });
   remove.focus();
   fireEvent.keyDown(remove, { key: "Enter" });
   expect(remove).not.toBeInTheDocument();
-  await waitFor(() => expect(trigger()).toHaveFocus());
   expect(trigger()).toHaveAttribute("aria-expanded", "false");
 });
