@@ -22,8 +22,9 @@
 .search-workspace > .search-profile-status {
   padding-inline: var(--space-group);
 }
-html:has(:is(.atlas-app--search, .list-workspace)),
-body:has(:is(.atlas-app--search, .list-workspace)) {
+:is(html, body):has(
+  :is(.atlas-app--search, .list-workspace):not(.desktop-tab-page[hidden] *)
+) {
   overflow: clip;
 }
 .reference-browser {
