@@ -337,7 +337,7 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
     let (sender, receiver) = std::sync::mpsc::channel();
     crate::run_on_main(app, move |app| {
         let result = (|| {
-            crate::native_tabs::select(&primary)?;
+            crate::window_host::select(&primary)?;
             app.state::<Desktop>().zoom.change(app, "zoom-in")?;
             crate::new_search(app, true)?;
             let tab = app
