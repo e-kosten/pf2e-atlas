@@ -279,7 +279,7 @@ fn pinned_corpus_item_and_common_projection_oracle() {
     );
     let manifest: Json =
         serde_json::from_slice(&fs::read(source.join("system.pf2e.json")).unwrap()).unwrap();
-    assert_eq!(manifest["version"], "8.6.1");
+    assert_eq!(manifest["version"], "8.7.0");
     let db = Connection::open_in_memory().unwrap();
     db.execute_batch(include_str!("../release_schema.sql"))
         .unwrap();
@@ -392,9 +392,9 @@ fn pinned_corpus_item_and_common_projection_oracle() {
             }
         }
     }
-    assert_eq!(roots, 29_894, "pinned corpus roots changed");
-    assert_eq!(item_roots, 21_669, "pinned corpus Item roots changed");
-    assert_eq!(children, 98_228, "pinned corpus Actor Items changed");
+    assert_eq!(roots, 30_417, "pinned corpus roots changed");
+    assert_eq!(item_roots, 21_994, "pinned corpus Item roots changed");
+    assert_eq!(children, 100_801, "pinned corpus Actor Items changed");
     assert!(counts[0] > 100_000);
     assert!(counts[1] > 1_000);
     eprintln!(

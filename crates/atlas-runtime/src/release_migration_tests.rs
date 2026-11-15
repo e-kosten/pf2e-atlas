@@ -111,7 +111,10 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
         .filter(|key| reference_rows.get(*key) != migrated.get(*key))
         .collect();
     assert!(changed.is_empty(), "changed tables: {changed:?}");
-    atlas_index::validate_reference(after.connection()).unwrap();
+    assert_eq!(
+        atlas_index::classify_reference_upgrade(after.connection()).unwrap(),
+        atlas_index::ReferenceUpgrade::SourceReplacement
+    );
     drop(after);
 
     let bytes = std::fs::read(&archive_file).unwrap();
@@ -160,7 +163,7 @@ fn schema_42_vector_bytes_and_generation_survive_upgrade() {
 }
 
 #[test]
-fn workspace_upgrade_checks_admission_and_keeps_migration_atomic() {
+fn workspace_upgrade_checks_source_context_and_keeps_migration_atomic() {
     let directory = tempfile::tempdir().unwrap();
     let workspace = schema_42(&directory.path().join("workspace.sqlite"));
     let original = workspace.read(42).unwrap();
@@ -181,14 +184,14 @@ fn workspace_upgrade_checks_admission_and_keeps_migration_atomic() {
     let write = workspace.write(42).unwrap();
     write
         .connection()
-        .execute("UPDATE trait_members SET source_label='corrupt label'", [])
+        .execute("UPDATE artifact_context SET context_json='{}'", [])
         .unwrap();
     write.commit().unwrap();
     assert!(
         initialize_workspace(workspace.path())
             .unwrap_err()
             .to_string()
-            .contains("trait memberships differ")
+            .contains("stored context checksum mismatch")
     );
     WorkspaceArchive::read(std::fs::File::open(&archive_file).unwrap()).unwrap();
     let original = workspace.read(42).unwrap();
@@ -230,8 +233,8 @@ fn schema_42_authenticates_the_ledger_before_capturing() {
 }
 
 #[test]
-fn migration_rejects_corrupt_snapshot_and_retains_recognized_retired_proofs() {
-    for retired in [false, true] {
+fn migration_retains_recognized_retired_proofs() {
+    for legacy in [false, true] {
         let directory = tempfile::tempdir().unwrap();
         let workspace = schema_42(&directory.path().join("workspace.sqlite"));
         let write = workspace.write(42).unwrap();
@@ -240,7 +243,7 @@ fn migration_rejects_corrupt_snapshot_and_retains_recognized_retired_proofs() {
             c,
             "SELECT * FROM reference_component_digests ORDER BY record_id",
         );
-        if retired {
+        if legacy {
             let mut context = atlas_index::read_stored_reference_context(c)
                 .unwrap()
                 .unwrap();
@@ -254,34 +257,64 @@ fn migration_rejects_corrupt_snapshot_and_retains_recognized_retired_proofs() {
                 ],
             )
             .unwrap();
-        } else {
-            c.execute("UPDATE record_bodies SET snapshot=X'00' WHERE record_id=(SELECT min(record_id) FROM records)", []).unwrap();
         }
         write.commit().unwrap();
-        let result = initialize_workspace(workspace.path());
-        if retired {
-            result.unwrap();
-            let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-            assert_eq!(
-                atlas_index::classify_reference_upgrade(read.connection()).unwrap(),
-                atlas_index::ReferenceUpgrade::SourceReplacement
-            );
-            assert_eq!(
-                sql_rows(
-                    read.connection(),
-                    "SELECT * FROM reference_component_digests ORDER BY record_id"
-                ),
-                proofs
-            );
-        } else {
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("Repair the reference data")
-            );
-            assert!(workspace.read(42).is_ok());
-        }
+        initialize_workspace(workspace.path()).unwrap();
+        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(
+            atlas_index::classify_reference_upgrade(read.connection()).unwrap(),
+            atlas_index::ReferenceUpgrade::SourceReplacement
+        );
+        assert_eq!(
+            sql_rows(
+                read.connection(),
+                "SELECT * FROM reference_component_digests ORDER BY record_id"
+            ),
+            proofs
+        );
+        WorkspaceArchive::read(std::fs::File::open(archive_path(&workspace)).unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn schema_42_rejects_corruption_under_the_current_source_contract() {
+    let input = atlas_search::test_support::input_with_both_profiles(vec![
+        atlas_search::test_support::record(
+            "actions",
+            "Item",
+            serde_json::json!({
+                "_id": "aaaaaaaaaaaaaaaa",
+                "name": "Demoralize",
+                "type": "action",
+                "system": {"traits": {"value": ["auditory", "emotion", "fear", "mental"]}}
+            }),
+        ),
+    ]);
+    for (corrupt, expected_error) in [
+        (
+            "UPDATE trait_members SET source_label='corrupt label'",
+            "trait memberships differ",
+        ),
+        (
+            "UPDATE record_bodies SET snapshot=X'00'",
+            "Repair the reference data",
+        ),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+        atlas_index::test_support::publish_input_in(&workspace, 42, &input).unwrap();
+        let write = workspace.write(42).unwrap();
+        let ledger = sql_rows(write.connection(), LEDGER);
+        let revision = write.reference_revision().unwrap();
+        assert!(write.connection().execute(corrupt, []).unwrap() > 0);
+        write.commit().unwrap();
+        let error = initialize_workspace(workspace.path())
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(expected_error), "{error}");
+        let read = workspace.read(42).unwrap();
+        assert_eq!(read.reference_revision().unwrap(), revision);
+        assert_eq!(sql_rows(read.connection(), LEDGER), ledger);
         WorkspaceArchive::read(std::fs::File::open(archive_path(&workspace)).unwrap()).unwrap();
     }
 }

@@ -109,10 +109,10 @@ and after applying it.
 contains actual snapshot bytes encoded by the predecessor SDK at
 `e1271817c89b399c14636c9f1732f9f906a3e3b9`, with TypeScript 5.9.3's generated
 models. Its four minimal Deity sources exercise every DivineFonts alternative.
-The Rust snapshot test decodes those bytes, compares their meaning with current
-admission and requires identical re-encoding. Compiler-only updates preserve this
-fixture. A deliberate source-contract change must review it with snapshot admission
-and migration policy; candidate round trips cannot replace predecessor evidence.
+The Rust snapshot test checks that the codec rejects the retired 8.6.1 contract
+and that admitting the same source preserves its persisted model. Compiler-only
+updates preserve this fixture. Review deliberate source-contract changes with
+snapshot admission and migration policy.
 
 Do not replace this policy with ordering recorded from an upgraded compiler to
 make freshness pass. Investigate semantic-key or printer drift first. Intentional
