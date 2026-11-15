@@ -29,7 +29,7 @@ export function verifyReleaseSource(run: Run, release: Release, tag: string, sha
 }
 
 export async function verifyUploadedDesktop(release: Release, dist: string): Promise<void> {
-  for (const { name, label } of desktopAssets(release.tag_name)) {
+  for (const { name, label } of desktopAssets) {
     const matching = release.assets?.filter((asset) => asset.name === name);
     if (matching?.length !== 1 || matching[0].digest !== `sha256:${await sha256(path.join(dist, name))}`) {
       throw new Error(`Uploaded ${label} digest mismatch for ${release.tag_name}`);

@@ -90,6 +90,7 @@ else if (args.Length > 0 && args[0] == "build-info" && "__VARIANT__" != "legacy"
   Copy-Item (Join-Path $RepoRoot "scripts/install/atlas-installer.ps1") (Join-Path $dist "atlas-installer.ps1")
   "{}" | Set-Content -Path (Join-Path $dist "dist-manifest.json")
   "desktop image fixture" | Set-Content -Path (Join-Path $dist "atlas-desktop-aarch64-apple-darwin.dmg")
+  "desktop installer fixture" | Set-Content -Path (Join-Path $dist "atlas-desktop-x86_64-pc-windows-msvc-setup.exe")
 
   node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $dist
   node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/validate-release-assets.js") v9.9.9 $dist
