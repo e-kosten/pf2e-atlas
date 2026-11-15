@@ -35,6 +35,7 @@ const flags = [
   "audit",
   "corpus",
   "desktop",
+  "windows-desktop",
 ];
 const selected = () =>
   Object.fromEntries([
@@ -179,7 +180,7 @@ test("dependency and native selection are independently enforced", () => {
     ["audit", "repository-tooling"],
     ["corpus", "repository-tooling"],
     ["desktop", "desktop"],
-    ["desktop", "windows-desktop"],
+    ["windows-desktop", "windows-desktop"],
     ["windows", "windows"],
   ]) {
     const jobs = selected();
@@ -187,11 +188,7 @@ test("dependency and native selection are independently enforced", () => {
       flags.map((key) => [key, String(key === surface)]),
     );
     for (const name of names)
-      jobs[name].result =
-        name === job ||
-        (surface === "desktop" && ["desktop", "windows-desktop"].includes(name))
-          ? "success"
-          : "skipped";
+      jobs[name].result = name === job ? "success" : "skipped";
     requireSelectedJobs(jobs);
     for (const result of ["failure", "cancelled", "skipped"]) {
       jobs[job].result = result;
@@ -201,7 +198,7 @@ test("dependency and native selection are independently enforced", () => {
 });
 
 test("grouped checks must run exactly their selected steps", () => {
-  for (const [name, ids, chosen] of [
+  for (const [name, ids, selection, chosen] of [
     [
       "repository-tooling",
       [
@@ -215,16 +212,16 @@ test("grouped checks must run exactly their selected steps", () => {
         "source-generate",
         "release",
       ],
+      { audit: "true" },
       ["embedding-receipt", "audit"],
     ],
     [
       "windows",
-      ["storage", "publication", "crashes", "cancellation", "release"],
-      ["release"],
+      ["storage", "publication", "cancellation", "release"],
+      { windows: "true", release: "true" },
+      ["storage", "publication", "release"],
     ],
   ]) {
-    const selection =
-      name === "windows" ? { release: "true" } : { audit: "true" };
     const steps = Object.fromEntries(
       ids.map((id) => [
         id,
