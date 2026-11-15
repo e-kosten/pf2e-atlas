@@ -331,7 +331,7 @@ function show(inspection, auto) {
         "Update workspace",
         setup(
           "Updating your workspace",
-          "Atlas is preparing your workspace for this version. Your saved lists, parties, and encounters carry over.",
+          "Your saved work will be available when Atlas reopens.",
         ),
       );
       break;
