@@ -46,7 +46,7 @@ counts; JSON output includes excluded file paths and reasons under
 
 ### Upgrade an older prerelease workspace
 
-The current Atlas upgrades schema 42 workspaces in place. Choose **Upgrade
+The current Atlas upgrades schema 42 workspaces in place. Choose **Update
 workspace** in the macOS app or run `atlas setup` in the terminal. Close other
 Atlas desktop and `atlas web` sessions for that workspace first. For an older
 schema, download the CLI archive for your platform from the

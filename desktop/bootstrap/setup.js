@@ -323,15 +323,15 @@ function show(inspection, auto) {
       break;
     case "upgrade_required":
       status(
-        "Upgrade your workspace",
-        "Atlas makes a backup before updating the workspace. Your saved lists and encounters carry over.",
+        "Update your workspace for this version of Atlas",
+        "This version needs to update your existing workspace before Atlas can open it. Atlas backs up your saved work first and carries over your lists, parties, and encounters.",
       );
       action(
         ui.primary,
-        "Upgrade workspace",
+        "Update workspace",
         setup(
-          "Upgrading Atlas",
-          "Preparing your workspace and reference data.",
+          "Updating your workspace",
+          "Atlas is preparing your workspace for this version. Your saved lists, parties, and encounters carry over.",
         ),
       );
       break;
