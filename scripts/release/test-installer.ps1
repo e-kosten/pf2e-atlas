@@ -160,11 +160,12 @@ function Expand-Archive {
   if ($env:OS -ne "Windows_NT") { Get-ChildItem $DestinationPath -Filter atlas.exe -Recurse | ForEach-Object { chmod +x $_.FullName } }
 }
 function Get-FileHash {
+  param([string]$Path, [string]$LiteralPath, [string]$Algorithm)
   $installed = Join-Path $env:ATLAS_TEST_INSTALL_DIR "atlas.exe"
-  if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -and $args[0] -eq "-LiteralPath" -and $args[1] -eq $installed) {
+  if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -and $LiteralPath -eq $installed) {
     [IO.File]::WriteAllText($installed, "intervening file")
   }
-  Microsoft.PowerShell.Utility\Get-FileHash @args
+  Microsoft.PowerShell.Utility\Get-FileHash @PSBoundParameters
 }
 if ($env:ATLAS_TEST_INSTALL_CWD) { Set-Location -LiteralPath $env:ATLAS_TEST_INSTALL_CWD }
 $variantArgs = @{}
