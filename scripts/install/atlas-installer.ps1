@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 
 if (-not $Version) { $Version = "latest" }
 if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA "Programs\PF2e Atlas\bin" }
+$InstallDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($InstallDir)
 $Repo = if ($env:ATLAS_REPO) { $env:ATLAS_REPO } else { "e-kosten/pf2e-atlas" }
 if ($env:ATLAS_YES -eq "1") { $Yes = $true }
 
@@ -41,6 +42,8 @@ function Get-BuildVariant($Binary) {
   # Older releases do not provide build-info and are full builds.
   $previousNativePreference = $PSNativeCommandUseErrorActionPreference
   $PSNativeCommandUseErrorActionPreference = $false
+  # Windows PowerShell can treat redirected native stderr as a PowerShell error.
+  $ErrorActionPreference = 'Continue'
   try {
     $metadata = & $Binary build-info --json 2>$null
     if ($LASTEXITCODE -ne 0) { return "legacy" }
@@ -79,16 +82,35 @@ if ($tag -ceq "latest") {
 $manifestUrl = "$baseUrl/atlas-release-manifest.json"
 $archive = "(from manifest)"
 $installPath = Join-Path $InstallDir "atlas.exe"
+
+function Get-InstallEntry {
+  if (!(Test-Path -LiteralPath $InstallDir -PathType Container)) { return }
+  # Enumerate the entry itself so a dangling link is visible without following it.
+  $entry = Get-ChildItem -LiteralPath $InstallDir -Filter "atlas.exe" -Force |
+    Where-Object { $_.Name -eq "atlas.exe" }
+  if ($entry.PSIsContainer -or ($entry.Attributes -band [IO.FileAttributes]::Directory)) {
+    Fail "install destination is a directory: $installPath"
+  }
+  return $entry
+}
+
+$existingEntry = Get-InstallEntry
 $pathEntries = ($env:PATH -split ';') | Where-Object { $_ -ne "" }
 $pathStatus = if ($pathEntries -contains $InstallDir) { "on-path" } else { "not-on-path" }
-$existing = if (Test-Path $installPath) { "at-destination" } else { "none" }
+$existing = if ($existingEntry) { "at-destination" } else { "none" }
 $existingVersion = "unknown"
-if (Test-Path $installPath) {
-  try { $existingVersion = & $installPath --version } catch { $existingVersion = "unknown" }
+if ($existingEntry) {
+  try {
+    $reportedVersion = (& $installPath --version) -join "`n"
+    if ($LASTEXITCODE -eq 0 -and $reportedVersion) { $existingVersion = $reportedVersion }
+  } catch { $existingVersion = "unknown" }
 }
 
 $existingVariant = "none"
-if ($existing -eq "at-destination") {
+# Windows can report a dangling symlink as a leaf. The version probe determines whether it runs.
+if ($existingEntry.LinkType -eq "SymbolicLink" -and $existingVersion -eq "unknown") {
+  $existingVariant = "legacy"
+} elseif ($existingEntry) {
   try { $existingVariant = Get-BuildVariant $installPath }
   catch {
     if (-not ($WithWeb -or $WithoutWeb)) { Fail "could not read build variant from $installPath`; select -WithWeb or -WithoutWeb to replace it" }
@@ -126,24 +148,66 @@ if ($DryRun) {
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("atlas-install-" + [System.Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+function Resolve-LatestTag {
+  try {
+    $response = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" `
+      -UseBasicParsing -MaximumRedirection 0 -ErrorAction Stop
+  } catch {
+    # Both PowerShell versions can surface a blocked redirect as a response-bearing error.
+    $response = $_.Exception.Response
+    if (!$response) { Fail "failed to resolve the latest stable release: $_" }
+  }
+  $location = if ($response.Headers -is [Net.WebHeaderCollection]) {
+    $response.Headers['Location']
+  } else {
+    $response.Headers.Location
+  }
+  if ([int]$response.StatusCode -notin @(301, 302, 307, 308) -or !$location) {
+    Fail "failed to resolve the latest stable release"
+  }
+  $tagRoute = "/$Repo/releases/tag/"
+  $match = [regex]::Match([string]$location,
+    '\A(?:https://github\.com)?' + [regex]::Escape($tagRoute) + '(?<tag>[^\s]+)\z')
+  if (!$match.Success) { Fail "no supported latest stable release found; choose a published version" }
+  $resolved = $match.Groups['tag'].Value -replace '%2f', '/'
+  if ($resolved -cnotmatch '\A(?:release/)?v[0-9]+\.[0-9]+\.[0-9]+\z') {
+    Fail "invalid latest stable release tag: $resolved"
+  }
+  return $resolved
+}
+
 try {
-  if ($tag -ceq "nightly/latest") {
+  if ($tag -ceq "latest") {
+    $tag = Resolve-LatestTag
+    Write-Host "  resolved:    $tag"
+  } elseif ($tag -ceq "nightly/latest") {
     $pointer = Join-Path $tmp "nightly-version.txt"
-    Invoke-WebRequest -Uri "$baseUrl/nightly-version.txt" -OutFile $pointer
+    Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/nightly-version.txt" -OutFile $pointer
     $tag = (Get-Content $pointer -Raw).Trim()
     if ($tag -cnotmatch '\Anightly/[0-9]{14}\.g[0-9a-f]{12}\z') {
       Fail "invalid nightly channel pointer"
     }
-    $baseUrl = "https://github.com/$Repo/releases/download/$tag"
-    $manifestUrl = "$baseUrl/atlas-release-manifest.json"
     Write-Host "  nightly:     $tag"
   }
+  $baseUrl = "https://github.com/$Repo/releases/download/$tag"
   $sums = Join-Path $tmp "SHA256SUMS"
   $manifestPath = Join-Path $tmp "atlas-release-manifest.json"
-  $zip = Join-Path $tmp $archive
-  Invoke-WebRequest -Uri "$baseUrl/SHA256SUMS" -OutFile $sums
-  Invoke-WebRequest -Uri $manifestUrl -OutFile $manifestPath
+  Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/atlas-release-manifest.json" -OutFile $manifestPath
   $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+  $packageVersion = $manifest.version
+  $expectedPackage = ($tag -csplit '/')[-1]
+  if ($packageVersion -isnot [string]) { Fail "manifest does not contain a package version" }
+  $versionMatches = if ($tag.StartsWith('nightly/')) {
+    $packageVersion -cmatch '\Av[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12}\z' -and
+      $packageVersion.EndsWith("-nightly.$expectedPackage", [StringComparison]::Ordinal)
+  } else {
+    $packageVersion -ceq $expectedPackage
+  }
+  if (!$versionMatches) {
+    Fail "manifest version does not match ${tag}: $packageVersion"
+  }
+  $expectedVersion = 'atlas ' + $packageVersion.Substring(1)
+  Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/SHA256SUMS" -OutFile $sums
   $assets = @($manifest.assets | Where-Object {
     $assetVariant = if ($null -eq $_.variant) { "full" } else { $_.variant }
     $_.target -ceq $target -and $assetVariant -ceq $variant
@@ -155,7 +219,7 @@ try {
   $archive = $asset.name
   $zip = Join-Path $tmp $archive
   Write-Host "  asset:       $archive"
-  Invoke-WebRequest -Uri "$baseUrl/$archive" -OutFile $zip
+  Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/$archive" -OutFile $zip
 
   $line = Get-Content $sums | Where-Object {
     $parts = $_ -split '\s+', 2
@@ -170,8 +234,10 @@ try {
   Expand-Archive -Path $zip -DestinationPath $extract
   $newBinary = Get-ChildItem -Path $extract -Filter atlas.exe -Recurse | Select-Object -First 1
   if (-not $newBinary) { Fail "archive did not contain atlas.exe" }
-  $newVersion = & $newBinary.FullName --version
-  if ($LASTEXITCODE -ne 0) { Fail "downloaded atlas failed its version check" }
+  $newVersion = (& $newBinary.FullName --version) -join "`n"
+  if ($LASTEXITCODE -ne 0 -or $newVersion -cne $expectedVersion) {
+    Fail "downloaded atlas version mismatch: expected $expectedVersion, got $newVersion"
+  }
   Write-Host "  target bin:  $newVersion"
   try { $newVariant = Get-BuildVariant $newBinary.FullName }
   catch { Fail "downloaded atlas has invalid build information: $_" }
@@ -200,7 +266,8 @@ try {
     }
   }
 
-  if (Test-Path $installPath) {
+  $confirmedEntry = Get-InstallEntry
+  if ($confirmedEntry) {
     $change = ClassifyChange $existingVersion $newVersion
     Write-Host "  action:      replace existing atlas ($change)"
     if (-not $Yes) {
@@ -209,34 +276,46 @@ try {
     }
   }
 
-  $tmpDest = Join-Path $InstallDir ".atlas.install.$PID.exe"
-  Copy-Item $newBinary.FullName $tmpDest -Force
-  $backup = $null
-  if (Test-Path $installPath) {
-    $backup = Join-Path $InstallDir ".atlas.backup.$PID.exe"
-    Copy-Item $installPath $backup -Force
-  }
+  $transaction = [Guid]::NewGuid().ToString('N')
+  $tmpDest = Join-Path $InstallDir ".atlas.install.$transaction.exe"
+  $backup = Join-Path $InstallDir ".atlas.backup.$transaction.exe"
+  $movedOld = $false
   $placed = $false
   try {
-    Move-Item $tmpDest $installPath -Force
+    Copy-Item -LiteralPath $newBinary.FullName -Destination $tmpDest
+    $currentEntry = Get-InstallEntry
+    if ($currentEntry) {
+      if (!$Yes -and !$confirmedEntry) { throw "atlas.exe appeared during install; retry to confirm replacement" }
+      [IO.File]::Move($installPath, $backup)
+      $movedOld = $true
+    }
+    [IO.File]::Move($tmpDest, $installPath)
     $placed = $true
-    & $installPath --version | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "installed atlas.exe failed its version check" }
+    $installedVersion = (& $installPath --version) -join "`n"
+    if ($LASTEXITCODE -ne 0 -or $installedVersion -cne $expectedVersion) {
+      throw "installed atlas.exe failed its version check (expected $expectedVersion, got $installedVersion)"
+    }
   } catch {
     $failure = $_
     try {
-      if ($placed -and $backup) { Move-Item $backup $installPath -Force }
-      elseif ($placed) { Remove-Item -LiteralPath $installPath -Force }
-      elseif ($backup) { Remove-Item -LiteralPath $backup -Force }
+      if ($placed) {
+        $installedEntry = Get-InstallEntry
+        if ($installedEntry.LinkType -or ($installedEntry -and
+            (Get-FileHash -LiteralPath $installPath).Hash -ne (Get-FileHash -LiteralPath $newBinary.FullName).Hash)) {
+          throw "atlas.exe changed before it could be removed"
+        }
+        if ($installedEntry) { [IO.File]::Delete($installPath) }
+      }
+      if ($movedOld) { [IO.File]::Move($backup, $installPath) }
     } catch {
-      $recovery = if ($backup -and (Test-Path $backup)) { " Backup: $backup." } else { "" }
+      $recovery = if ($movedOld) { " Backup: $backup." } else { "" }
       Fail "failed to recover after an installation error: $($_.Exception.Message).$recovery"
     }
     Fail "failed to replace or validate atlas.exe: $($failure.Exception.Message)"
   } finally {
     Remove-Item -LiteralPath $tmpDest -Force -ErrorAction SilentlyContinue
   }
-  if ($backup -and (Test-Path $backup)) { Remove-Item -LiteralPath $backup -Force }
+  if ($movedOld) { [IO.File]::Delete($backup) }
 } finally {
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }

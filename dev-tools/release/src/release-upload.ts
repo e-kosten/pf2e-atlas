@@ -1,7 +1,10 @@
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { desktopAssets, sha256 } from './release-data.js';
 
 export type Run = (program: string, args: string[]) => string;
+
+export const releaseEndpoint = 'repos/{owner}/{repo}/releases';
 
 export interface Release {
   id: number;
@@ -15,7 +18,7 @@ export interface Release {
 }
 
 export function releases(run: Run): Release[] {
-  return (JSON.parse(run('gh', ['api', '--paginate', '--slurp', 'repos/{owner}/{repo}/releases?per_page=100'])) as Release[][]).flat();
+  return (JSON.parse(run('gh', ['api', '--paginate', '--slurp', `${releaseEndpoint}?per_page=100`])) as Release[][]).flat();
 }
 
 export function verifyReleaseSource(run: Run, release: Release, tag: string, sha: string, nightly = false): void {
@@ -35,4 +38,31 @@ export async function verifyUploadedDesktop(release: Release, dist: string): Pro
       throw new Error(`Uploaded ${label} digest mismatch for ${release.tag_name}`);
     }
   }
+}
+
+export function releaseAssetNames(dist: string): string[] {
+  const entries = readdirSync(dist, { withFileTypes: true });
+  const link = entries.find((entry) => entry.isSymbolicLink());
+  if (link) throw new Error(`Release asset must be a regular file: ${link.name}`);
+  return entries.filter((entry) => entry.isFile()).map((entry) => entry.name).sort();
+}
+
+export function uploadDraftAssets(run: Run, draft: Release, dist: string, names: string[]): NonNullable<Release['assets']> {
+  if (!draft.draft) throw new Error('Refusing to upload assets to a published release');
+  const upload = new URL(draft.upload_url?.replace(/\{\?name,label\}$/, '') ?? '');
+  if (upload.origin !== 'https://uploads.github.com' || upload.username || upload.password
+    || !upload.pathname.endsWith(`/releases/${draft.id}/assets`)) {
+    throw new Error('Invalid release draft upload URL');
+  }
+  return names.map((name) => {
+    const previous = draft.assets?.find((asset) => asset.name === name);
+    if (previous) run('gh', ['api', '--method', 'DELETE', `${releaseEndpoint}/assets/${previous.id}`]);
+    upload.searchParams.set('name', name);
+    const asset: NonNullable<Release['assets']>[number] = JSON.parse(run('gh', [
+      'api', '--method', 'POST', upload.href, '--header', 'Content-Type: application/octet-stream',
+      '--input', path.join(dist, name),
+    ]));
+    if (asset.name !== name) throw new Error(`Unexpected uploaded asset for ${name}`);
+    return asset;
+  });
 }

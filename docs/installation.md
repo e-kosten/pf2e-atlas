@@ -100,6 +100,11 @@ These commands work before setup. JSON uses the standard envelope with
 `data.version` and `data.variant` (`full` or `cli-only`). `atlas --version` keeps
 its existing format.
 
+The CLI installers pin the selected stable or nightly release before downloading
+its files. If the package reports a different version, installation stops and
+keeps the previous command. A directory, directory symlink, or junction at the
+command path must be moved before installing there.
+
 The variant options also work with `--version` / `-Version` for stable, nightly
 and specific releases. Releases from before CLI-only support provide the full
 build; requesting CLI-only from one reports that the asset is unavailable.
