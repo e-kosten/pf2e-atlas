@@ -82,7 +82,7 @@ it by default. Use **Rerun this search** to apply it to the current keyword resu
 If the view fails to open, choose **Retry opening Atlas** to
 use the prepared workspace. If Atlas asks you to upgrade
 a workspace, close any other Atlas sessions using that workspace and choose
-**Upgrade workspace**.
+**Update workspace**.
 
 The toolbar and **PF2e Atlas → Setup and Updates** open the same drawer.
 Each Atlas build pins a Foundry PF2e revision. After installing a build with
