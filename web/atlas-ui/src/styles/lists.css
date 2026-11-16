@@ -260,11 +260,11 @@
   overflow: hidden;
   line-height: 1.6;
 }
-.list-entry-note__back {
-  align-self: flex-start;
-}
 .list-entry-note[data-expanded] {
   flex: 1;
+  align-self: center;
+  inline-size: 100%;
+  max-inline-size: calc(var(--document-measure) + 2 * var(--browse-pane-inset));
   min-height: 0;
   max-height: none;
   overflow: hidden;
@@ -276,6 +276,9 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+}
+.list-entry-note[data-expanded] .markdown-document {
+  max-inline-size: none;
 }
 .list-entry-note[data-expanded] .list-entry-note__header h2 {
   min-width: 0;

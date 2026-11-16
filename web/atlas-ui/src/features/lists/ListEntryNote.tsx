@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-query";
 import { Alert, Button, Flex, Input, Space, Typography } from "antd";
 import type { GetRef } from "antd";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { useContext, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { getSavedListItemNote, updateSavedListItemNote } from "../../api/atlasApi";
 import { AtlasApiError } from "../../api/apiError";
@@ -324,6 +325,7 @@ export function ListEntryNoteEditor({
   const { draft, note, editor, pending, removed, expanded, reading, detached } = state;
   const visible = (footer?.active ?? true) && !hidden;
   const editing = !!draft;
+  const readingFullNote = expanded && reading && !editing;
   const savedNote = note.data?.note;
   const overflow = !!savedNote && overflowSource === savedNote;
   const review = draft?.review;
@@ -396,10 +398,23 @@ export function ListEntryNoteEditor({
           lastEditorFocus.current = event.target;
       }}
     >
-      {expanded && reading && !editing && (
-        <Button type="text" className="list-entry-note__back" onClick={state.closePane}>
-          Back to record
-        </Button>
+      {readingFullNote && (
+        <Space wrap>
+          <Button
+            icon={<ArrowLeft size={16} aria-hidden="true" />}
+            onClick={state.closePane}
+          >
+            Back to record
+          </Button>
+          <Button
+            ref={editButton}
+            icon={<Pencil size={16} aria-hidden="true" />}
+            disabled={paused}
+            onClick={state.begin}
+          >
+            Edit
+          </Button>
+        </Space>
       )}
       <div className="list-entry-note__header">
         {expanded ? (
@@ -428,7 +443,7 @@ export function ListEntryNoteEditor({
             {expanded ? "Collapse editor" : "Expand editor"}
           </Button>
         )}
-        {!draft && note.data && !removed && (
+        {!readingFullNote && !draft && note.data && !removed && (
           <Space wrap>
             {!expanded && overflow && (
               <Button

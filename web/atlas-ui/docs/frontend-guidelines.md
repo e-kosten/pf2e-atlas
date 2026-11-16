@@ -2344,7 +2344,9 @@ three-line preview budget, show an excerpt and **Read full note**. Measure the
 formatted document at the available width. Only the visible note exposes links
 to keyboard and assistive technology.
 
-The full note occupies the existing reader pane and scrolls independently.
+The full note and expanded editor use the shared document width inside the
+existing reader pane. The full note scrolls independently. Keep **Back to
+record** and **Edit** together above its title.
 **Back to record** restores the selected record's scroll position and returns
 focus to the note opener or its available fallback. Record links open the shared
 reference drawer and return focus to the link.
