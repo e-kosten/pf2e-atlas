@@ -29,7 +29,7 @@ use std::{
     },
 };
 
-use atlas_desktop_protocol::{EntityLink, WorkspaceProbe, WorkspaceStatus, parse_record_path};
+use atlas_desktop_protocol::{EntityLink, WorkspaceProbe, WorkspaceStatus};
 use bootstrap_jobs::{
     Action as BootstrapAction, Attempt, BootstrapJob, BootstrapJobs, Update as BootstrapUpdate,
 };
@@ -40,6 +40,7 @@ use tauri::{
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     menu::{MenuBuilder, MenuItem, SubmenuBuilder},
 };
+#[cfg(windows)]
 use tauri_plugin_deep_link::DeepLinkExt;
 use url::Url;
 
@@ -715,9 +716,7 @@ fn same_product_route(expected: &Url, current: &Url) -> bool {
         && (expected.path() == current.path()
             || EntityLink::from_path(expected.path()).is_some_and(|target| {
                 EntityLink::from_path(current.path()).as_ref() == Some(&target)
-            })
-            || parse_record_path(expected.path())
-                .is_some_and(|key| parse_record_path(current.path()).as_ref() == Some(&key)))
+            }))
 }
 
 fn receive_link(app: &AppHandle, link: &str) {
@@ -1072,18 +1071,21 @@ fn main() {
                 window_host::configure_zoom_shortcut();
             }
             app.state::<Desktop>().zoom.load(app.handle());
-            let handle = app.handle().clone();
-            app.deep_link().on_open_url(move |event| {
-                let urls = event.urls();
-                let _ = run_on_main(&handle, move |app| {
-                    for link in urls {
-                        receive_link(app, link.as_str());
-                    }
+            #[cfg(windows)]
+            {
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    let urls = event.urls();
+                    let _ = run_on_main(&handle, move |app| {
+                        for link in urls {
+                            receive_link(app, link.as_str());
+                        }
+                    });
                 });
-            });
-            if let Some(urls) = app.deep_link().get_current()? {
-                for link in urls {
-                    receive_link(app.handle(), link.as_str());
+                if let Some(urls) = app.deep_link().get_current()? {
+                    for link in urls {
+                        receive_link(app.handle(), link.as_str());
+                    }
                 }
             }
             show_bootstrap(app.handle())?;
@@ -1095,6 +1097,14 @@ fn main() {
         .build(tauri::generate_context!());
     match result {
         Ok(app) => app.run(|app, event| match event {
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Opened { urls, .. } => {
+                // Tauri has released the plugin store lock by this point.
+                // Creating a webview inside the deep-link listener reenters that lock.
+                for link in urls {
+                    receive_link(app, link.as_str());
+                }
+            }
             #[cfg(target_os = "macos")]
             tauri::RunEvent::ExitRequested {
                 code: None, api, ..
@@ -1127,14 +1137,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn opening_keeps_record_identity_across_router_normalization() {
-        let requested = Url::parse("http://127.0.0.1:4732/search/records/actions%3Aone").unwrap();
+    fn record_links_reuse_the_standalone_page_only() {
+        let requested = Url::parse("http://127.0.0.1:4732/records/actions%3Aone").unwrap();
         let normalized = Url::parse("http://127.0.0.1:4732/records/actions:one?mode=read").unwrap();
-        let other = Url::parse("http://127.0.0.1:4732/records/actions:two").unwrap();
-        let foreign = Url::parse("http://127.0.0.1:4733/records/actions:one").unwrap();
         assert!(same_product_route(&requested, &normalized));
-        assert!(!same_product_route(&requested, &other));
-        assert!(!same_product_route(&requested, &foreign));
+
+        for other in [
+            "http://127.0.0.1:4732/search/records/actions:one",
+            "http://127.0.0.1:4732/lists/prepared/records/actions:one",
+            "http://127.0.0.1:4732/records/actions:two",
+            "http://127.0.0.1:4733/records/actions:one",
+        ] {
+            assert!(!same_product_route(&requested, &Url::parse(other).unwrap()));
+        }
     }
 
     #[test]

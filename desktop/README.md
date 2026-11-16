@@ -114,9 +114,11 @@ service moves to a different port. Saved list and encounter links use stable
 keys and require that entity in the active workspace. In the browser, the same
 icon copies the entity's web URL.
 
-On macOS, opening an Atlas link from another app or with `atlas open '<link>'` selects an
-existing matching tab, opens a foreground tab in the most recently active Atlas
-window, or opens a window directly to the destination.
+Opening a record link from another app goes to the standalone record page.
+An existing tab on that page is selected. Search and list previews stay in their
+own tabs. On macOS, you can also use `atlas open '<link>'`. Atlas opens a new tab
+in the most recently active window when the page is not open, or opens a window
+directly to the destination.
 
 On macOS, **PF2e Atlas → Terminal and Agent Access** can
 link the bundled command at `~/.local/bin/atlas` from the product drawer.
@@ -158,4 +160,7 @@ that retry opens the requested record in that window. Each case runs offline and
 pauses after the keyword commit, then cancels through the product panel and
 verifies that editing is available again. A separate managed-source fixture
 checks toolbar and menu access, shared cancellation, a no-op check and a
-publication observed in two windows. Embedding generation is skipped.
+publication observed in two windows. The link scenario sends real macOS URL
+events to an isolated app bundle. It checks a cold launch, a warm open with the
+same record in a Search preview, and reuse of the standalone record tab.
+Embedding generation is skipped.
