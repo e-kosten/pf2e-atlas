@@ -1,7 +1,7 @@
 use crate::model_cache::read_verified_asset;
 use crate::{
-    EmbeddingError, EmbeddingModelSpec, EmbeddingRuntimeConfig, PoolingStrategy,
-    PreparedEmbeddingBatch, TextEmbeddingTokenizer,
+    EmbeddingError, EmbeddingModelId, EmbeddingModelSpec, EmbeddingRuntimeConfig, PoolingStrategy,
+    PreparedEmbeddingBatch, TextEmbeddingTokenizer, embedding_model_spec,
 };
 use fastembed::{
     InitOptionsUserDefined, OutputKey, Pooling, TextEmbedding, TokenizerFiles,
@@ -59,16 +59,21 @@ impl TextEmbedder {
                 );
             }
         }
-        let mut library = TextEmbedding::try_new_from_user_defined(
-            model,
-            InitOptionsUserDefined::new()
-                .with_max_length(
-                    spec.max_input_tokens
-                        .ok_or(EmbeddingError::UnsupportedModelContract)?,
-                )
-                .with_intra_threads(4),
-        )
-        .map_err(|e| load_error(directory, e))?;
+        let mut options = InitOptionsUserDefined::new()
+            .with_max_length(
+                spec.max_input_tokens
+                    .ok_or(EmbeddingError::UnsupportedModelContract)?,
+            )
+            .with_intra_threads(4);
+        // Automatic Core ML selection exceeds the macOS runner's memory budget
+        // when EmbeddingGemma processes valid inputs near its token limit.
+        if cfg!(target_os = "macos")
+            && spec == embedding_model_spec(EmbeddingModelId::EmbeddingGemma300M)
+        {
+            options = options.with_auto_device(fastembed::AutoDevicePolicy::PreferCPU);
+        }
+        let mut library = TextEmbedding::try_new_from_user_defined(model, options)
+            .map_err(|e| load_error(directory, e))?;
         // Atlas has already checked every actual input with the exact tokenizer.
         // Disable truncation even inside the library so oversized input cannot
         // become an apparently successful clipped vector.

@@ -35,6 +35,11 @@ ID when behavior is incompatible. Explicit `atlas setup` is the migration
 window for rebuilding an affected profile and may interrupt use of the app.
 See [dependency maintenance](../../development/dependencies.md).
 
+On macOS, EmbeddingGemma uses the CPU for indexing, queries and qualification.
+ONNX Runtime's automatic Core ML selection exceeded the hosted runner's
+memory budget on valid near-limit batches. The frozen-vector and predecessor
+query checks qualify the CPU path against the same numerical contract.
+
 ## Precomputed corpus embeddings
 
 Pin and publish corpus data independently for each model. For managed English
