@@ -122,6 +122,19 @@ manifest_url="$base_url/atlas-release-manifest.json"
 archive=""
 
 install_path="$INSTALL_DIR/atlas"
+check_destination() {
+  [ ! -d "$install_path" ] || die "install destination is a directory: $install_path"
+}
+
+place_binary() {
+  [ ! -d "$install_path" ] || return 1
+  case "$os" in
+    Darwin) mv -fh "$1" "$install_path" ;;
+    Linux) mv -fT "$1" "$install_path" ;;
+  esac
+}
+
+check_destination
 path_status="not-on-path"
 old_ifs=$IFS
 IFS=:
@@ -230,18 +243,59 @@ download() {
   fi
 }
 
-if [ "$tag" = "nightly/latest" ]; then
+resolve_latest() {
+  latest_url="https://github.com/$REPO/releases/latest"
+  if [ "$downloader" = "curl" ]; then
+    curl --proto '=https' --tlsv1.2 -fsS -D "$tmp/latest-headers" -o /dev/null "$latest_url" ||
+      die "failed to resolve the latest stable release"
+  else
+    # Wget reports a redirect as a failure when following redirects is disabled.
+    LC_ALL=C wget --server-response --max-redirect=0 -O /dev/null "$latest_url" 2>"$tmp/latest-headers" || :
+  fi
+  location=$(awk '
+    { sub(/\r$/, "") }
+    $1 ~ /^HTTP\// { status = $2; location = ""; locations = 0 }
+    tolower($1) == "location:" { location = $2; locations++ }
+    END { if (status ~ /^30[1278]$/ && locations == 1) print location }
+  ' "$tmp/latest-headers")
+  case "$location" in
+    "https://github.com/$REPO/releases/tag/"*|"/$REPO/releases/tag/"*)
+      resolved=$(printf '%s\n' "${location#*/releases/tag/}" | sed 's/%2[fF]/\//g')
+      ;;
+    *) die "no supported latest stable release found; choose a published version" ;;
+  esac
+  printf '%s\n' "$resolved" | LC_ALL=C grep -Eq '^(release/)?v[0-9]+\.[0-9]+\.[0-9]+$' ||
+    die "invalid latest stable release tag: $resolved"
+  printf '%s\n' "$resolved"
+}
+
+if [ "$tag" = latest ]; then
+  tag=$(resolve_latest) || exit 1
+  printf '  resolved:    %s\n' "$tag"
+elif [ "$tag" = "nightly/latest" ]; then
   download "$base_url/nightly-version.txt" "$tmp/nightly-version.txt"
   tag=$(cat "$tmp/nightly-version.txt")
   printf '%s\n' "$tag" | LC_ALL=C grep -Eq '^nightly/[0-9]{14}\.g[0-9a-f]{12}$' || die "invalid nightly channel pointer"
   [ "$(printf '%s\n' "$tag" | wc -l | tr -d ' ')" = 1 ] || die "invalid nightly channel pointer"
-  base_url="https://github.com/$REPO/releases/download/$tag"
-  manifest_url="$base_url/atlas-release-manifest.json"
   printf '  nightly:     %s\n' "$tag"
 fi
 
+base_url="https://github.com/$REPO/releases/download/$tag"
+download "$base_url/atlas-release-manifest.json" "$tmp/atlas-release-manifest.json"
+package_version=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)"[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p' "$tmp/atlas-release-manifest.json")
+case "$tag" in
+  nightly/*)
+    suffix=${tag#nightly/}
+    printf '%s\n' "$package_version" | LC_ALL=C grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12}$' &&
+      [ "${package_version#*-nightly.}" = "$suffix" ] ||
+      die "manifest version does not match $tag: $package_version"
+    ;;
+  *)
+    [ "$package_version" = "${tag##*/}" ] || die "manifest version does not match $tag: $package_version"
+    ;;
+esac
+expected_version="atlas ${package_version#v}"
 download "$base_url/SHA256SUMS" "$tmp/SHA256SUMS"
-download "$manifest_url" "$tmp/atlas-release-manifest.json"
 selection=$(awk -v target="$target" -v requested="$VARIANT" '
   function value(line) {
     sub(/^.*:[[:space:]]*"/, "", line)
@@ -285,6 +339,7 @@ new_binary=$(find "$tmp/extract" -type f -name atlas | head -n 1)
 [ -n "$new_binary" ] || die "archive did not contain atlas binary"
 chmod +x "$new_binary"
 new_version=$("$new_binary" --version 2>/dev/null) || die "downloaded atlas failed its version check"
+[ "$new_version" = "$expected_version" ] || die "downloaded atlas version mismatch: expected $expected_version, got $new_version"
 printf '  target bin:  %s\n' "$new_version"
 new_variant=$(build_variant "$new_binary") || die "downloaded atlas has invalid build information"
 if [ "$asset_variant" = "legacy" ] && [ "$new_variant" = "legacy" ]; then
@@ -347,6 +402,7 @@ if [ -e "$install_path" ] || [ -L "$install_path" ]; then
   fi
 fi
 
+check_destination
 tmp_dest="$INSTALL_DIR/.atlas.install.$$"
 backup=""
 cp "$new_binary" "$tmp_dest" || die "failed to stage atlas binary"
@@ -355,14 +411,15 @@ if [ -e "$install_path" ] || [ -L "$install_path" ]; then
   backup="$INSTALL_DIR/.atlas.backup.$$"
   cp -P "$install_path" "$backup" || die "failed to back up existing atlas"
 fi
-if mv "$tmp_dest" "$install_path"; then
-  if ! "$install_path" --version >/dev/null 2>&1; then
+if place_binary "$tmp_dest"; then
+  if ! installed_version=$("$install_path" --version 2>/dev/null) || [ "$installed_version" != "$expected_version" ]; then
+    failure="installed atlas failed its version check (expected $expected_version, got ${installed_version:-no version})"
     if [ -n "$backup" ]; then
-      mv -f "$backup" "$install_path" || die "could not restore the previous command; backup: $backup"
-      die "installed atlas failed its version check; restored the previous command"
+      place_binary "$backup" || die "could not restore the previous command; backup: $backup"
+      die "$failure; restored the previous command"
     fi
     rm -f "$install_path" || die "could not remove the failed command: $install_path"
-    die "installed atlas failed its version check; removed the failed command"
+    die "$failure; removed the failed command"
   fi
 else
   [ -n "$backup" ] && rm -f "$backup"

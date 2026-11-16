@@ -33,9 +33,10 @@ make_unix_archive_in() {
 make_unix_archive() {
   target="$1"
   variant="${2:-full}"
-  make_unix_archive_in "$dist" "$target" "#!/bin/sh
+  version="${3:-9.9.9}"
+  make_unix_archive_in "${4:-$dist}" "$target" "#!/bin/sh
 case \"\$1\" in
-  --version) printf 'atlas 9.9.9\\n' ;;
+  --version) printf 'atlas $version\\n' ;;
   build-info) printf '{\\n  \"status\": \"ok\",\\n  \"data\": {\\n    \"version\": \"9.9.9\",\\n    \"variant\": \"$variant\"\\n  }\\n}\\n' ;;
   *) exit 2 ;;
 esac" "$variant"
@@ -129,9 +130,14 @@ if [ -n "$host_target" ]; then
 #!/bin/sh
 dest=
 url=
+headers=
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    -o)
+    -D)
+      headers="$2"
+      shift 2
+      ;;
+    -o|-O)
       dest="$2"
       shift 2
       ;;
@@ -151,7 +157,26 @@ case "${ATLAS_TEST_BOOTSTRAP:-}" in
   failed) exit 22 ;;
   empty) : > "$dest"; exit 0 ;;
 esac
-cp "$ATLAS_FAKE_RELEASE_DIR/$(basename "$url")" "$dest"
+case "$url" in
+  */releases/latest)
+    location=${ATLAS_LATEST_LOCATION:-"https://github.com/e-kosten/pf2e-atlas/releases/tag/release%2Fv9.9.9"}
+    if [ -n "${ATLAS_URL_LOG:-}" ] && [ "$(grep -c '/releases/latest$' "$ATLAS_URL_LOG")" -gt 1 ]; then
+      location="https://github.com/e-kosten/pf2e-atlas/releases/tag/release/v9.9.10"
+    fi
+    if [ -n "$headers" ]; then
+      printf 'HTTP/2 302\r\nLocation: %s\r\n\r\n' "$location" > "$headers"
+      exit 0
+    fi
+    printf '  HTTP/1.1 302 Found\n  Location: %s\n' "$location" >&2
+    exit 8
+    ;;
+esac
+file=${url##*/}
+case "$url" in
+  */releases/latest/download/atlas-installer.sh) ;;
+  */releases/latest/download/*) exit 3 ;;
+esac
+cp "$ATLAS_FAKE_RELEASE_DIR/$file" "$dest"
 EOF_CURL
   chmod +x "$fake_bin/curl"
 
@@ -166,18 +191,44 @@ EOF_CURL
     fi
   done
   PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_INSTALL_DIR="$tmp/quick-start-install" \
-    sh "$quick_start" >/dev/null
+    ATLAS_URL_LOG="$tmp/latest-urls" sh "$quick_start" >/dev/null
   [ "$("$tmp/quick-start-install/atlas" --version)" = "atlas 9.9.9" ]
+
+  [ "$(grep -c '/releases/latest$' "$tmp/latest-urls")" -eq 1 ]
+  [ "$(grep -c '/releases/download/release/v9.9.9/' "$tmp/latest-urls")" -eq 3 ]
+
+  wget_bin="$tmp/wget-bin"
+  mkdir "$wget_bin"
+  cp "$fake_bin/curl" "$wget_bin/wget"
+  for tool in uname grep wc tr sed awk mktemp rm mkdir cat tar find head chmod cp mv shasum; do
+    tool_path=$(command -v "$tool") || {
+      [ "$tool" = shasum ] || exit 1
+      tool_path=$(command -v sha256sum)
+      tool=sha256sum
+    }
+    ln -s "$tool_path" "$wget_bin/$tool"
+  done
+  PATH="$wget_bin" ATLAS_FAKE_RELEASE_DIR="$dist" \
+    ATLAS_LATEST_LOCATION="/e-kosten/pf2e-atlas/releases/tag/v9.9.9" ATLAS_URL_LOG="$tmp/wget-urls" \
+    "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$tmp/wget-install" --yes >/dev/null
+  [ "$(grep -c '/releases/latest$' "$tmp/wget-urls")" -eq 1 ]
+  [ "$(grep -c '/releases/download/v9.9.9/' "$tmp/wget-urls")" -eq 3 ]
+  [ "$("$tmp/wget-install/atlas" --version)" = "atlas 9.9.9" ]
 
   explicit_start="$tmp/explicit-start.sh"
   explicit_tag=rc/v9.9.9-rc.1
+  rc_dist="$tmp/rc-dist"
+  cp -R "$dist" "$rc_dist"
+  make_unix_archive "$host_target" full "9.9.9-rc.1" "$rc_dist"
+  node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v9.9.9-rc.1 "$rc_dist" >/dev/null
   awk '/^```bash$/ { code = ""; next }
        /^```$/ { if (code ~ /--version VERSION/) { print code; exit }; next }
        { code = code $0 "\n" }' "$repo_root/docs/installation.md" |
     sed "s|VERSION|$explicit_tag|g" > "$explicit_start"
   [ -s "$explicit_start" ]
-  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_INSTALL_DIR="$tmp/explicit-install" \
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$rc_dist" ATLAS_INSTALL_DIR="$tmp/explicit-install" \
     ATLAS_URL_LOG="$tmp/explicit-urls" sh "$explicit_start" >/dev/null
+  [ "$("$tmp/explicit-install/atlas" --version)" = "atlas 9.9.9-rc.1" ]
   [ "$(wc -l < "$tmp/explicit-urls" | tr -d ' ')" -eq 4 ]
   if grep -vF "/releases/download/$explicit_tag/" "$tmp/explicit-urls"; then
     echo "explicit installer bootstrap did not forward the release tag" >&2
@@ -185,9 +236,10 @@ EOF_CURL
   fi
 
   dry_run_dir="$tmp/dry-run-install"
-  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_URL_LOG="$tmp/dry-run-urls" \
     "$repo_root/scripts/install/atlas-installer.sh" \
-    --install-dir "$dry_run_dir" --version v9.9.9 --dry-run >/dev/null
+    --install-dir "$dry_run_dir" --version latest --dry-run >/dev/null
+  [ ! -e "$tmp/dry-run-urls" ]
   [ ! -e "$dry_run_dir/atlas" ] || {
     echo "installer dry-run wrote an atlas binary" >&2
     exit 1
@@ -267,11 +319,17 @@ printf "atlas 9.9.9\n"'
   fi
 
   nightly_tag="nightly/20261018092300.gabcdef123456"
-  printf '%s\n' "$nightly_tag" > "$dist/nightly-version.txt"
+  nightly_version="9.9.9-nightly.${nightly_tag#nightly/}"
+  nightly_dist="$tmp/nightly-dist"
+  cp -R "$dist" "$nightly_dist"
+  make_unix_archive "$host_target" full "$nightly_version" "$nightly_dist"
+  node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" "v$nightly_version" "$nightly_dist" >/dev/null
+  nightly_install="$tmp/nightly-install"
+  printf '%s\n' "$nightly_tag" > "$nightly_dist/nightly-version.txt"
   url_log="$tmp/nightly-urls"
-  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_URL_LOG="$url_log" \
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$nightly_dist" ATLAS_URL_LOG="$url_log" \
     "$repo_root/scripts/install/atlas-installer.sh" \
-    --install-dir "$install_dir" --version nightly --yes >/dev/null
+    --install-dir "$nightly_install" --version nightly --yes >/dev/null
   [ "$(head -n 1 "$url_log")" = "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt" ]
   expected_urls=$(printf '%s\n' \
     'https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt' \
@@ -282,23 +340,65 @@ printf "atlas 9.9.9\n"'
     echo "nightly installer requested unexpected release assets" >&2
     exit 1
   }
-  printf 'v9.9.9\n' > "$dist/nightly-version.txt"
-  if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
+  for wrong_tag in nightly/20261018092400.gabcdef123456 nightly/20261018092300.gabcdef123457; do
+    printf '%s\n' "$wrong_tag" > "$nightly_dist/nightly-version.txt"
+    if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$nightly_dist" \
+      "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$nightly_install" --version nightly --yes >"$tmp/identity.log" 2>&1; then
+      echo "installer accepted a different nightly identity" >&2
+      exit 1
+    fi
+    grep -q 'manifest version does not match' "$tmp/identity.log"
+  done
+  [ "$("$nightly_install/atlas" --version)" = "atlas $nightly_version" ]
+  printf 'v9.9.9\n'  > "$nightly_dist/nightly-version.txt"
+  if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$nightly_dist" \
     "$repo_root/scripts/install/atlas-installer.sh" \
-    --install-dir "$install_dir" --version nightly --yes >/dev/null 2>&1
+    --install-dir "$nightly_install" --version nightly --yes >/dev/null 2>&1
   then
     echo "nightly installer accepted a stable channel pointer" >&2
     exit 1
   fi
   [ "$("$install_dir/atlas" --version)" = "atlas 9.9.9" ]
 
+  identity_dist="$tmp/identity-dist"
+  cp -R "$dist" "$identity_dist"
+  node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v1.2.3 "$identity_dist" >/dev/null
+  for version in v9.9.9 v1.2.3; do
+    cp "$install_dir/atlas" "$tmp/before-mismatch"
+    if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$identity_dist" \
+      "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$install_dir" --version "$version" --yes >"$tmp/identity.log" 2>&1; then
+      echo "installer accepted a mismatching version" >&2
+      exit 1
+    fi
+    case "$version" in
+      v9.9.9) grep -q 'manifest version does not match' "$tmp/identity.log" ;;
+      v1.2.3) grep -q 'downloaded atlas version mismatch' "$tmp/identity.log" ;;
+    esac
+    cmp "$tmp/before-mismatch" "$install_dir/atlas"
+  done
+
+  mkdir -p "$tmp/directory-install/atlas" "$tmp/link-install" "$tmp/linked-directory"
+  ln -s "$tmp/linked-directory" "$tmp/link-install/atlas"
+  for destination in "$tmp/directory-install" "$tmp/link-install"; do
+    if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_URL_LOG="$tmp/directory-urls" \
+      "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$destination" --version v9.9.9 --yes >"$tmp/directory.log" 2>&1; then
+      echo "installer accepted a directory-valued destination" >&2
+      exit 1
+    fi
+    grep -q 'install destination is a directory' "$tmp/directory.log"
+    [ -z "$(ls -A "$destination/atlas/")" ]
+  done
+  [ ! -e "$tmp/directory-urls" ]
+  [ "$(readlink "$tmp/link-install/atlas")" = "$tmp/linked-directory" ]
+
   rollback_dist="$tmp/rollback-dist"
   cp -R "$dist" "$rollback_dist"
   cat > "$tmp/rollback-binary" <<'ROLLBACK_BINARY'
 #!/bin/sh
-case "$0" in */extract/*) ;; *) exit 42 ;; esac
 case "$1" in
-  --version) printf 'atlas 9.9.10\n' ;;
+  --version)
+    case "$0" in */extract/*) printf 'atlas 9.9.9\n' ;; *) printf 'atlas 9.9.10\n' ;; esac
+    ;;
   build-info) printf '{\n  "variant": "full"\n}\n' ;;
 esac
 ROLLBACK_BINARY
