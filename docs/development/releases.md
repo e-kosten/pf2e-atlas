@@ -181,7 +181,7 @@ Release notes use this template:
 ## Known Issues
 ```
 
-The helper creates an annotated tag and a draft GitHub release. The tag-triggered release workflow uses cargo-dist to build platform archives, then uploads Atlas installer scripts, checksums, cargo-dist metadata, the Atlas release manifest, and third-party notices. The draft is published only after the required asset set validates. If the workflow fails, the release remains draft.
+The helper creates an annotated tag and a draft GitHub release. The tag-triggered release workflow uses cargo-dist to build platform archives, then uploads Atlas installer scripts, checksums, cargo-dist metadata, the Atlas release manifest, and third-party notices. The publisher compares every uploaded asset’s name and SHA-256 digest with the assembled files before publishing the same draft. If verification fails, the release stays in draft. Rerun with the original assembly to repair a partial upload.
 
 If a tag was pushed and draft creation failed, use the tag and commit printed
 by the helper:

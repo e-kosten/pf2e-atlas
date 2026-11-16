@@ -1,11 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { coverageArchive, coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
 import { validateAssets } from './validate-release-assets.js';
 import { desktopAssets, macosDmg, nightlyChannel, nightlyRef, nightlyTag, object, readJson, windowsInstaller } from './release-data.js';
-import { releases, verifyReleaseSource, verifyUploadedDesktop, type Release, type Run } from './release-upload.js';
+import { releaseAssetNames, releaseEndpoint, releases, uploadDraftAssets, verifyReleaseSource, verifyUploadedDesktop, type Release, type Run } from './release-upload.js';
 export type { Run } from './release-upload.js';
 
 export function nightlyVersion(tag: string): string {
@@ -86,8 +86,6 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
   return `build=true\nsha=${sha}\ntag=${tag}\npackage-tag=${packageTag}\n`;
 }
 
-const releaseEndpoint = 'repos/{owner}/{repo}/releases';
-
 function nightlyDraft(run: Run, tag: string, sha: string, version: string, notes: string, existing?: Release): Release {
   const request = existing
     ? ['--method', 'PATCH', `${releaseEndpoint}/${existing.id}`]
@@ -100,28 +98,6 @@ function nightlyDraft(run: Run, tag: string, sha: string, version: string, notes
   }
   verifyReleaseSource(run, draft, tag, sha, true);
   return draft;
-}
-
-async function uploadNightlyDraft(run: Run, draft: Release, dist: string): Promise<void> {
-  const upload = new URL(draft.upload_url?.replace(/\{\?name,label\}$/, '') ?? '');
-  if (upload.origin !== 'https://uploads.github.com' || upload.username || upload.password
-    || !upload.pathname.endsWith(`/releases/${draft.id}/assets`)) {
-    throw new Error('Invalid dated nightly upload URL');
-  }
-  const assets = readdirSync(dist, { withFileTypes: true }).filter((entry) => entry.isFile())
-    .map((entry) => entry.name).sort();
-  const uploaded = assets.map((name) => {
-    const previous = draft.assets?.find((asset) => asset.name === name);
-    if (previous) run('gh', ['api', '--method', 'DELETE', `${releaseEndpoint}/assets/${previous.id}`]);
-    upload.searchParams.set('name', name);
-    const asset: NonNullable<Release['assets']>[number] = JSON.parse(run('gh', [
-      'api', '--method', 'POST', upload.href, '--header', 'Content-Type: application/octet-stream',
-      '--input', path.join(dist, name),
-    ]));
-    if (asset.name !== name) throw new Error(`Unexpected uploaded asset for ${name}`);
-    return asset;
-  });
-  await verifyUploadedDesktop({ ...draft, assets: uploaded }, dist);
 }
 
 export async function publishNightly(root: string, tag: string, sha: string, dist: string, coveragePath: string,
@@ -199,7 +175,8 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
   if (!release || release.draft) {
     // Carry GitHub's draft ID forward even if the release list still omits it.
     const draft = nightlyDraft(run, tag, sha, version, notes, release);
-    await uploadNightlyDraft(run, draft, dist);
+    const uploaded = uploadDraftAssets(run, draft, dist, releaseAssetNames(dist));
+    await verifyUploadedDesktop({ ...draft, assets: uploaded }, dist);
     published = JSON.parse(run('gh', ['api', '--method', 'PATCH', `${releaseEndpoint}/${draft.id}`,
       '-F', 'draft=false', '-F', 'prerelease=true', '-f', 'make_latest=false']));
     if (published.id !== draft.id) throw new Error('Published nightly ID differs from the draft');
