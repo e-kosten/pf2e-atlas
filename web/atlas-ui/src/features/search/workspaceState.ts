@@ -10,6 +10,7 @@ import {
   choiceClauses,
   conditionValues,
   isExcluded,
+  type SearchSubmission,
 } from "../../shared/filters/filterControls";
 import {
   DEFAULT_SEARCH_PREFERENCES,
@@ -95,6 +96,7 @@ export type WorkspaceInteractionState = {
   search: SearchFormState;
   selectedRecordKey: string | null;
   activeSearch: SearchFormState;
+  acceptedSearchSubmission?: SearchSubmission;
 };
 export type WorkspaceInteractionEvent =
   | {
@@ -109,6 +111,7 @@ export type WorkspaceInteractionEvent =
   | {
       type: "search.settingsApplied" | "search.submitted";
       search: SearchFormState;
+      submission?: SearchSubmission;
     }
   | {
       type: "search.executionCommitted";
@@ -117,6 +120,7 @@ export type WorkspaceInteractionEvent =
   | {
       type: "record.selected";
       recordKey: string | null;
+      submission?: SearchSubmission;
     };
 export function initialWorkspaceInteractionState(
   preferences: SearchPreferences = DEFAULT_SEARCH_PREFERENCES,
@@ -151,6 +155,7 @@ export function workspaceInteractionReducer(
         search: event.search,
         activeSearch: event.search,
         selectedRecordKey: event.selectedRecordKey,
+        acceptedSearchSubmission: undefined,
       };
     case "search.changed":
       return {
@@ -163,6 +168,7 @@ export function workspaceInteractionReducer(
         ...state,
         search: event.search,
         activeSearch: event.search,
+        acceptedSearchSubmission: event.submission ?? state.acceptedSearchSubmission,
       };
     case "search.executionCommitted":
       if (event.search !== state.search || event.search === state.activeSearch) {
@@ -176,6 +182,7 @@ export function workspaceInteractionReducer(
       return {
         ...state,
         selectedRecordKey: event.recordKey,
+        acceptedSearchSubmission: event.submission ?? state.acceptedSearchSubmission,
       };
   }
 }

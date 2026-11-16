@@ -52,6 +52,7 @@ import {
   type SearchFormState,
 } from "../../filters/searchState";
 import { FilterControls } from "../../filters/FilterPanel";
+import type { SearchSubmission } from "../../filters/filterControls";
 import { ResultSortControl } from "../../search/ResultSortControl";
 import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
 import { ReferenceBrowser } from "../../records/ReferenceBrowser";
@@ -153,11 +154,17 @@ export function SearchPickerModal<FormValues>({
             : null,
       }
     : inheritedProfile;
-  const [search, setSearch] = useState<SearchFormState>(() => ({
-    ...DEFAULT_SEARCH_STATE,
-    ranking: profile.preferences.ranking,
-    searchContent: profile.preferences.searchContent,
+  const [{ search, acceptedSearchSubmission }, setCriteria] = useState<{
+    search: SearchFormState;
+    acceptedSearchSubmission?: SearchSubmission;
+  }>(() => ({
+    search: {
+      ...DEFAULT_SEARCH_STATE,
+      ranking: profile.preferences.ranking,
+      searchContent: profile.preferences.searchContent,
+    },
   }));
+  const [searchSession, setSearchSession] = useState(0);
   const [paging, setPaging] = useState({ profile: profile.id, number: 1 });
   const pageNumber = paging.profile === profile.id ? paging.number : 1;
   if (paging.profile !== profile.id) setPaging({ profile: profile.id, number: 1 });
@@ -344,7 +351,7 @@ export function SearchPickerModal<FormValues>({
   }
   function applySettings(next: SearchFormState) {
     return retrieval.applyGeneration(next.similarityGeneration, () => {
-      setSearch(next);
+      setCriteria((current) => ({ ...current, search: next }));
       setPageNumber(1);
     });
   }
@@ -378,11 +385,14 @@ export function SearchPickerModal<FormValues>({
   const reset = () => {
     submission.current += 1;
     setSubmittedProfile(undefined);
-    setSearch({
-      ...DEFAULT_SEARCH_STATE,
-      ranking: profile.preferences.ranking,
-      searchContent: profile.preferences.searchContent,
+    setCriteria({
+      search: {
+        ...DEFAULT_SEARCH_STATE,
+        ranking: profile.preferences.ranking,
+        searchContent: profile.preferences.searchContent,
+      },
     });
+    setSearchSession((session) => session + 1);
     setPageNumber(1);
     reading.inspect(null);
     onSelectionChange(null);
@@ -536,6 +546,7 @@ export function SearchPickerModal<FormValues>({
               <FilterControls
                 includeLinks={!request.connection_scope}
                 searchInputRef={searchInput}
+                searchEntryKey={searchSession}
                 layout="toolbar"
                 searchRowEnd={
                   <SearchSettings
@@ -576,11 +587,16 @@ export function SearchPickerModal<FormValues>({
                   resultRequest: request,
                   fixedFilter: base.criteria.filter,
                   search,
-                  setSearch: (next, intent) => {
+                  acceptedSearchSubmission,
+                  setSearch: (next, intent, searchSubmission) => {
                     if (disabled) return;
                     if (preparing) selection.cancel();
                     const apply = () => {
-                      setSearch(normalizeSortTransition(search, next));
+                      setCriteria((current) => ({
+                        search: normalizeSortTransition(search, next),
+                        acceptedSearchSubmission:
+                          searchSubmission ?? current.acceptedSearchSubmission,
+                      }));
                       setPageNumber(1);
                     };
                     if (
@@ -720,7 +736,7 @@ export function SearchPickerModal<FormValues>({
                         search={search}
                         disabled={disabled || retrieval.recovering}
                         setSearch={(next) => {
-                          setSearch(next);
+                          setCriteria((current) => ({ ...current, search: next }));
                           setPageNumber(1);
                         }}
                       />

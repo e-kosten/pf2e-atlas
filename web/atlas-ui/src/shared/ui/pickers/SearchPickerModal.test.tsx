@@ -3,6 +3,7 @@ import { recordDetailQueryOptions } from "../../records/recordDetailQuery";
 import { chooseAttributeSort } from "../../../test/sortControls";
 import type { ResultSort } from "../../../generated/atlas";
 import { SearchProfileProvider } from "../../../test/SearchProfileProvider";
+import type { WorkspaceSearchDefault } from "../../search/SearchProfileContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider, Form, Grid, Input } from "antd";
 import { useState } from "react";
@@ -152,7 +153,11 @@ function Picker({
     </SearchPickerModal>
   );
 }
-function renderPicker(similar = false, connectionScope?: SearchConnectionScope) {
+function renderPicker(
+  similar = false,
+  connectionScope?: SearchConnectionScope,
+  resolveWorkspaceDefault?: () => Promise<WorkspaceSearchDefault | undefined>,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
   });
@@ -162,7 +167,10 @@ function renderPicker(similar = false, connectionScope?: SearchConnectionScope) 
   const content = () => (
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={client}>
-        <SearchProfileProvider id={profile}>
+        <SearchProfileProvider
+          id={profile}
+          resolveWorkspaceDefault={resolveWorkspaceDefault}
+        >
           <App>
             <Picker
               disabled={disabled}
@@ -855,6 +863,31 @@ it("applies reloaded B parts once while preserving the picker candidate and unsa
       .findAll({ queryKey: ["search-picker"] })
       .some((query) => query.queryKey.includes("generation-a")),
   ).toBe(false);
+});
+
+it("discards a pending keyword draft when closing a picker with empty criteria", async () => {
+  let finish!: (value: WorkspaceSearchDefault) => void;
+  const readiness = new Promise<WorkspaceSearchDefault>((resolve) => {
+    finish = resolve;
+  });
+  const resolveDefault = vi.fn(() => readiness);
+  const picker = renderPicker(false, undefined, resolveDefault);
+  await screen.findByText("Ghoul");
+  await submit("unfinished");
+  expect(resolveDefault).toHaveBeenCalledOnce();
+  expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+    "unfinished",
+  );
+  picker.setOpen(false);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await act(async () => finish({ id: "bge-base", generation: "generation-a" }));
+  picker.setOpen(true);
+
+  const input = await screen.findByRole("searchbox", { name: "Search records" });
+  expect(input).toHaveValue("");
+  expect(
+    search.mock.calls.every(([request]) => request.criteria.kind === "list_records"),
+  ).toBe(true);
 });
 
 it("keeps a reopened picker independent of an earlier pending refresh", async () => {

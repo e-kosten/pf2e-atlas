@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button, Select } from "antd";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { ResultSortControl } from "../../shared/search/ResultSortControl";
@@ -121,6 +121,7 @@ function PageJump({
   onPageChange,
 }: PageJumpProps) {
   const [pageDraft, setPageDraft] = useState(displayedPageNumber.toString());
+  const cancelingBlur = useRef(false);
 
   function commitPageDraft() {
     const parsedPage = Number.parseInt(pageDraft, 10);
@@ -149,15 +150,20 @@ function PageJump({
         inputMode="numeric"
         max={pageCountNumber > 0 ? pageCountNumber : undefined}
         min={1}
-        onBlur={commitPageDraft}
+        onBlur={() => {
+          if (!cancelingBlur.current) commitPageDraft();
+        }}
         onChange={(event) => setPageDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.currentTarget.blur();
           }
           if (event.key === "Escape") {
+            event.preventDefault();
             setPageDraft(displayedPageNumber.toString());
+            cancelingBlur.current = true;
             event.currentTarget.blur();
+            cancelingBlur.current = false;
           }
         }}
         pattern="[0-9]*"

@@ -2,6 +2,10 @@ import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
+import type {
+  FilterPanelState,
+  SearchSubmission,
+} from "../../shared/filters/filterControls";
 import type { ReorderPlacement } from "../../generated/atlas";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { Alert, Grid } from "antd";
@@ -69,24 +73,36 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
   const editing = useListSettingsOpening(onCloseDirectEditor ? route.slug : undefined);
   const [resolvedListKey, setResolvedListKey] = useState<string>();
   const listRef = resolvedListKey ?? route.slug;
-  const [filters, setFilters] = useState<SearchFormState>(() =>
-    decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
-  );
+  const [{ filters, acceptedSearchSubmission }, setCriteria] = useState<{
+    filters: SearchFormState;
+    acceptedSearchSubmission?: SearchSubmission;
+  }>(() => ({
+    filters: decodeSearchStateFromParams(
+      new URLSearchParams(route.query),
+      "saved_list",
+    ),
+  }));
   const previousQuery = useRef(route.query);
   useEffect(() => {
     if (previousQuery.current === route.query) return;
     previousQuery.current = route.query;
-    setFilters(
-      decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
-    );
+    setCriteria({
+      filters: decodeSearchStateFromParams(
+        new URLSearchParams(route.query),
+        "saved_list",
+      ),
+    });
   }, [route.query]);
   useFilterUrlRecovery(filters);
-  function changeFilters(next: SearchFormState) {
+  const changeFilters: FilterPanelState["setSearch"] = (next, _intent, submission) => {
     const query = searchStateQueryString(next);
     previousQuery.current = query || undefined;
-    setFilters(next);
+    setCriteria((current) => ({
+      filters: next,
+      acceptedSearchSubmission: submission ?? current.acceptedSearchSubmission,
+    }));
     navigateDestination(listDestination({ ...route, query }), undefined, atlasRouter);
-  }
+  };
   const listQuery = searchStateQueryString(filters);
   const reading = useReferenceReading(null, !filters.filterWasReset);
   const selection = usePreparedReferenceSelection(
@@ -416,6 +432,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
               <FilterControls
                 filterState={{
                   search: filters,
+                  acceptedSearchSubmission,
                   setSearch: changeFilters,
                   filterEditor: filterDiscovery.filterEditor,
                   refreshFilterInformation: filterDiscovery.refreshFilterInformation,
