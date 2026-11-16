@@ -390,11 +390,14 @@ if [ -e "$install_path" ] || [ -L "$install_path" ]; then
   change=$(classify_change "$existing_version" "$new_version")
   printf '  action:      replace existing atlas (%s)\n' "$change"
   if [ "$YES" != "1" ]; then
-    if [ ! -r /dev/tty ]; then
-      die "existing atlas requires confirmation; rerun with --yes or ATLAS_YES=1 to replace it"
-    fi
-    printf 'Replace existing atlas at %s? [y/N] ' "$install_path" >/dev/tty
-    read answer </dev/tty
+    # File permissions alone do not tell us if this session has a controlling terminal.
+    answer=$(
+      {
+        printf 'Replace existing atlas at %s? [y/N] ' "$install_path" >&3 || exit 1
+        read -r response <&3 || response=
+        printf '%s' "$response"
+      } 2>/dev/null 3<>/dev/tty
+    ) || die "existing atlas requires confirmation; rerun with --yes or ATLAS_YES=1 to replace it"
     case "$answer" in
       y|Y|yes|YES) ;;
       *) die "install cancelled" ;;
