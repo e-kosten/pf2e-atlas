@@ -2,6 +2,7 @@ import * as http from "../generated/http";
 import type {
   SavedListItemNoteView,
   UpdateSavedListItemNoteRequest,
+  AddEncounterInitiativeEntryRequest,
   AddEncounterManualParticipantRequest,
   AddEncounterParticipantConditionRequest,
   AddEncounterRecordParticipantRequest,
@@ -199,6 +200,15 @@ export async function addEncounterRecordParticipant(
   request: AddEncounterRecordParticipantRequest,
 ): Promise<EncounterMutationView> {
   return http.addEncounterRecordParticipant(encounterRef, checkRequest(request), {
+    intent: "action",
+  });
+}
+
+export async function addEncounterInitiativeEntry(
+  encounterRef: string,
+  request: AddEncounterInitiativeEntryRequest,
+): Promise<EncounterMutationView> {
+  return http.addEncounterInitiativeEntry(encounterRef, checkRequest(request), {
     intent: "action",
   });
 }

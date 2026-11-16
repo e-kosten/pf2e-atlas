@@ -46,7 +46,13 @@ impl AtlasAppService {
         slug: Option<String>,
     ) -> AppServiceResult<EncounterImportReport> {
         let document = EncounterDocument::read(input)?;
-        let keys = document.record_keys()?;
+        let keys: Vec<_> = document
+            .record_keys()?
+            .into_iter()
+            .chain(document.markdown_record_keys())
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
         self.with_write(move |session| {
             let mut missing_records = Vec::new();
             let mut changed_records = Vec::new();

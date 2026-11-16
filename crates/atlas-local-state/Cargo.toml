@@ -10,6 +10,8 @@ rust-version.workspace = true
 atlas-storage.workspace = true
 atlas-dice.workspace = true
 atlas-domain.workspace = true
+percent-encoding = "2.3.2"
+pulldown-cmark = { version = "0.13.6", default-features = false }
 rand.workspace = true
 rusqlite.workspace = true
 serde.workspace = true

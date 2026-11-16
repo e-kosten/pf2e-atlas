@@ -55,6 +55,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
             crate::handlers::roll_initiative
         ))
         .routes(routes!(crate::handlers::add_encounter_manual_participant))
+        .routes(routes!(crate::handlers::add_encounter_initiative_entry))
         .routes(routes!(crate::parties::add_encounter_party))
         .routes(routes!(crate::handlers::add_encounter_record_participant))
         .routes(routes!(crate::handlers::reorder_encounter_participant))

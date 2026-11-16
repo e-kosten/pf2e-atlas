@@ -130,7 +130,11 @@ export function useEncounterStrike({
             disabled={mutations.pending}
             value={targetKey}
             options={participants
-              .filter((p) => p.participant_key !== launch?.strike.participant_key)
+              .filter(
+                (p) =>
+                  p.participant_kind !== "initiative_entry" &&
+                  p.participant_key !== launch?.strike.participant_key,
+              )
               .map((p) => ({ value: p.participant_key, label: p.display_name }))}
             onChange={setTargetKey}
           />

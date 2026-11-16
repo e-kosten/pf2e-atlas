@@ -39,6 +39,11 @@ impl AtlasAppService {
             .iter()
             .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
+        if participant.participant_kind == atlas_local_state::ParticipantKind::InitiativeEntry {
+            return Err(AppServiceError::invalid_request(
+                "Initiative entries do not have life settings",
+            ));
+        }
         if participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
             && request.track_dying
         {
@@ -610,6 +615,16 @@ fn prepare_add(
         request.source_participant_key.as_deref(),
         &snapshot,
     )?;
+    if let Some(source) = request.source_participant_key.as_deref()
+        && !snapshot.participants.iter().any(|p| {
+            p.participant_key == source
+                && p.participant_kind != atlas_local_state::ParticipantKind::InitiativeEntry
+        })
+    {
+        return Err(AppServiceError::invalid_request(
+            "Choose an actor as the condition source",
+        ));
+    }
     let input = atlas_local_state::AddEncounterParticipantCondition {
         participant_key: participant_key.to_owned(),
         condition_key: condition.key,
@@ -750,6 +765,16 @@ fn prepare_update(
     };
     if let Some(origin) = &mut origin {
         origin.participant_key = request.source_participant_key.clone();
+    }
+    if let Some(source) = request.source_participant_key.as_deref()
+        && !snapshot.participants.iter().any(|p| {
+            p.participant_key == source
+                && p.participant_kind != atlas_local_state::ParticipantKind::InitiativeEntry
+        })
+    {
+        return Err(AppServiceError::invalid_request(
+            "Choose an actor as the condition source",
+        ));
     }
     let input = atlas_local_state::UpdateEncounterParticipantCondition {
         expected_encounter_revision: request.expected_encounter_revision,
@@ -916,11 +941,11 @@ fn parameters_input(
             let subject = subject
                 .map(|subject| match subject {
                     ConditionSubjectView::Participant { participant_key } => {
-                        if !snapshot
-                            .participants
-                            .iter()
-                            .any(|participant| participant.participant_key == participant_key)
-                        {
+                        if !snapshot.participants.iter().any(|participant| {
+                            participant.participant_key == participant_key
+                                && participant.participant_kind
+                                    != atlas_local_state::ParticipantKind::InitiativeEntry
+                        }) {
                             return Err(AppServiceError::invalid_request(
                                 "Choose a source of flight in this encounter",
                             ));
@@ -949,11 +974,11 @@ fn parameters_input(
             let subject = subject
                 .map(|subject| match subject {
                     ConditionSubjectView::Participant { participant_key } => {
-                        if !snapshot
-                            .participants
-                            .iter()
-                            .any(|participant| participant.participant_key == participant_key)
-                        {
+                        if !snapshot.participants.iter().any(|participant| {
+                            participant.participant_key == participant_key
+                                && participant.participant_kind
+                                    != atlas_local_state::ParticipantKind::InitiativeEntry
+                        }) {
                             return Err(AppServiceError::invalid_request(
                                 "Choose a fascination subject in this encounter",
                             ));

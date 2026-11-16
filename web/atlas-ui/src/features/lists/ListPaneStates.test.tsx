@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { ListBrowseHeader } from "./ListBrowseHeader";
@@ -50,19 +51,22 @@ describe("saved list local failure states", () => {
 
   it("keeps the full description and tags in the list's About disclosure", async () => {
     render(
-      <ListBrowseHeader
-        {...infoProps}
-        list={{
-          list_key: "long-list",
-          slug: "long-list",
-          name: "Long list",
-          description: "Detailed preparation notes. ".repeat(30),
-          tags: Array.from({ length: 20 }, (_, index) => `Campaign tag ${index}`),
-          item_count: 120,
-          created_at: "2026-10-10",
-          updated_at: "2026-10-10",
-        }}
-      />,
+      <QueryClientProvider client={new QueryClient()}>
+        <ListBrowseHeader
+          {...infoProps}
+          list={{
+            list_key: "long-list",
+            slug: "long-list",
+            name: "Long list",
+            description:
+              "## Session prep\n\n" + "Detailed preparation notes. ".repeat(30),
+            tags: Array.from({ length: 20 }, (_, index) => `Campaign tag ${index}`),
+            item_count: 120,
+            created_at: "2026-10-10",
+            updated_at: "2026-10-10",
+          }}
+        />
+      </QueryClientProvider>,
     );
     expect(screen.getByRole("heading", { name: "Long list" })).toBeVisible();
     expect(screen.queryByLabelText("List tags")).not.toBeInTheDocument();
@@ -72,6 +76,7 @@ describe("saved list local failure states", () => {
       "Campaign tag 19",
     );
     expect(about).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("heading", { name: "Session prep" })).toBeVisible();
     expect(
       screen.getByText("Detailed preparation notes. ".repeat(30).trim()),
     ).toBeInTheDocument();

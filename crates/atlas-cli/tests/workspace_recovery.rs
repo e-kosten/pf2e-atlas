@@ -67,6 +67,13 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
     write.connection().execute(
         "UPDATE saved_lists SET name='Edited fixture', revision=5 WHERE list_key='recovery-fixture'", [],
     ).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE saved_lists SET description=?1 WHERE list_key='recovery-fixture'",
+            ["## Ritual\n\n[Harm](atlas-record:spells%3Aharm)"],
+        )
+        .unwrap();
     write.commit().unwrap();
     failure(
         workspace_command(&source, "export", &unstaged, &[]),
@@ -75,13 +82,20 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
     assert!(!unstaged.exists());
     success(workspace_command(&source, "export", &exported, &[]));
     let actual = read_archive(&exported);
-    assert_eq!(actual["version"], "1.0");
+    assert_eq!(actual["version"], "1.1");
     assert_eq!(
         actual["saved"]["owners"][0]["lists"][0]["name"],
         "Edited fixture"
     );
     assert_eq!(actual["saved"]["owners"][0]["lists"][0]["revision"], 5);
     assert_eq!(actual["saved"]["condition_floor"], 100);
+    assert!(
+        actual["saved"]["references"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reference| reference["key"] == "spells:harm")
+    );
     failure(
         workspace_command(&source, "export", &exported, &[]),
         "Cannot publish",
@@ -350,7 +364,9 @@ fn rich_sample_round_trips_and_retries_through_the_app_offline() {
     .unwrap();
 
     success(workspace_command(&db, "export", &reexported, &[]));
-    assert_eq!(read_archive(&sample), read_archive(&reexported));
+    let mut expected = read_archive(&sample);
+    expected["version"] = "1.1".into();
+    assert_eq!(expected, read_archive(&reexported));
 }
 
 fn sample_app(db: &Path) -> atlas_app_service::AtlasAppService {

@@ -1,3 +1,7 @@
+import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
+import { useState } from "react";
+import { InitiativeEntryEditor } from "./InitiativeEntryEditor";
+import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
 import type {
   AddConditionDraft,
   UpdateConditionDraft,
@@ -176,6 +180,17 @@ export function EncounterInspectorPane({
       <section className="encounter-pane detail-empty">Select a participant.</section>
     );
   }
+  if (participant.participant_kind === "initiative_entry") {
+    return (
+      <InitiativeEntryInspector
+        key={participant.participant_key}
+        participant={participant}
+        disabled={disabled}
+        error={errorKind === "participant" ? error : undefined}
+        onUpdate={onUpdate}
+      />
+    );
+  }
   return (
     <ReferenceHelpProvider
       onHelp={preview.openHelp}
@@ -263,6 +278,108 @@ export function EncounterInspectorPane({
     </ReferenceHelpProvider>
   );
 }
+function ParticipantNotes({ source }: { source: string }) {
+  const [open, setOpen] = useState(false);
+  const long = source.length > 650 || source.split("\n").length > 8;
+  return (
+    <section className="encounter-reference__notes" aria-label="GM notes">
+      <h2>GM notes</h2>
+      {long ? (
+        <>
+          <Button type="text" onClick={() => setOpen(true)}>
+            Read GM notes
+          </Button>
+          <AtlasDrawer
+            open={open}
+            title="GM notes"
+            size="min(760px, 100vw)"
+            onClose={() => setOpen(false)}
+          >
+            <MarkdownDocument source={source} />
+          </AtlasDrawer>
+        </>
+      ) : (
+        <MarkdownDocument source={source} />
+      )}
+    </section>
+  );
+}
+
+function InitiativeEntryInspector({
+  participant,
+  disabled,
+  error,
+  onUpdate,
+}: {
+  participant: EncounterParticipantView;
+  disabled: boolean;
+  error?: string;
+  onUpdate: (key: string, edit: UpdateEncounterParticipantEdit) => Promise<boolean>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [revision, setRevision] = useState(participant.revision);
+  const initiative = participant.initiative;
+  return (
+    <section
+      className="encounter-pane encounter-record-pane"
+      aria-label="Initiative entry"
+      tabIndex={-1}
+    >
+      <section className="encounter-reference">
+        <div className="encounter-reference__notes">
+          <div className="encounter-reference__entry-heading">
+            <div>
+              <h2>{participant.display_name}</h2>
+              <p className="muted">Initiative {initiative}</p>
+            </div>
+            <Button
+              disabled={disabled || initiative == null}
+              onClick={() => {
+                setRevision(participant.revision);
+                setEditing(true);
+              }}
+            >
+              Edit entry
+            </Button>
+          </div>
+          {participant.note && <MarkdownDocument source={participant.note} />}
+        </div>
+        {editing && initiative != null && (
+          <InitiativeEntryEditor
+            initial={{
+              display_name: participant.display_name,
+              initiative,
+              note: participant.note ?? "",
+            }}
+            conflict={
+              revision !== participant.revision
+                ? {
+                    latest: {
+                      display_name: participant.display_name,
+                      initiative,
+                      note: participant.note ?? "",
+                    },
+                    keepDraft: () => setRevision(participant.revision),
+                  }
+                : undefined
+            }
+            disabled={disabled}
+            error={error}
+            onSave={(values) =>
+              onUpdate(participant.participant_key, {
+                ...values,
+                expected_revision: revision,
+                note: values.note?.trim() ? values.note : null,
+              })
+            }
+            onClose={() => setEditing(false)}
+          />
+        )}
+      </section>
+    </section>
+  );
+}
+
 function EncounterParticipantSurface({
   disabled,
   encounterRevision,
@@ -586,6 +703,7 @@ function EncounterParticipantSurface({
           )}
         </div>
       </div>
+      {participant.note && <ParticipantNotes source={participant.note} />}
       {participant.status === "unresolved" && (
         <p>Reference unavailable. Saved participant settings remain editable.</p>
       )}

@@ -1,3 +1,4 @@
+import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, Select, Space } from "antd";
@@ -311,7 +312,7 @@ function ListEditor({
             <Input />
           </Form.Item>
           <Form.Item label="Description" name="description">
-            <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+            <MarkdownEditor />
           </Form.Item>
           <Form.Item label="Tags" name="tags">
             <Select

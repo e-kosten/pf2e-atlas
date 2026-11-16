@@ -1,10 +1,11 @@
 use atlas_app_model::{
-    AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AdvanceEncounterTurnRequest,
-    ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest, CreateEncounterRequest,
-    CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterSavedListRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
-    ReorderSavedListItemRequest, SavedEditPayload, SearchResultsRequest, SetEncounterTurnRequest,
+    AddEncounterInitiativeEntryRequest, AddEncounterManualParticipantRequest,
+    AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
+    AddSavedListItemRequest, AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest,
+    ApplyEncounterSpellActionRequest, CreateEncounterRequest, CreateSavedListRequest,
+    DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterSavedListRequest,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ReorderSavedListItemRequest,
+    SavedEditPayload, SearchResultsRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
@@ -273,6 +274,22 @@ pub(crate) async fn add_encounter_manual_participant(
     Ok(Json(
         call_service(state, move || {
             service.add_encounter_manual_participant(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/initiative-entry", operation_id = "addEncounterInitiativeEntry", params(("encounter_ref" = String, Path)), request_body = AddEncounterInitiativeEntryRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn add_encounter_initiative_entry(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<AddEncounterInitiativeEntryRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.add_encounter_initiative_entry(&encounter_ref, request)
         })
         .await?,
     ))

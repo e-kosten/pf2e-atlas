@@ -53,7 +53,14 @@ impl SavedWorkspace {
                 let lists = List::capture(db, id)?;
                 let encounters = RecoveryEncounter::capture_all(db, id)?;
                 keys.extend(lists.iter().flat_map(List::record_keys).map(str::to_owned));
+                keys.extend(
+                    lists
+                        .iter()
+                        .flat_map(List::markdown_record_keys)
+                        .map(|key| key.to_string()),
+                );
                 for encounter in &encounters {
+                    keys.extend(encounter.markdown_record_keys().map(|key| key.to_string()));
                     keys.extend(
                         encounter
                             .record_keys()?

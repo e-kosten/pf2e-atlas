@@ -476,6 +476,35 @@
         ],
         "type": "object"
       },
+      "AddEncounterInitiativeEntryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "initiative": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "expected_revision",
+          "display_name",
+          "initiative"
+        ],
+        "type": "object"
+      },
       "AddEncounterManualParticipantRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5689,7 +5718,8 @@
         "enum": [
           "creature",
           "hazard",
-          "pc"
+          "pc",
+          "initiative_entry"
         ],
         "type": "string"
       },
@@ -21055,6 +21085,63 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InitiativeRollView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/encounters/{encounter_ref}/participants/initiative-entry": {
+      "post": {
+        "operationId": "addEncounterInitiativeEntry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "encounter_ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddEncounterInitiativeEntryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncounterMutationView"
                 }
               }
             },

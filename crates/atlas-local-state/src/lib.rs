@@ -3,6 +3,7 @@
 mod atomic_action;
 mod encounters;
 mod error;
+mod markdown;
 mod parties;
 pub use parties::{PartiesRead, PartiesWrite, Party, PartyMember, PartyMemberInput};
 mod references;

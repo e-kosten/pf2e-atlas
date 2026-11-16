@@ -1,3 +1,5 @@
+import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
+import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import {
@@ -284,14 +286,13 @@ export function ListEntryNoteEditor({
       )}
       {draft ? (
         <>
-          <Input.TextArea
-            aria-label="Note"
-            ref={editor}
+          <MarkdownEditor
+            label="Note"
+            editorRef={editor}
             value={draft.text}
-            autoSize={{ minRows: 2, maxRows: 6 }}
             disabled={pending}
             readOnly={removed || paused}
-            onChange={(event) => state.change(event.target.value)}
+            onChange={state.change}
           />
           <Space wrap>
             {!removed && (
@@ -311,7 +312,9 @@ export function ListEntryNoteEditor({
           </Space>
         </>
       ) : !removed && note.data?.note ? (
-        <div className="list-entry-note__text">{note.data.note}</div>
+        <div className="list-entry-note__text">
+          <MarkdownDocument source={note.data.note} />
+        </div>
       ) : null}
       <AtlasModal
         open={reviewOpen}

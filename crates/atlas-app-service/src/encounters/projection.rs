@@ -176,7 +176,10 @@ fn participant_view(
             super::rules::resolve_condition_subject_hints(&mut block, &participant, participants);
             block
         });
-    let status = if participant.participant_kind == ParticipantKind::Pc {
+    let status = if matches!(
+        participant.participant_kind,
+        ParticipantKind::Pc | ParticipantKind::InitiativeEntry
+    ) {
         EncounterParticipantStatusView::Manual
     } else if record.is_some() {
         EncounterParticipantStatusView::Active
@@ -576,6 +579,7 @@ fn participant_kind(kind: ParticipantKind) -> EncounterParticipantKindView {
         ParticipantKind::Creature => EncounterParticipantKindView::Creature,
         ParticipantKind::Hazard => EncounterParticipantKindView::Hazard,
         ParticipantKind::Pc => EncounterParticipantKindView::Pc,
+        ParticipantKind::InitiativeEntry => EncounterParticipantKindView::InitiativeEntry,
     }
 }
 

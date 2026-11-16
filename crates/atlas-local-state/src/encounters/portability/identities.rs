@@ -195,6 +195,29 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
                 p.participant_key
             )));
         }
+        if p.participant_kind == ParticipantKind::InitiativeEntry
+            && (p.initiative.is_none()
+                || p.record_key.is_some()
+                || p.side != ParticipantSide::Neutral
+                || p.participant_variant != ParticipantVariant::Normal
+                || p.max_hp.is_some()
+                || p.current_hp.is_some()
+                || p.temporary_hp != 0
+                || p.defeated
+                || p.track_dying
+                || p.mortality != MortalityState::Alive
+                || p.level_override.is_some()
+                || p.turn_resources.is_some()
+                || !p.conditions.is_empty()
+                || !p.spell_resources.is_empty()
+                || !p.expended_spells.is_empty()
+                || !p.manual_trackers.is_empty()
+                || !p.ability_states.is_empty())
+        {
+            return Err(invalid(
+                "initiative entries require a fixed count and cannot have actor state",
+            ));
+        }
         for condition in &p.conditions {
             require_unique(&mut conditions, condition.condition_id, "live condition")?;
         }

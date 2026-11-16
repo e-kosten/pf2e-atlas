@@ -486,6 +486,8 @@ describe("list views", () => {
     const fixture = savedListIndexFixture();
     fixture.lists[0].name =
       "Preparation for the planar expedition and the next several sessions";
+    fixture.lists[0].description =
+      "**Campaign prep** with [Harm](atlas-record:spells%3Aharm)";
     fixture.lists[0].tags = Array.from(
       { length: 20 },
       (_, index) => `Preparation tag ${index}`,
@@ -503,9 +505,12 @@ describe("list views", () => {
     expect(title).toHaveAttribute("href", "/lists/research");
     for (const cell of title.closest("tr")!.querySelectorAll("td"))
       expect(cell).toHaveStyle({ verticalAlign: "top" });
-    expect(
-      title.closest("tr")!.querySelector(".list-index-view__description"),
-    ).toHaveAttribute("title", "Campaign prep");
+    const description = title
+      .closest("tr")!
+      .querySelector(".list-index-view__description");
+    expect(description).toHaveTextContent("Campaign prep with Harm");
+    expect(description).not.toHaveTextContent("atlas-record:");
+    expect(description?.querySelector("a")).toBeNull();
   });
 
   it("derives saved-list tag options from existing lists", () => {

@@ -227,6 +227,8 @@ pub enum ParticipantKind {
     Hazard,
     #[serde(rename = "pc")]
     Pc,
+    #[serde(rename = "initiative_entry")]
+    InitiativeEntry,
 }
 
 impl ParticipantKind {
@@ -235,6 +237,7 @@ impl ParticipantKind {
             Self::Creature => "creature",
             Self::Hazard => "hazard",
             Self::Pc => "pc",
+            Self::InitiativeEntry => "initiative_entry",
         }
     }
 
@@ -243,6 +246,7 @@ impl ParticipantKind {
             "creature" => Ok(Self::Creature),
             "hazard" => Ok(Self::Hazard),
             "pc" => Ok(Self::Pc),
+            "initiative_entry" => Ok(Self::InitiativeEntry),
             _ => Err(crate::LocalStateError::UnsupportedMetadata {
                 key: "participant_kind",
                 value: value.into(),

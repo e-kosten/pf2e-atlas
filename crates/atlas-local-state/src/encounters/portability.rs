@@ -117,6 +117,24 @@ impl EncounterDocument {
     pub fn record_keys(&self) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
         snapshot_record_keys(&self.snapshot, self.outgoing.as_ref())
     }
+
+    pub fn markdown_record_keys(&self) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
+        snapshot_markdown_keys(&self.snapshot).chain(
+            self.outgoing
+                .iter()
+                .flat_map(|row| snapshot_markdown_keys(&row.turn.snapshot)),
+        )
+    }
+}
+
+fn snapshot_markdown_keys(
+    snapshot: &EncounterWithParticipants,
+) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
+    snapshot
+        .participants
+        .iter()
+        .filter_map(|participant| participant.note.as_deref())
+        .flat_map(|note| crate::markdown::Markdown(note).record_keys())
 }
 
 fn snapshot_record_keys(

@@ -64,7 +64,11 @@ fn prepare(
                 .participants
                 .iter()
                 .find(|participant| participant.participant_key == key)
-                .filter(|subject| subject.participant_key != participant.participant_key)
+                .filter(|subject| {
+                    subject.participant_key != participant.participant_key
+                        && subject.participant_kind
+                            != atlas_local_state::ParticipantKind::InitiativeEntry
+                })
                 .ok_or_else(|| {
                     AppServiceError::invalid_request(
                         "Choose another participant as the strike target.",

@@ -14,6 +14,16 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
                 apply: super::migrate_trait_membership_digests,
             }),
         },
+        Migration {
+            version: 44,
+            name: "encounter-initiative-entries",
+            sql: include_str!("initiative_entries.sql"),
+            backfill: Some(DataBackfill {
+                reconstruct_tables: true,
+                id: "encounter-initiative-entries/v1",
+                apply: |_| Ok(()),
+            }),
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

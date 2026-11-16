@@ -73,6 +73,16 @@ impl RecoveryEncounter {
         )
     }
 
+    pub(crate) fn markdown_record_keys(
+        &self,
+    ) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
+        snapshot_markdown_keys(&self.snapshot).chain(
+            self.outgoing
+                .iter()
+                .flat_map(|row| snapshot_markdown_keys(&row.turn.snapshot)),
+        )
+    }
+
     pub(crate) fn validate(self) -> LocalStateResult<ValidatedEncounter> {
         for participant in &self.snapshot.participants {
             let positions = self.tracker_positions.get(&participant.participant_key);

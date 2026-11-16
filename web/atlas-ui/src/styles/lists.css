@@ -65,15 +65,8 @@
 .list-about {
   display: grid;
   gap: var(--space-group);
-  width: min(42ch, calc(100vw - 48px));
-  max-height: min(55dvh, 24rem);
-  overflow: auto;
-  overflow-wrap: anywhere;
-}
-
-.list-about p {
-  margin: 0;
-  white-space: pre-wrap;
+  max-inline-size: 70ch;
+  margin-inline: auto;
 }
 
 .list-about__tags {

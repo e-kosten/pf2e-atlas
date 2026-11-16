@@ -1,11 +1,11 @@
 use atlas_app_model::{
-    AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AdvanceEncounterTurnRequest, AppErrorCode,
-    CreateEncounterRequest, DeleteEncounterView, EncounterCreateView, EncounterDetailView,
-    EncounterIndexView, EncounterMutationView, EncounterTurnReviewView, FieldEdit,
-    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
-    UpdateEncounterRequest,
+    AddEncounterInitiativeEntryRequest, AddEncounterManualParticipantRequest,
+    AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
+    AdvanceEncounterTurnRequest, AppErrorCode, CreateEncounterRequest, DeleteEncounterView,
+    EncounterCreateView, EncounterDetailView, EncounterIndexView, EncounterMutationView,
+    EncounterTurnReviewView, FieldEdit, ReorderEncounterParticipantRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantEdit, UpdateEncounterRequest,
 };
 use atlas_local_state::{
     AddEncounterParticipant, Encounter, EncounterParticipantCondition, EncounterStatus,
@@ -459,6 +459,45 @@ impl AtlasAppService {
         })
     }
 
+    pub fn add_encounter_initiative_entry(
+        &self,
+        encounter_ref: &str,
+        request: AddEncounterInitiativeEntryRequest,
+    ) -> AppServiceResult<EncounterMutationView> {
+        if request.display_name.trim().is_empty() {
+            return Err(AppServiceError::invalid_request(
+                "Enter an initiative entry name.",
+            ));
+        }
+        self.with_write(move |session| {
+            let encounters = session.local_state()?.encounters();
+            let receipt = encounters.add_initiative_entry_once(
+                encounter_ref,
+                request.expected_revision,
+                &request.request_id,
+                AddEncounterParticipant {
+                    level_override: None,
+                    spell_resources: Vec::new(),
+                    participant_variant: atlas_local_state::ParticipantVariant::Normal,
+                    variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
+                    hp_origin: atlas_local_state::ParticipantHpOrigin::Explicit,
+                    record_key: None,
+                    participant_kind: ParticipantKind::InitiativeEntry,
+                    display_name: request.display_name,
+                    record_title_snapshot: None,
+                    record_kind_snapshot: None,
+                    side: ParticipantSide::Neutral,
+                    initiative: Some(request.initiative),
+                    max_hp: None,
+                    current_hp: None,
+                    temporary_hp: 0,
+                    note: request.note,
+                },
+            )?;
+            Ok(super::event_execution::mutation(receipt))
+        })
+    }
+
     pub fn update_encounter_participant(
         &self,
         encounter_ref: &str,
@@ -516,6 +555,20 @@ impl AtlasAppService {
             ParticipantEdit::Metadata(edit) => (edit, ParticipantHpEdit::default()),
             ParticipantEdit::Hp(edit) => (UpdateEncounterParticipantEdit::default(), edit),
         };
+        if existing.participant_kind == ParticipantKind::InitiativeEntry
+            && (metadata.initiative == Some(None)
+                || metadata.side.is_some()
+                || metadata.participant_variant.is_some()
+                || metadata.defeated.is_some()
+                || metadata.hazard_disabled.is_some()
+                || hp.current.is_some()
+                || hp.maximum.is_some()
+                || hp.temporary.is_some())
+        {
+            return Err(AppServiceError::invalid_request(
+                "Initiative entries require an initiative value and have no actor settings.",
+            ));
+        }
         let new_variant = metadata
             .participant_variant
             .map(participant_variant)
@@ -1087,11 +1140,10 @@ pub(super) fn condition_scope_input(
                 ));
             }
             for key in &participant_keys {
-                if !snapshot
-                    .participants
-                    .iter()
-                    .any(|p| &p.participant_key == key)
-                {
+                if !snapshot.participants.iter().any(|p| {
+                    &p.participant_key == key
+                        && p.participant_kind != ParticipantKind::InitiativeEntry
+                }) {
                     return Err(AppServiceError::invalid_request(
                         "selected participant must belong to this encounter",
                     ));

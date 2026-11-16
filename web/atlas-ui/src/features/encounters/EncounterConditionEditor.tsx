@@ -76,6 +76,7 @@ export function EncounterConditionEditor({
   onRemove?: () => void;
   onReload?: () => void;
 }) {
+  const actors = participants.filter((p) => p.participant_kind !== "initiative_entry");
   const preview = useConditionEventPreview(participants, onPreview);
   const review = (
     <>
@@ -542,7 +543,7 @@ export function EncounterConditionEditor({
                 }
                 options={[
                   { value: "__unknown", label: "Unspecified" },
-                  ...participants.map((participant) => ({
+                  ...actors.map((participant) => ({
                     value: participant.participant_key,
                     label: participant.display_name,
                   })),
@@ -705,7 +706,7 @@ export function EncounterConditionEditor({
               }}
               options={[
                 { value: "everyone", label: "Everyone" },
-                ...participants
+                ...actors
                   .filter((p) => p.participant_key !== participantKey)
                   .map((p) => ({ value: p.participant_key, label: p.display_name })),
               ]}
@@ -799,7 +800,7 @@ export function EncounterConditionEditor({
               <Select
                 aria-label="Source"
                 allowClear
-                options={participants.map((p) => ({
+                options={actors.map((p) => ({
                   value: p.participant_key,
                   label: p.display_name,
                 }))}

@@ -159,6 +159,7 @@ fn options_with_records(
     let participants = snapshot
         .participants
         .iter()
+        .filter(|p| p.participant_kind != atlas_local_state::ParticipantKind::InitiativeEntry)
         .map(|p| {
             let record = p.record_key.as_ref().and_then(|key| records.get(key));
             let statistics = record

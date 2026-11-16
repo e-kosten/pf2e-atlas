@@ -142,7 +142,7 @@ pub use embedded_reading::{
     EmbeddedReadingSelection,
 };
 pub use encounter::{
-    ActionBudgetView, AddEncounterManualParticipantRequest,
+    ActionBudgetView, AddEncounterInitiativeEntryRequest, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
     AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest,
     ConditionActionView, ConditionDurationUnit, ConditionDurationView, ConditionExtraActionView,

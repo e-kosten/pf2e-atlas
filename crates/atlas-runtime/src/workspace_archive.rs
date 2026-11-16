@@ -19,7 +19,7 @@ use std::{
 };
 
 const FORMAT: &str = "pf2e-atlas-workspace";
-const VERSION: &str = "1.0";
+const VERSION: &str = "1.1";
 
 #[derive(Serialize)]
 pub struct WorkspaceArchive {

@@ -44,7 +44,10 @@ export function EncounterRecoveryModal({
   const [snapshot] = useState(encounter);
   const rest = mode === "rest_overnight";
   const candidates = snapshot.participants.filter(
-    (p) => p.participant_kind !== "hazard" && p.mortality !== "dead",
+    (p) =>
+      p.participant_kind !== "hazard" &&
+      p.participant_kind !== "initiative_entry" &&
+      p.mortality !== "dead",
   );
   const [chosen, setChosen] = useState(() => candidates.map((p) => p.participant_key));
   const [healingMode, setHealingMode] = useState<OvernightHealingMode>("natural");
@@ -93,8 +96,9 @@ export function EncounterRecoveryModal({
     ? candidates
     : snapshot.participants.filter(
         (p) =>
-          mode === "reset_encounter" ||
-          (typeof mode === "object" && p.participant_key === mode.participantKey),
+          p.participant_kind !== "initiative_entry" &&
+          (mode === "reset_encounter" ||
+            (typeof mode === "object" && p.participant_key === mode.participantKey)),
       );
   const rowFor = (p: EncounterParticipantView) =>
     preview.data?.participants.find((r) => r.participant_key === p.participant_key);
