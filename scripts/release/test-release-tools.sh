@@ -208,6 +208,10 @@ EOF_CURL
     }
     ln -s "$tool_path" "$wget_bin/$tool"
   done
+  # GNU tar invokes xz through PATH to unpack the fixture.
+  if xz_path=$(command -v xz); then
+    ln -s "$xz_path" "$wget_bin/xz"
+  fi
   PATH="$wget_bin" ATLAS_FAKE_RELEASE_DIR="$dist" \
     ATLAS_LATEST_LOCATION="/e-kosten/pf2e-atlas/releases/tag/v9.9.9" ATLAS_URL_LOG="$tmp/wget-urls" \
     "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$tmp/wget-install" --yes >/dev/null
