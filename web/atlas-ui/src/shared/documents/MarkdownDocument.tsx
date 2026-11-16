@@ -3,7 +3,7 @@ import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { RecordPreviewDrawer } from "../records/RecordPreviewDrawer";
 import { useRecordPreview } from "../records/useRecordPreview";
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode, type RefObject } from "react";
 import "./documents.css";
 
 const recordPrefix = "record:";
@@ -56,8 +56,24 @@ function MarkdownLink({ href, children }: { href?: string; children?: ReactNode 
 
 const documentComponents: Components = { a: MarkdownLink };
 
-export function MarkdownDocument({ source }: { source: string }) {
+export function MarkdownDocument({
+  source,
+  linkFocusFallback,
+}: {
+  source: string;
+  linkFocusFallback?: RefObject<HTMLElement | null>;
+}) {
   const preview = useRecordPreview();
+  const drawer = linkFocusFallback
+    ? {
+        ...preview,
+        close() {
+          preview.close();
+          if (preview.anchor?.closest("[inert]"))
+            linkFocusFallback.current?.focus({ preventScroll: true });
+        },
+      }
+    : preview;
   return (
     <RecordLinkContext value={preview.open}>
       <div className="markdown-document">
@@ -70,7 +86,7 @@ export function MarkdownDocument({ source }: { source: string }) {
           {source}
         </Markdown>
       </div>
-      <RecordPreviewDrawer preview={preview} />
+      <RecordPreviewDrawer preview={drawer} />
     </RecordLinkContext>
   );
 }

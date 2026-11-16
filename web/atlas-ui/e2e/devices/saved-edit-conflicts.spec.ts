@@ -134,7 +134,9 @@ test("same-note saves from two tabs require explicit conflict resolution", async
     await left.draft.fill(draftText);
     await right.draft.fill(savedText);
     await right.region.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(right.region.getByText("Other tab saved")).toBeVisible();
+    await expect(
+      right.region.getByText("Other tab saved").filter({ visible: true }),
+    ).toBeVisible();
     let failedRefresh = false;
     await page.route("**/items/*/note", async (route) => {
       if (route.request().method() === "GET" && !failedRefresh) {
@@ -209,7 +211,9 @@ test("same-note saves from two tabs require explicit conflict resolution", async
       left.region.getByRole("button", { name: "Edit", exact: true }),
     ).toBeFocused();
     expect(await reader.boundingBox()).toEqual(beforeReview);
-    await expect(left.region.getByText("My draft")).toBeVisible();
+    await expect(
+      left.region.getByText("My draft").filter({ visible: true }),
+    ).toBeVisible();
     const savedAfter = await page.request.get(notePath);
     expect((await savedAfter.json()).note).toBe(draftText);
   } finally {

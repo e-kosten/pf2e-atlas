@@ -3,8 +3,8 @@ import { isPrimaryActivation } from "../../app/navigation";
 import { Grid, Splitter } from "antd";
 import { X } from "lucide-react";
 import { PaneIconButton } from "../ui/actions/PaneAction";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { ReferenceReader } from "./ReferenceReader";
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { ReferenceReader, type ReaderFooter } from "./ReferenceReader";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { type ReferenceReading } from "./useReferenceReading";
 import type { RecordSummaryView } from "../../generated/atlas";
@@ -26,6 +26,7 @@ export function BrowseReader({
   onReaderClose,
   onClearSelection,
   clearSelectionDisabled,
+  removedSelectionKey,
   readerFooter,
   positions,
 }: {
@@ -43,7 +44,8 @@ export function BrowseReader({
   onReaderClose?: () => void;
   onClearSelection?: () => void;
   clearSelectionDisabled?: boolean;
-  readerFooter?: ReactNode;
+  removedSelectionKey?: string;
+  readerFooter?: ReaderFooter;
   positions?: BrowsePositions;
 }) {
   const atlasRouter = useAtlasRouter();
@@ -105,16 +107,35 @@ export function BrowseReader({
     setClosedRequest(reading.request);
     restoreResultsFocus();
   }
-  function restoreResultsFocus() {
+  const restoreResultsFocus = useCallback((removedKey?: string) => {
     requestAnimationFrame(() => {
-      const trigger = beforePreview.current?.isConnected
-        ? beforePreview.current
-        : (listRef.current?.querySelector<HTMLElement>('[aria-current="true"]') ??
-          listRef.current?.querySelector<HTMLElement>("[data-record-key]") ??
+      const original = beforePreview.current;
+      const canFocus = (row: HTMLElement | null) =>
+        row?.isConnected && (!removedKey || row.dataset.recordKey !== removedKey);
+      const remaining =
+        listRef.current?.querySelectorAll<HTMLElement>("[data-record-key]") ?? [];
+      const trigger = canFocus(original)
+        ? original
+        : (Array.from(remaining).find(
+            (row) => canFocus(row) && row.getAttribute("aria-current") === "true",
+          ) ??
+          Array.from(remaining).find(canFocus) ??
           listRef.current?.closest<HTMLElement>(".reference-results"));
       trigger?.focus({ preventScroll: true });
     });
-  }
+  }, []);
+  const handledRemoval = useRef<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (!removedSelectionKey) handledRemoval.current = undefined;
+    else if (
+      !selectedRecordKey &&
+      !readerOpen &&
+      handledRemoval.current !== removedSelectionKey
+    ) {
+      handledRemoval.current = removedSelectionKey;
+      restoreResultsFocus(removedSelectionKey);
+    }
+  }, [readerOpen, removedSelectionKey, restoreResultsFocus, selectedRecordKey]);
   function clearSelectionAction() {
     return onClearSelection && (selectedRecordKey || reading.request) ? (
       <PaneIconButton
