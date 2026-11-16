@@ -3335,6 +3335,22 @@ fn initiative_entry_takes_a_turn_without_actor_resources_and_round_trips() {
         .unwrap();
     assert!(entry.turn_resources.is_none());
     let entry_key = &entry.participant_key;
+    assert_eq!(
+        worker
+            .update_encounter_participant(
+                key,
+                entry_key,
+                UpdateEncounterParticipantEdit {
+                    expected_revision: entry.revision,
+                    display_name: Some(" \t".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest,
+    );
     worker
         .advance_encounter_turn(
             key,
@@ -3350,6 +3366,24 @@ fn initiative_entry_takes_a_turn_without_actor_resources_and_round_trips() {
         Some(entry_key)
     );
     let data = worker.export_encounter(key).unwrap();
+    let mut invalid: serde_json::Value = serde_json::from_slice(&data).unwrap();
+    let entry_doc = invalid["snapshot"]["participants"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["participant_key"] == *entry_key)
+        .unwrap();
+    entry_doc["display_name"] = " ".into();
+    assert!(
+        worker
+            .import_encounter(
+                serde_json::to_vec(&invalid).unwrap().as_slice(),
+                Some("nameless-ritual".into()),
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("initiative entries require a name")
+    );
     let imported = worker
         .import_encounter(data.as_slice(), Some("ritual-copy".into()))
         .unwrap();

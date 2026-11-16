@@ -28,8 +28,16 @@ test("an initiative entry previews its linked notes and becomes the active turn"
     await picker.getByRole("button", { name: "Insert link" }).click();
     await expect(picker).toBeHidden();
     await expect(note).toBeFocused();
+    await note.evaluate((textarea: HTMLTextAreaElement) => {
+      const start = textarea.value.indexOf("font");
+      textarea.setSelectionRange(start, start + "font ".length);
+    });
+    await editor.getByRole("button", { name: "Bold" }).click();
+    await expect(note).toHaveValue(/The \*\*font\*\* pulses/);
+    await expect(note).toBeFocused();
     await editor.getByText("Preview", { exact: true }).click();
     await expect(editor.getByRole("heading", { name: "Trigger" })).toBeVisible();
+    await expect(editor.locator("strong")).toHaveText("font");
     await expect(editor.getByRole("link", { name: "Lantern Ward" })).toBeVisible();
     await editor.getByText("Write", { exact: true }).click();
     await expect(note).toHaveValue(/record:browser-spells:spell00000000001/);

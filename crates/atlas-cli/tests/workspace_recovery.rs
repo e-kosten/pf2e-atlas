@@ -70,8 +70,17 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
     write
         .connection()
         .execute(
+            "INSERT INTO record_identity(key,last_known_name,availability)
+             VALUES('spells:harm',NULL,'unavailable')",
+            [],
+        )
+        .unwrap();
+    let description = "## Ritual\n\n[Harm](record:spells:harm) [Unknown](record:spells:mistyped)";
+    write
+        .connection()
+        .execute(
             "UPDATE saved_lists SET description=?1 WHERE list_key='recovery-fixture'",
-            ["## Ritual\n\n[Harm](record:spells:harm)"],
+            [description],
         )
         .unwrap();
     write.commit().unwrap();
@@ -88,6 +97,10 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
         "Edited fixture"
     );
     assert_eq!(actual["saved"]["owners"][0]["lists"][0]["revision"], 5);
+    assert_eq!(
+        actual["saved"]["owners"][0]["lists"][0]["description"],
+        description
+    );
     assert_eq!(actual["saved"]["condition_floor"], 100);
     assert!(
         actual["saved"]["references"]
@@ -95,6 +108,13 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
             .unwrap()
             .iter()
             .any(|reference| reference["key"] == "spells:harm")
+    );
+    assert!(
+        !actual["saved"]["references"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reference| reference["key"] == "spells:mistyped")
     );
     failure(
         workspace_command(&source, "export", &exported, &[]),

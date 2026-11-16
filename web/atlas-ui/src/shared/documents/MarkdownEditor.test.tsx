@@ -57,3 +57,24 @@ it("shows active emphasis and toggles it without nesting delimiters", () => {
   fireEvent.click(italic());
   expect(change).toHaveBeenLastCalledWith("**Bold** and _italic_ and *plain*");
 });
+
+it.each([
+  ["Bold", "**"],
+  ["Italic", "*"],
+])("%s handles whitespace and protects selections across blocks", (name, marker) => {
+  const change = vi.fn();
+  render(
+    <MarkdownEditor label="Note" value={" HARM \n\nNext stage"} onChange={change} />,
+  );
+  const note = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Note" });
+  const format = screen.getByRole("button", { name });
+  act(() => note.focus());
+  note.setSelectionRange(0, note.value.length);
+  fireEvent.keyUp(note, { key: "ArrowRight" });
+  expect(format).toBeDisabled();
+  note.setSelectionRange(0, 6);
+  fireEvent.keyUp(note, { key: "ArrowRight" });
+  expect(format).toBeEnabled();
+  fireEvent.click(format);
+  expect(change).toHaveBeenLastCalledWith(` ${marker}HARM${marker} \n\nNext stage`);
+});

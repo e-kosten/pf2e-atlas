@@ -556,6 +556,16 @@ impl AtlasAppService {
             ParticipantEdit::Hp(edit) => (UpdateEncounterParticipantEdit::default(), edit),
         };
         if existing.participant_kind == ParticipantKind::InitiativeEntry
+            && metadata
+                .display_name
+                .as_deref()
+                .is_some_and(|name| name.trim().is_empty())
+        {
+            return Err(AppServiceError::invalid_request(
+                "Enter an initiative entry name.",
+            ));
+        }
+        if existing.participant_kind == ParticipantKind::InitiativeEntry
             && (metadata.initiative == Some(None)
                 || metadata.side.is_some()
                 || metadata.participant_variant.is_some()

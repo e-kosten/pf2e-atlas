@@ -196,6 +196,11 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
             )));
         }
         if p.participant_kind == ParticipantKind::InitiativeEntry
+            && p.display_name.trim().is_empty()
+        {
+            return Err(invalid("initiative entries require a name"));
+        }
+        if p.participant_kind == ParticipantKind::InitiativeEntry
             && (p.initiative.is_none()
                 || p.record_key.is_some()
                 || p.side != ParticipantSide::Neutral
