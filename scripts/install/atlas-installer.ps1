@@ -99,12 +99,16 @@ $pathEntries = ($env:PATH -split ';') | Where-Object { $_ -ne "" }
 $pathStatus = if ($pathEntries -contains $InstallDir) { "on-path" } else { "not-on-path" }
 $existing = if ($existingEntry) { "at-destination" } else { "none" }
 $existingVersion = "unknown"
-if (Test-Path -LiteralPath $installPath -PathType Leaf) {
-  try { $existingVersion = & $installPath --version } catch { $existingVersion = "unknown" }
+if ($existingEntry) {
+  try {
+    $reportedVersion = (& $installPath --version) -join "`n"
+    if ($LASTEXITCODE -eq 0 -and $reportedVersion) { $existingVersion = $reportedVersion }
+  } catch { $existingVersion = "unknown" }
 }
 
 $existingVariant = "none"
-if ($existingEntry -and !(Test-Path -LiteralPath $installPath -PathType Leaf)) {
+# Windows can report a dangling symlink as a leaf. The version probe determines whether it runs.
+if ($existingEntry.LinkType -eq "SymbolicLink" -and $existingVersion -eq "unknown") {
   $existingVariant = "legacy"
 } elseif ($existingEntry) {
   try { $existingVariant = Get-BuildVariant $installPath }
