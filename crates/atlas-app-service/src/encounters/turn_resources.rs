@@ -17,7 +17,10 @@ pub(super) fn prepare_start(
     dying_completed: bool,
     sources: &rules::source_conditions::SourceConditions,
 ) -> AppServiceResult<(Option<PreparedConditionEvent>, Vec<EncounterBoundaryClaim>)> {
-    if participant.participant_kind == ParticipantKind::Hazard {
+    if matches!(
+        participant.participant_kind,
+        ParticipantKind::Hazard | ParticipantKind::InitiativeEntry
+    ) {
         return Ok((None, vec![]));
     }
     let plan = rules::capabilities::RegainPlan::evaluate(participant, sources);
@@ -120,7 +123,10 @@ pub(super) fn view(
     current: Option<&str>,
     sources: &rules::source_conditions::SourceConditions,
 ) -> Option<TurnResourcesView> {
-    if participant.participant_kind == ParticipantKind::Hazard {
+    if matches!(
+        participant.participant_kind,
+        ParticipantKind::Hazard | ParticipantKind::InitiativeEntry
+    ) {
         return None;
     }
     let budget = rules::capabilities::action_budget(participant, sources);
@@ -231,9 +237,12 @@ impl AtlasAppService {
             .iter()
             .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
-        if participant.participant_kind == ParticipantKind::Hazard {
+        if matches!(
+            participant.participant_kind,
+            ParticipantKind::Hazard | ParticipantKind::InitiativeEntry
+        ) {
             return Err(AppServiceError::invalid_request(
-                "Hazards use their authored routine.",
+                "Only creature and PC turns use action resources.",
             ));
         }
         if participant

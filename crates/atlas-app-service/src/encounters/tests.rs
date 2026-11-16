@@ -3291,3 +3291,165 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         Some(60)
     );
 }
+
+#[test]
+fn initiative_entry_takes_a_turn_without_actor_resources_and_round_trips() {
+    let f = encounter_fixture_worker();
+    let worker = &f.worker;
+    let encounter = worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Ritual".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap();
+    let key = &encounter.encounter.encounter_key;
+    let add = AddEncounterInitiativeEntryRequest {
+        request_id: "add-ritual-entry".into(),
+        expected_revision: worker.encounter(key).unwrap().revision,
+        display_name: "Lair action · Void Font".into(),
+        initiative: 20,
+        note: Some("**Trigger** [Harm](record:spells:harm)".into()),
+    };
+    worker
+        .add_encounter_initiative_entry(key, add.clone())
+        .unwrap();
+    worker.add_encounter_initiative_entry(key, add).unwrap();
+    assert_eq!(worker.encounter(key).unwrap().participants.len(), 1);
+    worker
+        .add_encounter_manual_participant(
+            key,
+            AddEncounterManualParticipantRequest {
+                display_name: "PC".into(),
+                max_hp: None,
+                current_hp: None,
+                initiative: Some(20),
+            },
+        )
+        .unwrap();
+    let snapshot = worker.encounter(key).unwrap();
+    let entry = snapshot
+        .participants
+        .iter()
+        .find(|p| p.participant_kind == EncounterParticipantKindView::InitiativeEntry)
+        .unwrap();
+    assert!(entry.turn_resources.is_none());
+    let entry_key = &entry.participant_key;
+    assert_eq!(
+        worker
+            .update_encounter_participant(
+                key,
+                entry_key,
+                UpdateEncounterParticipantEdit {
+                    expected_revision: entry.revision,
+                    display_name: Some(" \t".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest,
+    );
+    worker
+        .advance_encounter_turn(
+            key,
+            AdvanceEncounterTurnRequest {
+                request_id: "initiative-entry-test".into(),
+                expected_revision: snapshot.revision,
+            },
+        )
+        .unwrap();
+    let active = worker.encounter(key).unwrap();
+    assert_eq!(
+        active.current_turn_participant_key.as_ref(),
+        Some(entry_key)
+    );
+    let data = worker.export_encounter(key).unwrap();
+    let mut invalid: serde_json::Value = serde_json::from_slice(&data).unwrap();
+    let entry_doc = invalid["snapshot"]["participants"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["participant_key"] == *entry_key)
+        .unwrap();
+    entry_doc["display_name"] = " ".into();
+    assert!(
+        worker
+            .import_encounter(
+                serde_json::to_vec(&invalid).unwrap().as_slice(),
+                Some("nameless-ritual".into()),
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("custom turns require a name")
+    );
+    let imported = worker
+        .import_encounter(data.as_slice(), Some("ritual-copy".into()))
+        .unwrap();
+    let copy = worker.encounter(&imported.encounter_key).unwrap();
+    let row = copy
+        .participants
+        .iter()
+        .find(|p| p.participant_kind == EncounterParticipantKindView::InitiativeEntry)
+        .unwrap();
+    assert_eq!(
+        copy.current_turn_participant_key.as_ref(),
+        Some(&row.participant_key)
+    );
+    assert_eq!(row.initiative, Some(20));
+    assert_eq!(row.note, entry.note);
+    let actors = worker.encounter_initiative_options(key).unwrap();
+    assert_eq!(actors.participants.len(), 1);
+    let actor_key = &actors.participants[0].participant_key;
+    let advance = |request_id: &str| {
+        worker
+            .advance_encounter_turn(
+                key,
+                AdvanceEncounterTurnRequest {
+                    request_id: request_id.into(),
+                    expected_revision: worker.encounter(key).unwrap().revision,
+                },
+            )
+            .unwrap();
+        worker.encounter(key).unwrap()
+    };
+    assert_eq!(
+        advance("continue-to-actor")
+            .current_turn_participant_key
+            .as_ref(),
+        Some(actor_key)
+    );
+    let wrapped = advance("wrap-to-ritual");
+    assert_eq!(
+        wrapped.current_turn_participant_key.as_ref(),
+        Some(entry_key)
+    );
+    assert_eq!(wrapped.encounter.round_number, 2);
+    worker.remove_encounter_participant(key, entry_key).unwrap();
+    assert_eq!(
+        worker
+            .encounter(key)
+            .unwrap()
+            .current_turn_participant_key
+            .as_ref(),
+        Some(actor_key)
+    );
+
+    worker
+        .apply_encounter_recovery(
+            &imported.encounter_key,
+            ApplyEncounterRecoveryRequest {
+                expected_encounter_revision: copy.revision,
+                action: EncounterRecoveryAction::ResetEncounter,
+            },
+        )
+        .unwrap();
+    let reset = worker.encounter(&imported.encounter_key).unwrap();
+    let reset_entry = reset
+        .participants
+        .iter()
+        .find(|p| p.participant_key == row.participant_key)
+        .unwrap();
+    assert_eq!(reset_entry.initiative, Some(20));
+}

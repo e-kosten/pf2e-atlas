@@ -71,6 +71,7 @@ pub(in crate::encounters) fn condition_applicability(
 ) -> Option<EncounterConditionEligibilityView> {
     let slug = condition.rule.definition().slug;
     let kind = match participant.participant_kind {
+        ParticipantKind::InitiativeEntry => return None,
         ParticipantKind::Hazard => EncounterConditionApplicabilityView::Hazard,
         ParticipantKind::Creature | ParticipantKind::Pc => {
             EncounterConditionApplicabilityView::Creature

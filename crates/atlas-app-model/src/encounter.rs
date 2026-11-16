@@ -296,6 +296,7 @@ pub enum EncounterParticipantKindView {
     Creature,
     Hazard,
     Pc,
+    InitiativeEntry,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -718,6 +719,19 @@ pub struct AddEncounterManualParticipantRequest {
     pub current_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initiative: Option<i64>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AddEncounterInitiativeEntryRequest {
+    pub request_id: String,
+    pub expected_revision: i64,
+    pub display_name: String,
+    pub initiative: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub note: Option<String>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

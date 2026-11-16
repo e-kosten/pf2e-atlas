@@ -2,6 +2,10 @@ import type { ReorderPlacement } from "../../generated/atlas";
 import { EncounterRecordAdjustment } from "./EncounterRecordAdjustment";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { encounterStatusLabels } from "./encounterStatus";
+import {
+  InitiativeEntryEditor,
+  type InitiativeEntryFields,
+} from "./InitiativeEntryEditor";
 import { EncounterModal } from "./EncounterModal";
 import { Button, Dropdown, Form, Input, InputNumber, Tooltip, Typography } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
@@ -49,6 +53,8 @@ export function EncounterRosterPane({
   loading,
   onAddRecord,
   onAddManual,
+  onAddInitiativeEntry,
+  initiativeEntryError,
   onAddParty,
   disabled,
   error,
@@ -78,6 +84,8 @@ export function EncounterRosterPane({
   onAddParty: (
     request: import("../../generated/atlas").AddEncounterPartyRequest,
   ) => Promise<void>;
+  onAddInitiativeEntry?: (request: InitiativeEntryFields) => Promise<boolean>;
+  initiativeEntryError?: string;
   onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<boolean>;
   disabled: boolean;
   error?: string;
@@ -122,6 +130,7 @@ export function EncounterRosterPane({
   const pendingFormReset = useRef({ record: false, pc: false });
   const [recordOpen, setRecordOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
   const [candidate, setCandidate] = useState<PickerSelection | null>(null);
   const selectedRecordKey = candidate?.record.record_key ?? null;
   const [preparedCreature, setPreparedCreature] =
@@ -246,7 +255,14 @@ export function EncounterRosterPane({
               aria-label={`Reorder ${participant.display_name}`}
               icon={<GripVertical size={16} aria-hidden="true" />}
             />
-            {participant.participant_kind === "pc" ? (
+            {participant.participant_kind === "initiative_entry" ? (
+              <span
+                className="encounter-roster__fixed-initiative"
+                aria-label={`Initiative ${participant.initiative}`}
+              >
+                {participant.initiative}
+              </span>
+            ) : participant.participant_kind === "pc" ? (
               <InitiativeValueField
                 name={participant.display_name}
                 value={participant.initiative}
@@ -300,6 +316,9 @@ export function EncounterRosterPane({
                 )}
                 {participant.display_name}
               </span>
+              {participant.participant_kind === "initiative_entry" && (
+                <span className="encounter-roster__state">Custom turn</span>
+              )}
               {participant.hazard_disabled && (
                 <span className="encounter-roster__state">Disabled</span>
               )}
@@ -309,11 +328,20 @@ export function EncounterRosterPane({
             </Button>
             <span
               className={`encounter-roster__hp ${rosterHpTone(participant)}`}
-              aria-label={`${participant.display_name} HP`}
+              aria-hidden={
+                participant.participant_kind === "initiative_entry" || undefined
+              }
+              aria-label={
+                participant.participant_kind === "initiative_entry"
+                  ? undefined
+                  : `${participant.display_name} HP`
+              }
             >
-              {participant.current_hp == null
-                ? "—"
-                : (participant.current_hp + participant.temporary_hp).toString()}
+              {participant.participant_kind === "initiative_entry"
+                ? null
+                : participant.current_hp == null
+                  ? "—"
+                  : (participant.current_hp + participant.temporary_hp).toString()}
             </span>
             <ParticipantActions
               participant={participant}
@@ -386,7 +414,7 @@ export function EncounterRosterPane({
         {loading ? (
           <div className="detail-empty">Loading encounter...</div>
         ) : participants.length === 0 ? (
-          <div className="detail-empty">Add a creature, hazard, or PC.</div>
+          <div className="detail-empty">Add a participant or custom turn.</div>
         ) : (
           <DndContext {...sortable.context}>
             <SortableContext
@@ -441,6 +469,9 @@ export function EncounterRosterPane({
               setAdded("");
               setRecordOpen(true);
             }}
+            onAddInitiativeEntry={
+              onAddInitiativeEntry ? () => setEntryOpen(true) : undefined
+            }
             onAddPc={() => {
               setCommittedPc(false);
               setPcOpen(true);
@@ -449,7 +480,12 @@ export function EncounterRosterPane({
           {onRollInitiative && (
             <Button
               disabled={
-                disabled || participants.every((p) => p.participant_kind === "pc")
+                disabled ||
+                participants.every(
+                  (p) =>
+                    p.participant_kind === "pc" ||
+                    p.participant_kind === "initiative_entry",
+                )
               }
               icon={<Dice5 size={14} />}
               type="text"
@@ -557,6 +593,14 @@ export function EncounterRosterPane({
           </div>
         </>
       </SearchPickerModal>
+      {entryOpen && onAddInitiativeEntry && (
+        <InitiativeEntryEditor
+          disabled={disabled}
+          error={initiativeEntryError}
+          onSave={onAddInitiativeEntry}
+          onClose={() => setEntryOpen(false)}
+        />
+      )}
       <EncounterModal
         title="Add PC"
         confirmLoading={disabled}

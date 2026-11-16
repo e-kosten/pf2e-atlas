@@ -81,7 +81,7 @@ pub(super) fn project<'a>(
             ParticipantKind::Hazard => {
                 matches!(p.side, ParticipantSide::Hazard | ParticipantSide::Enemy)
             }
-            ParticipantKind::Pc => false,
+            ParticipantKind::Pc | ParticipantKind::InitiativeEntry => false,
         })
         .map(|p| {
             let record = p.record_key.as_deref().and_then(&record_for_key);

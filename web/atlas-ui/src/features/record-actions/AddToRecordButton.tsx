@@ -1,3 +1,4 @@
+import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoices";
@@ -545,7 +546,7 @@ function AddToRecordModal({
           )}
           {kind === "list" && (
             <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
-              <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+              <MarkdownEditor />
             </Form.Item>
           )}
         </Form>

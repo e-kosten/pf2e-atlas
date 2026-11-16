@@ -140,3 +140,38 @@
   display: grid;
   gap: 12px;
 }
+
+.encounter-roster__fixed-initiative {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.encounter-reference__notes {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-control);
+}
+
+.encounter-reference__notes > :is(h2, p) {
+  margin-block: 0;
+}
+
+.encounter-reference__entry-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  inline-size: 100%;
+  gap: var(--space-group);
+  margin-block-end: var(--space-control);
+}
+
+.encounter-reference__entry-heading :is(h2, p) {
+  margin-block: 0;
+}
+
+.initiative-entry-editor__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-group);
+}

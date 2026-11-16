@@ -11,11 +11,13 @@ export function EncounterAddMenu({
   onAdd,
   onAddCreature,
   onAddPc,
+  onAddInitiativeEntry,
   disabled,
 }: {
   onAdd: (request: AddEncounterPartyRequest) => Promise<void>;
   onAddCreature: () => void;
   onAddPc: () => void;
+  onAddInitiativeEntry?: () => void;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -96,6 +98,20 @@ export function EncounterAddMenu({
         onAddPc();
       },
     },
+    ...(onAddInitiativeEntry
+      ? [
+          {
+            key: "initiative-entry",
+            label: "Add custom turn…",
+            disabled: disabled || adding,
+            onClick: () => {
+              setOpen(false);
+              trigger.current?.focus();
+              onAddInitiativeEntry();
+            },
+          },
+        ]
+      : []),
     { type: "divider" },
     { key: "parties", type: "group", label: "Add party", children: items },
   ];

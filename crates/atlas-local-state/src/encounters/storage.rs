@@ -367,6 +367,15 @@ pub(crate) fn reorder_participant(
         return Ok(true);
     }
 
+    if target_initiative.is_none()
+        && participant(connection, owner_id, &reorder.participant_key)?
+            .is_some_and(|row| row.participant_kind == ParticipantKind::InitiativeEntry)
+    {
+        return Err(LocalStateError::InvalidRollRequest(
+            "Custom turns require an initiative value",
+        ));
+    }
+
     let mut keys = if target_initiative.is_some() {
         participant_keys_for_initiative(connection, encounter_id, target_initiative)?
     } else {
@@ -440,6 +449,16 @@ pub(crate) fn add_condition(
             condition.participant_key,
         ));
     };
+    let initiative_entry: bool = connection.query_row(
+        "SELECT participant_kind = 'initiative_entry' FROM encounter_participants WHERE id=?1",
+        [participant_id],
+        |row| row.get(0),
+    )?;
+    if initiative_entry {
+        return Err(LocalStateError::InvalidRollRequest(
+            "Custom turns do not have conditions",
+        ));
+    }
     if let Some(source_participant_key) = &condition.source_participant_key
         && participant_encounter_id(connection, owner_id, source_participant_key)?
             != Some(encounter_id)

@@ -67,6 +67,22 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
     write.connection().execute(
         "UPDATE saved_lists SET name='Edited fixture', revision=5 WHERE list_key='recovery-fixture'", [],
     ).unwrap();
+    write
+        .connection()
+        .execute(
+            "INSERT INTO record_identity(key,last_known_name,availability)
+             VALUES('spells:harm',NULL,'unavailable')",
+            [],
+        )
+        .unwrap();
+    let description = "## Ritual\n\n[Harm](record:spells:harm) [Unknown](record:spells:mistyped)";
+    write
+        .connection()
+        .execute(
+            "UPDATE saved_lists SET description=?1 WHERE list_key='recovery-fixture'",
+            [description],
+        )
+        .unwrap();
     write.commit().unwrap();
     failure(
         workspace_command(&source, "export", &unstaged, &[]),
@@ -75,13 +91,31 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
     assert!(!unstaged.exists());
     success(workspace_command(&source, "export", &exported, &[]));
     let actual = read_archive(&exported);
-    assert_eq!(actual["version"], "1.0");
+    assert_eq!(actual["version"], "1.1");
     assert_eq!(
         actual["saved"]["owners"][0]["lists"][0]["name"],
         "Edited fixture"
     );
     assert_eq!(actual["saved"]["owners"][0]["lists"][0]["revision"], 5);
+    assert_eq!(
+        actual["saved"]["owners"][0]["lists"][0]["description"],
+        description
+    );
     assert_eq!(actual["saved"]["condition_floor"], 100);
+    assert!(
+        actual["saved"]["references"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reference| reference["key"] == "spells:harm")
+    );
+    assert!(
+        !actual["saved"]["references"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reference| reference["key"] == "spells:mistyped")
+    );
     failure(
         workspace_command(&source, "export", &exported, &[]),
         "Cannot publish",
@@ -239,6 +273,11 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
                     position,display_name,initiative,initiative_order,created_at,updated_at)
             SELECT id,'saved-participant','bestiary:aaaaaaaaaaaaaaaa','creature',3,'Saved creature',15,1,'created','updated'
             FROM encounters WHERE encounter_key='enc-running';
+        INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,side,
+                    position,display_name,initiative,initiative_order,note,created_at,updated_at)
+            SELECT id,'saved-custom-turn','initiative_entry','neutral',4,'Lair action',20,2,
+                '**Trigger**','created','updated'
+            FROM encounters WHERE encounter_key='enc-running';
         UPDATE encounters SET current_turn_participant_key='saved-participant' WHERE encounter_key='enc-running';
         INSERT INTO encounter_pending_consequences(encounter_id,consequence_key,participant_key,payload_json)
             SELECT id,'pending','saved-participant',
@@ -276,6 +315,17 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
     assert_eq!(original["saved"]["condition_floor"], 73);
     assert_eq!(original["version"], "2.0");
     assert_eq!(original["saved"]["owners"][0]["lists"][0]["archived"], true);
+    assert!(
+        original["saved"]["owners"][0]["encounters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|encounter| encounter["snapshot"]["participants"].as_array().unwrap())
+            .any(
+                |participant| participant["participant_kind"] == "initiative_entry"
+                    && participant["note"] == "**Trigger**"
+            )
+    );
     assert!(
         original["saved"]["owners"][1]["lists"][0]
             .get("archived")
@@ -412,7 +462,9 @@ fn rich_sample_round_trips_and_retries_through_the_app_offline() {
     .unwrap();
 
     success(workspace_command(&db, "export", &reexported, &[]));
-    assert_eq!(read_archive(&sample), read_archive(&reexported));
+    let mut expected = read_archive(&sample);
+    expected["version"] = "1.1".into();
+    assert_eq!(expected, read_archive(&reexported));
 }
 
 fn sample_app(db: &Path) -> atlas_app_service::AtlasAppService {

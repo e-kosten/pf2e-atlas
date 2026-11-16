@@ -1,3 +1,5 @@
+import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
+import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
 import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { DisplayChip } from "../../shared/ui/DisplayChip";
@@ -6,7 +8,7 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
 import { listsDestination } from "../../app/destinations";
 import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
-import { Button, Dropdown, Popover, Typography } from "antd";
+import { Button, Dropdown, Typography } from "antd";
 import { useRef, useState } from "react";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { ArrowLeft, Ellipsis } from "lucide-react";
@@ -70,7 +72,13 @@ export function ListBrowseHeader({
         actions={
           list && (
             <>
-              {(list.description || list.tags.length > 0) && <ListAbout list={list} />}
+              {(list.description || list.tags.length > 0) && (
+                <ListAbout
+                  list={list}
+                  onEdit={onEdit}
+                  editable={!paused && !editPreparing && !editing}
+                />
+              )}
               <CopyEntityLink
                 primary={!editing}
                 kind="list"
@@ -120,38 +128,52 @@ export function ListBrowseHeader({
   );
 }
 
-function ListAbout({ list }: { list: SavedListSummaryView }) {
+function ListAbout({
+  list,
+  onEdit,
+  editable,
+}: {
+  list: SavedListSummaryView;
+  onEdit: (opener: HTMLElement) => void;
+  editable: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
-  function handleEscape(event: React.KeyboardEvent) {
-    if (!open || event.key !== "Escape" || event.defaultPrevented) return;
-    event.preventDefault();
-    setOpen(false);
-    trigger.current?.focus({ preventScroll: true });
-  }
   return (
-    <Popover
-      trigger="click"
-      placement="bottomRight"
-      open={open}
-      onOpenChange={setOpen}
-      afterOpenChange={(visible) => {
-        if (visible && document.activeElement === trigger.current)
-          panel.current?.focus({ preventScroll: true });
-      }}
-      title="About"
-      content={
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape closes the focused disclosure.
-        <div
-          className="list-about"
-          role="dialog"
-          aria-label="About"
-          tabIndex={-1}
-          ref={panel}
-          onKeyDown={handleEscape}
-        >
-          {list.description && <p>{list.description}</p>}
+    <>
+      <Button
+        ref={trigger}
+        type="text"
+        className="list-context-secondary"
+        aria-expanded={open}
+        onClick={() => {
+          trigger.current?.focus({ preventScroll: true });
+          setOpen(true);
+        }}
+      >
+        About
+      </Button>
+      <AtlasDrawer
+        open={open}
+        onClose={() => setOpen(false)}
+        title="About"
+        size="min(760px, 100vw)"
+        extra={
+          editable && (
+            <Button
+              type="text"
+              onClick={() => {
+                setOpen(false);
+                if (trigger.current) onEdit(trigger.current);
+              }}
+            >
+              Edit list
+            </Button>
+          )
+        }
+      >
+        <div className="list-about">
+          {list.description && <MarkdownDocument source={list.description} />}
           {list.tags.length > 0 && (
             <div className="list-about__tags" role="group" aria-label="List tags">
               {list.tags.map((tag) => (
@@ -160,17 +182,7 @@ function ListAbout({ list }: { list: SavedListSummaryView }) {
             </div>
           )}
         </div>
-      }
-    >
-      <Button
-        ref={trigger}
-        type="text"
-        className="list-context-secondary"
-        aria-expanded={open}
-        onKeyDown={handleEscape}
-      >
-        About
-      </Button>
-    </Popover>
+      </AtlasDrawer>
+    </>
   );
 }

@@ -108,6 +108,16 @@ impl List {
         self.items.iter().map(|item| item.record_key.as_str())
     }
 
+    pub(super) fn markdown_record_keys(
+        &self,
+    ) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
+        self.description
+            .as_deref()
+            .into_iter()
+            .chain(self.items.iter().filter_map(|item| item.note.as_deref()))
+            .flat_map(|text| crate::markdown::Markdown(text).record_keys())
+    }
+
     pub(super) fn restore(&self, db: &Connection, owner: i64) -> LocalStateResult<()> {
         db.execute(
             "INSERT INTO saved_lists(owner_id,list_key,slug,name,description,revision,created_at,updated_at,archived)

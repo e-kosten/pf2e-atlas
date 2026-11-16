@@ -53,13 +53,22 @@ impl SavedWorkspace {
             |row| Ok((row.get::<_, i64>(0)?, row.get(1)?, row.get(2)?)),
         )?;
         let mut keys = BTreeSet::new();
+        let mut markdown_keys = BTreeSet::new();
         let owners = owners
             .into_iter()
             .map(|(id, key, name)| {
                 let lists = List::capture(db, id, has_archive_column)?;
                 let encounters = RecoveryEncounter::capture_all(db, id)?;
                 keys.extend(lists.iter().flat_map(List::record_keys).map(str::to_owned));
+                markdown_keys.extend(
+                    lists
+                        .iter()
+                        .flat_map(List::markdown_record_keys)
+                        .map(|key| key.to_string()),
+                );
                 for encounter in &encounters {
+                    markdown_keys
+                        .extend(encounter.markdown_record_keys().map(|key| key.to_string()));
                     keys.extend(
                         encounter
                             .record_keys()?
@@ -77,19 +86,17 @@ impl SavedWorkspace {
             })
             .collect::<LocalStateResult<_>>()?;
         let mut names = db.prepare("SELECT last_known_name FROM record_identity WHERE key=?1")?;
-        let references = keys
-            .into_iter()
-            .map(|key| {
-                let last_known_name = names
-                    .query_row([&key], |row| row.get(0))
-                    .optional()?
-                    .flatten();
-                Ok(Reference {
-                    key,
-                    last_known_name,
-                })
-            })
-            .collect::<LocalStateResult<_>>()?;
+        let mut references = Vec::new();
+        for key in keys.union(&markdown_keys) {
+            let name: Option<Option<String>> =
+                names.query_row([key], |row| row.get(0)).optional()?;
+            if name.is_some() || keys.contains(key) {
+                references.push(Reference {
+                    key: key.clone(),
+                    last_known_name: name.flatten(),
+                });
+            }
+        }
         Ok(Self {
             owners,
             references,

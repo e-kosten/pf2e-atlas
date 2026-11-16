@@ -95,6 +95,7 @@ export function SearchPickerModal<FormValues>({
   selectionContext,
   footerLayout = "form",
   initialSelection,
+  focusSearchOnOpen = false,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
@@ -119,6 +120,7 @@ export function SearchPickerModal<FormValues>({
   selectionContext?: string;
   footerLayout?: "form" | "actions";
   initialSelection?: RecordNavigationView;
+  focusSearchOnOpen?: boolean;
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
@@ -358,6 +360,21 @@ export function SearchPickerModal<FormValues>({
   if (!open && openingReady) setOpeningReady(false);
   if (open && ready && !openingReady) setOpeningReady(true);
   const initialLoading = open && profileReady && !openingReady && !ready;
+  useLayoutEffect(() => {
+    if (!open || !openingReady || !focusSearchOnOpen) return;
+    let frame: number;
+    const deadline = performance.now() + 500;
+    function focusSearch() {
+      const input = searchInput.current?.input;
+      if (input && getComputedStyle(input).visibility === "visible") {
+        input.focus({ preventScroll: true });
+      } else if (performance.now() < deadline) {
+        frame = requestAnimationFrame(focusSearch);
+      }
+    }
+    frame = requestAnimationFrame(focusSearch);
+    return () => cancelAnimationFrame(frame);
+  }, [focusSearchOnOpen, open, openingReady]);
   const reset = () => {
     submission.current += 1;
     setSubmittedProfile(undefined);

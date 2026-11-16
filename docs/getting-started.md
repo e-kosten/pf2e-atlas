@@ -35,6 +35,11 @@ show the most recently changed first.
 Lists are useful for session preparation, spell choices, equipment shortlists
 and creatures you may want to use later. Setup updates preserve your collections.
 
+Use **About** to read a list's description or **Edit list** to update it. Add a
+note from a selected list item's reader. In both fields, **Write** accepts
+Markdown and **Preview** shows the styled result before saving. Use **Insert
+record link** or type `[[` to search for an Atlas record and insert a link.
+
 When you're done with a list for now, open **Edit list**, check **Archived** and
 save. Archived lists are hidden from Lists and the **Add to list** picker. Turn
 on **Show archived** in Lists or follow the list's existing link to open it.
@@ -69,6 +74,12 @@ Advancing turns updates the remaining count; selecting a turn manually does not.
 An ended condition remains visible until you remove it. Existing durations without
 turn timing remain reminders until you edit them to choose a timing participant
 and boundary.
+
+For a lair action or ritual reminder, choose **Add custom turn** in the
+roster. Enter a name and a fixed initiative count, then write the instructions
+in Notes. When that row becomes active, read the instructions in the inspector
+and select **Next turn** to continue. To add tactics for a specific creature,
+edit its Notes in participant settings. Those notes appear above its stat block.
 
 ## Use commands or an agent
 

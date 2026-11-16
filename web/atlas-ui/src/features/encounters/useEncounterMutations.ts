@@ -19,6 +19,7 @@ import {
   rollInitiative,
   applyEncounterSpellAction,
   advanceEncounterTurn,
+  addEncounterInitiativeEntry,
   addEncounterManualParticipant,
   addEncounterParty,
   addEncounterParticipantCondition,
@@ -44,6 +45,7 @@ import {
 import type {
   ApplyEncounterHpActionRequest,
   EncounterDetailView,
+  AddEncounterInitiativeEntryRequest,
   AddEncounterManualParticipantRequest,
   AddEncounterParticipantConditionRequest,
   AddEncounterRecordParticipantRequest,
@@ -126,6 +128,10 @@ export type EncounterMutationCommand =
       request: import("../../generated/atlas").AddEncounterPartyRequest;
     }
   | { kind: "add-manual"; request: AddEncounterManualParticipantRequest }
+  | {
+      kind: "add-initiative-entry";
+      request: Omit<AddEncounterInitiativeEntryRequest, "request_id">;
+    }
   | { kind: "reorder"; request: ReorderEncounterParticipantRequest }
   | { kind: "remove"; participantKey: string }
   | { kind: "turn"; participantKey: string }
@@ -191,7 +197,9 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   const inFlight = useRef(false);
   const eventRequests = useRef(new Map<string, { identity: string; id: string }>());
   const commandIdentity = (command: EncounterMutationCommand) =>
-    JSON.stringify(command);
+    command.kind === "add-initiative-entry"
+      ? JSON.stringify({ ...command.request, expected_revision: undefined })
+      : JSON.stringify(command);
   const requestSlot = (command: EncounterMutationCommand) => {
     switch (command.kind) {
       case "add-condition":
@@ -326,6 +334,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           return addEncounterRecordParticipant(currentRef, command.request);
         case "add-party":
           return addEncounterParty(currentRef, command.request);
+        case "add-initiative-entry":
+          return addEncounterInitiativeEntry(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "add-manual":
           return addEncounterManualParticipant(currentRef, command.request);
         case "reorder":
@@ -431,7 +444,9 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       }
       const conflict = isEncounterConflict(error);
       const uncertain =
-        (command.kind === "initiative" || command.kind === "recovery") &&
+        (command.kind === "initiative" ||
+          command.kind === "recovery" ||
+          command.kind === "add-initiative-entry") &&
         isUnconfirmedMutation(error);
       if (conflict || uncertain) {
         setRefreshOrigin(uncertain ? "uncertain" : "conflict");

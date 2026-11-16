@@ -19,7 +19,7 @@ use std::{
 };
 
 const FORMAT: &str = "pf2e-atlas-workspace";
-const ACTIVE_ONLY_VERSION: &str = "1.0";
+const ACTIVE_ONLY_VERSION: &str = "1.1";
 const ARCHIVED_LIST_VERSION: &str = "2.0";
 
 #[derive(Serialize)]

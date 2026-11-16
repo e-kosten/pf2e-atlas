@@ -34,7 +34,10 @@ const api = vi.hoisted(() => ({
   getSavedListItemNote: vi.fn(),
   updateSavedListItemNote: vi.fn(),
 }));
-vi.mock("../../api/atlasApi", () => api);
+vi.mock(import("../../api/atlasApi"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  ...api,
+}));
 const entry = {
   list_key: "list_research",
   slug: "research",

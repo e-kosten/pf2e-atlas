@@ -1,3 +1,4 @@
+import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterModal } from "./EncounterModal";
@@ -289,10 +290,7 @@ function ParticipantSettingsForm({
           </Form.Item>
         )}
         <Form.Item name="note" label="Notes">
-          <Input.TextArea
-            aria-label="Participant notes"
-            autoSize={{ minRows: 3, maxRows: 8 }}
-          />
+          <MarkdownEditor label="Participant notes" />
         </Form.Item>
         {lifeSettings}
       </Form>

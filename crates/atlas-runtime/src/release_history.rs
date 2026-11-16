@@ -20,6 +20,16 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
             sql: include_str!("../../atlas-local-state/src/release/saved_list_archiving.sql"),
             backfill: None,
         },
+        Migration {
+            version: 45,
+            name: "encounter-initiative-entries",
+            sql: include_str!("initiative_entries.sql"),
+            backfill: Some(DataBackfill {
+                reconstruct_tables: true,
+                id: "encounter-initiative-entries/v1",
+                apply: |_| Ok(()),
+            }),
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

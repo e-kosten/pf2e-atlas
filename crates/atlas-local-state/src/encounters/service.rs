@@ -85,6 +85,61 @@ impl EncountersWrite<'_> {
         })
     }
 
+    pub fn add_initiative_entry_once(
+        &self,
+        encounter_ref: &str,
+        expected_revision: i64,
+        request_id: &str,
+        participant: AddEncounterParticipant,
+    ) -> LocalStateResult<super::EncounterEventReceipt> {
+        use super::command_receipts::{self, Outcome};
+
+        if participant.participant_kind != super::ParticipantKind::InitiativeEntry {
+            return Err(LocalStateError::InvalidRollRequest(
+                "expected a custom turn",
+            ));
+        }
+        let intent = serde_json::json!({
+            "action": "add_initiative_entry",
+            "display_name": participant.display_name,
+            "initiative": participant.initiative,
+            "note": participant.note,
+        });
+        crate::atomic_action::run(self.connection, || {
+            let encounter = self
+                .get(encounter_ref)?
+                .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
+            let key = &encounter.encounter_key;
+            if let Some(receipt) = self.condition_event_receipt(key, request_id, &intent)? {
+                return Ok(receipt);
+            }
+            if encounter.revision != expected_revision {
+                return Err(LocalStateError::StaleEncounterRevision {
+                    encounter_key: key.clone(),
+                    expected_revision,
+                    actual_revision: encounter.revision,
+                });
+            }
+            storage::add_participant(self.connection, self.owner_id, key, participant)?;
+            let receipt = super::EncounterEventReceipt {
+                encounter_key: key.clone(),
+                request_id: request_id.into(),
+                added_condition_ids: Vec::new(),
+                outcomes: Vec::new(),
+                pending: Vec::new(),
+            };
+            command_receipts::insert(
+                self.connection,
+                self.owner_id,
+                key,
+                request_id,
+                &intent,
+                Outcome::Event(&receipt),
+            )?;
+            Ok(receipt)
+        })
+    }
+
     /// Add one resolved quantity as a single durable operation.
     pub fn add_participants(
         &self,

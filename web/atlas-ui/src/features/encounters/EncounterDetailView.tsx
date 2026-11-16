@@ -503,6 +503,21 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                 onAddParty={async (request) => {
                   await mutations.run({ kind: "add-party", request });
                 }}
+                initiativeEntryError={
+                  mutations.errorKind === "add-initiative-entry"
+                    ? mutations.errorMessage
+                    : undefined
+                }
+                onAddInitiativeEntry={async (request) => {
+                  const result = await mutations.run({
+                    kind: "add-initiative-entry",
+                    request: {
+                      ...request,
+                      expected_revision: encounter.data!.revision,
+                    },
+                  });
+                  return result.active;
+                }}
                 onAddManual={async (request) => {
                   const result = await mutations.run({ kind: "add-manual", request });
                   return result.active && result.refreshed;
@@ -736,7 +751,11 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                     participantKey,
                     request,
                   });
-                  return result.active && result.refreshed;
+                  return (
+                    result.active &&
+                    (result.refreshed ||
+                      selected?.participant_kind === "initiative_entry")
+                  );
                 }}
                 onUpdateCondition={async (
                   participantKey,
@@ -898,7 +917,9 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
               });
             }}
             encounterKey={encounter.data.encounter.encounter_key}
-            participants={encounter.data.participants}
+            participants={encounter.data.participants.filter(
+              (row) => row.participant_kind !== "initiative_entry",
+            )}
             initialParticipant={initiativeOpen.participant}
             disabled={disabled}
             onClose={() => {

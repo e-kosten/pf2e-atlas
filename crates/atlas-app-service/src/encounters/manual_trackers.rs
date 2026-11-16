@@ -32,6 +32,11 @@ impl AtlasAppService {
             .ok_or_else(|| {
                 AppServiceError::invalid_request("Participant is no longer in this encounter.")
             })?;
+        if participant.participant_kind == atlas_local_state::ParticipantKind::InitiativeEntry {
+            return Err(AppServiceError::invalid_request(
+                "Custom turns do not have trackers",
+            ));
+        }
         let existing = |key: &str| {
             participant
                 .manual_trackers

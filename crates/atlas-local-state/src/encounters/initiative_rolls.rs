@@ -82,6 +82,11 @@ impl EncountersWrite<'_> {
                     .ok_or_else(|| {
                         LocalStateError::ParticipantNotFound(input.participant_key.clone())
                     })?;
+                if participant.participant_kind == super::ParticipantKind::InitiativeEntry {
+                    return Err(LocalStateError::InvalidRollRequest(
+                        "Custom turns have a fixed initiative value",
+                    ));
+                }
                 if participant.revision != input.expected_revision {
                     return Err(LocalStateError::StaleParticipantRevision {
                         participant_key: input.participant_key.clone(),

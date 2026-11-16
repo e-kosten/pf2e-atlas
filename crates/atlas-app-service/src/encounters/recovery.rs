@@ -2,7 +2,7 @@
 use super::{hydration, projection};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
-use atlas_local_state::{EncounterWithParticipants, ParticipantGameplay};
+use atlas_local_state::{EncounterWithParticipants, ParticipantGameplay, ParticipantKind};
 
 struct RecoveryPlan {
     view: EncounterRecoveryPreviewView,
@@ -91,6 +91,7 @@ impl AtlasAppService {
                     snapshot
                         .participants
                         .iter()
+                        .filter(|p| p.participant_kind != ParticipantKind::InitiativeEntry)
                         .map(|p| p.participant_key.as_str()),
                 );
             }
@@ -120,13 +121,12 @@ impl AtlasAppService {
             }
         }
         if keys.iter().any(|key| {
-            !snapshot
-                .participants
-                .iter()
-                .any(|p| &p.participant_key == key)
+            !snapshot.participants.iter().any(|p| {
+                &p.participant_key == key && p.participant_kind != ParticipantKind::InitiativeEntry
+            })
         }) {
             return Err(AppServiceError::invalid_request(
-                "A participant is no longer in this encounter",
+                "A selected participant is unavailable for recovery",
             ));
         }
         let selected = snapshot

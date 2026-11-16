@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 44. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 45. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -69,7 +69,8 @@ A referenced-table reconstruction can opt in through its checksum-bound
 backfill contract. Storage suspends foreign keys for the whole pending migration
 batch and runs a final foreign-key check before commit. All migrations in that
 batch must account for skipped foreign-key actions. Enforcement is restored
-after the transaction. Schema 43 keeps enforcement enabled throughout.
+after the transaction. Schema 45 uses this reconstruction path for encounter
+participants.
 
 ### Publication and recovery
 
@@ -213,6 +214,21 @@ maintenance, migrations and backups operate on the complete workspace. When
 adding saved access paths, cover the scope using a foreign owner's key or child
 ID, or a slug shared by two owners as appropriate to the operation.
 
+### Inline Markdown and custom turns
+
+List descriptions, saved list item notes and encounter participant notes store
+Markdown in their owning rows. Atlas record links store exact record keys in
+Markdown link destinations such as `record:spells:harm`. These are soft references.
+Recovery preserves the written destination and the known record identity, and
+allows restoration when the target is unavailable.
+
+Custom turns use the `initiative_entry` participant kind and the shared initiative
+ordering. Their name, fixed count and note belong to the encounter. They use
+the current-turn pointer and do not receive actor state or count toward
+difficulty. Schema 45 expands the participant-kind constraint and preserves
+the existing IDs and dependent state. The saved prose columns carry forward as
+Markdown in their existing storage and wire shape.
+
 ## Workspace recovery archives
 
 The runtime captures all saved owners, lists, parties, encounters, referenced
@@ -224,12 +240,13 @@ validates the archive and applies it to an empty saved state in one transaction
 on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
-The archive version starts at `1.0` and advances independently of the database
-schema. Capture emits `2.0` when the workspace contains an archived list, so a
-reader that cannot preserve its status rejects the archive before restore.
-Capture continues to emit `1.0` when all lists are active. It also uses `1.0`
-for pre-upgrade snapshots from before the archive flag existed. New readers
-treat lists in earlier backups as active. Bump the minor version for compatible additions, including new encounter
+Archive versions advance independently of the database schema. Capture emits
+`2.0` when the workspace contains an archived list, so readers that cannot
+preserve its status reject the archive before restore. Otherwise capture emits
+`1.1`. New readers treat lists in backups from before schema 44 as active.
+Custom turns use a detectable participant kind value. Older readers reject
+archives and standalone encounter files containing that kind before writing.
+Bump the minor version for compatible additions, including new encounter
 statuses. Older readers can ignore optional data when doing so preserves saved
 behavior. Use a detectable behavioral value for new behavior that an older
 reader must reject before writing. Bump the major version for incompatible

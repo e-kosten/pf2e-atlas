@@ -1,3 +1,4 @@
+import { MarkdownExcerpt } from "../../shared/documents/MarkdownDocument";
 import { useAtlasRouter, type AtlasRouter } from "../../app/router";
 import { useDesktopTab } from "../../app/DesktopTabContext";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -381,9 +382,8 @@ function listIndexColumns(
           <Typography.Paragraph
             className="list-index-view__description"
             ellipsis={{ rows: 2 }}
-            title={value}
           >
-            {value}
+            <MarkdownExcerpt source={value} />
           </Typography.Paragraph>
         ) : (
           ""

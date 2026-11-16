@@ -184,11 +184,69 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
     );
     let backup: serde_json::Value =
         serde_json::from_slice(&std::fs::read(archive_path(&workspace)).unwrap()).unwrap();
-    assert_eq!(backup["version"], "1.0");
+    assert_eq!(backup["version"], "1.1");
     let lists = backup["saved"]["owners"][0]["lists"].as_array().unwrap();
     assert!(lists.iter().any(|list| list["key"] == "list_earlier_arc"
         && list["revision"] == 6
         && list.get("archived").is_none()));
+}
+
+#[test]
+fn schema_44_upgrade_preserves_active_participant_and_conditions() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = Workspace::at(directory.path().join("workspace.sqlite")).unwrap();
+    register_extensions().unwrap();
+    workspace
+        .migrate_history(
+            atlas_storage::MigrationHistory {
+                migrations: &RELEASE_HISTORY.migrations[..3],
+                baseline_provenance: RELEASE_HISTORY.baseline_provenance,
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+    let write = workspace.write(44).unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO encounters(id,owner_id,encounter_key,slug,name,status,round_number,created_at,updated_at)
+            VALUES(17,1,'migration-encounter','migration-encounter','Encounter','running',2,'before','before');
+         INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,
+            side,initiative,initiative_order,created_at,updated_at)
+            VALUES(22,17,'actor','pc',1,'Hero','pc',15,1,'before','before');
+         UPDATE encounters SET current_turn_participant_key='actor' WHERE id=17;
+         INSERT INTO saved_lists(owner_id,list_key,slug,name,revision,created_at,updated_at,archived)
+            VALUES(1,'archived-list','archived-list','Archived list',6,'before','before',1);
+         INSERT INTO encounter_participant_conditions(id,participant_id,name,created_at,updated_at)
+            VALUES(31,22,'GM condition','before','before');",
+    ).unwrap();
+    write.commit().unwrap();
+
+    initialize_workspace(workspace.path()).unwrap();
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let backup: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(archive_path(&workspace)).unwrap()).unwrap();
+    assert_eq!(backup["version"], "2.0");
+    assert_eq!(
+        sql_rows(
+            read.connection(),
+            "SELECT archived FROM saved_lists WHERE list_key='archived-list'"
+        ),
+        vec![vec![rusqlite::types::Value::Integer(1)]]
+    );
+    let current = sql_rows(read.connection(),
+        "SELECT current_turn_participant_key, round_number, p.id, c.id, c.name
+         FROM encounters e JOIN encounter_participants p ON p.participant_key=e.current_turn_participant_key
+         JOIN encounter_participant_conditions c ON c.participant_id=p.id");
+    use rusqlite::types::Value::{Integer, Text};
+    assert_eq!(
+        current,
+        vec![vec![
+            Text("actor".into()),
+            Integer(2),
+            Integer(22),
+            Integer(31),
+            Text("GM condition".into())
+        ]]
+    );
 }
 
 #[test]

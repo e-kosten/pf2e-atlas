@@ -673,6 +673,14 @@ export interface ActorPresentationView {
   weaknesses: FactViewVecIwrEntryView;
 }
 
+export interface AddEncounterInitiativeEntryRequest {
+  display_name: string;
+  expected_revision: number;
+  initiative: number;
+  note?: string;
+  request_id: string;
+}
+
 export interface AddEncounterManualParticipantRequest {
   /** @nullable */
   current_hp?: number | null;
@@ -2984,6 +2992,7 @@ export const EncounterParticipantKindView = {
   creature: 'creature',
   hazard: 'hazard',
   pc: 'pc',
+  initiative_entry: 'initiative_entry',
 } as const;
 
 export interface PersistentDamageSourceView {
@@ -6278,6 +6287,42 @@ return fetchGenerated<InitiativeRollView>(getRollInitiativeUrl(encounterRef),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(rollInitiativeRequest)
+  }
+);}
+
+
+
+export const getAddEncounterInitiativeEntryUrl = (encounterRef: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/initiative-entry`
+}
+
+export const addEncounterInitiativeEntry = async (encounterRef: string,
+    addEncounterInitiativeEntryRequest: AddEncounterInitiativeEntryRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterMutationView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<EncounterMutationView>(getAddEncounterInitiativeEntryUrl(encounterRef),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(addEncounterInitiativeEntryRequest)
   }
 );}
 
