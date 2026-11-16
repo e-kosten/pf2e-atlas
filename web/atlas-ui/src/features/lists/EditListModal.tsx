@@ -358,11 +358,7 @@ function ListEditor({
               tokenSeparators={[","]}
             />
           </Form.Item>
-          <Form.Item
-            name="archived"
-            valuePropName="checked"
-            extra="Find archived lists with Show archived on the Saved Lists page."
-          >
+          <Form.Item name="archived" valuePropName="checked">
             <Checkbox>Archived</Checkbox>
           </Form.Item>
           {review && (

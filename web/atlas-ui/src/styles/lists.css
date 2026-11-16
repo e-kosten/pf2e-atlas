@@ -13,7 +13,13 @@
   overflow-wrap: anywhere;
 }
 .list-index-view__archive-filter {
+  display: flex;
   flex: 0 0 auto;
+  align-self: center;
+}
+.list-index-view__archive-filter > label {
+  align-items: center;
+  min-block-size: var(--control-height);
 }
 .list-archive-badge {
   margin-inline-start: var(--space-control);
