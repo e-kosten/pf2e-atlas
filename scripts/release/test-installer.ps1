@@ -159,14 +159,16 @@ function Expand-Archive {
   Microsoft.PowerShell.Archive\Expand-Archive -Path $Path -DestinationPath $DestinationPath
   if ($env:OS -ne "Windows_NT") { Get-ChildItem $DestinationPath -Filter atlas.exe -Recurse | ForEach-Object { chmod +x $_.FullName } }
 }
-function Get-FileHash {
+function Get-FixtureFileHash {
   param([string]$Path, [string]$LiteralPath, [string]$Algorithm)
   $installed = Join-Path $env:ATLAS_TEST_INSTALL_DIR "atlas.exe"
-  if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -and $LiteralPath -eq $installed) {
+  if ($LiteralPath -eq $installed) {
     [IO.File]::WriteAllText($installed, "intervening file")
   }
   Microsoft.PowerShell.Utility\Get-FileHash @PSBoundParameters
 }
+# An alias keeps the injected fault active when legacy PowerShell loads Utility's hash function.
+if ($env:ATLAS_TEST_OBSTRUCT_RESTORE) { Set-Alias Get-FileHash Get-FixtureFileHash }
 if ($env:ATLAS_TEST_INSTALL_CWD) { Set-Location -LiteralPath $env:ATLAS_TEST_INSTALL_CWD }
 $variantArgs = @{}
 if ($env:ATLAS_TEST_VARIANT -eq "cli-only") { $variantArgs.WithoutWeb = $true }
