@@ -62,9 +62,9 @@ and embeddings stay in the workspace. If capture fails, Atlas stops before
 changing the database. If migration fails after capture, the database rolls back
 and the archive stays available.
 
-To recover saved work explicitly, initialize a separate workspace with empty
-saved state, then run `atlas workspace restore PATH_TO_ARCHIVE --index PATH_TO_WORKSPACE`.
-Run reference setup separately if the recovery workspace needs it.
+To recover saved work, follow the
+[workspace restore procedure](cli-examples.md#back-up-and-restore-saved-workspace-data)
+with the upgrade archive and a separate database path.
 
 If your old version stored reference and saved state in separate files, follow
 the reported error and keep those files for recovery.
