@@ -2,6 +2,7 @@
 
 use std::{
     path::PathBuf,
+    process::Command,
     sync::atomic::{AtomicUsize, Ordering},
     thread,
     time::{Duration, Instant},
@@ -16,6 +17,8 @@ use crate::{
 };
 
 const FIXTURE_LINK: &str = "pf2e-atlas://v1/record/actions%3Aaaaaaaaaaaaaaaaa";
+const FIXTURE_RECORD: &str = "/records/actions:aaaaaaaaaaaaaaaa";
+const FIXTURE_PREVIEW: &str = "/search/records/actions:aaaaaaaaaaaaaaaa";
 static SETUP_RUNS: AtomicUsize = AtomicUsize::new(0);
 
 pub fn record_setup() {
@@ -77,9 +80,19 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     if forces_retry() || forces_preflight_retry() {
         receive_link(app, FIXTURE_LINK);
     }
+    let links_mode = std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "links");
+    if links_mode {
+        std::fs::write(
+            process::home()?.join("link-smoke.pid"),
+            std::process::id().to_string(),
+        )
+        .map_err(display)?;
+    }
     let app = app.clone();
     thread::spawn(move || {
-        match if selector_mode() {
+        match if links_mode {
+            run_links(&app)
+        } else if selector_mode() {
             run_selector(&app)
         } else if reference_mode() {
             run_reference(&app)
@@ -166,7 +179,11 @@ fn run(app: &AppHandle) -> Result<(), String> {
             )
         })?;
     }
-    let expected = atlas_desktop_protocol::EntityLink::parse(FIXTURE_LINK).map_err(display)?;
+    let expected_path = if forces_retry() || forces_preflight_retry() {
+        FIXTURE_RECORD
+    } else {
+        FIXTURE_PREVIEW
+    };
     wait_for(deadline, "rendered fixture record", || {
         let opened = lock(&app.state::<Desktop>().primary).is_product();
         opened
@@ -174,16 +191,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
             && window
                 .ns_window()
                 .is_ok_and(|current| current == initial_window)
-            && window.url().is_ok_and(|url| {
-                atlas_desktop_protocol::EntityLink::from_path(url.path()).as_ref()
-                    == Some(&expected)
-            })
-            && evaluates_true(
-                &window,
-                r#"[...document.querySelectorAll('#atlas-main h1, #atlas-main h2')].some(
-                heading => heading.textContent.trim() === "Handoff Test Action" && heading.getClientRects().length > 0
-            )"#,
-            )
+            && fixture_record_rendered(&window, expected_path)
     })?;
     wait_for(
         deadline,
@@ -278,16 +286,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
         },
     )?;
     wait_for(deadline, "in-window setup panel", || {
-        evaluates_true(
-            &window,
-            r#"(() => {
-            const button = [...document.querySelectorAll('button')].find(
-                item => item.getAttribute("aria-label") === "Setup and Updates");
-            if (!button) return false;
-            button.click();
-            return true;
-        })()"#,
-        )
+        open_setup_panel(&window)
     })?;
     wait_for(deadline, "cancel setup in the product", || {
         evaluates_true(
@@ -351,12 +350,8 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
             if std::fs::read_to_string(preference).map_err(display)?.trim() != "110" {
                 return Err("Zoom was not saved".into());
             }
-            receive_link(app, FIXTURE_LINK);
-            if app.webview_windows().len() != 2 {
-                return Err("Record link did not select the existing tab".into());
-            }
-            crate::window_host::verify_group(&tab, &primary)
-                .map_err(|error| format!("Record link did not select the existing tab: {error}"))?;
+            crate::window_host::select(&primary)?;
+            crate::window_host::verify_group(&tab, &primary)?;
             app.state::<Desktop>().zoom.change(app, "zoom-reset")?;
             Ok(())
         })();
@@ -423,6 +418,94 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
     check_titles("after Back", "Handoff Test Action")
 }
 
+fn fixture_record_rendered(window: &WebviewWindow, path: &str) -> bool {
+    window
+        .url()
+        .is_ok_and(|url| url.path().replace("%3A", ":") == path)
+        && evaluates_true(
+            window,
+            r#"[...document.querySelectorAll('#atlas-main h1, #atlas-main h2')].some(
+                heading => heading.textContent.trim() === "Handoff Test Action" && heading.getClientRects().length > 0
+            )"#,
+        )
+}
+
+fn run_links(app: &AppHandle) -> Result<(), String> {
+    let home = process::home()?.canonicalize().map_err(display)?;
+    let probe = process::probe()?;
+    if probe.status != atlas_desktop_protocol::WorkspaceStatus::Browsable
+        || !probe.workspace.starts_with(&home)
+    {
+        return Err("the link smoke test requires a seeded disposable workspace".into());
+    }
+    let bundle = home.join("Atlas Link Smoke.app");
+    if !std::env::current_exe().is_ok_and(|exe| exe.starts_with(&bundle)) {
+        return Err("the link smoke test requires an isolated app bundle".into());
+    }
+    let primary = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary link test window unavailable")?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    wait_for(deadline, "standalone record from cold OS URL", || {
+        lock(&app.state::<Desktop>().primary).is_product()
+            && fixture_record_rendered(&primary, FIXTURE_RECORD)
+    })?;
+    if app.webview_windows().len() != 1 {
+        return Err("the cold link should open in one window".into());
+    }
+
+    let preview = primary
+        .url()
+        .map_err(display)?
+        .join(FIXTURE_PREVIEW)
+        .map_err(display)?;
+    primary.navigate(preview).map_err(display)?;
+    wait_for(deadline, "Search preview before warm OS URL", || {
+        fixture_record_rendered(&primary, FIXTURE_PREVIEW)
+    })?;
+    let send_url = || {
+        let status = Command::new("/usr/bin/open")
+            .arg("-a")
+            .arg(&bundle)
+            .args(["-u", FIXTURE_LINK])
+            .status()
+            .map_err(display)?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("macOS did not deliver the Atlas URL: {status}"))
+        }
+    };
+
+    send_url()?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    wait_for(deadline, "foreground record tab from warm OS URL", || {
+        app.get_webview_window("atlas-0").is_some_and(|record| {
+            record.is_focused().unwrap_or(false) && fixture_record_rendered(&record, FIXTURE_RECORD)
+        })
+    })?;
+    let (sender, receiver) = std::sync::mpsc::channel();
+    crate::run_on_main(app, move |_| {
+        let _ = sender.send(crate::window_host::select(&primary));
+    })?;
+    receiver
+        .recv_timeout(Duration::from_secs(2))
+        .map_err(display)??;
+    send_url()?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    wait_for(
+        deadline,
+        "existing standalone record tab after reopening URL",
+        || {
+            app.webview_windows().len() == 2
+                && app.get_webview_window("atlas-0").is_some_and(|record| {
+                    record.is_focused().unwrap_or(false)
+                        && fixture_record_rendered(&record, FIXTURE_RECORD)
+                })
+        },
+    )
+}
+
 fn run_reference(app: &AppHandle) -> Result<(), String> {
     let deadline = Instant::now() + Duration::from_secs(10);
     let home = process::home()?.canonicalize().map_err(display)?;
@@ -438,7 +521,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         .get_webview_window(PRIMARY)
         .ok_or("primary window unavailable")?;
     wait_for(deadline, "permanent setup toolbar entry", || {
-        click_product_button(&window, "Setup and Updates", false)
+        open_setup_panel(&window)
     })?;
     wait_for(deadline, "terminal access action", || {
         click_product_button(&window, "Install terminal command", true)
@@ -480,7 +563,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     wait_for(
         deadline,
         "setup gear opens drawer in the second window",
-        || click_product_button(&second, "Setup and Updates", false),
+        || open_setup_panel(&second),
     )?;
     wait_for(deadline, "running job appears in the second drawer", || {
         text_visible(&second, "Cancel setup")
@@ -594,7 +677,7 @@ fn run_selector(app: &AppHandle) -> Result<(), String> {
     wait_for(
         Instant::now() + Duration::from_secs(10),
         "setup drawer entry",
-        || click_product_button(&window, "Setup and Updates", false),
+        || open_setup_panel(&window),
     )?;
     check_model_selector(&window)
 }
@@ -665,6 +748,16 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         window.dispatchEvent(new Event('atlas-desktop-setup'));"#,
         )
         .map_err(display)
+}
+
+fn open_setup_panel(window: &WebviewWindow) -> bool {
+    [
+        "Setup and Updates",
+        "Setup and Updates (setup in progress)",
+        "Setup and Updates (setup incomplete)",
+    ]
+    .into_iter()
+    .any(|label| click_product_button(window, label, false))
 }
 
 fn click_product_button(window: &WebviewWindow, text: &str, drawer: bool) -> bool {
