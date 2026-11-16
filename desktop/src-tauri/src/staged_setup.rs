@@ -107,6 +107,7 @@ impl StagedSetup {
             .remote(format!("{}/*", origin.ascii_serialization()))
             .webview(label)
             .permission("allow-desktop-setup-action")
+            .permission("allow-desktop-update-action")
             .permission("allow-desktop-tab-link")
             .permission("allow-desktop-appearance")
             .permission("allow-desktop-copy-link")
@@ -151,6 +152,17 @@ impl StagedSetup {
         lock(&self.documents)
             .get(label)
             .is_some_and(|document| document.instance == instance)
+    }
+
+    pub fn authorize_document(&self, window: &WebviewWindow, instance: &str, token: &str) -> bool {
+        let origin = window.url().ok().map(|url| url.origin());
+        lock(&self.documents)
+            .get(window.label())
+            .is_some_and(|doc| {
+                doc.instance == instance
+                    && doc.token.as_deref() == Some(token)
+                    && origin.as_ref() == Some(&doc.origin)
+            })
     }
 
     pub fn has_document(&self, label: &str, instance: &str) -> bool {
@@ -208,8 +220,9 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
             "preferred": reference.preferred,
         })
     });
+    let update = window.state::<Desktop>().updates.snapshot();
     let detail = serde_json::json!({
-        "token": token, "setup": state, "reference": reference,
+        "token": token, "setup": state, "reference": reference, "update": update,
         "referenceLoading": state.reference_loading, "openRequest": document.open_request,
         "openTerminal": document.open_terminal,
         "terminalLinking": cfg!(target_os = "macos"),
@@ -223,7 +236,7 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
     let _ = window.eval(script);
 }
 
-fn broadcast(app: &AppHandle) {
+pub(crate) fn broadcast(app: &AppHandle) {
     let _ = run_on_main(app, |app| {
         let desktop = app.state::<Desktop>();
         let snapshot = lock(&desktop.staged_setup.state).clone();

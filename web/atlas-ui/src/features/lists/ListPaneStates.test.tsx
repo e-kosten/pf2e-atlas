@@ -38,6 +38,7 @@ describe("saved list local failure states", () => {
           slug: "research",
           name: "Research",
           tags: [],
+          archived: false,
           item_count: 0,
           created_at: "2026-10-10",
           updated_at: "2026-10-10",
@@ -61,6 +62,7 @@ describe("saved list local failure states", () => {
             description:
               "## Session prep\n\n" + "Detailed preparation notes. ".repeat(30),
             tags: Array.from({ length: 20 }, (_, index) => `Campaign tag ${index}`),
+            archived: false,
             item_count: 120,
             created_at: "2026-10-10",
             updated_at: "2026-10-10",

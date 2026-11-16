@@ -183,7 +183,7 @@ impl EntityLink {
     pub fn from_path(path: &str) -> Option<Self> {
         let (route, key) = path.trim_end_matches('/').rsplit_once('/')?;
         let kind = match route {
-            "/records" | "/search/records" => "record",
+            "/records" => "record",
             "/lists" => "list",
             "/encounters" => "encounter",
             "/traits" => "trait",
@@ -197,7 +197,7 @@ impl EntityLink {
 
     fn parts(&self) -> (&'static str, &'static str, String) {
         match self {
-            Self::Record(key) => ("record", "/search/records", key.to_string()),
+            Self::Record(key) => ("record", "/records", key.to_string()),
             Self::List(key) => ("list", "/lists", key.clone()),
             Self::Encounter(key) => ("encounter", "/encounters", key.clone()),
             Self::Trait(key) => ("trait", "/traits", key.to_string()),
@@ -253,17 +253,6 @@ fn parse_encoded_key(key: &str) -> Result<RecordKey, &'static str> {
     RecordKey::parse(&decode_segment(key)?).map_err(|_| "The Atlas record key is invalid.")
 }
 
-pub fn parse_record_path(path: &str) -> Option<RecordKey> {
-    let segment = path
-        .strip_prefix("/search/records/")
-        .or_else(|| path.strip_prefix("/records/"))
-        .or_else(|| {
-            let (slug, tail) = path.strip_prefix("/lists/")?.split_once('/')?;
-            (!slug.is_empty()).then_some(tail)?.strip_prefix("records/")
-        })?;
-    parse_encoded_key(segment).ok()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,23 +264,9 @@ mod tests {
     }
 
     #[test]
-    fn reader_routes_match_the_exact_key() {
-        let key = RecordKey::parse("spells:one").unwrap();
-        assert_eq!(
-            parse_record_path(&EntityLink::Record(key.clone()).path()),
-            Some(key.clone())
-        );
-        assert_eq!(parse_record_path("/records/spells:one"), Some(key.clone()));
-        assert_eq!(
-            parse_record_path("/lists/prepared/records/spells%3Aone"),
-            Some(key)
-        );
-        assert_eq!(parse_record_path("/search/records/spells:one/extra"), None);
-    }
-
-    #[test]
     fn entity_links_round_trip_to_their_detail_routes() {
         for (kind, key, path) in [
+            ("record", "spells:one", "/records/spells%3Aone"),
             (
                 "list",
                 "list_1234567890abcdef",

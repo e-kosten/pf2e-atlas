@@ -131,6 +131,52 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
 }
 
 #[test]
+fn archived_lists_survive_workspace_recovery_and_can_be_restored_from_the_cli() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path().join("workspace.sqlite");
+    initialize_workspace(&workspace).unwrap();
+    let input = temp.path().join("archive.json");
+    let exported = temp.path().join("exported.json");
+    let archive: Value =
+        serde_json::from_str(include_str!("fixtures/workspace-archive-2.0.json")).unwrap();
+
+    let mut incompatible = archive.clone();
+    incompatible["version"] = "1.0".into();
+    write_archive(&input, &incompatible);
+    failure(
+        workspace_command(&workspace, "restore", &input, &[]),
+        "Archived lists require workspace archive version 2.0",
+    );
+    write_archive(&input, &archive);
+    success(workspace_command(&workspace, "restore", &input, &[]));
+    success(workspace_command(&workspace, "export", &exported, &[]));
+    assert_eq!(read_archive(&exported), archive);
+
+    let lists = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .arg("lists")
+            .args(args)
+            .arg("--index")
+            .arg(&workspace)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()
+    };
+    assert_eq!(lists(&["list"])["lists"], serde_json::json!([]));
+    let archived = lists(&["list", "--include-archived"]);
+    assert_eq!(archived["lists"][0]["archived"], true);
+    let restored = lists(&["edit", "fixture", "--restore"]);
+    assert_eq!(restored["list"]["list_key"], "recovery-fixture");
+    assert_eq!(restored["list"]["archived"], false);
+    assert_eq!(lists(&["list"])["lists"][0], restored["list"]);
+
+    let again = lists(&["edit", "fixture", "--archive"]);
+    assert_eq!(again["list"]["archived"], true);
+    assert_eq!(lists(&["list"])["lists"], serde_json::json!([]));
+}
+
+#[test]
 fn major_minor_admission_and_conflicting_configuration_leave_no_partial_restore() {
     let temp = tempfile::tempdir().unwrap();
     let db = temp.path().join("destination.sqlite");
@@ -141,13 +187,13 @@ fn major_minor_admission_and_conflicting_configuration_leave_no_partial_restore(
         &input,
         &serde_json::json!({
             "format": "pf2e-atlas-workspace",
-            "version": "2.0",
+            "version": "3.0",
             "future_saved_state": {}
         }),
     );
     failure(
         workspace_command(&db, "restore", &input, &[]),
-        "Unsupported workspace archive version 2.0",
+        "Unsupported workspace archive version 3.0",
     );
     archive["version"] = "1.10".into();
     archive["saved"]["owners"][0]["lists"][0]["future_display_hint"] = "ignored".into();
@@ -194,7 +240,7 @@ fn major_minor_admission_and_conflicting_configuration_leave_no_partial_restore(
 }
 
 #[test]
-fn all_owner_recovery_preserves_live_and_archived_encounters_and_rolls_back_late_failure() {
+fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failure() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source.sqlite");
     let dest = temp.path().join("dest.sqlite");
@@ -211,8 +257,9 @@ fn all_owner_recovery_preserves_live_and_archived_encounters_and_rolls_back_late
             VALUES('pc-two','guest-party','Second',5,9),('pc-one','guest-party','First',5,3);
         INSERT INTO record_identity(key,last_known_name,availability)
             VALUES('bestiary:aaaaaaaaaaaaaaaa',NULL,'unavailable');
-        INSERT INTO saved_lists(owner_id,list_key,slug,name,revision,created_at,updated_at)
-            SELECT id,principal_key || '-list','shared','Shared',3,'created','updated' FROM principals;
+        INSERT INTO saved_lists(owner_id,list_key,slug,name,revision,created_at,updated_at,archived)
+            SELECT id,principal_key || '-list','shared','Shared',3,'created','updated',principal_key='guest'
+            FROM principals;
         INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
             SELECT id,'bestiary:aaaaaaaaaaaaaaaa',13,'Keep this note','Saved title','added','edited'
             FROM saved_lists WHERE list_key='guest-list';
@@ -225,6 +272,11 @@ fn all_owner_recovery_preserves_live_and_archived_encounters_and_rolls_back_late
         INSERT INTO encounter_participants(encounter_id,participant_key,record_key,participant_kind,
                     position,display_name,initiative,initiative_order,created_at,updated_at)
             SELECT id,'saved-participant','bestiary:aaaaaaaaaaaaaaaa','creature',3,'Saved creature',15,1,'created','updated'
+            FROM encounters WHERE encounter_key='enc-running';
+        INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,side,
+                    position,display_name,initiative,initiative_order,note,created_at,updated_at)
+            SELECT id,'saved-custom-turn','initiative_entry','neutral',4,'Lair action',20,2,
+                '**Trigger**','created','updated'
             FROM encounters WHERE encounter_key='enc-running';
         UPDATE encounters SET current_turn_participant_key='saved-participant' WHERE encounter_key='enc-running';
         INSERT INTO encounter_pending_consequences(encounter_id,consequence_key,participant_key,payload_json)
@@ -261,6 +313,32 @@ fn all_owner_recovery_preserves_live_and_archived_encounters_and_rolls_back_late
         2
     );
     assert_eq!(original["saved"]["condition_floor"], 73);
+    assert_eq!(original["version"], "2.0");
+    assert_eq!(original["saved"]["owners"][0]["lists"][0]["archived"], true);
+    assert!(
+        original["saved"]["owners"][0]["encounters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|encounter| encounter["snapshot"]["participants"].as_array().unwrap())
+            .any(
+                |participant| participant["participant_kind"] == "initiative_entry"
+                    && participant["note"] == "**Trigger**"
+            )
+    );
+    assert!(
+        original["saved"]["owners"][1]["lists"][0]
+            .get("archived")
+            .is_none()
+    );
+
+    let mut malformed = original.clone();
+    malformed["saved"]["owners"][0]["lists"][0]["archived"] = "yes".into();
+    write_archive(&recovered, &malformed);
+    failure(
+        workspace_command(&dest, "restore", &recovered, &[]),
+        "expected a boolean",
+    );
 
     let mut incompatible = original.clone();
     let encounters = incompatible["saved"]["owners"][0]["encounters"]

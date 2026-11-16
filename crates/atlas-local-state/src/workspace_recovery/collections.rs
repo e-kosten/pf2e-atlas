@@ -8,6 +8,8 @@ pub(super) struct List {
     name: String,
     description: Option<String>,
     revision: i64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    archived: bool,
     created_at: String,
     updated_at: String,
     tags: Vec<Tag>,
@@ -21,11 +23,18 @@ struct Tag {
 }
 
 impl List {
-    pub(super) fn capture(db: &Connection, owner: i64) -> LocalStateResult<Vec<Self>> {
+    pub(super) fn capture(
+        db: &Connection,
+        owner: i64,
+        has_archive_column: bool,
+    ) -> LocalStateResult<Vec<Self>> {
+        let archive_value = if has_archive_column { "archived" } else { "0" };
         let mut roots = rows(
             db,
-            "SELECT id,list_key,slug,name,description,revision,created_at,updated_at
-             FROM saved_lists WHERE owner_id=?1 ORDER BY list_key",
+            &format!(
+                "SELECT id,list_key,slug,name,description,revision,created_at,updated_at,{archive_value}
+                 FROM saved_lists WHERE owner_id=?1 ORDER BY list_key",
+            ),
             [owner],
             |row| {
                 Ok((
@@ -38,6 +47,7 @@ impl List {
                         revision: row.get(5)?,
                         created_at: row.get(6)?,
                         updated_at: row.get(7)?,
+                        archived: row.get(8)?,
                         tags: vec![],
                         items: vec![],
                     },
@@ -90,6 +100,10 @@ impl List {
         Ok(())
     }
 
+    pub(super) fn is_archived(&self) -> bool {
+        self.archived
+    }
+
     pub(super) fn record_keys(&self) -> impl Iterator<Item = &str> {
         self.items.iter().map(|item| item.record_key.as_str())
     }
@@ -106,9 +120,9 @@ impl List {
 
     pub(super) fn restore(&self, db: &Connection, owner: i64) -> LocalStateResult<()> {
         db.execute(
-            "INSERT INTO saved_lists(owner_id,list_key,slug,name,description,revision,created_at,updated_at)
-             VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
-            params![owner,self.key,self.slug,self.name,self.description,self.revision,self.created_at,self.updated_at],
+            "INSERT INTO saved_lists(owner_id,list_key,slug,name,description,revision,created_at,updated_at,archived)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+            params![owner,self.key,self.slug,self.name,self.description,self.revision,self.created_at,self.updated_at,self.archived],
         )?;
         let id = db.last_insert_rowid();
         for tag in &self.tags {

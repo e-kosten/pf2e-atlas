@@ -9,6 +9,7 @@ pub struct SavedList {
     pub name: String,
     pub description: Option<String>,
     pub tags: Vec<String>,
+    pub archived: bool,
     pub item_count: u64,
     pub created_at: String,
     pub updated_at: String,
@@ -69,6 +70,7 @@ pub struct UpdateSavedList {
     pub name: String,
     pub description: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub archived: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

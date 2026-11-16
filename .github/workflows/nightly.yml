@@ -73,7 +73,11 @@ jobs:
     needs: [plan, verify]
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.build == 'true' && (needs.verify.result == 'success' || (needs.verify.result == 'skipped' && needs.plan.outputs.verify == 'false')) }}
     uses: ./.github/workflows/release-build-check.yml
+    secrets:
+      atlas-updater-private-key: ${{ secrets.ATLAS_UPDATER_PRIVATE_KEY }}
+      atlas-updater-password: ${{ secrets.ATLAS_UPDATER_PASSWORD }}
     with:
+      production-updater: true
       tag: ${{ needs.plan.outputs.package-tag }}
       source-ref: ${{ needs.plan.outputs.sha }}
       nightly: true

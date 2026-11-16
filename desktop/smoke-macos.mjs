@@ -1,5 +1,6 @@
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +15,7 @@ const defaultBundle = fileURLToPath(
 const bundle = resolve(process.argv[2] ?? defaultBundle);
 
 const pin = JSON.parse(readFileSync(new URL("../dev-tools/source-contracts/source-pin.json", import.meta.url))).commit;
-const modes = ["normal", "retry", "preflight", "reference", "selector"];
+const modes = ["normal", "retry", "preflight", "reference", "selector", "links"];
 const selected = process.argv[3];
 if (selected && !modes.includes(selected)) throw new Error("Unknown native smoke scenario");
 for (const mode of selected ? [selected] : modes) {
@@ -54,17 +55,17 @@ function run(mode) {
         traits: { value: [] },
       },
     });
-    if (mode === "reference" || mode === "selector") {
+    if (mode === "reference" || mode === "selector" || mode === "links") {
       const seeded = spawnSync(join(bundle, "Contents/MacOS/atlas"), [
         "setup", "--offline", "--no-embeddings", "--json",
-        ...(mode === "selector" ? ["--source", source] : []),
+        ...(mode !== "reference" ? ["--source", source] : []),
       ], { cwd: home, env, encoding: "utf8", timeout: 8_000 });
       if (seeded.status !== 0) {
         throw new Error(`Could not seed the reference refresh fixture: ${seeded.stdout}${seeded.stderr}`);
       }
       if (mode === "reference") writeFixture(".hold-reference", true);
     }
-    const result = spawnSync(join(bundle, "Contents/MacOS/atlas-desktop"), {
+    const result = mode === "links" ? runLinks(home, env) : spawnSync(join(bundle, "Contents/MacOS/atlas-desktop"), {
       cwd: home,
       env,
       encoding: "utf8",
@@ -80,4 +81,51 @@ function run(mode) {
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
+}
+
+function runLinks(home, env) {
+  const isolated = join(home, "Atlas Link Smoke.app");
+  const plist = join(isolated, "Contents/Info.plist");
+  const pidPath = join(home, "link-smoke.pid");
+  const stdout = join(home, "link-smoke.stdout");
+  const stderr = join(home, "link-smoke.stderr");
+
+  execFileSync("/usr/bin/ditto", [bundle, isolated]);
+  // Address only this app by path without registering another default handler for the scheme.
+  execFileSync("/usr/libexec/PlistBuddy", [
+    "-c", `Set :CFBundleIdentifier com.ekosten.pf2e-atlas.link-smoke-${randomUUID()}`,
+    "-c", "Delete :CFBundleURLTypes",
+    plist,
+  ]);
+  execFileSync("/usr/bin/codesign", ["--force", "--sign", "-", isolated]);
+
+  const result = spawnSync("/usr/bin/open", [
+    "-W", "-n", "-a", isolated,
+    "--stdout", stdout, "--stderr", stderr,
+    ...["HOME", "PATH", "ATLAS_PILOT_HOME", "ATLAS_PILOT_SMOKE"]
+      .flatMap((key) => ["--env", `${key}=${env[key]}`]),
+    "-u", "pf2e-atlas://v1/record/actions%3Aaaaaaaaaaaaaaaaa",
+  ], { encoding: "utf8", timeout: 25_000 });
+  if (result.error?.code === "ETIMEDOUT" && existsSync(pidPath)) {
+    // A hung app can outlive the launcher. Stop only the process from this test bundle.
+    const pid = Number(readFileSync(pidPath, "utf8"));
+    if (Number.isSafeInteger(pid) && pid > 0) {
+      const processInfo = spawnSync("/bin/ps", ["-ww", "-p", String(pid), "-o", "comm="], {
+        encoding: "utf8",
+      });
+      if (processInfo.status === 0
+        && processInfo.stdout.trim() === join(isolated, "Contents/MacOS/atlas-desktop")) {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch (error) {
+          if (error.code !== "ESRCH") throw error;
+        }
+      }
+    }
+  }
+  return {
+    ...result,
+    stdout: (result.stdout ?? "") + (existsSync(stdout) ? readFileSync(stdout, "utf8") : ""),
+    stderr: (result.stderr ?? "") + (existsSync(stderr) ? readFileSync(stderr, "utf8") : ""),
+  };
 }

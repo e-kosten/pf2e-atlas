@@ -45,7 +45,16 @@ export function ListBrowseHeader({
   return (
     <div className="list-browse-header">
       <WorkspaceContextBar
-        title={list?.name}
+        title={
+          list && (
+            <>
+              {list.name}
+              {list.archived && (
+                <DisplayChip className="list-archive-badge">Archived</DisplayChip>
+              )}
+            </>
+          )
+        }
         parentLink={
           <Typography.Link
             className="list-browse-header__parent-link"

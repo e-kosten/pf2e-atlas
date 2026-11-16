@@ -49,3 +49,9 @@ pub use operations::{ExactRecordRead, StateRead, WorkspaceRead, WorkspaceWrite};
 pub mod test_support;
 
 pub use atlas_storage::{StorageError, Workspace};
+
+/// The source bundled with this Atlas build for managed desktop setup.
+pub fn desktop_reference_baseline() -> (&'static str, &'static str) {
+    use atlas_foundry_model::generated::{REFERENCE_SOURCE_COMMIT, REFERENCE_SOURCE_VERSION};
+    (REFERENCE_SOURCE_COMMIT, REFERENCE_SOURCE_VERSION)
+}

@@ -12,8 +12,8 @@ use atlas_app_model::{
 use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
 use axum::Json;
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Path, Query, State};
 use axum::response::IntoResponse;
 
 use crate::error::WebError;
@@ -59,13 +59,26 @@ pub(crate) async fn readiness(
     ))
 }
 
-#[utoipa::path(get, path = "/api/lists", operation_id = "savedLists", responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListIndexView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[derive(serde::Deserialize)]
+pub(crate) struct SavedListsQuery {
+    #[serde(default)]
+    include_archived: bool,
+}
+
+#[utoipa::path(get, path = "/api/lists", operation_id = "savedLists", params(("include_archived" = Option<bool>, Query, description = "Include archived lists")), responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListIndexView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn saved_lists(
     State(state): State<AtlasWebState>,
+    query: Result<Query<SavedListsQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Query(query) = query.map_err(|error| {
+        WebError(atlas_app_model::AppError::new(
+            atlas_app_model::AppErrorCode::InvalidRequest,
+            format!("invalid list query: {error}"),
+        ))
+    })?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.saved_lists()).await?,
+        call_service(state, move || service.saved_lists(query.include_archived)).await?,
     ))
 }
 

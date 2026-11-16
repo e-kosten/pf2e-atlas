@@ -13,10 +13,11 @@ import {
 import { listDestination, listsDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
+import { DisplayChip } from "../../shared/ui/DisplayChip";
 import { ListTagSummary } from "./ListTagSummary";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ChoicePicker } from "../../shared/ui/pickers/ChoicePicker";
-import { Button, Input, Typography } from "antd";
+import { Button, Checkbox, Input, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Pencil, Plus, Search } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -96,8 +97,9 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const paused = useSavedWritesPaused();
   const editing = useListSettingsOpening();
   const newList = useRef<HTMLButtonElement>(null);
+  const showArchivedControl = useRef<HTMLDivElement>(null);
   const selectedTags = [...state.include, ...state.exclude];
-  const lists = useSavedLists();
+  const lists = useSavedLists({ includeArchived: state.includeArchived });
   const allLists = useMemo(() => lists.data?.lists ?? [], [lists.data?.lists]);
   const tagOptions = useMemo(() => savedListTagOptions(allLists), [allLists]);
   const filteredLists = useMemo(() => filterLists(allLists, state), [allLists, state]);
@@ -200,6 +202,16 @@ export function ListIndexView(_props: ListIndexViewProps) {
               onTextChange={setTagSearch}
             />
           )}
+          <div className="list-index-view__archive-filter" ref={showArchivedControl}>
+            <Checkbox
+              checked={state.includeArchived}
+              onChange={(event) =>
+                changeState({ ...state, includeArchived: event.target.checked })
+              }
+            >
+              Show archived
+            </Checkbox>
+          </div>
         </PrimaryToolbar>
       }
       className="list-index-view"
@@ -215,7 +227,10 @@ export function ListIndexView(_props: ListIndexViewProps) {
               afterClose={() => {
                 editing.clear();
                 restoreOverlayFocus(
-                  editing.opener?.isConnected ? editing.opener : newList.current,
+                  editing.opener?.isConnected
+                    ? editing.opener
+                    : (showArchivedControl.current?.querySelector("input") ??
+                        newList.current),
                   undefined,
                 );
               }}
@@ -283,7 +298,9 @@ export function ListIndexView(_props: ListIndexViewProps) {
               ? "Saved lists unavailable"
               : selectedTags.length || state.query.trim()
                 ? "No lists match these filters"
-                : "No saved lists. Create a list to collect records.",
+                : state.includeArchived
+                  ? "No saved lists. Create a list to collect records."
+                  : "No active lists. Create a list or show archived lists.",
         }}
         onActivateRow={(list) =>
           navigateDestination(
@@ -345,7 +362,14 @@ function listIndexColumns(
             );
           }}
           subtitle={list.slug}
-          title={list.name}
+          title={
+            <>
+              {list.name}
+              {list.archived && (
+                <DisplayChip className="list-archive-badge">Archived</DisplayChip>
+              )}
+            </>
+          }
         />
       ),
     },

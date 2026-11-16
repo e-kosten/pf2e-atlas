@@ -8,6 +8,7 @@ pub(crate) fn initialize_schema(conn: &Connection) -> LocalStateResult<()> {
         include_str!("release/parties.sql"),
         include_str!("release/encounters.sql"),
         include_str!("release/schema.sql"),
+        include_str!("release/saved_list_archiving.sql"),
     ))?;
     Ok(())
 }
@@ -490,13 +491,13 @@ mod tests {
                 description: None,
                 note: None,
             })?;
-            assert_eq!(lists.list()?.len(), 1);
+            assert_eq!(lists.list(true)?.len(), 1);
             assert_eq!(encounters.list()?.len(), 1);
             // Dropping the caller's transaction abandons the complete composed action.
         }
         assert!(
             SavedListsRead::from_connection(&connection, crate::store::local_owner(&connection)?)
-                .list()?
+                .list(true)?
                 .is_empty()
         );
         assert!(
@@ -584,7 +585,7 @@ mod tests {
         );
         assert_eq!(
             SavedListsRead::from_connection(&tx, crate::store::local_owner(&tx)?)
-                .list()?
+                .list(true)?
                 .len(),
             1
         );

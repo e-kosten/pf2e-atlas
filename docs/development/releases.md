@@ -78,6 +78,64 @@ inspect the complete hosted run, then install the nightly on the dogfooding mach
 and check `atlas --version` and `atlas --help`. A local tooling test is not evidence
 that the hosted platform builds or live installation succeeded.
 
+### Desktop update signing
+
+Stable and nightly builds produce an updater manifest and a signed package for
+each desktop platform. The macOS update archive contains the same app bundle
+as the DMG. Windows uses the same NSIS executable for both paths. Release
+candidates stay outside the update feeds. The stable feed uses the latest
+official stable release, and the nightly feed uses the existing dated-release
+pointer. Both feeds resolve to tagged release assets.
+
+Before the first updater-enabled production build, generate a Tauri key pair
+with the desktop package's CLI.
+
+```sh
+npm --prefix desktop ci
+desktop/node_modules/.bin/tauri signer generate --write-keys /secure/location/atlas-updater.key
+```
+
+Store the public key text as the `ATLAS_UPDATER_PUBLIC_KEY` GitHub Actions
+repository variable. Store the private key text and its password in
+`ATLAS_UPDATER_PRIVATE_KEY` and `ATLAS_UPDATER_PASSWORD` Actions secrets. Keep
+a secure offline backup of the private key and password. Installed builds
+trust this key, so losing it requires distributing a new updater-enabled
+installer through the normal installation process. Apple and Windows code
+signing are separate.
+
+Signing runs in dedicated packaging steps. Tauri binds each signature to the
+full Atlas version, including a nightly timestamp and commit suffix.
+Packaging verifies the signer key ID and assembles both platform entries
+before publication. The existing release digest checks include the update
+assets. Standalone release build checks generate disposable signing keys and
+exercise packaging without access to production secrets.
+
+For a native upgrade rehearsal, use disposable workspace and app installs on
+both platforms. Generate one disposable Tauri key pair for the two builds.
+Set `ATLAS_UPDATER_PUBLIC_KEY` to the public key text when packaging each
+build, and pass the disposable private key to
+`desktop/updater-package.mjs sign` through `TAURI_SIGNING_PRIVATE_KEY_PATH`
+and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. For test builds only, set
+`ATLAS_UPDATER_REHEARSAL_ROOT` to `https://127.0.0.1:5467/releases` and
+`ATLAS_UPDATER_REHEARSAL_CA` to the PEM text of a disposable CA certificate.
+Use that CA to sign a separate TLS server certificate with an IP subject alt
+name for `127.0.0.1`. Start the local feed with the server key and certificate
+and the assembled newer release.
+
+```sh
+node desktop/rehearse-updater.mjs 5467 TLS_KEY TLS_CERT RELEASE_REF ASSEMBLED_DIRECTORY
+```
+
+Use the dated release ref, such as `release/v0.2.3` or
+`nightly/20261116092300.gabcdef123456`. The test app trusts only the
+configured certificate at that loopback origin. The production packaging
+jobs use the GitHub Releases feed.
+
+Check same-channel offers, a same-core nightly, rejection of another
+release’s signature, dismissal, retry, and restart with both compatible and
+setup-requiring workspaces. Keep production keys and the installed workspace
+outside rehearsals.
+
 ### Desktop packaging and rehearsal
 
 Stable releases, release candidates, and nightlies require both the Apple Silicon

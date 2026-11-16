@@ -9397,6 +9397,23 @@
         ],
         "type": "object"
       },
+      "FieldEdit_bool": {
+        "additionalProperties": false,
+        "description": "One proposed change and the saved value observed when editing began.",
+        "properties": {
+          "expected": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected",
+          "value"
+        ],
+        "type": "object"
+      },
       "FieldEdit_i64": {
         "additionalProperties": false,
         "description": "One proposed change and the saved value observed when editing began.",
@@ -16378,6 +16395,9 @@
       },
       "SavedListSummaryView": {
         "properties": {
+          "archived": {
+            "type": "boolean"
+          },
           "created_at": {
             "type": "string"
           },
@@ -16413,6 +16433,7 @@
           "slug",
           "name",
           "tags",
+          "archived",
           "item_count",
           "created_at",
           "updated_at"
@@ -19651,6 +19672,9 @@
       "UpdateSavedListRequest": {
         "additionalProperties": false,
         "properties": {
+          "archived": {
+            "$ref": "#/components/schemas/FieldEdit_bool"
+          },
           "description": {
             "$ref": "#/components/schemas/FieldEdit_Option_String"
           },
@@ -23291,6 +23315,17 @@
     "/api/lists": {
       "get": {
         "operationId": "savedLists",
+        "parameters": [
+          {
+            "description": "Include archived lists",
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {

@@ -40,6 +40,11 @@ note from a selected list item's reader. In both fields, **Write** accepts
 Markdown and **Preview** shows the styled result before saving. Use **Insert
 record link** or type `[[` to search for an Atlas record and insert a link.
 
+When you're done with a list for now, open **Edit list**, check **Archived** and
+save. Archived lists are hidden from Lists and the **Add to list** picker. Turn
+on **Show archived** in Lists or follow the list's existing link to open it.
+Clear **Archived** and save to put the list back in the default view.
+
 ## Prepare and run an encounter
 
 Add a creature or hazard with **Add to list or encounter**, choosing an existing

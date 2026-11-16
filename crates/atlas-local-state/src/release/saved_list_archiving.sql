@@ -1,0 +1,2 @@
+ALTER TABLE saved_lists
+ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1));

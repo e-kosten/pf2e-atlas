@@ -52,6 +52,8 @@ function Get-DesktopCrt {
     throw 'Locate the Visual C++ v143 x64 redistributable and set VCToolsRedistDir to its version folder.'
 }
 
+$previousDesktopRelease = $env:ATLAS_DESKTOP_RELEASE
+$previousWorkspaceSchema = $env:ATLAS_WORKSPACE_SCHEMA
 $previousTargetDir = $env:CARGO_TARGET_DIR
 $previousRustFlags = $env:CARGO_ENCODED_RUSTFLAGS
 Push-Location $root
@@ -92,6 +94,11 @@ try {
         $config = Join-Path $PSScriptRoot '.generated/windows-release.json'
         @{ version = $Version } | ConvertTo-Json -Compress | Set-Content -LiteralPath $config -Encoding ascii
         $arguments += @('--config', $config)
+        if ($env:ATLAS_UPDATER_PUBLIC_KEY) {
+            $env:ATLAS_DESKTOP_RELEASE = $Version
+            $env:ATLAS_WORKSPACE_SCHEMA = node ./updater-package.mjs compatibility "v$Version" $PackagedCli "$OutputInstaller.compatibility.json"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read the bundled Atlas update compatibility.' }
+        }
     }
     Invoke-BuildStep './node_modules/.bin/tauri.cmd' ($arguments + @('--') + $cargoOptions)
     if ($release) {
@@ -102,5 +109,7 @@ try {
 finally {
     $env:CARGO_ENCODED_RUSTFLAGS = $previousRustFlags
     $env:CARGO_TARGET_DIR = $previousTargetDir
+    $env:ATLAS_DESKTOP_RELEASE = $previousDesktopRelease
+    $env:ATLAS_WORKSPACE_SCHEMA = $previousWorkspaceSchema
     Pop-Location
 }

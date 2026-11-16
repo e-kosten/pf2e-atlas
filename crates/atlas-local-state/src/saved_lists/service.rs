@@ -96,6 +96,7 @@ impl SavedListsWrite<'_> {
                 && list.slug == current.slug
                 && list.name == current.name
                 && list.description == current.description
+                && list.archived == current.archived
             {
                 return Ok(Some(current));
             }
@@ -128,6 +129,7 @@ impl SavedListsWrite<'_> {
                             name: import.name,
                             description: import.description,
                             tags: Some(import.tags),
+                            archived: existing.archived,
                         },
                     )?;
                     existing.list_key
@@ -242,9 +244,9 @@ fn normalize_tags(tags: Vec<String>) -> Vec<String> {
 }
 
 impl<'a> SavedListsRead<'a> {
-    pub fn list(&self) -> LocalStateResult<Vec<SavedList>> {
+    pub fn list(&self, include_archived: bool) -> LocalStateResult<Vec<SavedList>> {
         let transaction = self.connection;
-        let result = storage::list(transaction, self.owner_id)?;
+        let result = storage::list(transaction, self.owner_id, include_archived)?;
 
         Ok(result)
     }

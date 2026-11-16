@@ -147,13 +147,21 @@ it("uses existing tag normalization and ordinary index parameters", () => {
     query: " castle ",
     include: [" Prep ", "prep", "Alpha"],
     exclude: [" old "],
+    includeArchived: true,
   }).search;
-  expect(search).toEqual({ q: "castle", tag: ["Alpha", "Prep"], exclude_tag: ["old"] });
+  expect(search).toEqual({
+    q: "castle",
+    tag: ["Alpha", "Prep"],
+    exclude_tag: ["old"],
+    include_archived: "true",
+  });
   expect(listIndexSearch(search)).toEqual({
     query: "castle",
     include: ["Alpha", "Prep"],
     exclude: ["old"],
+    includeArchived: true,
   });
+  expect(listIndexSearch({}).includeArchived).toBe(false);
   expect(encountersDestination({ view: "active" }).search).toEqual({});
   expect(encounterIndexSearch({ view: "archived" })).toEqual({ view: "archived" });
   expect(() => canonicalRouteSearch("encounters", { view: "other" })).toThrow(

@@ -2,7 +2,16 @@ name: release build check
 
 on:
   workflow_call:
+    secrets:
+      atlas-updater-private-key:
+        required: false
+      atlas-updater-password:
+        required: false
     inputs:
+      production-updater:
+        description: Sign desktop updates with the production updater key
+        type: boolean
+        default: false
       tag:
         required: true
         type: string
@@ -409,16 +418,33 @@ jobs:
             target/distrib/atlas-cli*-${{ matrix.target }}.*
             target/distrib/cli-only-${{ matrix.target }}.json
           if-no-files-found: error
+      - name: Prepare desktop updater build
+        if: matrix.variant == 'full' && (matrix.target == 'aarch64-apple-darwin' || matrix.target == 'x86_64-pc-windows-msvc')
+        shell: bash
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          ATLAS_UPDATER_SIGNING_MODE: ${{ inputs.production-updater && 'production' || 'rehearsal' }}
+          ATLAS_UPDATER_PUBLIC_KEY: ${{ vars.ATLAS_UPDATER_PUBLIC_KEY }}
+        run: |
+          npm --prefix desktop ci
+          node desktop/updater-package.mjs prepare "$TAG" "$RUNNER_TEMP" "$GITHUB_ENV"
       - name: Build and verify macOS desktop DMG
         if: matrix.target == 'aarch64-apple-darwin' && matrix.variant == 'full'
         shell: bash
         env:
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          npm --prefix desktop ci
           sh desktop/bundle-release-macos.sh "$TAG" "$GITHUB_RUN_ID" \
             target/distrib/atlas-cli-aarch64-apple-darwin.tar.xz \
             target/distrib/atlas-desktop-aarch64-apple-darwin.dmg
+      - name: Sign macOS desktop update
+        if: matrix.target == 'aarch64-apple-darwin' && matrix.variant == 'full' && !contains(needs.prepare.outputs.tag, '-rc.')
+        shell: bash
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.atlas-updater-private-key }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.atlas-updater-password }}
+        run: node desktop/updater-package.mjs sign "$TAG" target/distrib/atlas-desktop-aarch64-apple-darwin.app.tar.gz
       - name: Upload macOS desktop DMG
         if: matrix.target == 'aarch64-apple-darwin' && matrix.variant == 'full'
         uses: actions/upload-artifact@v7
@@ -427,6 +453,7 @@ jobs:
           path: |
             target/distrib/atlas-desktop-aarch64-apple-darwin.dmg
             target/distrib/atlas-desktop-aarch64-apple-darwin.dmg.receipt.json
+            target/distrib/atlas-desktop-aarch64-apple-darwin.app.tar.gz*
           if-no-files-found: error
       - name: Build and verify Windows desktop installer
         if: matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full'
@@ -436,7 +463,6 @@ jobs:
           EXPECTED_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          npm --prefix desktop ci
           $cli = @(Get-ChildItem target/package-smoke -Filter atlas.exe -File -Recurse)
           if ($cli.Count -ne 1) { throw 'Expected one executable from the full CLI archive.' }
           $installer = 'target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe'
@@ -448,6 +474,14 @@ jobs:
             archive = (Get-FileHash target/distrib/atlas-cli-x86_64-pc-windows-msvc.zip).Hash.ToLowerInvariant()
             installer = (Get-FileHash $installer).Hash.ToLowerInvariant()
           } | ConvertTo-Json | Set-Content -LiteralPath "$installer.receipt.json" -Encoding ascii
+      - name: Sign Windows desktop update
+        if: matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full' && !contains(needs.prepare.outputs.tag, '-rc.')
+        shell: bash
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.atlas-updater-private-key }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.atlas-updater-password }}
+        run: node desktop/updater-package.mjs sign "$TAG" target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe
       - name: Upload Windows desktop installer
         if: matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full'
         uses: actions/upload-artifact@v7
@@ -457,6 +491,8 @@ jobs:
           path: |
             target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe
             target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.receipt.json
+            target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.sig
+            target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.compatibility.json
           if-no-files-found: error
 
   assemble:
@@ -521,6 +557,12 @@ jobs:
           dist manifest --artifacts local --tag "$TAG" --allow-dirty --no-local-paths --output-format json > dist-manifest.json
           node dev-tools/release/dist/src/cli/prune-dist-manifest.js dist-manifest.json target/distrib
           mv dist-manifest.json target/distrib/dist-manifest.json
+      - name: Assemble desktop update manifest
+        if: ${{ !contains(needs.prepare.outputs.tag, '-rc.') }}
+        shell: bash
+        run: |
+          node dev-tools/release/dist/src/cli/generate-desktop-updater.js "$TAG" target/distrib
+          rm target/distrib/atlas-desktop-*.compatibility.json
       - name: Generate manifest and checksums
         shell: bash
         run: node dev-tools/release/dist/src/cli/generate-release-manifest.js "$TAG" target/distrib

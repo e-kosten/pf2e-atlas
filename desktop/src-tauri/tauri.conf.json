@@ -19,6 +19,7 @@
     "icon": ["icons/icon.png", "icons/Atlas.icns", "icons/Atlas.icon"]
   },
   "plugins": {
+    "updater": { "pubkey": "" },
     "deep-link": { "desktop": { "schemes": ["pf2e-atlas"] } }
   }
 }

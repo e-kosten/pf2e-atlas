@@ -252,6 +252,77 @@ describe("list views", () => {
     await waitFor(() => expect(opener).toHaveFocus());
   });
 
+  it.each([true, false])(
+    "keeps confirmed archive status %s across cached list views after a failed refresh",
+    async (archived) => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const wrapper = queryClientWrapper(client);
+      const detail = savedListDetailFixture();
+      detail.list.archived = !archived;
+      const other = savedListIndexFixture().lists[1];
+      const all = { lists: [other, detail.list] };
+      const active = { lists: archived ? [other, detail.list] : [other] };
+      client.setQueryData(["saved-lists"], active);
+      client.setQueryData(["saved-lists", "all"], all);
+      client.setQueryData(["saved-list", detail.list.slug], detail);
+      apiMocks.getSavedLists.mockRejectedValue(new Error("Index unavailable"));
+      const confirmed = {
+        ...detail.list,
+        archived,
+        updated_at: "2026-01-04T00:00:00Z",
+      };
+      apiMocks.updateSavedList.mockResolvedValue({ list: confirmed });
+      const onClose = vi.fn();
+      const editor = render(
+        <EditListModal
+          listRef={detail.list.list_key}
+          initialDetail={detail}
+          open
+          onClose={onClose}
+          onDeleted={vi.fn()}
+        />,
+        { wrapper },
+      );
+
+      let completeStaleRead!: (data: SavedListIndexView) => void;
+      const stale = new Promise<SavedListIndexView>((resolve) => {
+        completeStaleRead = resolve;
+      });
+      const pending = client
+        .fetchQuery({ queryKey: ["saved-lists"], queryFn: () => stale })
+        .catch(() => undefined);
+
+      fireEvent.click(screen.getByRole("checkbox", { name: "Archived" }));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(onClose).toHaveBeenCalledWith("research"));
+      completeStaleRead(active);
+      await pending;
+      expect(apiMocks.updateSavedList).toHaveBeenCalledWith("list_research", {
+        archived: { expected: !archived, value: archived },
+      });
+      expect(client.getQueryData(["saved-lists", "all"])).toEqual({
+        lists: [confirmed, other],
+      });
+      expect(client.getQueryData(["saved-lists"])).toEqual({
+        lists: archived ? [other] : [confirmed, other],
+      });
+      expect(client.getQueryData(["saved-list", detail.list.slug])).toEqual({
+        ...detail,
+        list: confirmed,
+      });
+
+      editor.unmount();
+      render(<AddToRecordButton recordKey="actions:testAction1" />, { wrapper });
+      fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+      const picker = await screen.findByRole("combobox", { name: "Saved list" });
+      fireEvent.mouseDown(picker);
+      await waitFor(() => expect(picker).toHaveAttribute("aria-expanded", "true"));
+      expect(await screen.findByText("Encounters")).toBeInTheDocument();
+      if (archived) expect(screen.queryByText("Research")).not.toBeInTheDocument();
+      else expect(screen.getByText("Research")).toBeInTheDocument();
+    },
+  );
+
   it.each(["arc-one", "constructor"])(
     "filters saved-list index rows by the literal tag %s",
     async (tag) => {
@@ -453,14 +524,14 @@ describe("list views", () => {
     });
     const name = await screen.findByRole("textbox", { name: "Name" });
     fireEvent.change(name, { target: { value: "Unsaved metadata" } });
-    fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     const confirmation = await screen.findByRole("dialog", {
       name: "Delete Research?",
     });
     fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(confirmation).not.toBeVisible());
     expect(apiMocks.deleteSavedList).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete list" }));
     await waitFor(() => expect(apiMocks.deleteSavedList).toHaveBeenCalledOnce());
     expect(
@@ -1536,7 +1607,7 @@ describe("list views", () => {
     );
 
     await screen.findByDisplayValue("Research");
-    fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(apiMocks.deleteSavedList).not.toHaveBeenCalled();
     fireEvent.click(await screen.findByRole("button", { name: "Delete list" }));
 
@@ -1815,6 +1886,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Research",
         description: "Campaign prep",
         tags: ["arc-one", "boss"],
+        archived: false,
         item_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
@@ -1825,6 +1897,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Encounters",
         description: "Fight prep",
         tags: ["arc-two"],
+        archived: false,
         item_count: 0,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-03T00:00:00Z",

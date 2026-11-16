@@ -40,6 +40,12 @@ pub struct ValidatedWorkspace {
 impl SavedWorkspace {
     /// Capture every owner from an already admitted read snapshot.
     pub fn capture(db: &Connection) -> LocalStateResult<Self> {
+        // The upgrade backup reads the authenticated schema before the migration runs.
+        let has_archive_column = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('saved_lists') WHERE name = 'archived')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )?;
         let owners = rows(
             db,
             "SELECT id,principal_key,name FROM principals ORDER BY principal_key",
@@ -51,7 +57,7 @@ impl SavedWorkspace {
         let owners = owners
             .into_iter()
             .map(|(id, key, name)| {
-                let lists = List::capture(db, id)?;
+                let lists = List::capture(db, id, has_archive_column)?;
                 let encounters = RecoveryEncounter::capture_all(db, id)?;
                 keys.extend(lists.iter().flat_map(List::record_keys).map(str::to_owned));
                 markdown_keys.extend(
@@ -96,6 +102,12 @@ impl SavedWorkspace {
             references,
             condition_floor: condition_floor(db)?,
         })
+    }
+
+    pub fn has_archived_lists(&self) -> bool {
+        self.owners
+            .iter()
+            .any(|owner| owner.lists.iter().any(List::is_archived))
     }
 
     pub fn validate(self) -> LocalStateResult<ValidatedWorkspace> {

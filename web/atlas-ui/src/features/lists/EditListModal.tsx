@@ -1,13 +1,12 @@
 import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Select, Space } from "antd";
+import { Button, Checkbox, Form, Input, Select, Space } from "antd";
 import { Trash2 } from "lucide-react";
 import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
 import type {
   SavedListDetailView,
-  SavedListIndexView,
   SavedListSummaryView,
   UpdateSavedListRequest,
 } from "../../generated/atlas";
@@ -15,7 +14,11 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { SavedEditConflictReview } from "../../shared/feedback/SavedEditConflictReview";
 import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
 import { normalizeOptionalText, normalizeTags, savedListTagOptions } from "./listUtils";
-import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
+import {
+  invalidateSavedListQueries,
+  updateSavedListIndexes,
+  useSavedLists,
+} from "./savedListQueries";
 import { formatDate } from "../../shared/ui/formatDate";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
@@ -33,15 +36,17 @@ type EditListFormValues = {
   name: string;
   description: string;
   tags: string[];
+  archived: boolean;
 };
 
-type Edits = Pick<UpdateSavedListRequest, "name" | "description" | "tags">;
+type Edits = Pick<UpdateSavedListRequest, "name" | "description" | "tags" | "archived">;
 type Field = keyof Edits;
-const fields = ["name", "description", "tags"] as const;
+const fields = ["name", "description", "tags", "archived"] as const;
 const labels: Record<Field, string> = {
   name: "Name",
   description: "Description",
   tags: "Tags",
+  archived: "Archive status",
 };
 
 type Review = {
@@ -88,7 +93,7 @@ function ListEditor({
   const formId = useId();
   const [form] = Form.useForm<EditListFormValues>();
   const client = useQueryClient();
-  const lists = useSavedLists();
+  const lists = useSavedLists({ includeArchived: true });
   const [edits, setEdits] = useState<Edits>({});
   const [review, setReview] = useState<Review>();
   const shown = useRef(saved);
@@ -96,6 +101,7 @@ function ListEditor({
   const nameDirty = !!edits.name;
   const descriptionDirty = !!edits.description;
   const tagsDirty = !!edits.tags;
+  const archiveDirty = !!edits.archived;
   useLayoutEffect(() => {
     const previous = shown.current;
     shown.current = {
@@ -103,13 +109,15 @@ function ListEditor({
       name: nameDirty ? previous.name : saved.name,
       description: descriptionDirty ? previous.description : saved.description,
       tags: tagsDirty ? previous.tags : saved.tags,
+      archived: archiveDirty ? previous.archived : saved.archived,
     };
     form.setFieldsValue({
       ...(!nameDirty && { name: saved.name }),
       ...(!descriptionDirty && { description: saved.description ?? "" }),
       ...(!tagsDirty && { tags: saved.tags }),
+      ...(!archiveDirty && { archived: saved.archived }),
     });
-  }, [descriptionDirty, form, nameDirty, saved, tagsDirty]);
+  }, [archiveDirty, descriptionDirty, form, nameDirty, saved, tagsDirty]);
   const tagOptions = useMemo(
     () =>
       savedListTagOptions(lists.data?.lists ?? []).map((tag) => ({
@@ -144,18 +152,18 @@ function ListEditor({
     onSettled: () => {
       saving.current = false;
     },
-    onSuccess: (view) => {
-      // Show the confirmed settings even if a background read of the origin fails.
-      client.setQueryData<SavedListIndexView>(
-        ["saved-lists"],
-        (current) =>
-          current && {
-            ...current,
-            lists: current.lists.map((list) =>
-              list.list_key === view.list.list_key ? view.list : list,
-            ),
-          },
-      );
+    onSuccess: async (view) => {
+      // Keep confirmed settings visible even if the following refresh fails.
+      await Promise.all([
+        client.cancelQueries({ queryKey: ["saved-lists"] }),
+        client.cancelQueries({
+          queryKey: ["saved-list"],
+          predicate: ({ state }) =>
+            (state.data as SavedListDetailView | undefined)?.list?.list_key ===
+            view.list.list_key,
+        }),
+      ]);
+      updateSavedListIndexes(client, view.list);
       client.setQueriesData<SavedListDetailView>(
         { queryKey: ["saved-list"] },
         (current) =>
@@ -198,6 +206,13 @@ function ListEditor({
         const value = normalizeTags(changes.tags);
         next.tags = sameTags(value, expected) ? undefined : { expected, value };
       }
+      if (changes.archived !== undefined) {
+        const expected = previous.archived?.expected ?? baseline.archived;
+        next.archived =
+          changes.archived === expected
+            ? undefined
+            : { expected, value: changes.archived };
+      }
       return next;
     });
   }
@@ -218,12 +233,18 @@ function ListEditor({
           useSaved || !edit || edit.value === expected
             ? undefined
             : { ...edit, expected };
-      } else {
+      } else if (field === "tags") {
         const edit = previous.tags;
         next.tags =
           useSaved || !edit || sameTags(edit.value, fresh.tags)
             ? undefined
             : { ...edit, expected: fresh.tags };
+      } else {
+        const edit = previous.archived;
+        next.archived =
+          useSaved || !edit || edit.value === fresh.archived
+            ? undefined
+            : { ...edit, expected: fresh.archived };
       }
       return next;
     });
@@ -252,7 +273,7 @@ function ListEditor({
       onCancel={() => close()}
       afterClose={afterClose}
       confirmDiscard={{
-        when: () => nameDirty || descriptionDirty || tagsDirty,
+        when: () => nameDirty || descriptionDirty || tagsDirty || archiveDirty,
         onDiscard: () => close(),
       }}
       confirmLoading={pending}
@@ -261,18 +282,33 @@ function ListEditor({
       mask={{ closable: !pending }}
       cancelButtonProps={{ disabled: pending }}
       footer={(_, { CancelBtn }) => (
-        <Space wrap>
-          <CancelBtn />
-          <Button
-            htmlType="submit"
-            form={formId}
-            loading={update.isPending}
-            disabled={disabled || !!review}
-            type="primary"
+        <div className="list-settings__footer">
+          <DangerActionButton
+            confirmTitle={`Delete ${saved.name}?`}
+            confirmContent="This permanently deletes the list and its saved membership."
+            confirmOkText="Delete list"
+            icon={<Trash2 size={16} />}
+            disabled={disabled}
+            loading={deleteListMutation.isPending}
+            onConfirm={() =>
+              deleteListMutation.mutateAsync(undefined, { onSuccess: onDeleted })
+            }
           >
-            Save
-          </Button>
-        </Space>
+            Delete
+          </DangerActionButton>
+          <Space className="list-settings__save-actions" wrap>
+            <CancelBtn />
+            <Button
+              htmlType="submit"
+              form={formId}
+              loading={update.isPending}
+              disabled={disabled || !!review}
+              type="primary"
+            >
+              Save
+            </Button>
+          </Space>
+        </div>
       )}
     >
       <>
@@ -291,6 +327,7 @@ function ListEditor({
                 ...(edits.name && { name: edits.name }),
                 ...(edits.description && { description: edits.description }),
                 ...(edits.tags && { tags: edits.tags }),
+                ...(edits.archived && { archived: edits.archived }),
               },
               {
                 onSuccess: (view) => close(view.list.slug),
@@ -321,6 +358,9 @@ function ListEditor({
               options={tagOptions}
               tokenSeparators={[","]}
             />
+          </Form.Item>
+          <Form.Item name="archived" valuePropName="checked">
+            <Checkbox>Archived</Checkbox>
           </Form.Item>
           {review && (
             <SavedEditConflictReview
@@ -357,21 +397,6 @@ function ListEditor({
             <dd>{formatDate(saved.updated_at)}</dd>
           </div>
         </dl>
-        <div className="list-settings__danger">
-          <DangerActionButton
-            confirmTitle={`Delete ${saved.name}?`}
-            confirmContent="This permanently deletes the list and its saved membership."
-            confirmOkText="Delete list"
-            icon={<Trash2 size={16} />}
-            disabled={disabled}
-            loading={deleteListMutation.isPending}
-            onConfirm={() =>
-              deleteListMutation.mutateAsync(undefined, { onSuccess: onDeleted })
-            }
-          >
-            Delete List
-          </DangerActionButton>
-        </div>
         {!review && update.error && (
           <ErrorNotice
             error={update.error}
@@ -394,6 +419,7 @@ function ListEditor({
   );
 }
 
-function displaySetting(value: string | string[] | null | undefined): string {
+function displaySetting(value: boolean | string | string[] | null | undefined): string {
+  if (typeof value === "boolean") return value ? "Archived" : "Active";
   return (Array.isArray(value) ? value.join(", ") : value) || "None";
 }

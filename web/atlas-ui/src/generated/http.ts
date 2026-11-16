@@ -4059,6 +4059,14 @@ export interface FieldEditVecString {
 /**
  * One proposed change and the saved value observed when editing began.
  */
+export interface FieldEditBool {
+  expected: boolean;
+  value: boolean;
+}
+
+/**
+ * One proposed change and the saved value observed when editing began.
+ */
 export interface FieldEditI64 {
   expected: number;
   value: number;
@@ -5047,6 +5055,7 @@ export interface SavedListItemView {
 }
 
 export interface SavedListSummaryView {
+  archived: boolean;
   created_at: string;
   description?: string;
   /** @minimum 0 */
@@ -5568,6 +5577,7 @@ export interface UpdateSavedListItemNoteRequest {
 }
 
 export interface UpdateSavedListRequest {
+  archived?: FieldEditBool;
   description?: FieldEditOptionString;
   name?: FieldEditString;
   slug?: FieldEditString;
@@ -5590,6 +5600,11 @@ export type ConditionLifecycleActionsParams = {
 export type PersistentDamageReviewParams = {
   participant_key?: string;
   boundary_key?: string;
+};
+
+export type SavedListsParams = {
+  /** Include archived lists */
+  include_archived?: boolean;
 };
 
 export const getHandshakeUrl = () => {
@@ -7560,17 +7575,24 @@ return fetchGenerated<FilterValueListView>(getDiscoverFilterValuesUrl(),
 
 
 
-export const getSavedListsUrl = () => {
+export const getSavedListsUrl = (params?: SavedListsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/lists`
+  return stringifiedParams.length > 0 ? `/api/lists?${stringifiedParams}` : `/api/lists`
 }
 
-export const savedLists = async ( options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListIndexView> => {
+export const savedLists = async (params?: SavedListsParams, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListIndexView> => {
 
-  return fetchGenerated<SavedListIndexView>(getSavedListsUrl(),
+  return fetchGenerated<SavedListIndexView>(getSavedListsUrl(params),
   {
     ...options,
     method: 'GET'

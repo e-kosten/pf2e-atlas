@@ -49,7 +49,11 @@ jobs:
   package:
     needs: validate-tag
     uses: ./.github/workflows/release-build-check.yml
+    secrets:
+      atlas-updater-private-key: ${{ secrets.ATLAS_UPDATER_PRIVATE_KEY }}
+      atlas-updater-password: ${{ secrets.ATLAS_UPDATER_PASSWORD }}
     with:
+      production-updater: true
       tag: ${{ needs.validate-tag.outputs.package-tag }}
       source-ref: ${{ github.sha }}
 

@@ -13,6 +13,7 @@ pub struct SavedListSummaryView {
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub description: Option<String>,
     pub tags: Vec<String>,
+    pub archived: bool,
     pub item_count: u64,
     pub created_at: String,
     pub updated_at: String,
@@ -76,6 +77,13 @@ pub struct UpdateSavedListRequest {
     )]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub tags: Option<crate::FieldEdit<Vec<String>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub archived: Option<crate::FieldEdit<bool>>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -345,6 +353,7 @@ mod tests {
             name: "Reference".into(),
             description: None,
             tags: vec![],
+            archived: false,
             item_count: 2,
             created_at: "2026-10-10".into(),
             updated_at: "2026-10-10".into(),

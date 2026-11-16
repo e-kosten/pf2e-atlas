@@ -67,7 +67,7 @@ fn list_note_save_merges_with_reorder_and_unrelated_edits() {
         .update_saved_list_item_note(&key, SECOND, note_patch(None, Some("Second note")))
         .unwrap();
     worker
-        .edit_saved_list_metadata(&key, Some("renamed".into()), None, None, None)
+        .edit_saved_list_metadata(&key, Some("renamed".into()), None, None, None, None)
         .unwrap();
     let saved = worker
         .update_saved_list_item_note(&key, FIRST, draft)
@@ -175,6 +175,7 @@ fn list_metadata_saves_merge_disjoint_fields_and_reject_partial_conflicts() {
         name: None,
         description: None,
         tags: None,
+        archived: None,
     };
     worker
         .update_saved_list(

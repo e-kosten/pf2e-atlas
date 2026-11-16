@@ -146,6 +146,7 @@ export function listsDestination(input: ListIndexInput = {}) {
       q: input.query,
       tag: input.include,
       exclude_tag: input.exclude,
+      include_archived: input.includeArchived ? "true" : undefined,
     }),
   });
 }

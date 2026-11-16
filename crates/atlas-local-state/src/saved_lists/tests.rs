@@ -45,6 +45,21 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
         second.update_item_note(&original.list.list_key, "actions:first", Some("Changed")),
         Err(LocalStateError::ListNotFound(_))
     ));
+    let archived = second
+        .update(UpdateSavedList {
+            list_key: own.list_key.clone(),
+            slug: own.slug.clone(),
+            name: own.name.clone(),
+            description: own.description.clone(),
+            tags: None,
+            archived: true,
+        })?
+        .expect("owner can archive the list");
+    assert!(archived.archived);
+    assert!(second.list(false)?.is_empty());
+    assert_eq!(first.list(false)?, vec![original.list.clone()]);
+    assert!(first.get(&archived.list_key)?.is_none());
+
     let replaced = second.import(ImportSavedList {
         slug: "supplies".into(),
         name: "Second supplies".into(),
@@ -54,7 +69,8 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
         items: vec![],
     })?;
     assert_eq!(replaced.list.list_key, own.list_key);
-    assert_eq!(second.list()?, vec![replaced.list]);
+    assert!(replaced.list.archived);
+    assert_eq!(second.list(true)?, vec![replaced.list]);
     assert_eq!(first.get_with_items("supplies")?.as_ref(), Some(&original));
 
     let membership = second.bind_record_membership(&original.list.list_key)?;
@@ -89,7 +105,7 @@ fn saved_lists_order_by_recent_changes_with_slug_ties() -> Result<(), Box<dyn st
     )?;
     assert_eq!(
         lists
-            .list()?
+            .list(true)?
             .iter()
             .map(|list| list.slug.as_str())
             .collect::<Vec<_>>(),
@@ -98,13 +114,13 @@ fn saved_lists_order_by_recent_changes_with_slug_ties() -> Result<(), Box<dyn st
     lists.update_item_note("zulu", "actions:first", Some("Prepare this next"))?;
     assert_eq!(
         lists
-            .list()?
+            .list(true)?
             .iter()
             .map(|list| list.slug.as_str())
             .collect::<Vec<_>>(),
         ["zulu", "middle", "alpha"]
     );
-    let before_duplicate = lists.list()?;
+    let before_duplicate = lists.list(true)?;
     assert_eq!(
         lists.add_resolved_item(
             "alpha",
@@ -112,7 +128,7 @@ fn saved_lists_order_by_recent_changes_with_slug_ties() -> Result<(), Box<dyn st
         )?,
         AddSavedListItemOutcome::AlreadyPresent
     );
-    assert_eq!(lists.list()?, before_duplicate);
+    assert_eq!(lists.list(true)?, before_duplicate);
     transaction.commit()?;
     Ok(())
 }
@@ -204,6 +220,7 @@ fn failed_tag_insert_rolls_back_creation_and_metadata_replacement()
                 name: "Changed".into(),
                 description: None,
                 tags: Some(vec!["first".into(), "reject".into()]),
+                archived: true,
             })
             .is_err()
     );
@@ -421,6 +438,7 @@ fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std:
             name: "New Name".to_string(),
             description: Some("New description".to_string()),
             tags: Some(vec!["updated".to_string()]),
+            archived: false,
         })?
         .expect("list should update");
 
@@ -463,6 +481,7 @@ fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>
         name: "Conflict".to_string(),
         description: None,
         tags: Some(vec![]),
+        archived: false,
     });
     assert!(matches!(result, Err(LocalStateError::ListAlreadyExists(_))));
     Ok(())
