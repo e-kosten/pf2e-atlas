@@ -33,6 +33,7 @@ export function InitiativeEntryEditor({
   return (
     <EncounterModal
       open
+      width={800}
       title={initial ? "Edit initiative entry" : "Add initiative entry"}
       okText={initial ? "Save" : "Add"}
       confirmLoading={disabled}
@@ -78,30 +79,32 @@ export function InitiativeEntryEditor({
         {!conflict && error && (
           <ErrorNotice error={error} title="Initiative entry could not be saved" />
         )}
-        <Form.Item
-          name="display_name"
-          label="Name"
-          rules={[{ required: true, whitespace: true }]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="initiative"
-          label="Initiative"
-          rules={[
-            { required: true },
-            {
-              type: "integer",
-              min: Number.MIN_SAFE_INTEGER,
-              max: Number.MAX_SAFE_INTEGER,
-              message: "Enter a whole number.",
-            },
-          ]}
-        >
-          <InputNumber />
-        </Form.Item>
+        <div className="initiative-entry-editor__fields">
+          <Form.Item
+            name="display_name"
+            label="Name"
+            rules={[{ required: true, whitespace: true }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="initiative"
+            label="Initiative"
+            rules={[
+              { required: true },
+              {
+                type: "integer",
+                min: Number.MIN_SAFE_INTEGER,
+                max: Number.MAX_SAFE_INTEGER,
+                message: "Enter a whole number.",
+              },
+            ]}
+          >
+            <InputNumber />
+          </Form.Item>
+        </div>
         <Form.Item name="note" label="Notes">
-          <MarkdownEditor disabled={disabled} />
+          <MarkdownEditor disabled={disabled} roomy />
         </Form.Item>
       </Form>
     </EncounterModal>

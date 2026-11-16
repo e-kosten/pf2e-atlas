@@ -1898,7 +1898,13 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
           ).toBeFocused();
           await page.keyboard.press("Tab");
           await expect(dialog.getByRole("radio", { name: "Write" })).toBeFocused();
-          for (const label of ["Heading", "Bold", "List", "Insert record link"]) {
+          for (const label of [
+            "Heading",
+            "Bold",
+            "Italic",
+            "List",
+            "Insert record link",
+          ]) {
             await page.keyboard.press("Tab");
             await expect(
               dialog.getByRole("button", { name: label, exact: true }),

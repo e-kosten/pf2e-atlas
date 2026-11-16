@@ -27,3 +27,29 @@ it("previews the same draft as styled Markdown and returns to the saved source",
   fireEvent.click(screen.getByText("Write"));
   expect(note).toHaveValue(source.replace("## Trigger", "### Trigger"));
 });
+
+it("disables matching emphasis at the selection and inserts italic on plain text", () => {
+  const source = "**Bold** and _italic_ and plain";
+  const change = vi.fn();
+  render(<MarkdownEditor label="Note" value={source} onChange={change} />);
+  const note = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Note" });
+  const bold = screen.getByRole("button", { name: "Bold" });
+  const italic = screen.getByRole("button", { name: "Italic" });
+  note.focus();
+
+  function select(start: number, end = start) {
+    note.setSelectionRange(start, end);
+    fireEvent.select(note);
+  }
+
+  select(3);
+  expect(bold).toBeDisabled();
+  expect(italic).toBeEnabled();
+  select(source.indexOf("italic"), source.indexOf("italic") + "italic".length);
+  expect(italic).toBeDisabled();
+  expect(bold).toBeEnabled();
+  select(source.indexOf("plain"), source.length);
+  expect(italic).toBeEnabled();
+  fireEvent.click(italic);
+  expect(change).toHaveBeenCalledWith("**Bold** and _italic_ and *plain*");
+});

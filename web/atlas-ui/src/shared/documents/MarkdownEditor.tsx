@@ -9,7 +9,8 @@ import {
   type GetRef,
 } from "antd";
 import { ChevronDown } from "lucide-react";
-import { useRef, useState, type RefObject } from "react";
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import { buildSearchRequest, DEFAULT_SEARCH_STATE } from "../filters/searchState";
 import { SearchPickerModal } from "../ui/pickers/SearchPickerModal";
 import { MarkdownDocument, markdownRecordLink } from "./MarkdownDocument";
@@ -23,6 +24,28 @@ const headingItems = Array.from({ length: 6 }, (_, index) => ({
 }));
 const headingMarker = /^#{1,6}(?:[ \t]+|$)/;
 
+type Emphasis = "strong" | "emphasis";
+
+type MarkdownNode = {
+  type: string;
+  position?: { start: { offset?: number }; end: { offset?: number } };
+  children?: MarkdownNode[];
+};
+
+function emphasisRanges(value: string) {
+  const ranges: Record<Emphasis, Selection[]> = { strong: [], emphasis: [] };
+  function visit({ type, position, children }: MarkdownNode) {
+    if (type === "strong" || type === "emphasis") {
+      const start = position?.start.offset;
+      const end = position?.end.offset;
+      if (start != null && end != null) ranges[type].push({ start, end });
+    }
+    children?.forEach(visit);
+  }
+  visit(fromMarkdown(value));
+  return ranges;
+}
+
 export function MarkdownEditor({
   value = "",
   onChange,
@@ -31,6 +54,7 @@ export function MarkdownEditor({
   disabled,
   readOnly,
   editorRef,
+  roomy = false,
 }: {
   value?: string;
   onChange?: (value: string) => void;
@@ -38,8 +62,14 @@ export function MarkdownEditor({
   label?: string;
   disabled?: boolean;
   readOnly?: boolean;
+  roomy?: boolean;
   editorRef?: RefObject<GetRef<typeof Input.TextArea> | null>;
 }) {
+  const [currentSelection, setCurrentSelection] = useState<Selection>({
+    start: value.length,
+    end: value.length,
+  });
+  const ranges = useMemo(() => emphasisRanges(value), [value]);
   const [mode, setMode] = useState<"Write" | "Preview">("Write");
   const [insertion, setInsertion] = useState<Selection | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
@@ -55,6 +85,7 @@ export function MarkdownEditor({
   }
 
   function selectRange(start: number, end = start) {
+    setCurrentSelection({ start, end });
     requestAnimationFrame(() => {
       const editor = nativeEditor();
       editor?.focus({ preventScroll: true });
@@ -70,8 +101,23 @@ export function MarkdownEditor({
     };
   }
 
-  function format(before: string, after = "") {
-    const { start, end } = selection();
+  function alreadyFormatted(kind: Emphasis, { start, end }: Selection) {
+    if (ranges[kind].some((range) => start < range.end && end > range.start))
+      return true;
+    if (start !== end) return false;
+    // Empty delimiter pairs have no CommonMark node until the author types.
+    const left = value.slice(0, start).match(/\*+$/)?.[0].length;
+    const right = value.slice(start).match(/^\*+/)?.[0].length;
+    const length = kind === "strong" ? 2 : 1;
+    return left === length && right === length;
+  }
+
+  function format(kind: Emphasis) {
+    const range = selection();
+    if (alreadyFormatted(kind, range)) return;
+    const { start, end } = range;
+    const before = kind === "strong" ? "**" : "*";
+    const after = before;
     onChange?.(
       value.slice(0, start) +
         before +
@@ -137,10 +183,18 @@ export function MarkdownEditor({
             <Button
               size="small"
               type="text"
-              disabled={locked}
-              onClick={() => format("**", "**")}
+              disabled={locked || alreadyFormatted("strong", currentSelection)}
+              onClick={() => format("strong")}
             >
               Bold
+            </Button>
+            <Button
+              size="small"
+              type="text"
+              disabled={locked || alreadyFormatted("emphasis", currentSelection)}
+              onClick={() => format("emphasis")}
+            >
+              Italic
             </Button>
             <Button
               size="small"
@@ -169,10 +223,29 @@ export function MarkdownEditor({
           value={value}
           disabled={disabled ?? componentDisabled}
           readOnly={readOnly}
-          autoSize={{ minRows: 3, maxRows: 10 }}
+          autoSize={roomy ? false : { minRows: 3, maxRows: 10 }}
+          style={
+            roomy
+              ? {
+                  height: "clamp(9rem, 40dvh, 28rem)",
+                  maxHeight: "60dvh",
+                  resize: "vertical",
+                }
+              : undefined
+          }
+          onSelect={({ currentTarget }) => {
+            setCurrentSelection({
+              start: currentTarget.selectionStart,
+              end: currentTarget.selectionEnd,
+            });
+          }}
           onChange={(event) => {
             const next = event.currentTarget.value;
             const caret = event.currentTarget.selectionStart;
+            setCurrentSelection({
+              start: caret,
+              end: event.currentTarget.selectionEnd,
+            });
             onChange?.(next);
             if (
               !locked &&

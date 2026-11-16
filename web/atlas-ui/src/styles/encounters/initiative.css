@@ -169,3 +169,9 @@
 .encounter-reference__entry-heading :is(h2, p) {
   margin-block: 0;
 }
+
+.initiative-entry-editor__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-group);
+}
