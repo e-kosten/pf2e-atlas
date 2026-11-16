@@ -117,9 +117,10 @@ build, and pass the disposable private key to
 `desktop/updater-package.mjs sign` through `TAURI_SIGNING_PRIVATE_KEY_PATH`
 and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. For test builds only, set
 `ATLAS_UPDATER_REHEARSAL_ROOT` to `https://127.0.0.1:5467/releases` and
-`ATLAS_UPDATER_REHEARSAL_CA` to the PEM text of a disposable TLS certificate
-for the loopback server. The TLS certificate needs an IP subject alt name
-for `127.0.0.1`. Start the local feed with the assembled newer release.
+`ATLAS_UPDATER_REHEARSAL_CA` to the PEM text of a disposable CA certificate.
+Use that CA to sign a separate TLS server certificate with an IP subject alt
+name for `127.0.0.1`. Start the local feed with the server key and certificate
+and the assembled newer release.
 
 ```sh
 node desktop/rehearse-updater.mjs 5467 TLS_KEY TLS_CERT RELEASE_REF ASSEMBLED_DIRECTORY
