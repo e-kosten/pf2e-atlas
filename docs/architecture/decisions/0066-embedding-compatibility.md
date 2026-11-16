@@ -35,10 +35,13 @@ ID when behavior is incompatible. Explicit `atlas setup` is the migration
 window for rebuilding an affected profile and may interrupt use of the app.
 See [dependency maintenance](../../development/dependencies.md).
 
-On macOS, EmbeddingGemma uses the CPU for indexing, queries and qualification.
-ONNX Runtime's automatic Core ML selection exceeded the hosted runner's
-memory budget on valid near-limit batches. The frozen-vector and predecessor
-query checks qualify the CPU path against the same numerical contract.
+On macOS, EmbeddingGemma and BGE Base use the CPU for indexing, queries and
+qualification. ONNX Runtime's automatic Core ML selection exceeded the
+hosted runner's memory budget on valid near-limit EmbeddingGemma batches.
+For BGE Base, CPU selection reduced peak memory and query latency and
+increased indexing throughput in a comparison on an M4 Max. The
+frozen-vector and predecessor query checks qualify the CPU path against the
+same numerical contract.
 
 ## Precomputed corpus embeddings
 
