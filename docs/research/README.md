@@ -8,6 +8,8 @@ For search conclusions and unresolved tradeoffs, start with the
 and ranked results; the [archive map](search-evaluation-handoff.md) locates the
 full local evidence. The [Similar evaluation summary](similarity-evaluation.md)
 records the stored-vector comparison and its limits.
+The [semantic-search heap study](semantic-search-heap/README.md) records the
+exact sqlite-vec prototype, its release benchmarks and when to revisit it.
 
 For the deferred authored-label workstream, start with [derived-tag research and
 history](derived-tags/README.md). It consolidates the Node implementation, local

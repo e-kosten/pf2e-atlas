@@ -1,0 +1,31 @@
+# Exact heap selection for semantic search
+
+**Decision in November 2026: retain the experiment and stop.** A local sqlite-vec prototype reduced uncached Fireball Hybrid latency by about 30% on both Atlas profiles and preserved exact results. A selective EmbeddingGemma query missed the release guard in two of six pairs. A targeted follow-up left that guard unresolved after Similar and located a large RSS difference before Similar ran. The work established a useful performance opportunity on broad cache misses. It did not establish a product change to ship.
+
+[Benchmarks and decision rules](benchmarks.md) · [Exact sqlite-vec 0.1.9 patch](exact-heap-patch.md)
+
+## What was tested
+
+The accepted cohorts used Atlas commit `a0846a22c940568e69e2e2ced6834bf1303ac690`, PF2e 8.7.0 source `52dfeee703b887237f5e454747bcae45b136f9af`, and the same private schema-43 corpus generation `a9474928b73e8cf89e84c5ed6990a838:14`. The managed refresh used compatible stored vectors and the published 8.6.1 base plus cumulative delta for each profile, with zero local inference. Each profile had 164,040 distinct semantic inputs and 165,284 occurrences. Release builds used Rust 1.100.0, Apple Clang 21 on arm64 macOS, sqlite-vec 0.1.9 and bundled SQLite through libsqlite3-sys 0.39.1. The A/B arms matched native compiler flags and normal features. The OS file cache was uncontrolled.
+
+1. **Stock profile.** Sixteen processes ran 304 operations. Fireball Hybrid/All selected across 164 chunks of 1,024 slots, with about 113 ms in the chunk selector. Selection accounted for about 30–32% of complete diagnostic wall time and cleared the sensitivity screen on both profiles. For the selective `fire` Hybrid/All spell filter, 4,532 inputs were eligible and selection took about 3.5 ms. Cache repeats and lexical controls issued zero native MATCH calls. The query preparation, candidate SQL, native traversal, hydration and scoring measurements had nested boundaries. Their times are not additive.
+2. **Exact heap A/B.** Twenty-four release processes ran 456 operations without phase hooks. Fireball was faster in all six pairs per profile. Median paired wall reductions were 30.79% on BGE Base and 29.54% on EmbeddingGemma. Selective EmbeddingGemma wall time increased by 1.16 ms at the paired median. Two exceedances left the guard unresolved. The whole-process EmbeddingGemma peak RSS difference was +709.4 MB at the paired median.
+3. **EmbeddingGemma workload follow-up.** Twenty-four release processes ran 168 operations. The same selective miss followed a distinct Hybrid warmup, either immediately or after default Similar for Ogre Warrior Core/All and Fireball Core/All in that order. Warmup-only passed 6/6 wall guards. After Similar passed 4/6, leaving the condition unresolved. The median process CPU interaction was +1.97 ms, positive in four of six rounds, below the predeclared +10 ms and five-positive-pair criterion. In processes assigned to Similar, the +5,548 MiB current RSS and +580 MiB peak RSS gaps were already present immediately after warmup. Current RSS later reversed sign. The conditions loaded different request lists before warmup, ran at different points in the schedule and did different amounts of work before the selective miss. These checkpoints establish when the gap was visible. The allocator or mapping responsible remains unknown.
+
+The earlier runs on Atlas commit `54dc2bd997477539fa0157006662774d67fcc3ac` informed the design and test cases. Two earlier timed A/B cohorts were excluded for competing builds. Their measurements are separate from the accepted cohorts above.
+
+## What exactness means here
+
+Finite distances use numeric ascending order and physical index descending for ties. This includes signed zeros, which compare equal while their original bits are preserved in downstream results. The heap reuses the caller's output buffer for at most `k` indices, uses constant additional scalar storage and makes no new allocation. The selected bitmap, cutoff membership, output length, untouched suffix and distance bits match stock. Classification reads the object bits of all distances, including masked entries. Any NaN or infinity uses the retained legacy selector. Cosine arithmetic, chunk merging and Atlas's candidate, scoring and cache policies were unchanged.
+
+Release and ASan/UBSan differential runs each exercised 124,180 direct cases and 4,500 merged chunks. The native fixture used macOS system SQLite and matched 290 cases and 117,456 rows. The Atlas probes used bundled SQLite. The two-profile untimed Atlas comparison matched 208 operations, 90 ordered native windows and 90 ordered occurrence windows, including distance bits. All 456 timed A/B outputs also matched. The Gemma follow-up verified 56 untimed and 168 timed results, with the same native window on both selective miss paths and no native calls on the corresponding repeated hits. Independent review checked the evidence and decisions for all three accepted cohorts.
+
+## When to revisit
+
+Start from a reproducible user-facing latency or memory-pressure issue on stock Atlas at the affected version and corpus. For broad uncached Hybrid latency, first check whether chunk selection still accounts for a material share of the request and revalidate exactness and selective controls before considering the patch. For first-query memory pressure, use identical warmup inputs to distinguish model initialization, first query inference and first native selection. Check VM mappings and allocator-backed memory before attributing the RSS difference.
+
+The patch is an archived diagnostic candidate. Atlas's dependency remains unchanged and the experiment produced no upstream submission.
+
+## Full evidence
+
+The research workstream's private `semantic-search-evidence.tar.gz` and companion `semantic-search-evidence.sha256.json` hold the checkout-local research materials. The archive contains frozen plans, scripts, manifests and per-process output in `scratch/current-main-reprofile/`, `scratch/heap-ab-current/` and `scratch/gemma-workload/`, as well as the earlier exploratory runs in `scratch/semantic-profile/` and `scratch/heap-prototype/`. The patch and benchmark tables in this directory are available from Git without the private archive.
