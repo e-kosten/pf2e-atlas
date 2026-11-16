@@ -162,6 +162,80 @@ test("short settings, party forms and browse workspaces show actions before focu
   }
 });
 
+test("archive and restore a list from its aligned settings dialog", async ({
+  page,
+}, info) => {
+  const slug = `archive-layout-${info.project.name}-${Date.now()}`;
+  const name = "Old campaign notes";
+  const { list } = await (
+    await page.request.post("/api/lists", { data: { slug, name, tags: ["past-arc"] } })
+  ).json();
+  try {
+    await page.goto("/lists");
+    const edit = page.getByRole("button", { name: `Edit ${name}`, exact: true });
+    await activate(edit, info);
+    const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
+    const archive = editor.getByRole("checkbox", { name: "Archived", exact: true });
+    const remove = editor.getByRole("button", { name: "Delete", exact: true });
+    const cancel = editor.getByRole("button", { name: "Cancel", exact: true });
+    const save = editor.getByRole("button", { name: "Save", exact: true });
+    const boxes = await Promise.all(
+      [remove, cancel, save].map((button) => button.boundingBox()),
+    );
+    const [left, middle, right] = boxes;
+    expect(left).not.toBeNull();
+    expect(middle).not.toBeNull();
+    expect(right).not.toBeNull();
+    if (page.viewportSize()!.width >= 380) {
+      expect(left!.y).toBeCloseTo(middle!.y, 0);
+      expect(middle!.y).toBeCloseTo(right!.y, 0);
+      expect(left!.x + left!.width).toBeLessThan(middle!.x);
+      expect(middle!.x + middle!.width).toBeLessThan(right!.x);
+    }
+    await insideViewport(page, save);
+    await info.attach("Edit list footer", {
+      body: await editor.screenshot(),
+      contentType: "image/png",
+    });
+
+    await archive.check();
+    await activate(save, info);
+    await expect(editor).toBeHidden();
+    await expect(edit).toBeHidden();
+    const show = page.getByRole("checkbox", { name: "Show archived", exact: true });
+    await expect(show).toBeFocused();
+    await show.check();
+    await expect(page.getByRole("row", { name: new RegExp(name) })).toContainText(
+      "Archived",
+    );
+
+    await page.reload();
+    await expect(show).toBeChecked();
+    await expect(edit).toBeVisible();
+    await page.goto(`/lists/${slug}`);
+    await expect(
+      page.getByRole("heading", { name: /Old campaign notes.*Archived/ }),
+    ).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "List actions", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit list", exact: true }),
+      info,
+    );
+    await expect(archive).toBeChecked();
+    await archive.uncheck();
+    await activate(save, info);
+    await expect(editor).toBeHidden();
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    await page.goto("/lists");
+    await expect(edit).toBeVisible();
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
 test("confirmations focus Cancel and hold their anchor through errors and viewport changes", async ({
   page,
 }, info) => {
@@ -182,7 +256,7 @@ test("confirmations focus Cancel and hold their anchor through errors and viewpo
       info,
     );
     const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
-    const trigger = editor.getByRole("button", { name: "Delete List", exact: true });
+    const trigger = editor.getByRole("button", { name: "Delete", exact: true });
     await activate(trigger, info);
     const dialog = page.getByRole("dialog", {
       name: "Delete Modal confirmation?",

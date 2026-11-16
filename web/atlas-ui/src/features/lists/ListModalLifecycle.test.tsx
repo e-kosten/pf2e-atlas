@@ -28,6 +28,7 @@ const lists = {
       name: "Review",
       description: null,
       tags: [],
+      archived: false,
       item_count: 0,
       created_at: "2026-01-01",
       updated_at: "2026-01-01",

@@ -252,7 +252,7 @@ mod tests {
             LocalStateRead::for_local(&read)
                 .unwrap()
                 .saved_lists()
-                .list()
+                .list(true)
                 .unwrap()
                 .is_empty()
         );

@@ -78,7 +78,7 @@ fn source_free_commands_work_in_empty_workspace_without_model_assets() {
             note: None,
         })
         .unwrap();
-    assert!(service.saved_lists().unwrap().lists.is_empty());
+    assert!(service.saved_lists(false).unwrap().lists.is_empty());
 }
 
 #[test]

@@ -416,7 +416,10 @@ mod tests {
                 retrieval_mode,
             })
             .unwrap();
-            assert_eq!(service.saved_lists().unwrap().lists[0].slug, "retained");
+            assert_eq!(
+                service.saved_lists(false).unwrap().lists[0].slug,
+                "retained"
+            );
             let readiness = service.readiness();
             assert!(readiness.workspace_error.is_none());
             assert_eq!(

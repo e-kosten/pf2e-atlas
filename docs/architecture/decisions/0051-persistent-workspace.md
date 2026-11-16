@@ -40,8 +40,8 @@ transaction.
 
 ### Release schema and migration admission
 
-Fresh workspaces apply the frozen schema 42 baseline and the schema 43
-migration. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
+through schema 44. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -60,6 +60,10 @@ table. Runtime reads it on the same admitted snapshot as the published profiles.
 A default change updates settings alone. A model membership change publishes the
 exact requested configuration, available vectors and preference in one reference
 transaction. Ordinary publication clears a removed preference at commit.
+
+Schema 44 adds the saved list archive flag. Existing lists start active. The
+flag affects ordinary list enumeration while keeping list identity and
+membership available to callers that address a list explicitly.
 
 A referenced-table reconstruction can opt in through its checksum-bound
 backfill contract. Storage suspends foreign keys for the whole pending migration
@@ -221,7 +225,11 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 The archive version starts at `1.0` and advances independently of the database
-schema. Bump the minor version for compatible additions, including new encounter
+schema. Capture emits `2.0` when the workspace contains an archived list, so a
+reader that cannot preserve its status rejects the archive before restore.
+Capture continues to emit `1.0` when all lists are active. It also uses `1.0`
+for pre-upgrade snapshots from before the archive flag existed. New readers
+treat lists in earlier backups as active. Bump the minor version for compatible additions, including new encounter
 statuses. Older readers can ignore optional data when doing so preserves saved
 behavior. Use a detectable behavioral value for new behavior that an older
 reader must reject before writing. Bump the major version for incompatible

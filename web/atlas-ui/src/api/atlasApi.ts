@@ -525,8 +525,10 @@ export async function removeEncounterParticipantCondition(
   );
 }
 
-export async function getSavedLists(): Promise<SavedListIndexView> {
-  return http.savedLists();
+export async function getSavedLists(
+  includeArchived = false,
+): Promise<SavedListIndexView> {
+  return http.savedLists(includeArchived ? { include_archived: true } : undefined);
 }
 
 export async function getSavedList(listRef: string): Promise<SavedListDetailView> {

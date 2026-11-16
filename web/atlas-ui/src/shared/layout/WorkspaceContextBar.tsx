@@ -6,7 +6,7 @@ export function WorkspaceContextBar({
   parentLink,
   actions,
 }: {
-  title?: string;
+  title?: ReactNode;
   parentLink?: ReactNode;
   actions?: ReactNode;
 }) {

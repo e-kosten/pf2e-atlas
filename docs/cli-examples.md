@@ -198,7 +198,18 @@ atlas lists import undead-research.json --id undead-copy --json
 ```
 
 The v2 export preserves saved item order, keys, notes, and snapshots. It can be
-written without loading reference records. Import accepts v2 files.
+written without loading reference records. Import accepts v2 files. A new list
+imported from one of these files starts active. Use a full workspace backup to
+carry archive status between workspaces.
+
+Archive a list when you want to keep its contents and hide it from the default
+list view. You can still open it with `lists show`.
+
+```bash
+atlas lists edit undead-research --archive
+atlas lists list --include-archived
+atlas lists edit undead-research --restore
+```
 
 Creation generates a unique slug from the name. Use `--slug` to choose a slug explicitly. An explicit collision fails. Use `lists add` to extend an existing list. Batches report
 added, already present and failed inputs. Valid entries are saved together; a failed
@@ -279,8 +290,10 @@ atlas workspace export campaign-recovery.json
 ```
 
 Export creates a new archive file with all saved lists, parties, encounters,
-and requested reference configuration. It includes archived encounters and the
-state needed to resume a running encounter. The archive contains saved display
+and requested reference configuration. It includes archived lists, archived
+encounters and the state needed to resume a running encounter. Backups
+containing archived lists require a version of Atlas that supports list
+archiving. The archive contains saved display
 snapshots and record keys. Atlas prepares reference records, indexes, and
 embeddings separately.
 
