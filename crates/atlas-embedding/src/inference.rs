@@ -65,10 +65,11 @@ impl TextEmbedder {
                     .ok_or(EmbeddingError::UnsupportedModelContract)?,
             )
             .with_intra_threads(4);
-        // Automatic Core ML selection exceeds the macOS runner's memory budget
-        // when EmbeddingGemma processes valid inputs near its token limit.
+        // Explicit CPU keeps peak memory lower on macOS. It also improves
+        // BGE Base indexing throughput and query latency in measured workloads.
         if cfg!(target_os = "macos")
-            && spec == embedding_model_spec(EmbeddingModelId::EmbeddingGemma300M)
+            && (spec == embedding_model_spec(EmbeddingModelId::EmbeddingGemma300M)
+                || spec == embedding_model_spec(EmbeddingModelId::BgeBaseEnV15))
         {
             options = options.with_auto_device(fastembed::AutoDevicePolicy::PreferCPU);
         }
