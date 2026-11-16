@@ -276,7 +276,6 @@ and intermediate totals. Quote expressions containing shell operators.
 
 ```bash
 atlas workspace export campaign-recovery.json
-atlas workspace restore campaign-recovery.json
 ```
 
 Export creates a new archive file with all saved lists, parties, encounters,
@@ -285,18 +284,40 @@ state needed to resume a running encounter. The archive contains saved display
 snapshots and record keys. Atlas prepares reference records, indexes, and
 embeddings separately.
 
-Restore requires an initialized workspace with empty saved state. For a missing
-workspace, run `atlas setup` first. Use `atlas setup --no-embeddings` to prepare
-reference records without embedding models. Use `--index <workspace.sqlite>`
-to select a separate workspace for setup or recovery. Restore uses existing
-reference records where available and retains saved references by key when a
-record is unavailable.
+Keep the original workspace and archive. Choose a new database path and prepare
+reference records there. Atlas may download reference data. The
+`--no-embeddings` option skips preparing embedding models for the new database.
 
-If the destination's requested reference configuration differs, review the
-source and manifest paths and other settings before using
-`atlas workspace restore campaign-recovery.json --replace-reference-config`.
-Atlas shows both configurations and prompts before replacing or clearing the
-destination settings. Restore can run offline after workspace setup.
+```bash
+atlas setup --no-embeddings --index "campaign-recovered.sqlite"
+atlas workspace restore "campaign-recovery.json" --index "campaign-recovered.sqlite"
+```
+
+For an upgrade recovery, substitute the path to the
+`workspace.sqlite.upgrade-archive.json` file beside the original database.
+Restore requires a workspace with empty saved state. It can run offline after
+setup and retains saved record keys even when those records are unavailable.
+
+If Atlas reports a difference in requested reference settings, run this command
+in an interactive terminal:
+
+```bash
+atlas workspace restore "campaign-recovery.json" --index "campaign-recovered.sqlite" --replace-reference-config
+```
+
+Atlas displays the settings before prompting. Check that any source and
+manifest paths are usable on this computer, especially if the archive came
+from a different machine. If the settings are unsuitable, decline the prompt.
+Accepting an archive without requested settings clears the destination's
+requested settings.
+
+If you need to prepare reference data using the restored settings, run
+`atlas setup --index "campaign-recovered.sqlite"`. If your build includes the
+web UI, open the recovered workspace with
+`atlas web --index "campaign-recovered.sqlite" --open` and check your saved
+lists, parties, and encounters. You can also check the saved data by exporting
+the recovered workspace with
+`atlas workspace export "campaign-recovered-check.json" --index "campaign-recovered.sqlite"`.
 
 ## Readiness and JSON
 

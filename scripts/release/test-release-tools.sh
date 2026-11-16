@@ -314,13 +314,37 @@ printf "atlas 9.9.9\n"'
   PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
     "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$install_dir" --version v9.9.9 --yes >/dev/null
 
-  if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
-    "$repo_root/scripts/install/atlas-installer.sh" \
-    --install-dir "$install_dir" --version v9.9.9 </dev/null >/dev/null 2>&1
-  then
-    echo "installer replaced existing binary without confirmation" >&2
-    exit 1
-  fi
+  detached_dir="$tmp/detached-install"
+  mkdir "$detached_dir"
+  cp "$install_dir/atlas" "$detached_dir/atlas"
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_YES=0 \
+    node - "$repo_root/scripts/install/atlas-installer.sh" "$detached_dir" <<'DETACHED_INSTALLER'
+const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
+
+const [installer, installDir] = process.argv.slice(2);
+const installed = path.join(installDir, 'atlas');
+const previous = readFileSync(installed);
+const args = ['--install-dir', installDir, '--version', 'v9.9.9', '--without-web'];
+const options = { detached: true, encoding: 'utf8', timeout: 30_000 };
+
+const refused = spawnSync(installer, args, options);
+assert.ifError(refused.error);
+assert.equal(refused.status, 1, refused.stderr);
+assert.match(refused.stderr, /rerun with --yes or ATLAS_YES=1/);
+assert.doesNotMatch(refused.stderr, /\/dev\/tty/);
+assert.deepEqual(readFileSync(installed), previous);
+
+const accepted = spawnSync(installer, [...args, '--yes'], options);
+assert.ifError(accepted.error);
+assert.equal(accepted.status, 0, accepted.stderr);
+const buildInfo = spawnSync(installed, ['build-info', '--json'], { encoding: 'utf8' });
+assert.ifError(buildInfo.error);
+assert.equal(buildInfo.status, 0, buildInfo.stderr);
+assert.equal(JSON.parse(buildInfo.stdout).data.variant, 'cli-only');
+DETACHED_INSTALLER
 
   nightly_tag="nightly/20261018092300.gabcdef123456"
   nightly_version="9.9.9-nightly.${nightly_tag#nightly/}"
