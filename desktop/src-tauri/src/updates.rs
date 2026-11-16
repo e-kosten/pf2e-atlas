@@ -539,7 +539,13 @@ fn install(app: &AppHandle, update: &Update, bytes: &[u8], instance: &str) -> Re
     let install = launcher.release().and_then(|()| {
         update.install(bytes).map_err(|error| {
             eprintln!("Could not install Atlas update: {error}");
-            "Atlas couldn’t install the update. Check that Atlas can write to its installation folder, then try again.".to_owned()
+            if matches!(error, tauri_plugin_updater::Error::Io(ref io)
+                if io.kind() == std::io::ErrorKind::PermissionDenied)
+            {
+                "Atlas couldn’t write to its installation folder. Check the folder permissions and try again.".to_owned()
+            } else {
+                "Atlas couldn’t install the update. Try again.".to_owned()
+            }
         })
     });
     if let Err(error) = install {
