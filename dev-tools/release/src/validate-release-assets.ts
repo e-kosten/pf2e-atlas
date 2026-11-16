@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { validateDesktopUpdater } from './desktop-updater.js';
 import { archiveEntries } from './archives.js';
 import { archiveName, compare, desktopAssets, isFile, object, readJson, sha256, targets, variants } from './release-data.js';
 
@@ -17,7 +18,7 @@ export async function validateAssets(dist: string): Promise<void> {
   if (!isFile(manifestPath) || statSync(manifestPath).size === 0) throw new Error(`missing required release asset: ${manifestName}`);
   const { assets, version } = object(readJson(manifestPath));
   if (typeof version !== 'string') throw new Error('Expected release manifest version');
-  const desktop = desktopAssets.map(({ name }) => name);
+  const desktop = [...desktopAssets.map(({ name }) => name), ...validateDesktopUpdater(version, dist)];
   const missing = [...required, ...desktop].filter((name) => !isFile(path.join(dist, name)) || statSync(path.join(dist, name)).size === 0);
   if (missing.length) throw new Error(missing.map((name) => `missing required release asset: ${name}`).join('\n'));
   if (!Array.isArray(assets)) throw new Error('Expected release manifest assets array');

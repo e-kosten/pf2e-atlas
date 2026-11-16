@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { desktopAssets, sha256 } from './release-data.js';
+import { desktopUpdaterAssets } from './desktop-updater.js';
+import { desktopAssets, isFile, sha256 } from './release-data.js';
 
 export type Run = (program: string, args: string[]) => string;
 
@@ -32,7 +33,9 @@ export function verifyReleaseSource(run: Run, release: Release, tag: string, sha
 }
 
 export async function verifyUploadedDesktop(release: Release, dist: string): Promise<void> {
-  for (const { name, label } of desktopAssets) {
+  const assets = [...desktopAssets, ...desktopUpdaterAssets.filter((name) => isFile(path.join(dist, name)))
+    .map((name) => ({ name, label: name }))];
+  for (const { name, label } of assets) {
     const matching = release.assets?.filter((asset) => asset.name === name);
     if (matching?.length !== 1 || matching[0].digest !== `sha256:${await sha256(path.join(dist, name))}`) {
       throw new Error(`Uploaded ${label} digest mismatch for ${release.tag_name}`);

@@ -50,9 +50,20 @@ pub(crate) struct ProbeArgs {
     wait_for_service: bool,
     #[arg(long, hide = true, conflicts_with = "wait_for_service")]
     reference_status: bool,
+    #[arg(long, hide = true, conflicts_with_all = ["wait_for_service", "reference_status"])]
+    update_compatibility: bool,
 }
 
 pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
+    if args.update_compatibility {
+        let (commit, version) = atlas_runtime::desktop_reference_baseline();
+        atlas_cli_support::write_json_data(serde_json::json!({
+            "workspaceSchema": atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+            "foundryCommit": commit,
+            "foundryVersion": version,
+        }))?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         overrides: AtlasPathOverrides {
             index_path: args.index.clone(),

@@ -128,6 +128,14 @@ command linking. The Windows menu shows the installed sidecar path.
 The shared managed worker can warm the model on first attachment or after
 receiving an authenticated publication notification without adding a lease.
 
+Application updates are owned by the desktop host. An authenticated product
+document can read the offered version and request its installation. The host
+resolves the installed release channel, pins the candidate to its tagged
+GitHub release, and verifies its full version against the package signature
+before releasing its launcher lease. Tauri replaces the application and its
+bundled CLI together. Workspace readiness and setup continue through the
+bundled CLI after restart.
+
 Native Atlas URLs encode a typed entity identity in a versioned path independent
 of the local service address. The desktop host and CLI share the codec, including
 legacy v1 record URLs. The host projects each identity onto the existing web

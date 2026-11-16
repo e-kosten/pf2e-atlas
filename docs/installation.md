@@ -30,6 +30,17 @@ command your shell uses. The linked command works when the app is closed
 and follows the app when you replace it in Applications at the same path.
 To switch back, rerun the standalone installer.
 
+## Desktop updates
+
+When a newer build is available on your installed channel, **Update** appears
+beside Setup. Open it to see the version and any setup notice. Choose
+**Install update** when you are ready to restart Atlas. If the update requires
+setup afterward, follow the instructions Atlas shows on restart. An interrupted
+download can be retried in Atlas.
+
+Updater-enabled builds can install subsequent updates in the app. Install the
+first updater-enabled release the same way you installed Atlas originally.
+
 ## Windows desktop app
 
 On Windows x64, download `atlas-desktop-x86_64-pc-windows-msvc-setup.exe` from the
