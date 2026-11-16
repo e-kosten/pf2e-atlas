@@ -29,7 +29,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
   filterSavedList,
   removeSavedListItem,
@@ -69,6 +69,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
   const queryClient = useQueryClient();
   const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
+  const [removedSelectionKey, setRemovedSelectionKey] = useState<string>();
   const paused = useSavedWritesPaused();
   const editing = useListSettingsOpening(onCloseDirectEditor ? route.slug : undefined);
   const [resolvedListKey, setResolvedListKey] = useState<string>();
@@ -273,23 +274,38 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
       reading.changeRank(navigation);
     },
   };
+  function clearRemovedSelection() {
+    navigateDestination(
+      listDestination({
+        slug: route.slug,
+        selectedRecordKey: null,
+        query: listQuery,
+      }),
+      undefined,
+      atlasRouter,
+    );
+  }
+  const leaveRemotelyRemovedRecord = useEffectEvent(clearRemovedSelection);
+  if (
+    entryNote.removedWhileReading &&
+    selectedRecordKey &&
+    removedSelectionKey !== selectedRecordKey
+  )
+    setRemovedSelectionKey(selectedRecordKey);
+  useEffect(() => {
+    if (entryNote.removedWhileReading) leaveRemotelyRemovedRecord();
+  }, [entryNote.removedWhileReading]);
+
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
       removeSavedListItem(listRef, { record_ref: recordKey }),
     onSuccess: async (view, recordKey) => {
       if (recordKey === route.selectedRecordKey) {
-        entryNote.retainAfterRemoval(recordKey);
+        if (entryNote.draft) entryNote.retainAfterRemoval(recordKey);
+        else if (entryNote.expanded) setRemovedSelectionKey(recordKey);
         selection.cancel();
         reading.select(null);
-        navigateDestination(
-          listDestination({
-            slug: route.slug,
-            selectedRecordKey: null,
-            query: listQuery,
-          }),
-          undefined,
-          atlasRouter,
-        );
+        clearRemovedSelection();
       }
       await invalidateSavedListQueries(queryClient, [
         route.slug,
@@ -419,10 +435,16 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
             ) : undefined
           }
           selectedRecordKey={route.selectedRecordKey}
+          removedSelectionKey={removedSelectionKey}
           readerFooter={
-            entryNote.entry && !(narrow && entryNote.detached) ? (
-              <ListEntryNoteEditor state={entryNote} hidden={noteHidden} />
-            ) : undefined
+            entryNote.entry && !(narrow && entryNote.detached)
+              ? {
+                  expanded: entryNote.expanded && !noteHidden,
+                  content: (
+                    <ListEntryNoteEditor state={entryNote} hidden={noteHidden} />
+                  ),
+                }
+              : undefined
           }
           resultsLabel="Saved records"
           resultsIdentity={listView?.items}
@@ -509,6 +531,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
                 : undefined
             }
             onSelect={(recordKey) => {
+              setRemovedSelectionKey(undefined);
               const item = listView?.items.find(
                 (item) => item.record_key === recordKey,
               );

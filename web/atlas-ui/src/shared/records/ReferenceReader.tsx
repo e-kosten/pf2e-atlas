@@ -16,7 +16,14 @@ import { recordLayout } from "./recordLayout";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { Button, Space, Typography } from "antd";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useRecordPreview } from "./useRecordPreview";
 import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -26,15 +33,21 @@ import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { landReadingTarget } from "./landReadingTarget";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
+import { ReaderFooterContext } from "./ReaderFooterContext";
 import { useRecordExploreLocation } from "./recordExploreLocation";
 import { readingNavigationForUrl } from "./readingUrlNavigation";
+export type ReaderFooter = {
+  expanded: boolean;
+  content: ReactNode;
+};
+
 type ReferenceReaderProps = {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerContext?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
-  readerFooter?: ReactNode;
+  readerFooter?: ReaderFooter;
   positions?: BrowsePositions;
   onResults?: () => void;
   active?: boolean;
@@ -79,7 +92,9 @@ export function ReferenceReader({
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
   const readerRef = useRef<HTMLElement>(null);
-  const contentFocus = usePreviewContentFocus(active, readerRef);
+  const footerExpanded = readerFooter?.expanded ?? false;
+  const recordActive = active && !footerExpanded;
+  const contentFocus = usePreviewContentFocus(recordActive, readerRef);
   const backRef = useRef<HTMLButtonElement>(null);
   const matchOpener = useRef<HTMLElement | null>(null);
   const focusMatchTarget = useCallback((target: HTMLElement) => {
@@ -105,7 +120,8 @@ export function ReferenceReader({
     reading.request?.match,
     reading.request?.landing,
   ]);
-  const activeRef = useRef(active);
+  const activeRef = useRef(recordActive);
+  const coveredAddress = useRef<string | undefined>(undefined);
   const navigationPending = useRef(false);
   const readyLanding = useRef<ReferenceReading["request"] | undefined>(undefined);
   const highlightedRequest = useRef<ReferenceReading["request"] | undefined>(undefined);
@@ -127,14 +143,14 @@ export function ReferenceReader({
     | undefined
   >(undefined);
   useLayoutEffect(() => {
-    activeRef.current = active;
+    activeRef.current = recordActive;
     navigationPending.current = false;
     return () => {
       activeRef.current = false;
       restoredRequest.current = undefined;
       if (pendingPosition.current) pendingPosition.current.historical = true;
     };
-  }, [active]);
+  }, [recordActive]);
   const rememberPosition = useCallback(
     (anchor?: HTMLElement) => {
       // A loading DOM can clamp its scroll position before a landed historical
@@ -215,6 +231,24 @@ export function ReferenceReader({
     position.historical = false;
     restoredRequest.current = reading.request;
   }, [reading.request]);
+  useLayoutEffect(() => {
+    if (footerExpanded) {
+      coveredAddress.current = address;
+      return;
+    }
+    if (!recordActive || coveredAddress.current === undefined) return;
+    const returning = coveredAddress.current === address;
+    coveredAddress.current = undefined;
+    const container = readerRef.current;
+    const position = pendingPosition.current;
+    if (!returning || !container || position?.request !== reading.request) return;
+
+    // The footer owns its own focus and scroll. Restore only the rules position.
+    container.scrollTop = saved.readReader(address);
+    position.scroll = container.scrollTop;
+    position.historical = false;
+    restoredRequest.current = reading.request;
+  }, [address, footerExpanded, reading.request, recordActive, saved]);
   const onLandingReady = useCallback(
     (target?: HTMLElement) => {
       if (previousVisit.current?.request !== reading.request) return;
@@ -272,9 +306,18 @@ export function ReferenceReader({
   }, [active, reading.detail, reading.landing, reading.request, restorePosition]);
   const hasResults = onResults !== undefined;
   const hasRequest = reading.request !== null;
-  useEffect(() => {
-    if (!hasResults || !active || !hasRequest) return;
+  const focusResultsButton = useEffectEvent(() => {
+    if (footerExpanded) return;
     const focused = backRef.current?.ownerDocument.activeElement;
+    const rules = readerRef.current;
+    if (
+      readerFooter &&
+      focused instanceof HTMLElement &&
+      rules?.parentElement?.contains(focused) &&
+      !rules.contains(focused) &&
+      focused.getClientRects().length > 0
+    )
+      return;
     // Preparing a selection can finish after the user starts editing the Add
     // form. Hidden results/search controls still hand focus to the reader.
     if (
@@ -284,6 +327,9 @@ export function ReferenceReader({
     )
       return;
     backRef.current?.focus({ preventScroll: true });
+  });
+  useEffect(() => {
+    if (hasResults && active && hasRequest) focusResultsButton();
   }, [hasResults, active, hasRequest]);
   useEffect(() => {
     if (
@@ -402,9 +448,10 @@ export function ReferenceReader({
   const hasActions = Boolean(
     onResults ||
     status ||
-    reading.canGoBack ||
-    canReturnToSelection ||
-    (!showRelated && (fullRoute || (detail && recordActions))) ||
+    (!footerExpanded &&
+      (reading.canGoBack ||
+        canReturnToSelection ||
+        (!showRelated && (fullRoute || (detail && recordActions))))) ||
     (!inIdentity && selectionActions),
   );
   const documentActions = (
@@ -451,7 +498,7 @@ export function ReferenceReader({
         {status}
       </div>
       <Space wrap>
-        {reading.canGoBack && (
+        {!footerExpanded && reading.canGoBack && (
           <Button
             onClick={() => {
               rememberPosition();
@@ -462,7 +509,7 @@ export function ReferenceReader({
             Back
           </Button>
         )}
-        {canReturnToSelection && selectedRecordKey && (
+        {!footerExpanded && canReturnToSelection && selectedRecordKey && (
           <Button
             onClick={() => {
               rememberPosition();
@@ -472,7 +519,7 @@ export function ReferenceReader({
             {returnToSelectionLabel}
           </Button>
         )}
-        {!showRelated && documentActions}
+        {!footerExpanded && !showRelated && documentActions}
         {!inIdentity && selectionActions}
       </Space>
     </>
@@ -489,6 +536,7 @@ export function ReferenceReader({
       )}
       <section
         className="reference-reader__scroll"
+        hidden={footerExpanded}
         {...contentFocus}
         onScroll={() => rememberPosition()}
       >
@@ -518,7 +566,13 @@ export function ReferenceReader({
           />
         </ReaderMatchNavigation.Provider>
       </section>
-      {readerFooter}
+      {readerFooter && (
+        <ReaderFooterContext
+          value={{ active, rememberReaderPosition: rememberPosition }}
+        >
+          {readerFooter.content}
+        </ReaderFooterContext>
+      )}
       <RecordPreviewDrawer
         preview={preview}
         actions={preview.detail && recordActions?.(preview.detail.record)}

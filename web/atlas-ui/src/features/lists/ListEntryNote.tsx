@@ -1,5 +1,9 @@
-import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
+import {
+  MarkdownDocument,
+  MarkdownExcerpt,
+} from "../../shared/documents/MarkdownDocument";
 import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
+import { ReaderFooterContext } from "../../shared/records/ReaderFooterContext";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import {
@@ -10,7 +14,8 @@ import {
 } from "@tanstack/react-query";
 import { Alert, Button, Flex, Input, Space, Typography } from "antd";
 import type { GetRef } from "antd";
-import { useLayoutEffect, useRef, useState } from "react";
+import { ArrowLeft, Pencil } from "lucide-react";
+import { useContext, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { getSavedListItemNote, updateSavedListItemNote } from "../../api/atlasApi";
 import { AtlasApiError } from "../../api/apiError";
 import type {
@@ -73,6 +78,7 @@ export function useListEntryNote({
   const editor = useRef<GetRef<typeof Input.TextArea>>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [retainedDraft, setRetainedDraft] = useState<object>();
+  const [pane, setPane] = useState<{ identity: string; mode: "read" | "edit" }>();
   const detached =
     selectedRecordKey === null && !!draft && draft.token === retainedDraft;
   const active =
@@ -142,6 +148,14 @@ export function useListEntryNote({
   const dirty = active !== null && active.text !== (active.expected ?? "");
   useTabCloseGuard(() => (save.isPending ? "pending" : dirty ? "dirty" : undefined));
 
+  const identity =
+    entry && !detached ? JSON.stringify([entry.listRef, entry.recordKey]) : undefined;
+  const paneMode = pane?.identity === identity ? pane?.mode : undefined;
+  const removedWhileReading = paneMode === "read" && removed && !active;
+  const reading = paneMode === "read" && (!!note.data?.note || !!active) && !removed;
+  const expanded = reading || (paneMode === "edit" && !!active);
+  if (pane && !expanded && !removedWhileReading) setPane(undefined);
+
   function saveNote(draft: Draft, expected: string | null) {
     if (paused) return;
     save.mutate({
@@ -155,6 +169,15 @@ export function useListEntryNote({
   return {
     entry,
     note,
+    expanded,
+    reading,
+    removedWhileReading,
+    openPane(mode: "read" | "edit") {
+      if (identity) setPane({ identity, mode });
+    },
+    closePane() {
+      setPane(undefined);
+    },
     editor,
     draft: active,
     detached,
@@ -205,6 +228,74 @@ export function useListEntryNote({
   };
 }
 
+function ListNoteReadout({
+  source,
+  expanded,
+  overflow,
+  onMeasure,
+  openButton,
+}: {
+  source: string;
+  expanded: boolean;
+  overflow: boolean;
+  onMeasure: (source: string | undefined) => void;
+  openButton: RefObject<HTMLButtonElement | null>;
+}) {
+  const frame = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const focusOpener = useRef(false);
+  useLayoutEffect(() => {
+    if (expanded || !frame.current || !content.current) return;
+    const box = frame.current;
+    const contentElement = content.current;
+    const measure = () => {
+      if (!box.getClientRects().length) return;
+      const budget = Number.parseFloat(getComputedStyle(box).maxBlockSize);
+      const clipped = contentElement.getBoundingClientRect().height > budget + 0.5;
+      if (clipped && contentElement.contains(box.ownerDocument.activeElement))
+        focusOpener.current = true;
+      onMeasure(clipped ? source : undefined);
+    };
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(box);
+    observer?.observe(contentElement);
+    return () => observer?.disconnect();
+  }, [expanded, onMeasure, source]);
+
+  const compact = overflow && !expanded;
+  useLayoutEffect(() => {
+    if (compact && focusOpener.current) {
+      focusOpener.current = false;
+      openButton.current?.focus({ preventScroll: true });
+    }
+  }, [compact, openButton]);
+
+  return (
+    <div
+      className="list-entry-note__text list-entry-note__preview"
+      data-compact={!expanded || undefined}
+      ref={frame}
+    >
+      <div
+        className="list-entry-note__source"
+        data-measuring={compact || undefined}
+        inert={compact}
+        aria-hidden={compact || undefined}
+        ref={content}
+      >
+        <MarkdownDocument source={source} linkFocusFallback={openButton} />
+      </div>
+      {compact && (
+        <div className="list-entry-note__excerpt">
+          <MarkdownExcerpt source={source} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ListEntryNoteEditor({
   state,
   hidden = false,
@@ -212,34 +303,78 @@ export function ListEntryNoteEditor({
   state: ReturnType<typeof useListEntryNote>;
   hidden?: boolean;
 }) {
+  const footer = useContext(ReaderFooterContext);
   const paused = useSavedWritesPaused();
   const editButton = useRef<HTMLButtonElement>(null);
+  const openButton = useRef<HTMLButtonElement>(null);
+  const expandButton = useRef<HTMLButtonElement>(null);
+  const [overflowSource, setOverflowSource] = useState<string>();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const region = useRef<HTMLElement>(null);
+  const lastEditorFocus = useRef<HTMLElement | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const reviewTitle = useRef<HTMLSpanElement>(null);
-  const wasEditing = useRef(false);
-  const wasReviewOpen = useRef(false);
+  const last = useRef({
+    visible: false,
+    expanded: false,
+    editing: false,
+    detached: false,
+  });
   const restoreEditFocus = useRef(false);
-  const { draft, note, editor, pending, removed } = state;
+  const wasReviewOpen = useRef(false);
+  const { draft, note, editor, pending, removed, expanded, reading, detached } = state;
+  const visible = (footer?.active ?? true) && !hidden;
   const editing = !!draft;
+  const readingFullNote = expanded && reading && !editing;
+  const savedNote = note.data?.note;
+  const overflow = !!savedNote && overflowSource === savedNote;
   const review = draft?.review;
   const hasConflict = !!review;
-  const reviewOpen = !!review && !!draft?.reviewOpen && !removed && !hidden;
+  const reviewOpen = !!review && !!draft?.reviewOpen && !removed && visible;
 
   useLayoutEffect(() => {
-    if (wasEditing.current && !editing) restoreEditFocus.current = true;
-    wasEditing.current = editing;
-    if (hidden) return;
-    if (editing) editor.current?.focus({ preventScroll: true });
-    if (!editing && restoreEditFocus.current) {
-      editButton.current?.focus({ preventScroll: true });
-      restoreEditFocus.current = false;
+    const previous = last.current;
+    last.current = { visible, expanded, editing, detached };
+    if (previous.editing && !editing) restoreEditFocus.current = true;
+    if (!visible) return;
+
+    if (
+      editing &&
+      (!previous.editing || !previous.visible || (detached && !previous.detached))
+    ) {
+      if (reviewOpen) return;
+      const target = previous.editing ? lastEditorFocus.current : null;
+      if (target?.isConnected && target.getClientRects().length)
+        target.focus({ preventScroll: true });
+      else if (editor.current) editor.current.focus({ preventScroll: true });
+      else region.current?.focus({ preventScroll: true });
+      return;
     }
-  }, [editing, editor, hidden]);
+    if (restoreEditFocus.current && !editing) {
+      restoreEditFocus.current = false;
+      const target = editButton.current;
+      (target && !target.disabled ? target : region.current)?.focus({
+        preventScroll: true,
+      });
+      return;
+    }
+    if (!editing && expanded && (!previous.expanded || !previous.visible))
+      heading.current?.focus({ preventScroll: true });
+    if (previous.expanded && !expanded && !editing) {
+      const frame = requestAnimationFrame(() => {
+        const target = openButton.current ?? editButton.current;
+        (target && !target.disabled ? target : region.current)?.focus({
+          preventScroll: true,
+        });
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [detached, editing, editor, expanded, reviewOpen, visible]);
 
   useLayoutEffect(() => {
     const closed = wasReviewOpen.current && !reviewOpen;
     wasReviewOpen.current = reviewOpen;
-    if (!closed || hidden) return;
+    if (!closed || !visible) return;
     const frame = requestAnimationFrame(() => {
       const target = hasConflict
         ? (saveButton.current ?? editor.current)
@@ -247,45 +382,117 @@ export function ListEntryNoteEditor({
       target?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [editor, hasConflict, hidden, reviewOpen]);
+  }, [editor, hasConflict, reviewOpen, visible]);
 
   if (hidden || !state.entry) return null;
   return (
     <section
+      ref={region}
       className="list-entry-note"
+      data-expanded={expanded || undefined}
       aria-label="List entry note"
       aria-busy={pending}
+      tabIndex={-1}
+      onFocusCapture={(event) => {
+        if (editing && event.currentTarget.contains(event.target))
+          lastEditorFocus.current = event.target;
+      }}
     >
+      {readingFullNote && (
+        <Space wrap>
+          <Button
+            icon={<ArrowLeft size={16} aria-hidden="true" />}
+            onClick={state.closePane}
+          >
+            Back to record
+          </Button>
+          <Button
+            ref={editButton}
+            icon={<Pencil size={16} aria-hidden="true" />}
+            disabled={paused}
+            onClick={state.begin}
+          >
+            Edit
+          </Button>
+        </Space>
+      )}
       <div className="list-entry-note__header">
-        <Typography.Text strong>
-          {state.detached && draft ? `Note for ${draft.title}` : "Note"}
-        </Typography.Text>
-        {!draft && note.data && !removed && (
-          <Button ref={editButton} type="text" disabled={paused} onClick={state.begin}>
-            {note.data.note ? "Edit" : "Add note"}
+        {expanded ? (
+          <h2 ref={heading} tabIndex={-1}>
+            {draft?.title ?? note.data?.title}
+          </h2>
+        ) : (
+          <Typography.Text strong>
+            {state.detached && draft ? `Note for ${draft.title}` : "Note"}
+          </Typography.Text>
+        )}
+        {editing && !reading && !state.detached && !removed && (
+          <Button
+            ref={expandButton}
+            type="text"
+            disabled={pending}
+            onClick={() => {
+              if (expanded) state.closePane();
+              else {
+                footer?.rememberReaderPosition();
+                state.openPane("edit");
+              }
+              expandButton.current?.focus({ preventScroll: true });
+            }}
+          >
+            {expanded ? "Collapse editor" : "Expand editor"}
           </Button>
         )}
+        {!readingFullNote && !draft && note.data && !removed && (
+          <Space wrap>
+            {!expanded && overflow && (
+              <Button
+                ref={openButton}
+                type="link"
+                onClick={() => {
+                  footer?.rememberReaderPosition();
+                  state.openPane("read");
+                }}
+              >
+                Read full note
+              </Button>
+            )}
+            <Button
+              ref={editButton}
+              type="text"
+              disabled={paused}
+              onClick={state.begin}
+            >
+              {savedNote ? "Edit" : "Add note"}
+            </Button>
+          </Space>
+        )}
       </div>
-      {removed ? (
-        <Alert
-          type="warning"
-          title="Item removed from this list"
-          description={
-            draft ? "You can copy your draft before discarding it." : undefined
-          }
-        />
-      ) : !review && note.error ? (
-        <ErrorNotice
-          error={note.error}
-          title={note.data ? "Unable to refresh note" : "Unable to load note"}
-          action={<Button onClick={() => void note.refetch()}>Retry</Button>}
-        />
-      ) : null}
-      {!removed && !review && state.saveError && (
-        <ErrorNotice error={state.saveError} title="Unable to save note" />
-      )}
-      {draft ? (
-        <>
+      <div
+        className="list-entry-note__body"
+        role={expanded && !editing ? "region" : undefined}
+        aria-label={expanded && !editing ? "Note text" : undefined}
+        tabIndex={expanded && !editing ? 0 : undefined}
+      >
+        {removed ? (
+          <Alert
+            type="warning"
+            title="Item removed from this list"
+            description={
+              draft ? "You can copy your draft before discarding it." : undefined
+            }
+          />
+        ) : !review && note.error ? (
+          <ErrorNotice
+            error={note.error}
+            title={note.data ? "Unable to refresh note" : "Unable to load note"}
+            action={<Button onClick={() => void note.refetch()}>Retry</Button>}
+          />
+        ) : null}
+        {!removed && !review && state.saveError && (
+          <ErrorNotice error={state.saveError} title="Unable to save note" />
+        )}
+        {draft ? (
           <MarkdownEditor
             label="Note"
             editorRef={editor}
@@ -293,29 +500,36 @@ export function ListEntryNoteEditor({
             disabled={pending}
             readOnly={removed || paused}
             onChange={state.change}
+            roomy={expanded}
           />
-          <Space wrap>
-            {!removed && (
-              <Button
-                ref={saveButton}
-                type="primary"
-                disabled={paused}
-                loading={pending}
-                onClick={review ? () => state.setReviewOpen(true) : state.submit}
-              >
-                {review ? "Review conflict" : "Save"}
-              </Button>
-            )}
-            <Button disabled={pending} onClick={state.finish}>
-              {removed ? "Discard draft" : "Cancel"}
+        ) : !removed && savedNote ? (
+          <ListNoteReadout
+            source={savedNote}
+            expanded={expanded}
+            overflow={overflow}
+            onMeasure={setOverflowSource}
+            openButton={openButton}
+          />
+        ) : null}
+      </div>
+      {draft && (
+        <Space wrap>
+          {!removed && (
+            <Button
+              ref={saveButton}
+              type="primary"
+              disabled={paused}
+              loading={pending}
+              onClick={review ? () => state.setReviewOpen(true) : state.submit}
+            >
+              {review ? "Review conflict" : "Save"}
             </Button>
-          </Space>
-        </>
-      ) : !removed && note.data?.note ? (
-        <div className="list-entry-note__text">
-          <MarkdownDocument source={note.data.note} />
-        </div>
-      ) : null}
+          )}
+          <Button disabled={pending} onClick={state.finish}>
+            {removed ? "Discard draft" : "Cancel"}
+          </Button>
+        </Space>
+      )}
       <AtlasModal
         open={reviewOpen}
         title={

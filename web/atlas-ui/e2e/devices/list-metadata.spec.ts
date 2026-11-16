@@ -1,5 +1,11 @@
 import { expect, test } from "./fixtures";
-import { activate, creatureFilter, offGuard, sentinel } from "./reading";
+import {
+  activate,
+  creatureFilter,
+  noPageOverflow,
+  offGuard,
+  sentinel,
+} from "./reading";
 
 test(
   "measured tags hide immediately and their phone disclosure stays in the viewport",
@@ -194,6 +200,253 @@ test("saved-list controls stay local and retain search while clearing structured
       await record.scrollIntoViewIfNeeded();
       await expect(record).toBeInViewport();
     }
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
+test("long entry notes read in the selected record pane and preserve both scroll positions", async ({
+  page,
+}, info) => {
+  const slug = `long-note-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Long note review" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  const source = [
+    "The sentinel remembers anyone who relights the lantern.",
+    "## At the table",
+    ...Array.from(
+      { length: 42 },
+      (_value, i) =>
+        `- Preparation ${i + 1}. Ask the party to choose a route and assign someone to watch the gate.`,
+    ),
+    "If the light goes out, use [Off-Guard](record:browser-conditions:offguard00000001).",
+  ].join("\n\n");
+  try {
+    const added = await page.request.post(`/api/lists/${list.list_key}/items`, {
+      data: { record_ref: sentinel, note: source },
+    });
+    expect(added.ok()).toBeTruthy();
+    const path = `/lists/${slug}/records/${sentinel}`;
+    await page.goto(path);
+    const footer = page.getByRole("region", { name: "List entry note" });
+    const read = footer.getByRole("button", { name: "Read full note" });
+    const rules = page.locator(".list-workspace .reference-reader__scroll");
+    const offGuardLink = footer.getByRole("link", { name: "Off-Guard", exact: true });
+    await expect(read).toBeVisible();
+    await expect(offGuardLink).toHaveCount(0);
+    await expect(
+      rules.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+    ).toBeVisible();
+    const rulesPosition = await rules.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+      return node.scrollTop;
+    });
+    expect(rulesPosition).toBeGreaterThan(0);
+    await page.screenshot({ path: info.outputPath("long-note-footer.png") });
+
+    await activate(read, info);
+    const noteHeading = footer.getByRole("heading", {
+      name: "Atlas Sentinel",
+      exact: true,
+    });
+    await expect(noteHeading).toBeFocused();
+    await expect(rules).toBeHidden();
+    await expect(footer.getByRole("heading", { name: "At the table" })).toBeVisible();
+    await expect(page).toHaveURL((url) => url.pathname === path);
+    await page.screenshot({ path: info.outputPath("full-list-note.png") });
+
+    const results = page.getByRole("button", { name: "Results", exact: true });
+    if (await results.isVisible()) {
+      await activate(results, info);
+      const row = page
+        .getByRole("region", { name: "Saved records" })
+        .locator(`[data-record-key="${sentinel}"]`);
+      await expect(row).toBeFocused();
+      await activate(row, info);
+      await expect(noteHeading).toBeFocused();
+    }
+    const noteBody = footer.getByRole("region", { name: "Note text" });
+    await noteBody.focus();
+    await page.keyboard.press("PageDown");
+    await expect
+      .poll(() => noteBody.evaluate((node) => node.scrollTop))
+      .toBeGreaterThan(0);
+    await offGuardLink.scrollIntoViewIfNeeded();
+    const notePosition = await noteBody.evaluate((node) => node.scrollTop);
+    expect(notePosition).toBeGreaterThan(0);
+    await activate(offGuardLink, info);
+    await expect(page.getByRole("dialog", { name: "Off-Guard" })).toBeVisible();
+    await expect(page.locator(".record-preview-drawer")).toHaveCount(1);
+    await activate(page.getByRole("button", { name: "Close reference preview" }), info);
+    await expect(offGuardLink).toBeFocused();
+    await expect
+      .poll(() => noteBody.evaluate((node) => node.scrollTop))
+      .toBeCloseTo(notePosition, 0);
+
+    await activate(footer.getByRole("button", { name: "Back to record" }), info);
+    await expect(read).toBeFocused();
+    await expect
+      .poll(() => rules.evaluate((node) => node.scrollTop))
+      .toBeCloseTo(rulesPosition, 0);
+
+    await activate(read, info);
+    await activate(footer.getByRole("button", { name: "Edit", exact: true }), info);
+    const draft = footer.getByRole("textbox", { name: "Note", exact: true });
+    await expect(draft).toHaveValue(source);
+    await expect(footer.getByRole("button", { name: "Collapse editor" })).toHaveCount(
+      0,
+    );
+    await draft.fill("");
+    await activate(footer.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(footer.getByRole("button", { name: "Add note" })).toBeFocused();
+    await expect(rules).toBeVisible();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
+test("expanding a new entry note retains the editor, caret and preview choice", async ({
+  page,
+}, info) => {
+  const slug = `expand-note-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Expanded editor review" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  try {
+    const added = await page.request.post(`/api/lists/${list.list_key}/items`, {
+      data: { record_ref: sentinel },
+    });
+    expect(added.ok()).toBeTruthy();
+    await page.goto(`/lists/${slug}/records/${sentinel}`);
+    const note = page.getByRole("region", { name: "List entry note" });
+    const expand = note.getByRole("button", { name: "Expand editor" });
+    const collapse = note.getByRole("button", { name: "Collapse editor" });
+    await activate(note.getByRole("button", { name: "Add note" }), info);
+    const editor = note.getByRole("textbox", { name: "Note", exact: true });
+    const text = "Keep this **draft** while the list stays open. ".repeat(24).trimEnd();
+    await editor.fill(text);
+    await editor.evaluate((node: HTMLTextAreaElement) => node.setSelectionRange(5, 9));
+    const original = await editor.elementHandle();
+    await expect(expand).toBeVisible();
+    await activate(expand, info);
+    await expect(collapse).toBeFocused();
+    await expect(editor).toHaveValue(text);
+    expect(await editor.evaluate((node, before) => node === before, original)).toBe(
+      true,
+    );
+    expect(
+      await editor.evaluate((node: HTMLTextAreaElement) => [
+        node.selectionStart,
+        node.selectionEnd,
+      ]),
+    ).toEqual([5, 9]);
+    await page.screenshot({ path: info.outputPath("expanded-list-note-editor.png") });
+
+    const results = page.getByRole("button", { name: "Results", exact: true });
+    if (await results.isVisible()) {
+      await editor.focus();
+      await activate(results, info);
+      await activate(
+        page
+          .getByRole("region", { name: "Saved records" })
+          .locator(`[data-record-key="${sentinel}"]`),
+        info,
+      );
+      await expect(editor).toBeFocused();
+    }
+    const resize = page.viewportSize()!;
+    await editor.focus();
+    try {
+      await page.setViewportSize({
+        width: resize.width < 992 ? 1110 : 390,
+        height: 420,
+      });
+      await expect(editor).toBeFocused();
+      await expect(collapse).toBeVisible();
+      await noPageOverflow(page);
+    } finally {
+      await page.setViewportSize(resize);
+    }
+
+    const preview = note.getByText("Preview", { exact: true });
+    await activate(preview, info);
+    await expect(note.locator(".markdown-editor__preview strong").first()).toHaveText(
+      "draft",
+    );
+    await activate(collapse, info);
+    await expect(expand).toBeFocused();
+    await expect(note.locator(".markdown-editor__preview strong").first()).toHaveText(
+      "draft",
+    );
+    await activate(note.getByText("Write", { exact: true }), info);
+    await expect(editor).toHaveValue(text);
+    await activate(note.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(note.getByRole("button", { name: "Add note" })).toBeFocused();
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
+test("note overflow follows the rendered layout and a removed open note restores list focus", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-chromium", "Changes the desktop viewport");
+  const slug = `reflow-note-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Note reflow review" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  const text = "Check the lantern by the western gate. ".repeat(5);
+  const noteSource = `${text}[Signal](https://example.com/${"a".repeat(700)})`;
+  try {
+    for (const data of [
+      { record_ref: sentinel, note: noteSource },
+      { record_ref: offGuard },
+    ]) {
+      const added = await page.request.post(`/api/lists/${list.list_key}/items`, {
+        data,
+      });
+      expect(added.ok()).toBeTruthy();
+    }
+    await page.goto(`/lists/${slug}/records/${sentinel}`);
+    const note = page.getByRole("region", { name: "List entry note" });
+    const signal = note.getByRole("link", { name: "Signal", exact: true });
+    const read = note.getByRole("button", { name: "Read full note" });
+    await expect(signal).toBeVisible();
+    await expect(read).toHaveCount(0);
+    await signal.focus();
+    await page.setViewportSize({ width: 390, height: 420 });
+    await expect(read).toBeFocused();
+    await expect(signal).toHaveCount(0);
+    const bounds = await read.boundingBox();
+    const region = await note.boundingBox();
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(region!.y + region!.height);
+    await read.press("Enter");
+    await expect(signal).toBeVisible();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const back = note.getByRole("button", { name: "Back to record" });
+    await activate(back, info);
+    await expect(note.getByRole("button", { name: "Edit", exact: true })).toBeFocused();
+    await expect(read).toHaveCount(0);
+
+    await page.setViewportSize({ width: 390, height: 420 });
+    await activate(read, info);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const results = page.getByRole("region", { name: "Saved records" });
+    await activate(
+      results.getByRole("button", { name: "Remove Atlas Sentinel" }),
+      info,
+    );
+    await activate(page.getByRole("button", { name: "Remove", exact: true }), info);
+    await expect(note).toBeHidden();
+    await expect(results.locator(`[data-record-key="${offGuard}"]`)).toBeFocused();
   } finally {
     await page.request.delete(`/api/lists/${list.list_key}`);
   }

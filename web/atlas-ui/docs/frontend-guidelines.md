@@ -2338,12 +2338,25 @@ threshold and an Alive/Dead segmented control, not a general level override.
 
 ### Saved-list entry notes
 
-The list feature supplies a footer to the shared browse reader. It stays below the
-scrolling reference content and limits its own height for long notes. Note state is
-keyed by canonical list identity and entry key. Inspecting another record hides the
-footer while retaining its draft; returning to the selection restores it. Save and
-Cancel restore focus to the entry's Edit/Add note control. Note mutations update
-their cache from the committed receipt before invalidating list reads.
+The list feature supplies a footer to the shared browse reader. Show short
+Markdown notes under the rules. If the rendered note exceeds the footer's
+three-line preview budget, show an excerpt and **Read full note**. Measure the
+formatted document at the available width. Only the visible note exposes links
+to keyboard and assistive technology.
+
+The full note and expanded editor use the shared document width inside the
+existing reader pane. The full note scrolls independently. Keep **Back to
+record** and **Edit** together above its title.
+**Back to record** restores the selected record's scroll position and returns
+focus to the note opener or its available fallback. Record links open the shared
+reference drawer and return focus to the link.
+
+**Expand editor** and **Collapse editor** change the room available to the same
+editor without interrupting typing. Editing from the full note starts in the
+larger editor. Save and Cancel return focus to Edit or Add note in the relevant
+view. Key presentation and draft state by canonical list identity and entry key.
+Inspecting another record hides the note while retaining its draft. Note mutations
+update their cache from the committed receipt before invalidating list reads.
 
 Lightweight entry removal uses the shared danger button's controlled popover.
 Pending writes block dismissal; failures retain the confirmation and local error
