@@ -137,7 +137,10 @@ function ListAbout({
         type="text"
         className="list-context-secondary"
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          trigger.current?.focus({ preventScroll: true });
+          setOpen(true);
+        }}
       >
         About
       </Button>

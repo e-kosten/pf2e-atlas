@@ -53,7 +53,7 @@ test(
       const trigger = page.getByRole("button", { name: "About" });
       await activate(trigger, info);
       const content = page.getByLabel("List tags", { exact: true });
-      const popup = page.getByRole("tooltip").filter({ has: content });
+      const popup = page.getByRole("dialog", { name: "About", exact: true });
       await expect(popup).toBeVisible();
       await expect
         .poll(async () => {
@@ -63,8 +63,7 @@ test(
         .toBe(true);
       for (const tag of tags)
         await expect(content.getByText(tag, { exact: true })).toBeAttached();
-      // Touch activation does not establish keyboard focus in WebKit.
-      await trigger.focus();
+      await popup.getByRole("button", { name: "Close", exact: true }).focus();
       await page.keyboard.press("Escape");
       await expect(popup).not.toBeVisible();
       await expect(trigger).toBeFocused();

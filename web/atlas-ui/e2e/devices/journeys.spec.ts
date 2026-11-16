@@ -878,8 +878,13 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
     const about = page.getByRole("button", { name: "About" });
     await activate(about, info);
-    await expect(page.getByText(description, { exact: true })).toBeVisible();
-    await activate(about, info);
+    const aboutPanel = page.getByRole("dialog", { name: "About", exact: true });
+    await expect(aboutPanel.getByText(description, { exact: true })).toBeVisible();
+    await activate(
+      aboutPanel.getByRole("button", { name: "Close", exact: true }),
+      info,
+    );
+    await expect(aboutPanel).toBeHidden();
     await activate(
       page.getByRole("button", { name: "Add records", exact: true }),
       info,
@@ -1888,6 +1893,18 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       if (!info.project.use.hasTouch) {
         await name.press("Tab");
         if (kind === "list") {
+          await expect(
+            dialog.getByRole("radiogroup", { name: "Document editor mode" }),
+          ).toBeFocused();
+          await page.keyboard.press("Tab");
+          await expect(dialog.getByRole("radio", { name: "Write" })).toBeFocused();
+          for (const label of ["Heading", "Bold", "List", "Insert record link"]) {
+            await page.keyboard.press("Tab");
+            await expect(
+              dialog.getByRole("button", { name: label, exact: true }),
+            ).toBeFocused();
+          }
+          await page.keyboard.press("Tab");
           const note = dialog.getByRole("textbox", { name: "Note" });
           await expect(note).toBeFocused();
           await note.press("Tab");
@@ -2225,11 +2242,11 @@ test("record picker saves an optional entry note and brings the changed list fir
       exact: true,
     });
     const readout = noteRegion.locator(".list-entry-note__text");
-    await expect(readout).toHaveText(noteText, { useInnerText: false });
-    expect(await readout.textContent()).toBe(noteText);
-    expect(await readout.evaluate((node) => getComputedStyle(node).whiteSpace)).toBe(
-      "pre-wrap",
-    );
+    const paragraphs = readout.locator(".markdown-document p");
+    await expect(paragraphs).toHaveText([
+      "Discuss before the next session.",
+      "Bring the map.",
+    ]);
     await activate(noteRegion.getByRole("button", { name: "Edit", exact: true }), info);
     const editor = noteRegion.getByRole("textbox", { name: "Note", exact: true });
     await expect(editor).toHaveValue(noteText);
@@ -2237,8 +2254,10 @@ test("record picker saves an optional entry note and brings the changed list fir
     await editor.pressSequentially("Keep the route secret.");
     const edited = noteText + "Keep the route secret.";
     await activate(noteRegion.getByRole("button", { name: "Save", exact: true }), info);
-    await expect(readout).toHaveText(edited, { useInnerText: false });
-    expect(await readout.textContent()).toBe(edited);
+    await expect(paragraphs).toHaveText([
+      "Discuss before the next session.",
+      "Bring the map. Keep the route secret.",
+    ]);
     const updated = await page.request.get(
       `/api/lists/${created[0]}/items/${record}/note`,
     );
