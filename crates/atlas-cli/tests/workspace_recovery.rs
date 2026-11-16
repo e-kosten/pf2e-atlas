@@ -71,7 +71,7 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
         .connection()
         .execute(
             "UPDATE saved_lists SET description=?1 WHERE list_key='recovery-fixture'",
-            ["## Ritual\n\n[Harm](atlas-record:spells%3Aharm)"],
+            ["## Ritual\n\n[Harm](record:spells:harm)"],
         )
         .unwrap();
     write.commit().unwrap();

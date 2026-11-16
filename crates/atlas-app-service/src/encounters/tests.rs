@@ -3309,7 +3309,7 @@ fn initiative_entry_takes_a_turn_without_actor_resources_and_round_trips() {
         expected_revision: worker.encounter(key).unwrap().revision,
         display_name: "Lair action · Void Font".into(),
         initiative: 20,
-        note: Some("**Trigger** [Harm](atlas-record:spells%3Aharm)".into()),
+        note: Some("**Trigger** [Harm](record:spells:harm)".into()),
     };
     worker
         .add_encounter_initiative_entry(key, add.clone())

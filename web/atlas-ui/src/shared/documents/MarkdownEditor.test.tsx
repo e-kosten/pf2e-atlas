@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -6,7 +6,7 @@ import { markdownRecordLink } from "./MarkdownDocument";
 
 it("previews the same draft as styled Markdown and returns to the saved source", () => {
   const source = `## Trigger\n\n**Resolve** ${markdownRecordLink("Harm [Rank 2]", "spells:harm")}`;
-  expect(source).toContain("atlas-record:spells:harm");
+  expect(source).toContain("record:spells:harm");
   function Draft() {
     const [value, setValue] = useState("");
     return <MarkdownEditor label="Note" value={value} onChange={setValue} />;
@@ -28,28 +28,32 @@ it("previews the same draft as styled Markdown and returns to the saved source",
   expect(note).toHaveValue(source.replace("## Trigger", "### Trigger"));
 });
 
-it("disables matching emphasis at the selection and inserts italic on plain text", () => {
+it("shows active emphasis and toggles it without nesting delimiters", () => {
   const source = "**Bold** and _italic_ and plain";
   const change = vi.fn();
   render(<MarkdownEditor label="Note" value={source} onChange={change} />);
   const note = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Note" });
-  const bold = screen.getByRole("button", { name: "Bold" });
-  const italic = screen.getByRole("button", { name: "Italic" });
-  note.focus();
+  const bold = () => screen.getByRole("button", { name: "Bold" });
+  const italic = () => screen.getByRole("button", { name: "Italic" });
+  act(() => note.focus());
 
   function select(start: number, end = start) {
     note.setSelectionRange(start, end);
-    fireEvent.select(note);
+    fireEvent.keyUp(note, { key: "ArrowRight" });
   }
 
   select(3);
-  expect(bold).toBeDisabled();
-  expect(italic).toBeEnabled();
+  expect(bold()).toHaveAttribute("aria-pressed", "true");
+  expect(italic()).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(bold());
+  expect(change).toHaveBeenLastCalledWith("Bold and _italic_ and plain");
   select(source.indexOf("italic"), source.indexOf("italic") + "italic".length);
-  expect(italic).toBeDisabled();
-  expect(bold).toBeEnabled();
+  expect(italic()).toHaveAttribute("aria-pressed", "true");
+  expect(bold()).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(italic());
+  expect(change).toHaveBeenLastCalledWith("**Bold** and italic and plain");
   select(source.indexOf("plain"), source.length);
-  expect(italic).toBeEnabled();
-  fireEvent.click(italic);
-  expect(change).toHaveBeenCalledWith("**Bold** and _italic_ and *plain*");
+  expect(italic()).toBeEnabled();
+  fireEvent.click(italic());
+  expect(change).toHaveBeenLastCalledWith("**Bold** and _italic_ and *plain*");
 });

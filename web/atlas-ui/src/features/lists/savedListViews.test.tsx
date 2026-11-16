@@ -486,8 +486,7 @@ describe("list views", () => {
     const fixture = savedListIndexFixture();
     fixture.lists[0].name =
       "Preparation for the planar expedition and the next several sessions";
-    fixture.lists[0].description =
-      "**Campaign prep** with [Harm](atlas-record:spells%3Aharm)";
+    fixture.lists[0].description = "**Campaign prep** with [Harm](record:spells:harm)";
     fixture.lists[0].tags = Array.from(
       { length: 20 },
       (_, index) => `Preparation tag ${index}`,
@@ -509,7 +508,7 @@ describe("list views", () => {
       .closest("tr")!
       .querySelector(".list-index-view__description");
     expect(description).toHaveTextContent("Campaign prep with Harm");
-    expect(description).not.toHaveTextContent("atlas-record:");
+    expect(description).not.toHaveTextContent("record:");
     expect(description?.querySelector("a")).toBeNull();
   });
 

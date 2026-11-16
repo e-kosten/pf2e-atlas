@@ -32,7 +32,7 @@ test("an initiative entry previews its linked notes and becomes the active turn"
     await expect(editor.getByRole("heading", { name: "Trigger" })).toBeVisible();
     await expect(editor.getByRole("link", { name: "Lantern Ward" })).toBeVisible();
     await editor.getByText("Write", { exact: true }).click();
-    await expect(note).toHaveValue(/atlas-record:browser-spells:spell00000000001/);
+    await expect(note).toHaveValue(/record:browser-spells:spell00000000001/);
     await editor.getByRole("button", { name: "Add", exact: true }).click();
 
     await page.getByRole("button", { name: "Start turn" }).click();

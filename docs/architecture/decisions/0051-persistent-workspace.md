@@ -214,9 +214,9 @@ ID, or a slug shared by two owners as appropriate to the operation.
 
 List descriptions, saved list item notes and encounter participant notes store
 Markdown in their owning rows. Atlas record links store exact record keys in
-Markdown link destinations. These are soft references. Recovery preserves the
-written destination and the known record identity, and allows restoration when
-the target is unavailable.
+Markdown link destinations such as `record:spells:harm`. These are soft references.
+Recovery preserves the written destination and the known record identity, and
+allows restoration when the target is unavailable.
 
 Initiative entries use their own participant kind and the shared initiative
 ordering. Their name, fixed count and note belong to the encounter. They use

@@ -101,31 +101,60 @@ export function MarkdownEditor({
     };
   }
 
-  function alreadyFormatted(kind: Emphasis, { start, end }: Selection) {
-    if (ranges[kind].some((range) => start < range.end && end > range.start))
-      return true;
-    if (start !== end) return false;
-    // Empty delimiter pairs have no CommonMark node until the author types.
-    const left = value.slice(0, start).match(/\*+$/)?.[0].length;
-    const right = value.slice(start).match(/^\*+/)?.[0].length;
-    const length = kind === "strong" ? 2 : 1;
-    return left === length && right === length;
+  function emphasisState(kind: Emphasis, { start, end }: Selection) {
+    const formatted = ranges[kind].find((range) =>
+      start === end
+        ? range.start < start && start < range.end
+        : range.start <= start && end <= range.end,
+    );
+    if (formatted) return { formatted, mixed: false };
+    if (start === end) {
+      // Empty delimiter pairs have no CommonMark node until the author types.
+      const left = value.slice(0, start).match(/\*+$/)?.[0].length;
+      const right = value.slice(start).match(/^\*+/)?.[0].length;
+      const length = kind === "strong" ? 2 : 1;
+      if (left === length && right === length) {
+        return {
+          formatted: { start: start - length, end: end + length },
+          mixed: false,
+        };
+      }
+    }
+    return {
+      formatted: undefined,
+      mixed: ranges[kind].some((range) => start < range.end && end > range.start),
+    };
   }
 
-  function format(kind: Emphasis) {
-    const range = selection();
-    if (alreadyFormatted(kind, range)) return;
-    const { start, end } = range;
-    const before = kind === "strong" ? "**" : "*";
-    const after = before;
+  const boldState = emphasisState("strong", currentSelection);
+  const italicState = emphasisState("emphasis", currentSelection);
+
+  function toggleEmphasis(kind: Emphasis) {
+    const { start, end } = selection();
+    const { formatted, mixed } = emphasisState(kind, { start, end });
+    if (mixed) return;
+    const marker = kind === "strong" ? "**" : "*";
+    if (formatted) {
+      const innerStart = formatted.start + marker.length;
+      const innerEnd = formatted.end - marker.length;
+      onChange?.(
+        value.slice(0, formatted.start) +
+          value.slice(innerStart, innerEnd) +
+          value.slice(formatted.end),
+      );
+      const moveOffset = (offset: number) =>
+        Math.max(innerStart, Math.min(offset, innerEnd)) - marker.length;
+      selectRange(moveOffset(start), moveOffset(end));
+      return;
+    }
     onChange?.(
       value.slice(0, start) +
-        before +
+        marker +
         value.slice(start, end) +
-        after +
+        marker +
         value.slice(end),
     );
-    selectRange(start + before.length, end + before.length);
+    selectRange(start + marker.length, end + marker.length);
   }
 
   function formatLine(prefix: string, marker?: RegExp) {
@@ -182,17 +211,19 @@ export function MarkdownEditor({
             </Dropdown>
             <Button
               size="small"
-              type="text"
-              disabled={locked || alreadyFormatted("strong", currentSelection)}
-              onClick={() => format("strong")}
+              type={boldState.formatted ? "default" : "text"}
+              aria-pressed={!!boldState.formatted}
+              disabled={locked || boldState.mixed}
+              onClick={() => toggleEmphasis("strong")}
             >
               Bold
             </Button>
             <Button
               size="small"
-              type="text"
-              disabled={locked || alreadyFormatted("emphasis", currentSelection)}
-              onClick={() => format("emphasis")}
+              type={italicState.formatted ? "default" : "text"}
+              aria-pressed={!!italicState.formatted}
+              disabled={locked || italicState.mixed}
+              onClick={() => toggleEmphasis("emphasis")}
             >
               Italic
             </Button>

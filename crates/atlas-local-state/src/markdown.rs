@@ -11,7 +11,7 @@ impl<'a> Markdown<'a> {
             let Event::Start(Tag::Link { dest_url, .. }) = event else {
                 return None;
             };
-            let target = dest_url.strip_prefix("atlas-record:")?;
+            let target = dest_url.strip_prefix("record:")?;
             let key = percent_encoding::percent_decode_str(target)
                 .decode_utf8()
                 .ok()?;
@@ -26,8 +26,9 @@ mod tests {
 
     #[test]
     fn only_markdown_links_refer_to_records() {
-        let markdown =
-            Markdown("[Harm](atlas-record:spells:harm) and `[Heal](atlas-record:spells%3Aheal)`");
+        let markdown = Markdown(
+            "[Harm](record:spells:harm) and `[Heal](record:spells%3Aheal)` and [Old](atlas-record:spells:old)",
+        );
         let keys: Vec<_> = markdown.record_keys().map(|key| key.to_string()).collect();
         assert_eq!(keys, ["spells:harm"]);
     }

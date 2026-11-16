@@ -6,7 +6,7 @@ import { useRecordPreview } from "../records/useRecordPreview";
 import { createContext, useContext, type ReactNode } from "react";
 import "./documents.css";
 
-const recordPrefix = "atlas-record:";
+const recordPrefix = "record:";
 
 export function markdownRecordLink(title: string, key: string) {
   const label = title.replace(/[\\[\]*_`<>]/g, "\\$&");
