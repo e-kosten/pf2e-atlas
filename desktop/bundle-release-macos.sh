@@ -31,6 +31,11 @@ mkdir -p "$(dirname "$sidecar")"
 cp "$cli" "$sidecar"
 cmp "$cli" "$sidecar"
 node "$root/dev-tools/release/dist/src/cli/smoke-packaged-cli.js" "$sidecar" "${tag#v}" full
+if [ -n "${ATLAS_UPDATER_PUBLIC_KEY:-}" ]; then
+    ATLAS_DESKTOP_RELEASE=${tag#v}
+    ATLAS_WORKSPACE_SCHEMA=$(node "$desktop/updater-package.mjs" compatibility "$tag" "$sidecar" "$work/update.json")
+    export ATLAS_DESKTOP_RELEASE ATLAS_WORKSPACE_SCHEMA
+fi
 
 # Generate notices for the independent desktop workspace as well as the CLI.
 node "$root/dev-tools/release/dist/src/cli/generate-notices.js" \
@@ -83,6 +88,11 @@ HOME="$work/home" "$bundled" desktop-probe | jq -e '.data.version == 1 and .data
 hdiutil detach "$mount" >/dev/null
 
 cp "$image" "$output"
+if [ -n "${ATLAS_UPDATER_PUBLIC_KEY:-}" ]; then
+    package="${output%.dmg}.app.tar.gz"
+    COPYFILE_DISABLE=1 tar -czf "$package" -C "$work/image" "PF2e Atlas.app"
+    cp "$work/update.json" "$package.compatibility.json"
+fi
 archive_sha=$(shasum -a 256 "$archive" | cut -d ' ' -f 1)
 image_sha=$(shasum -a 256 "$image" | cut -d ' ' -f 1)
 jq -n --arg tag "$tag" --arg commit "$commit" --arg archive "$archive_sha" --arg dmg "$image_sha" \

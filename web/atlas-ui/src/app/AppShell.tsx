@@ -1,5 +1,6 @@
 import { useDesktopTab } from "./DesktopTabContext";
 import { DesktopSetupPanel } from "./DesktopSetupPanel";
+import { DesktopUpdate } from "./DesktopUpdate";
 import { Link, useRouter, type LinkOptions } from "@tanstack/react-router";
 import { AtlasLink } from "./AtlasLink";
 import {
@@ -233,6 +234,7 @@ export function AppShell({
             </Tooltip>
           </Popover>
           <DesktopSetupPanel />
+          <DesktopUpdate />
         </Space>
       </header>
       {readiness?.saved_writes_paused && (

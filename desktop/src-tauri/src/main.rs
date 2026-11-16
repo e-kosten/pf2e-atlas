@@ -13,6 +13,7 @@ mod startup_trace;
 mod tab_links;
 #[cfg(target_os = "macos")]
 mod terminal;
+mod updates;
 #[cfg_attr(target_os = "macos", path = "native_tabs.rs")]
 #[cfg_attr(windows, path = "windows_host.rs")]
 mod window_host;
@@ -51,6 +52,7 @@ struct Desktop {
     #[cfg(windows)]
     windows_tabs: windows_tabs::WindowsTabs,
     operation: Mutex<()>,
+    updates: updates::Updates,
     staged_setup: staged_setup::StagedSetup,
     launcher: Mutex<Option<Launcher>>,
     setup_pipe: Mutex<Option<std::process::ChildStdin>>,
@@ -939,6 +941,7 @@ fn main() {
         }
     }));
     let result = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Desktop::default())
@@ -950,6 +953,7 @@ fn main() {
             #[cfg(target_os = "macos")]
             enable_cli,
             staged_setup::desktop_setup_action,
+            updates::desktop_update_action,
             #[cfg(debug_assertions)]
             startup_trace::desktop_startup_trace,
             tab_links::desktop_tab_link,
@@ -1083,6 +1087,7 @@ fn main() {
                 }
             }
             show_bootstrap(app.handle())?;
+            updates::start(app.handle());
             #[cfg(all(debug_assertions, target_os = "macos"))]
             smoke::start(app.handle())?;
             Ok(())
