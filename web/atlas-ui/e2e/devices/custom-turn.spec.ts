@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("a custom turn previews its linked notes and becomes the active turn", async ({
   page,
