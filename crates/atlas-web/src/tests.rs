@@ -1100,6 +1100,67 @@ async fn saved_list_routes_use_real_router_wiring() {
 }
 
 #[tokio::test]
+async fn archived_lists_are_opt_in_and_keep_their_owned_detail() {
+    let fixture = Fixture::new();
+    let path = format!("/api/lists/{}", fixture.list_key);
+    let (_, original) = fixture.json(Method::GET, &path, None).await;
+    let (status, archived) = fixture
+        .json(
+            Method::PATCH,
+            &path,
+            Some(json!({"archived":{"expected":false,"value":true}})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{archived}");
+    assert_eq!(archived["list"]["archived"], true);
+    let (status, index) = fixture.json(Method::GET, "/api/lists", None).await;
+    assert_eq!(status, StatusCode::OK, "{index}");
+    assert_eq!(index["lists"], json!([]));
+
+    let (status, index) = fixture
+        .json(Method::GET, "/api/lists?include_archived=true", None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{index}");
+    assert_eq!(index["lists"], json!([archived["list"]]));
+    let (status, detail) = fixture.json(Method::GET, "/api/lists/research", None).await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(detail["items"], original["items"]);
+    assert_eq!(detail["list"]["archived"], true);
+
+    let (status, conflict) = fixture
+        .json(
+            Method::PATCH,
+            &path,
+            Some(json!({
+                "name":{"expected":"Research","value":"Do not rename"},
+                "archived":{"expected":false,"value":true}
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{conflict}");
+    assert_eq!(conflict["details"]["fields"], json!(["archived"]));
+
+    let (status, restored) = fixture
+        .json(
+            Method::PATCH,
+            &path,
+            Some(json!({"archived":{"expected":true,"value":false}})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{restored}");
+    assert_eq!(restored["list"]["name"], original["list"]["name"]);
+    assert_eq!(restored["list"]["archived"], false);
+    let (_, index) = fixture.json(Method::GET, "/api/lists", None).await;
+    assert_eq!(index["lists"], json!([restored["list"]]));
+
+    let (status, invalid) = fixture
+        .json(Method::GET, "/api/lists?include_archived=maybe", None)
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(invalid["code"], "invalid_request");
+}
+
+#[tokio::test]
 async fn encounter_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture.json(Method::GET, "/api/encounters", None).await;

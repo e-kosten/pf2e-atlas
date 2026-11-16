@@ -43,17 +43,21 @@ pub(crate) fn insert_list(
     Err(LocalStateError::ListKeyAllocationFailed)
 }
 
-pub(crate) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<Vec<SavedList>> {
+pub(crate) fn list(
+    connection: &Connection,
+    owner_id: i64,
+    include_archived: bool,
+) -> LocalStateResult<Vec<SavedList>> {
     let mut statement = connection.prepare(
         "SELECT list.id, list.list_key, list.slug, list.name, list.description,
-                COUNT(item.record_key), list.created_at, list.updated_at, list.revision
+                COUNT(item.record_key), list.created_at, list.updated_at, list.revision, list.archived
          FROM saved_lists list
          LEFT JOIN saved_list_items item ON item.list_id = list.id
-         WHERE list.owner_id = ?1
+         WHERE list.owner_id = ?1 AND (?2 OR list.archived = 0)
          GROUP BY list.id
          ORDER BY list.updated_at DESC, list.slug ASC",
     )?;
-    let rows = statement.query_map([owner_id], raw_saved_list_from_row)?;
+    let rows = statement.query_map(params![owner_id, include_archived], raw_saved_list_from_row)?;
     rows.map(|row| saved_list_with_tags(connection, row?))
         .collect::<LocalStateResult<Vec<_>>>()
 }
@@ -66,7 +70,7 @@ pub(crate) fn get(
     let raw = connection
         .query_row(
             "SELECT list.id, list.list_key, list.slug, list.name, list.description,
-                    COUNT(item.record_key), list.created_at, list.updated_at, list.revision
+                    COUNT(item.record_key), list.created_at, list.updated_at, list.revision, list.archived
              FROM saved_lists list
              LEFT JOIN saved_list_items item ON item.list_id = list.id
              WHERE list.owner_id = ?2 AND (list.list_key = ?1 OR list.slug = ?1)
@@ -142,13 +146,14 @@ pub(crate) fn update_list(
     let now = now_rfc3339()?;
     let result = connection.execute(
         "UPDATE saved_lists
-         SET revision = revision + 1, slug = ?1, name = ?2, description = ?3, updated_at = ?4
-         WHERE list_key = ?5 AND owner_id = ?6",
+         SET revision = revision + 1, slug = ?1, name = ?2, description = ?3, updated_at = ?4, archived = ?5
+         WHERE list_key = ?6 AND owner_id = ?7",
         params![
             list.slug,
             list.name,
             list.description,
             now,
+            list.archived,
             list.list_key,
             owner_id
         ],
@@ -373,6 +378,7 @@ struct RawSavedList {
     slug: String,
     name: String,
     description: Option<String>,
+    archived: bool,
     item_count: u64,
     created_at: String,
     updated_at: String,
@@ -381,6 +387,7 @@ struct RawSavedList {
 fn raw_saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSavedList> {
     Ok(RawSavedList {
         revision: row.get(8)?,
+        archived: row.get(9)?,
         id: row.get(0)?,
         list_key: row.get(1)?,
         slug: row.get(2)?,
@@ -395,6 +402,7 @@ fn raw_saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSaved
 fn saved_list_with_tags(connection: &Connection, raw: RawSavedList) -> LocalStateResult<SavedList> {
     Ok(SavedList {
         revision: raw.revision,
+        archived: raw.archived,
         list_key: raw.list_key,
         slug: raw.slug,
         name: raw.name,

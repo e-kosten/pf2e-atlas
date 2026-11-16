@@ -146,7 +146,10 @@ pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    emit(app_result(s.saved_lists(), o.json)?, o.json)
+    emit(
+        app_result(s.saved_lists(o.include_archived), o.json)?,
+        o.json,
+    )
 }
 pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
     let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
@@ -330,9 +333,14 @@ pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
     } else {
         None
     };
+    let archived = if o.archive || o.restore {
+        Some(o.archive)
+    } else {
+        None
+    };
     emit(
         app_result(
-            s.edit_saved_list_metadata(&o.list_ref, o.id, o.name, description, tags),
+            s.edit_saved_list_metadata(&o.list_ref, o.id, o.name, description, tags, archived),
             o.json,
         )?,
         o.json,

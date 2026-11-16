@@ -12,12 +12,21 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
-.list-settings__danger {
+.list-index-view__archive-filter {
+  flex: 0 0 auto;
+}
+.list-archive-badge {
+  margin-inline-start: var(--space-control);
+}
+.list-settings__footer {
   display: flex;
-  justify-content: flex-start;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+.list-settings__save-actions {
+  margin-inline-start: auto;
+  justify-content: flex-end;
 }
 
 .list-settings__meta {

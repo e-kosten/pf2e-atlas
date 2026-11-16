@@ -28,10 +28,10 @@ use crate::saved_edit::SavedEditCheck;
 use crate::service::AtlasAppService;
 
 impl AtlasAppService {
-    pub fn saved_lists(&self) -> AppServiceResult<SavedListIndexView> {
+    pub fn saved_lists(&self, include_archived: bool) -> AppServiceResult<SavedListIndexView> {
         self.with_state(move |session| {
             let store = session.local_state()?;
-            let lists = store.saved_lists().list()?;
+            let lists = store.saved_lists().list(include_archived)?;
             Ok(SavedListIndexView {
                 lists: lists.into_iter().map(saved_list_summary).collect(),
             })
@@ -256,12 +256,16 @@ impl AtlasAppService {
             let tags = request
                 .tags
                 .map(|edit| check.value("tags", &current.tags, edit));
+            let archived = request
+                .archived
+                .map(|edit| check.value("archived", &current.archived, edit));
             check.finish()?;
             Ok(ListMetadataEdit {
                 slug,
                 name,
                 description,
                 tags,
+                archived,
             })
         })
     }
@@ -273,6 +277,7 @@ impl AtlasAppService {
         name: Option<String>,
         description: Option<Option<String>>,
         tags: Option<Vec<String>>,
+        archived: Option<bool>,
     ) -> AppServiceResult<SavedListMutationView> {
         self.save_list_metadata(list_ref, |_| {
             Ok(ListMetadataEdit {
@@ -280,6 +285,7 @@ impl AtlasAppService {
                 name,
                 description,
                 tags,
+                archived,
             })
         })
     }
@@ -302,6 +308,7 @@ impl AtlasAppService {
                     name: edit.name.unwrap_or(current.name),
                     description: edit.description.unwrap_or(current.description),
                     tags: edit.tags,
+                    archived: edit.archived.unwrap_or(current.archived),
                 })?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
             Ok(SavedListMutationView {
@@ -1032,6 +1039,7 @@ struct ListMetadataEdit {
     name: Option<String>,
     description: Option<Option<String>>,
     tags: Option<Vec<String>>,
+    archived: Option<bool>,
 }
 
 fn saved_list_note_view(
@@ -1071,6 +1079,7 @@ fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
         name: list.name,
         description: list.description,
         tags: list.tags,
+        archived: list.archived,
         item_count: list.item_count,
         created_at: list.created_at,
         updated_at: list.updated_at,

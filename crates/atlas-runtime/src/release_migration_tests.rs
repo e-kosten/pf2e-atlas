@@ -89,6 +89,9 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
         atlas_index::test_support::reference_preservation_rows(before.connection()).unwrap();
     reference_rows.remove("trait_references");
     reference_rows.remove("reference_component_digests");
+    for list in reference_rows.get_mut("saved_lists").unwrap() {
+        list.push(rusqlite::types::Value::Integer(0));
+    }
     drop(before);
 
     let archive_file = archive_path(&workspace);
@@ -137,6 +140,55 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
 
     initialize_workspace(workspace.path()).unwrap();
     assert_eq!(std::fs::read(archive_file).unwrap(), bytes);
+}
+
+#[test]
+fn schema_43_archive_migration_preserves_list_and_reference_revision() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+    workspace
+        .migrate_history(
+            MigrationHistory {
+                migrations: &RELEASE_HISTORY.migrations[..2],
+                ..RELEASE_HISTORY
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+    let write = workspace.write(43).unwrap();
+    write
+        .connection()
+        .execute(
+            "INSERT INTO saved_lists(owner_id,list_key,slug,name,revision,created_at,updated_at)
+         VALUES(1,'list_earlier_arc','earlier-arc','Earlier arc',6,'created','updated')",
+            [],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    let before = workspace.read(43).unwrap();
+    let revision = before.reference_revision().unwrap();
+    let reference =
+        atlas_index::test_support::reference_preservation_rows(before.connection()).unwrap();
+    drop(before);
+
+    initialize_workspace(workspace.path()).unwrap();
+    let after = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(after.reference_revision().unwrap(), revision);
+    let mut expected = reference;
+    for list in expected.get_mut("saved_lists").unwrap() {
+        list.push(rusqlite::types::Value::Integer(0));
+    }
+    assert_eq!(
+        atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap(),
+        expected
+    );
+    let backup: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(archive_path(&workspace)).unwrap()).unwrap();
+    assert_eq!(backup["version"], "1.0");
+    let lists = backup["saved"]["owners"][0]["lists"].as_array().unwrap();
+    assert!(lists.iter().any(|list| list["key"] == "list_earlier_arc"
+        && list["revision"] == 6
+        && list.get("archived").is_none()));
 }
 
 #[test]

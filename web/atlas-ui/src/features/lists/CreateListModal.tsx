@@ -28,7 +28,7 @@ export function CreateListModal({
   const [form] = Form.useForm<CreateListFormValues>();
   const queryClient = useQueryClient();
   const inFlight = useRef(false);
-  const lists = useSavedLists({ enabled: open });
+  const lists = useSavedLists({ enabled: open, includeArchived: true });
   const tagOptions = useMemo(
     () =>
       savedListTagOptions(lists.data?.lists ?? []).map((tag) => ({

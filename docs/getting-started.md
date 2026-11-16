@@ -35,6 +35,11 @@ show the most recently changed first.
 Lists are useful for session preparation, spell choices, equipment shortlists
 and creatures you may want to use later. Setup updates preserve your collections.
 
+When you're done with a list for now, open **Edit list**, check **Archived** and
+save. Archived lists are hidden from Lists and the **Add to list** picker. Turn
+on **Show archived** in Lists or follow the list's existing link to open it.
+Clear **Archived** and save to put the list back in the default view.
+
 ## Prepare and run an encounter
 
 Add a creature or hazard with **Add to list or encounter**, choosing an existing

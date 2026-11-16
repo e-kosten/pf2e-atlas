@@ -67,6 +67,8 @@ pub(crate) struct ListCreateOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListLsOptions {
+    #[arg(long, help = "Include archived lists")]
+    pub(crate) include_archived: bool,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -163,6 +165,10 @@ pub(crate) struct ListEditOptions {
     pub(crate) tags: Vec<String>,
     #[arg(long, help = "Remove all saved-list tags")]
     pub(crate) clear_tags: bool,
+    #[arg(long, conflicts_with = "restore", help = "Archive the list")]
+    pub(crate) archive: bool,
+    #[arg(long, help = "Restore an archived list to the default view")]
+    pub(crate) restore: bool,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
     #[arg(long, help = "Emit the standard JSON envelope")]

@@ -11,7 +11,7 @@ pub fn complete_saved_list_slugs(
     Ok(session
         .local_state()?
         .saved_lists()
-        .list()?
+        .list(true)?
         .into_iter()
         .map(|list| list.slug)
         .filter(|slug| slug.starts_with(prefix))

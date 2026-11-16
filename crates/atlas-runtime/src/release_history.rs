@@ -14,6 +14,12 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
                 apply: super::migrate_trait_membership_digests,
             }),
         },
+        Migration {
+            version: 44,
+            name: "saved-list-archiving",
+            sql: include_str!("../../atlas-local-state/src/release/saved_list_archiving.sql"),
+            backfill: None,
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

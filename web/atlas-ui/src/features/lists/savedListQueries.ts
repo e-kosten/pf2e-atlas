@@ -1,4 +1,5 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
+import type { SavedListIndexView, SavedListSummaryView } from "../../generated/atlas";
 import { getSavedLists } from "../../api/atlasApi";
 
 export function invalidateSavedListQueries(
@@ -30,10 +31,42 @@ export function invalidateSavedListQueries(
   });
 }
 
-export function useSavedLists(options: { enabled?: boolean } = {}) {
+function savedListsKey(includeArchived: boolean) {
+  return includeArchived ? ["saved-lists", "all"] : ["saved-lists"];
+}
+
+export function useSavedLists({
+  enabled = true,
+  includeArchived = false,
+}: { enabled?: boolean; includeArchived?: boolean } = {}) {
   return useQuery({
-    queryKey: ["saved-lists"],
-    queryFn: getSavedLists,
-    enabled: options.enabled ?? true,
+    queryKey: savedListsKey(includeArchived),
+    queryFn: () => getSavedLists(includeArchived),
+    enabled,
   });
+}
+
+export function updateSavedListIndexes(
+  client: QueryClient,
+  saved: SavedListSummaryView,
+) {
+  for (const includeArchived of [false, true]) {
+    client.setQueryData<SavedListIndexView>(
+      savedListsKey(includeArchived),
+      (current) => {
+        if (!current) return current;
+
+        const lists = current.lists.filter((list) => list.list_key !== saved.list_key);
+        if (includeArchived || !saved.archived) {
+          const before = lists.findIndex(
+            (list) =>
+              list.updated_at < saved.updated_at ||
+              (list.updated_at === saved.updated_at && list.slug > saved.slug),
+          );
+          lists.splice(before === -1 ? lists.length : before, 0, saved);
+        }
+        return { ...current, lists };
+      },
+    );
+  }
 }

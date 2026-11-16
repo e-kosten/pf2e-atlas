@@ -1312,7 +1312,7 @@ fn incompatible_supplied_source_preserves_published_reference_and_saved_state() 
         LocalStateRead::for_local(&read)
             .unwrap()
             .saved_lists()
-            .list()
+            .list(true)
             .unwrap()
             .len(),
         1
@@ -1449,7 +1449,7 @@ fn explicit_setup_replaces_prior_model_and_preserves_saved_state() {
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert!(read.reference_revision().unwrap() > before);
     let state = LocalStateRead::for_local(&read).unwrap();
-    assert_eq!(state.saved_lists().list().unwrap(), vec![list]);
+    assert_eq!(state.saved_lists().list(true).unwrap(), vec![list]);
     assert_eq!(state.encounters().list().unwrap(), vec![encounter]);
     assert_eq!(
         atlas_index::read_stored_reference_context(read.connection())

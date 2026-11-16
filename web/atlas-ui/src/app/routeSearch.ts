@@ -25,7 +25,12 @@ export type RouteSearchKind =
   | "lists"
   | "encounters"
   | "empty";
-export type ListIndexInput = { query?: string; include?: string[]; exclude?: string[] };
+export type ListIndexInput = {
+  query?: string;
+  include?: string[];
+  exclude?: string[];
+  includeArchived?: boolean;
+};
 export type EncounterIndexInput = { view?: "active" | "archived" };
 
 export class RouteSearchError extends Error {
@@ -73,6 +78,7 @@ export function listIndexSearch(search: AtlasSearchParams) {
     query: singleton(search, "q")?.trim() ?? "",
     include: tags(search, "tag"),
     exclude: tags(search, "exclude_tag"),
+    includeArchived: singleton(search, "include_archived") === "true",
   };
 }
 
@@ -130,6 +136,7 @@ export function canonicalRouteSearch(
     if (state.query) result.q = state.query;
     if (state.include.length) result.tag = state.include;
     if (state.exclude.length) result.exclude_tag = state.exclude;
+    if (state.includeArchived) result.include_archived = "true";
     return result;
   }
   if (kind === "encounters") {

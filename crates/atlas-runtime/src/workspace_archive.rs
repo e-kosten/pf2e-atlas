@@ -19,7 +19,8 @@ use std::{
 };
 
 const FORMAT: &str = "pf2e-atlas-workspace";
-const VERSION: &str = "1.0";
+const ACTIVE_ONLY_VERSION: &str = "1.0";
+const ARCHIVED_LIST_VERSION: &str = "2.0";
 
 #[derive(Serialize)]
 pub struct WorkspaceArchive {
@@ -114,9 +115,14 @@ impl WorkspaceArchive {
         let reference_config = read_requested_reference_config_snapshot(snapshot)
             .map_err(message)?
             .map(ReferenceConfig::from);
+        let version = if saved.has_archived_lists() {
+            ARCHIVED_LIST_VERSION
+        } else {
+            ACTIVE_ONLY_VERSION
+        };
         Ok(Self {
             format: FORMAT.into(),
-            version: VERSION.into(),
+            version: version.into(),
             saved,
             reference_config,
         })
@@ -174,11 +180,14 @@ impl WorkspaceArchive {
                 archive.format
             ));
         }
-        validate_version(&archive.version)?;
+        let major = validate_version(&archive.version)?;
         let saved = archive
             .saved
             .ok_or("Workspace archive is missing saved state")?;
         let saved: SavedWorkspace = serde_json::from_str(saved.get()).map_err(archive_error)?;
+        if major == 1 && saved.has_archived_lists() {
+            return Err("Archived lists require workspace archive version 2.0 or later".into());
+        }
         let config = archive
             .reference_config
             .map(|value| {
@@ -220,7 +229,7 @@ fn archive_error(error: serde_json::Error) -> String {
     format!("Invalid workspace archive or unsupported saved value: {error}")
 }
 
-fn validate_version(version: &str) -> Result<(), String> {
+fn validate_version(version: &str) -> Result<u32, String> {
     fn component(part: &str) -> Option<u32> {
         let parsed: u32 = part.parse().ok()?;
         (parsed.to_string() == part).then_some(parsed)
@@ -229,10 +238,10 @@ fn validate_version(version: &str) -> Result<(), String> {
         .split_once('.')
         .and_then(|(major, minor)| Some((component(major)?, component(minor)?)))
         .ok_or_else(|| format!("Invalid workspace archive version {version:?}"))?;
-    if major != 1 {
+    if !matches!(major, 1 | 2) {
         return Err(format!("Unsupported workspace archive version {version}"));
     }
-    Ok(())
+    Ok(major)
 }
 
 impl AtlasRuntime {
