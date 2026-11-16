@@ -143,6 +143,7 @@ export function FilterControls({
   layout = "panel",
   searchRowEnd,
   searchInputRef,
+  searchEntryKey,
   similarSearch,
   additionalFilters,
   children,
@@ -155,6 +156,7 @@ export function FilterControls({
   pane?: { narrow: boolean; summary: ReactNode };
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
+  searchEntryKey?: number;
   similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
   children?: ReactNode;
@@ -369,12 +371,14 @@ export function FilterControls({
     ) : null;
   const searchEntry = includeSearch && (
     <SearchEntry
+      key={searchEntryKey}
       label={pane ? "Search this list" : undefined}
       placeholder={pane ? "Search this list…" : undefined}
       inputRef={searchInputRef}
       query={search.query}
       similar={similarSearch}
-      onSearch={(query) =>
+      acceptedSubmission={workspace.acceptedSearchSubmission}
+      onSearch={(query, submission) =>
         setSearch(
           {
             ...search,
@@ -382,6 +386,7 @@ export function FilterControls({
             mode: query.trim() ? "text_search" : "browse",
           },
           "submit",
+          submission,
         )
       }
     />

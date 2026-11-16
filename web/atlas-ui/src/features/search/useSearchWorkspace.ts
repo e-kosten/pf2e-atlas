@@ -53,6 +53,8 @@ import {
 import { useFilterDiscovery } from "../../shared/filters/useFilterDiscovery";
 import {
   commonCondition,
+  type FilterPanelState,
+  type SearchSubmission,
   type SearchUpdateIntent,
 } from "../../shared/filters/filterControls";
 import {
@@ -110,7 +112,8 @@ export type SearchWorkspaceState = {
   search: SearchFormState;
   reading: ReferenceReading;
   positions: BrowsePositions;
-  setSearch: (next: SearchFormState, intent?: SearchUpdateIntent) => void;
+  setSearch: FilterPanelState["setSearch"];
+  acceptedSearchSubmission?: SearchSubmission;
   applySettings?: (next: SearchFormState, profile: string | null) => void;
   recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
@@ -630,7 +633,11 @@ export function useSearchWorkspace({
     queryKeyPrefix: ["filter-discovery", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
-  function setSearch(next: SearchFormState, intent: SearchUpdateIntent = "edit") {
+  function setSearch(
+    next: SearchFormState,
+    intent: SearchUpdateIntent = "edit",
+    submission?: SearchSubmission,
+  ) {
     const version = ++seedPreparation.current;
     setSourcePreparationError(null);
     setPreparingSeed(false);
@@ -672,6 +679,7 @@ export function useSearchWorkspace({
                 ),
               },
               intent,
+              submission,
             );
           })
           .catch((error: unknown) => {
@@ -688,11 +696,12 @@ export function useSearchWorkspace({
         return;
       }
     }
-    commitSearch(next, intent);
+    commitSearch(next, intent, submission);
   }
   function commitSearch(
     next: SearchFormState,
     intent: SearchUpdateIntent,
+    submission?: SearchSubmission,
     rerunSemantic = false,
   ) {
     if (next.similarSeed !== search.similarSeed)
@@ -707,7 +716,7 @@ export function useSearchWorkspace({
     // A submitted canonical address is navigation, independent of search eligibility.
     const recordKey = next.query.trim();
     if (next.query !== search.query && /^[^:\s]+:[^:\s]+$/u.test(recordKey)) {
-      selectRecord(recordKey);
+      selectRecord(recordKey, submission);
       return;
     }
     // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
@@ -741,10 +750,9 @@ export function useSearchWorkspace({
     ) => {
       if (resolved) adoptWorkspaceDefault?.(resolved.id);
       else if (model) promoteKeyword?.(model);
-      dispatch({
-        type: intent === "submit" ? "search.submitted" : "search.changed",
-        search: next,
-      });
+      if (intent === "submit")
+        dispatch({ type: "search.submitted", search: next, submission });
+      else dispatch({ type: "search.changed", search: next });
       await atlasRouter.navigate({
         ...searchDestination({
           ...currentSearchLocation(atlasRouter),
@@ -791,8 +799,8 @@ export function useSearchWorkspace({
       void commit(urlProfile);
     }
   }
-  function selectRecord(recordKey: string | null) {
-    dispatch({ type: "record.selected", recordKey });
+  function selectRecord(recordKey: string | null, submission?: SearchSubmission) {
+    dispatch({ type: "record.selected", recordKey, submission });
     const searchQuery = searchStateQueryString(search, urlProfile);
     void atlasRouter.navigate({
       ...searchDestination({
@@ -824,6 +832,7 @@ export function useSearchWorkspace({
   return {
     search,
     setSearch,
+    acceptedSearchSubmission: interaction.acceptedSearchSubmission,
     rerunSemantic:
       keywordSearch &&
       semanticDefault &&
@@ -835,7 +844,7 @@ export function useSearchWorkspace({
       resultsQuery.data.page.mode.mode === "lexical"
         ? () => {
             seedPreparation.current += 1;
-            commitSearch(search, "submit", true);
+            commitSearch(search, "submit", undefined, true);
           }
         : undefined,
     applySettings: async (next, profile) => {

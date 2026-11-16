@@ -9,11 +9,20 @@ import type {
 import type { SearchFormState } from "./searchState";
 export type SearchUpdateIntent = "edit" | "submit";
 
+// Each object identifies one submission. The field identity also lets an older
+// acknowledgement rebase newer typing when both updates are rendered together.
+export type SearchSubmission = { field: object };
+
 export type FilterPanelState = {
   resultRequest?: SearchResultsRequest;
   fixedFilter?: QueryPredicate | null;
   search: SearchFormState;
-  setSearch: (next: SearchFormState, intent?: SearchUpdateIntent) => void;
+  acceptedSearchSubmission?: SearchSubmission;
+  setSearch: (
+    next: SearchFormState,
+    intent?: SearchUpdateIntent,
+    submission?: SearchSubmission,
+  ) => void;
   filterEditor: FilterEditorView | undefined;
   refreshFilterInformation?: () => Promise<void>;
   filterApplicabilityCurrent?: boolean;

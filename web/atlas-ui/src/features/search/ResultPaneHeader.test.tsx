@@ -294,6 +294,25 @@ describe("ResultPaneHeader", () => {
     expect(setPageNumber).toHaveBeenCalledWith(42);
   });
 
+  it("cancels a page edit on Escape before blur can commit it", () => {
+    const setPageNumber = vi.fn();
+    render(<ResultPaneHeader workspace={workspace({ setPageNumber })} />);
+    const input = screen.getByRole("textbox", { name: "Current page" });
+    const original = (input as HTMLInputElement).value;
+
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "42" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveValue(original);
+    expect(input).not.toHaveFocus();
+    expect(setPageNumber).not.toHaveBeenCalled();
+
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "42" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(setPageNumber).toHaveBeenCalledExactlyOnceWith(42);
+  });
+
   it.each(["resultsPaused", "resultsRecovering"] as const)(
     "disables pagination while %s without changing the criterion",
     (state) => {

@@ -5,6 +5,7 @@ import { detailFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchEntry } from "./SearchEntry";
+import type { SearchSubmission } from "./filterControls";
 
 const api = vi.hoisted(() => ({ detail: vi.fn(), definition: vi.fn() }));
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -27,15 +28,41 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 it("keeps keyword edits local until Enter, then restores incoming committed criteria", () => {
-  const commit = vi.fn();
+  const commit = vi.fn<(query: string, submission: SearchSubmission) => void>();
   const view = render(<SearchEntry query="fire" onSearch={commit} />);
   const input = screen.getByRole("searchbox", { name: "Search records" });
   fireEvent.change(input, { target: { value: "ice" } });
   expect(commit).not.toHaveBeenCalled();
   fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
-  expect(commit).toHaveBeenCalledExactlyOnceWith("ice");
+  expect(commit).toHaveBeenCalledExactlyOnceWith("ice", expect.any(Object));
+  expect(input).toHaveValue("ice");
   view.rerender(<SearchEntry query="acid" onSearch={commit} />);
   expect(input).toHaveValue("acid");
+  view.rerender(<SearchEntry query="fire" onSearch={commit} />);
+  expect(input).toHaveValue("fire");
+});
+
+it("keeps newer typing through an older acknowledgement and accepts a normalized repeat", () => {
+  const commit = vi.fn<(query: string, submission: SearchSubmission) => void>();
+  const view = render(<SearchEntry query="" onSearch={commit} />);
+  const input = screen.getByRole("searchbox");
+  fireEvent.change(input, { target: { value: "fire" } });
+  fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+  fireEvent.keyUp(input, { key: "Enter", keyCode: 13 });
+  const first = commit.mock.calls[0][1];
+  fireEvent.change(input, { target: { value: " fire " } });
+  fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+  const second = commit.mock.calls[1][1];
+
+  view.rerender(
+    <SearchEntry query="fire" onSearch={commit} acceptedSubmission={first} />,
+  );
+  expect(input).toHaveValue(" fire ");
+  view.rerender(
+    <SearchEntry query="fire" onSearch={commit} acceptedSubmission={second} />,
+  );
+  expect(input).toHaveValue("fire");
+  expect(commit).toHaveBeenCalledTimes(2);
 });
 
 it("inherits pending form disabling from the Ant provider", () => {
@@ -51,7 +78,7 @@ it("clears committed criteria when the last character is deleted", () => {
   const commit = vi.fn();
   render(<SearchEntry query="no matches" onSearch={commit} />);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
-  expect(commit).toHaveBeenCalledExactlyOnceWith("");
+  expect(commit).toHaveBeenCalledExactlyOnceWith("", expect.any(Object));
 });
 
 it("opens the seed reference through a native link and restores text-entry focus after Clear", async () => {

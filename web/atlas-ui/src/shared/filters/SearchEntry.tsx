@@ -5,6 +5,8 @@ import { SimilaritySeedLink } from "../search/SimilaritySeedLink";
 import { CloseCircleFilled } from "@ant-design/icons";
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 
+import type { SearchSubmission } from "./filterControls";
+
 export type SimilarSearchCriterion = {
   title: string;
   seed: SimilaritySeed;
@@ -15,6 +17,7 @@ export type SimilarSearchCriterion = {
 export function SearchEntry({
   query,
   onSearch,
+  acceptedSubmission,
   disabled,
   label = "Search records",
   placeholder = "Name or description…",
@@ -22,7 +25,8 @@ export function SearchEntry({
   inputRef,
 }: {
   query: string;
-  onSearch: (query: string) => void;
+  onSearch: (query: string, submission: SearchSubmission) => void;
+  acceptedSubmission?: SearchSubmission;
   disabled?: boolean;
   label?: string;
   placeholder?: string;
@@ -30,25 +34,47 @@ export function SearchEntry({
   inputRef?: RefObject<InputRef | null>;
 }) {
   const { token } = theme.useToken();
-  const [entry, setEntry] = useState<{ baseline: string; value: string } | null>(null);
+  const [field] = useState(() => ({}));
+  const [entry, setEntry] = useState<{
+    query: string;
+    acknowledgement?: SearchSubmission;
+    draft?: { value: string; submission?: SearchSubmission };
+  }>({ query, acknowledgement: acceptedSubmission });
+  if (entry.query !== query || entry.acknowledgement !== acceptedSubmission) {
+    const ownCommit =
+      acceptedSubmission?.field === field &&
+      entry.acknowledgement !== acceptedSubmission;
+    const keepDraft = ownCommit
+      ? entry.draft?.submission !== acceptedSubmission
+      : entry.query === query;
+    setEntry({
+      query,
+      acknowledgement: acceptedSubmission,
+      draft: keepDraft ? entry.draft : undefined,
+    });
+  }
   const localInput = useRef<InputRef>(null);
   const input = inputRef ?? localInput;
   const focusAfterClear = useRef(false);
-  const draft = entry?.baseline === query ? entry.value : query;
-  const value = draft;
+  const value = entry.draft?.value ?? query;
   useLayoutEffect(() => {
     if (!similar && focusAfterClear.current) {
       focusAfterClear.current = false;
       input.current?.focus({ preventScroll: true });
     }
   }, [input, similar]);
+  function submit(value: string) {
+    const submission = { field };
+    setEntry({ ...entry, draft: { value, submission } });
+    onSearch(value, submission);
+  }
   function clear() {
-    setEntry({ baseline: query, value: "" });
     if (similar) {
+      setEntry({ ...entry, draft: { value: "" } });
       focusAfterClear.current = true;
       similar.onClear();
     } else {
-      onSearch("");
+      submit("");
       input.current?.focus({ preventScroll: true });
     }
   }
@@ -133,13 +159,10 @@ export function SearchEntry({
       onPressEnter={(event) => event.preventDefault()}
       onChange={(event) => {
         const next = event.target.value;
-        setEntry({ baseline: query, value: next });
-        if (!next) onSearch("");
+        if (next) setEntry({ ...entry, draft: { value: next } });
+        else submit("");
       }}
-      onSearch={(next) => {
-        setEntry(null);
-        onSearch(next);
-      }}
+      onSearch={submit}
     />
   );
 }

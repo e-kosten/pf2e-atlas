@@ -578,6 +578,134 @@ describe("AtlasApp routing", () => {
     },
   );
 
+  it.each(["clear", "delete", "resubmit"] as const)(
+    "keeps a pending query editable and lets a later %s supersede it",
+    async (action) => {
+      const ready = { ...readinessFixture(), search_profiles: [] };
+      apiMocks.getReadiness.mockResolvedValue(ready);
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      await screen.findByText("Keyword search");
+      const readiness = pendingReadiness();
+      apiMocks.getReadiness.mockReturnValue(readiness.promise);
+      const input = screen.getByRole("searchbox", { name: "Search records" });
+      const enter = () => {
+        fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+        fireEvent.keyUp(input, { key: "Enter", keyCode: 13 });
+      };
+
+      fireEvent.change(input, { target: { value: "first" } });
+      enter();
+      expect(input).toHaveValue("first");
+      expect(apiMocks.searchPage).not.toHaveBeenCalled();
+
+      if (action === "clear") {
+        fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+      } else {
+        fireEvent.change(input, {
+          target: { value: action === "delete" ? "" : "second" },
+        });
+        if (action === "resubmit") enter();
+      }
+      await act(async () => readiness.resolve(ready));
+
+      if (action === "resubmit") {
+        await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+        expect(apiMocks.searchPage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            criteria: expect.objectContaining({ query: "second" }),
+          }),
+          expect.any(AbortSignal),
+        );
+        expect(input).toHaveValue("second");
+      } else {
+        expect(apiMocks.searchPage).not.toHaveBeenCalled();
+        expect(input).toHaveValue("");
+      }
+    },
+  );
+
+  it("leaves a pending query editable when paging cancels its submission", async () => {
+    history.replaceState(null, "", "/search?q=fire");
+    const ready = { ...readinessFixture(), search_profiles: [] };
+    apiMocks.getReadiness.mockResolvedValue(ready);
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => {
+      const result = searchResultsPage(["spell:heal"]);
+      return {
+        ...result,
+        search_profile: undefined,
+        mode: { kind: "text_search", query: "fire", mode: "lexical" },
+        page: {
+          ...result.page,
+          number: request.page.number,
+          total: 50,
+          has_more: request.page.number === 1,
+        },
+      };
+    });
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    const next = await screen.findByRole("button", { name: "Next page" });
+    await waitFor(() => expect(next).toBeEnabled());
+
+    const readiness = pendingReadiness();
+    apiMocks.getReadiness.mockReturnValue(readiness.promise);
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    fireEvent.change(input, { target: { value: "frost" } });
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+    fireEvent.click(next);
+    await waitFor(() =>
+      expect(new URLSearchParams(location.search).get("page")).toBe("2"),
+    );
+    await act(async () => readiness.resolve(ready));
+
+    expect(new URLSearchParams(location.search).get("q")).toBe("fire");
+    expect(input).toHaveValue("frost");
+    expect(
+      apiMocks.searchPage.mock.calls.map(([request]) => request.criteria.query),
+    ).toEqual(["fire", "fire"]);
+  });
+
+  it("commits the visible draft using the current profile when readiness refresh fails", async () => {
+    const ready = { ...readinessFixture(), search_profiles: [] };
+    apiMocks.getReadiness.mockResolvedValue(ready);
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    await screen.findByText("Keyword search");
+    const readiness = pendingReadiness();
+    apiMocks.getReadiness.mockReturnValueOnce(readiness.promise);
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+
+    fireEvent.change(input, { target: { value: " sentinel " } });
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+    expect(input).toHaveValue(" sentinel ");
+    await act(async () => readiness.reject(new Error("Readiness unavailable")));
+
+    await waitFor(() =>
+      expect(apiMocks.searchPage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          search_profile: undefined,
+          criteria: expect.objectContaining({ query: "sentinel", mode: "lexical" }),
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+    expect(input).toHaveValue("sentinel");
+  });
+
+  it("consumes a canonical record address while retaining the committed text search", async () => {
+    history.replaceState(null, "", "/search?q=fire");
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    const input = await screen.findByRole("searchbox", { name: "Search records" });
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalled());
+    apiMocks.searchPage.mockClear();
+
+    fireEvent.change(input, { target: { value: "spell:heal" } });
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+
+    expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+    expect(input).toHaveValue("fire");
+    expect(new URLSearchParams(location.search).get("q")).toBe("fire");
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+  });
+
   it("waits for metadata before searching and gives the URL priority over preference and launch default", async () => {
     history.replaceState(null, "", "/search?q=heal&search_profile=embeddinggemma");
     localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, "bge-base");
@@ -1342,6 +1470,16 @@ function installLocalStorage() {
     configurable: true,
     value: storage,
   });
+}
+
+function pendingReadiness() {
+  let resolve!: (value: AppReadinessView) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<AppReadinessView>((accept, fail) => {
+    resolve = accept;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
 }
 
 function queryClientWrapper() {
