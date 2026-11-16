@@ -96,7 +96,7 @@ impl EncountersWrite<'_> {
 
         if participant.participant_kind != super::ParticipantKind::InitiativeEntry {
             return Err(LocalStateError::InvalidRollRequest(
-                "expected an initiative entry",
+                "expected a custom turn",
             ));
         }
         let intent = serde_json::json!({

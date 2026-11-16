@@ -84,7 +84,7 @@ impl EncountersWrite<'_> {
                     })?;
                 if participant.participant_kind == super::ParticipantKind::InitiativeEntry {
                     return Err(LocalStateError::InvalidRollRequest(
-                        "Initiative entries have a fixed initiative value",
+                        "Custom turns have a fixed initiative value",
                     ));
                 }
                 if participant.revision != input.expected_revision {

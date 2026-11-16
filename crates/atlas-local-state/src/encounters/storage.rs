@@ -372,7 +372,7 @@ pub(crate) fn reorder_participant(
             .is_some_and(|row| row.participant_kind == ParticipantKind::InitiativeEntry)
     {
         return Err(LocalStateError::InvalidRollRequest(
-            "Initiative entries require an initiative value",
+            "Custom turns require an initiative value",
         ));
     }
 
@@ -456,7 +456,7 @@ pub(crate) fn add_condition(
     )?;
     if initiative_entry {
         return Err(LocalStateError::InvalidRollRequest(
-            "Initiative entries do not have conditions",
+            "Custom turns do not have conditions",
         ));
     }
     if let Some(source_participant_key) = &condition.source_participant_key

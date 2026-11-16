@@ -3382,7 +3382,7 @@ fn initiative_entry_takes_a_turn_without_actor_resources_and_round_trips() {
             )
             .unwrap_err()
             .to_string()
-            .contains("initiative entries require a name")
+            .contains("custom turns require a name")
     );
     let imported = worker
         .import_encounter(data.as_slice(), Some("ritual-copy".into()))

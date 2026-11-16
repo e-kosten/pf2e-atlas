@@ -70,7 +70,7 @@ An ended condition remains visible until you remove it. Existing durations witho
 turn timing remain reminders until you edit them to choose a timing participant
 and boundary.
 
-For a lair action or ritual reminder, choose **Add initiative entry** in the
+For a lair action or ritual reminder, choose **Add custom turn** in the
 roster. Enter a name and a fixed initiative count, then write the instructions
 in Notes. When that row becomes active, read the instructions in the inspector
 and select **Next turn** to continue. To add tactics for a specific creature,

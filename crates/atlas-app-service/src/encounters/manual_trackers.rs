@@ -34,7 +34,7 @@ impl AtlasAppService {
             })?;
         if participant.participant_kind == atlas_local_state::ParticipantKind::InitiativeEntry {
             return Err(AppServiceError::invalid_request(
-                "Initiative entries do not have trackers",
+                "Custom turns do not have trackers",
             ));
         }
         let existing = |key: &str| {

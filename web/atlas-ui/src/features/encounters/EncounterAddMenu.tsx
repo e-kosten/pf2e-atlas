@@ -102,7 +102,7 @@ export function EncounterAddMenu({
       ? [
           {
             key: "initiative-entry",
-            label: "Add initiative entry…",
+            label: "Add custom turn…",
             disabled: disabled || adding,
             onClick: () => {
               setOpen(false);

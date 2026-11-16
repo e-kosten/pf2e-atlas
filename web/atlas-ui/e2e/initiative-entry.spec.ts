@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("an initiative entry previews its linked notes and becomes the active turn", async ({
+test("a custom turn previews its linked notes and becomes the active turn", async ({
   page,
 }) => {
   const created = await page.request.post("/api/encounters", {
@@ -10,9 +10,10 @@ test("an initiative entry previews its linked notes and becomes the active turn"
   const { encounter } = await created.json();
   try {
     await page.goto(`/encounters/${encounter.slug}`);
+    await expect(page.getByText("Add a participant or custom turn.")).toBeVisible();
     await page.getByRole("button", { name: "Add participants" }).click();
-    await page.getByRole("menuitem", { name: "Add initiative entry…" }).click();
-    const editor = page.getByRole("dialog", { name: "Add initiative entry" });
+    await page.getByRole("menuitem", { name: "Add custom turn…" }).click();
+    const editor = page.getByRole("dialog", { name: "Add custom turn" });
     await editor.getByRole("textbox", { name: "Name" }).fill("Lair action · Void Font");
     await editor.getByRole("spinbutton", { name: "Initiative" }).fill("20");
     const note = editor.getByRole("textbox", { name: "Notes" });
@@ -47,6 +48,13 @@ test("an initiative entry previews its linked notes and becomes the active turn"
     await expect(
       page.getByRole("button", { name: "Lair action · Void Font, Current turn" }),
     ).toBeVisible();
+    const inspector = page.getByRole("region", { name: "Custom turn" });
+    await expect(inspector).toBeVisible();
+    await inspector.getByRole("button", { name: "Edit custom turn" }).click();
+    const edit = page.getByRole("dialog", { name: "Edit custom turn" });
+    await expect(edit).toBeVisible();
+    await edit.getByRole("button", { name: "Cancel" }).click();
+    await expect(edit).toBeHidden();
     await expect(page.getByRole("heading", { name: "Trigger" })).toBeVisible();
     const link = page.getByRole("link", { name: "Lantern Ward" });
     await link.focus();

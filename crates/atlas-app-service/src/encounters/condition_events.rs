@@ -41,7 +41,7 @@ impl AtlasAppService {
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
         if participant.participant_kind == atlas_local_state::ParticipantKind::InitiativeEntry {
             return Err(AppServiceError::invalid_request(
-                "Initiative entries do not have life settings",
+                "Custom turns do not have life settings",
             ));
         }
         if participant.participant_kind == atlas_local_state::ParticipantKind::Hazard

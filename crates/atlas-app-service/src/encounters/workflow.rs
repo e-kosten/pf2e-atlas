@@ -466,7 +466,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         if request.display_name.trim().is_empty() {
             return Err(AppServiceError::invalid_request(
-                "Enter an initiative entry name.",
+                "Enter a custom turn name.",
             ));
         }
         self.with_write(move |session| {
@@ -562,7 +562,7 @@ impl AtlasAppService {
                 .is_some_and(|name| name.trim().is_empty())
         {
             return Err(AppServiceError::invalid_request(
-                "Enter an initiative entry name.",
+                "Enter a custom turn name.",
             ));
         }
         if existing.participant_kind == ParticipantKind::InitiativeEntry
@@ -576,7 +576,7 @@ impl AtlasAppService {
                 || hp.temporary.is_some())
         {
             return Err(AppServiceError::invalid_request(
-                "Initiative entries require an initiative value and have no actor settings.",
+                "Custom turns require an initiative value and have no actor settings.",
             ));
         }
         let new_variant = metadata

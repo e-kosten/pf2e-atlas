@@ -34,7 +34,7 @@ export function InitiativeEntryEditor({
     <EncounterModal
       open
       width={800}
-      title={initial ? "Edit initiative entry" : "Add initiative entry"}
+      title={initial ? "Edit custom turn" : "Add custom turn"}
       okText={initial ? "Save" : "Add"}
       confirmLoading={disabled}
       okButtonProps={{ disabled: !!conflict }}
@@ -61,11 +61,11 @@ export function InitiativeEntryEditor({
         {conflict && (
           <Alert
             type="warning"
-            title="This entry changed while you were editing"
+            title="This custom turn changed while you were editing"
             description={
               <>
                 <p>
-                  Saved entry: {conflict.latest.display_name} (initiative{" "}
+                  Saved custom turn: {conflict.latest.display_name} (initiative{" "}
                   {conflict.latest.initiative})
                 </p>
                 {conflict.latest.note && (
@@ -77,7 +77,7 @@ export function InitiativeEntryEditor({
           />
         )}
         {!conflict && error && (
-          <ErrorNotice error={error} title="Initiative entry could not be saved" />
+          <ErrorNotice error={error} title="Custom turn could not be saved" />
         )}
         <div className="initiative-entry-editor__fields">
           <Form.Item

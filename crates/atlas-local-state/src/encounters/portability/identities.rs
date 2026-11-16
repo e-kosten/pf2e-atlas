@@ -198,7 +198,7 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
         if p.participant_kind == ParticipantKind::InitiativeEntry
             && p.display_name.trim().is_empty()
         {
-            return Err(invalid("initiative entries require a name"));
+            return Err(invalid("custom turns require a name"));
         }
         if p.participant_kind == ParticipantKind::InitiativeEntry
             && (p.initiative.is_none()
@@ -220,7 +220,7 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
                 || !p.ability_states.is_empty())
         {
             return Err(invalid(
-                "initiative entries require a fixed count and cannot have actor state",
+                "custom turns require a fixed count and cannot have actor state",
             ));
         }
         for condition in &p.conditions {

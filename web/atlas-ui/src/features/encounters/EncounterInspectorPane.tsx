@@ -322,7 +322,7 @@ function InitiativeEntryInspector({
   return (
     <section
       className="encounter-pane encounter-record-pane"
-      aria-label="Initiative entry"
+      aria-label="Custom turn"
       tabIndex={-1}
     >
       <section className="encounter-reference">
@@ -339,7 +339,7 @@ function InitiativeEntryInspector({
                 setEditing(true);
               }}
             >
-              Edit entry
+              Edit custom turn
             </Button>
           </div>
           {participant.note && <MarkdownDocument source={participant.note} />}

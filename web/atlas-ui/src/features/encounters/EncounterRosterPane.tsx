@@ -317,7 +317,7 @@ export function EncounterRosterPane({
                 {participant.display_name}
               </span>
               {participant.participant_kind === "initiative_entry" && (
-                <span className="encounter-roster__state">Initiative entry</span>
+                <span className="encounter-roster__state">Custom turn</span>
               )}
               {participant.hazard_disabled && (
                 <span className="encounter-roster__state">Disabled</span>
@@ -414,7 +414,7 @@ export function EncounterRosterPane({
         {loading ? (
           <div className="detail-empty">Loading encounter...</div>
         ) : participants.length === 0 ? (
-          <div className="detail-empty">Add a participant or initiative entry.</div>
+          <div className="detail-empty">Add a participant or custom turn.</div>
         ) : (
           <DndContext {...sortable.context}>
             <SortableContext
