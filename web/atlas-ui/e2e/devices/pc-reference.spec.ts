@@ -95,6 +95,12 @@ test("Pathbuilder imports and links PC rules in place", async ({ page }, info) =
     );
     await expect(page.locator("[data-participant-key]")).toHaveCount(1);
     const reference = page.getByRole("button", { name: "View PC reference" });
+    if (info.project.use.hasTouch) {
+      await activate(
+        page.locator("[data-participant-key]").filter({ hasText: "Aster" }),
+        info,
+      );
+    }
     await activate(reference, info);
     await activate(
       drawer.getByRole("button", { name: "Night sight", exact: true }),
