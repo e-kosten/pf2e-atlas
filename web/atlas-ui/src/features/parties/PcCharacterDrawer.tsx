@@ -92,7 +92,10 @@ export function PcCharacterDrawer({
     preview.landing,
   );
   const profile = useSearchProfile();
-  const execution = searchExecution(profile, "text_search");
+  const execution = searchExecution(
+    profile.error ? { ...profile, keywordSearch: true } : profile,
+    "text_search",
+  );
   const query = search?.query ?? "";
   const result = useQuery({
     queryKey: [

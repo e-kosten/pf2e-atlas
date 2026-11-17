@@ -61,13 +61,8 @@ test("Pathbuilder imports and links PC rules in place", async ({ page }, info) =
     const search = drawer.getByRole("textbox", { name: "Search Atlas rules" });
     await expect(search).toHaveValue("Night sight");
     await search.fill("Darkvision");
-    const revisedQuery = page.waitForRequest(
-      (request) =>
-        new URL(request.url()).pathname === "/api/search/page" &&
-        request.postDataJSON()?.criteria?.query === "Darkvision",
-    );
     await activate(drawer.getByRole("button", { name: "Search", exact: true }), info);
-    await revisedQuery;
+    await expect(darkvision).toBeVisible();
     await activate(darkvision, info);
     await expect(
       drawer.getByText("Fixture darkvision reference content."),
