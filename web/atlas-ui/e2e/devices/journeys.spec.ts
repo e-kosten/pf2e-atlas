@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { readUrl } from "../readingUrl";
 import { decodeFilterUrl, encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 import { encodeReadingAddress } from "../../src/app/readingUrl";
@@ -1902,8 +1903,9 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
             "Heading",
             "Bold",
             "Italic",
-            "List",
-            "Insert record link",
+            "Bulleted list",
+            "Numbered list",
+            "Record link",
           ]) {
             await page.keyboard.press("Tab");
             await expect(
@@ -2179,24 +2181,29 @@ test("record picker saves an optional entry note and brings the changed list fir
       dialog.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
     const note = dialog.getByRole("textbox", { name: "Note" });
-    const noteText = "  Discuss before the next session.\n\nBring the map.\n";
-    await note.fill("  Discuss before the next session.");
-    await note.press("Enter");
-    await note.press("Enter");
+    const firstLine = "  Discuss before the next session.";
+    const noteText = firstLine + "\n\nBring the map.\n";
+    await replaceMarkdown(note, firstLine);
+    for (const suffix of ["\n", "\n\n"]) {
+      await note.press("Enter");
+      // Android CodeMirror processes Enter after observing the native input frame.
+      await expect.poll(() => markdownSource(note)).toBe(firstLine + suffix);
+    }
     await note.pressSequentially("Bring the map.");
     const growthFrames = page.evaluate(async () => {
-      const field = document.querySelector<HTMLTextAreaElement>("textarea#note")!;
+      const field = document.getElementById("note")!;
+      const scroller = field.closest<HTMLElement>(".cm-scroller")!;
       const dialog = field.closest<HTMLElement>('[role="dialog"]')!;
       const frames: Array<{ height: number; scroll: number; top: number }> = [];
       await new Promise<void>((resolve) => {
         const onEnter = (event: KeyboardEvent) => {
           if (event.key !== "Enter") return;
-          field.removeEventListener("keydown", onEnter);
+          field.removeEventListener("keydown", onEnter, true);
           const start = performance.now();
           const sample = () => {
             frames.push({
               height: field.getBoundingClientRect().height,
-              scroll: field.scrollTop,
+              scroll: scroller.scrollTop,
               top: dialog.getBoundingClientRect().top,
             });
             if (performance.now() - start < 400) requestAnimationFrame(sample);
@@ -2204,7 +2211,7 @@ test("record picker saves an optional entry note and brings the changed list fir
           };
           sample();
         };
-        field.addEventListener("keydown", onEnter);
+        field.addEventListener("keydown", onEnter, true);
       });
       return frames;
     });
@@ -2219,7 +2226,7 @@ test("record picker saves an optional entry note and brings the changed list fir
       Math.max(...frames.map((frame) => frame.top)) -
         Math.min(...frames.map((frame) => frame.top)),
     ).toBeLessThanOrEqual(1);
-    await expect(note).toHaveValue(noteText);
+    await expect.poll(() => markdownSource(note)).toBe(noteText);
     await expect(dialog).toBeVisible();
     const beforeAdd = await page.request.get(`/api/lists/${created[0]}`);
     expect((await beforeAdd.json()).items).toEqual([]);
@@ -2233,7 +2240,9 @@ test("record picker saves an optional entry note and brings the changed list fir
     expect(saved.ok()).toBeTruthy();
     expect((await saved.json()).note).toBe(noteText);
     await activate(trigger, info);
-    await expect(dialog.getByRole("textbox", { name: "Note" })).toHaveValue("");
+    await expect
+      .poll(() => markdownSource(dialog.getByRole("textbox", { name: "Note" })))
+      .toBe("");
     await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
     await expect(choices.first()).toHaveText(`Zulu ${suffix}`);
     await page.keyboard.press("Escape");
@@ -2255,7 +2264,7 @@ test("record picker saves an optional entry note and brings the changed list fir
     ]);
     await activate(noteRegion.getByRole("button", { name: "Edit", exact: true }), info);
     const editor = noteRegion.getByRole("textbox", { name: "Note", exact: true });
-    await expect(editor).toHaveValue(noteText);
+    await expect.poll(() => markdownSource(editor)).toBe(noteText);
     await editor.fill(noteText);
     await editor.pressSequentially("Keep the route secret.");
     const edited = noteText + "Keep the route secret.";

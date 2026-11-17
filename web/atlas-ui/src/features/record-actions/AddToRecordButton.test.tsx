@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -239,10 +240,12 @@ it.each(dismissals)("asks before discarding a list note via %s", async (via) => 
   const note = "A note with enough detail to keep.\nSecond line.";
   const field = within(dialog).getByRole("textbox", { name: "Note" });
   act(() => field.focus());
-  fireEvent.change(field, { target: { value: note } });
+  replaceMarkdown(field, note);
   fireEvent.click(within(dialog).getByRole("tab", { name: "Encounters" }));
   fireEvent.click(within(dialog).getByRole("tab", { name: "Lists" }));
-  expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(note);
+  expect(markdownSource(within(dialog).getByRole("textbox", { name: "Note" }))).toBe(
+    note,
+  );
 
   dismiss(dialog, via);
   expect(screen.getAllByRole("dialog")).toEqual([dialog]);
@@ -250,11 +253,13 @@ it.each(dismissals)("asks before discarding a list note via %s", async (via) => 
   expect(keep).toHaveFocus();
   if (via === "Escape") dismiss(dialog, "Escape");
   else fireEvent.click(keep);
-  expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(note);
+  expect(markdownSource(within(dialog).getByRole("textbox", { name: "Note" }))).toBe(
+    note,
+  );
 
   dismiss(dialog, via);
   fireEvent.click(within(dialog).getByRole("button", { name: "Discard" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   fireEvent.click(opener);
-  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
+  expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe("");
 });

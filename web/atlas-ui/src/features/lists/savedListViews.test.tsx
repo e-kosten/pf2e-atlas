@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
 import { AtlasApiError } from "../../api/apiError";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { RouterTestContext } from "../../test/router";
@@ -1142,13 +1143,14 @@ describe("list views", () => {
     );
     const original = await screen.findByRole("heading", { name: "Test Action 1" });
     fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-      target: { value: "Unfinished first note" },
-    });
+    replaceMarkdown(
+      screen.getByRole("textbox", { name: "Note" }),
+      "Unfinished first note",
+    );
     fireEvent.click(screen.getByRole("link", { name: /Test Action 2/ }));
     expect(await screen.findByText("Could not load Test Action 2")).toBeVisible();
     expect(original).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+    expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe(
       "Unfinished first note",
     );
     expect(window.location.pathname).toBe(
@@ -1209,7 +1211,7 @@ describe("list views", () => {
     view.rerender(pane("actions:testAction3"));
     expect(screen.queryByText("Shared preparation note")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Add note" }));
-    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
+    expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe("");
   });
 
   it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {
@@ -1231,7 +1233,7 @@ describe("list views", () => {
     await screen.findByRole("heading", { name: "Test Action 1" });
     fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
     const note = screen.getByRole("textbox", { name: "Note" });
-    fireEvent.change(note, { target: { value: "Keep this unsaved note" } });
+    replaceMarkdown(note, "Keep this unsaved note");
     expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
@@ -1251,7 +1253,7 @@ describe("list views", () => {
     view.rerender(<ListDetailView route={{ ...route, query: "?sort=saved_order" }} />);
     await screen.findByRole("button", { name: "Reorder Test Action 1" });
     expect(screen.getByRole("textbox", { name: "Note" })).toBe(note);
-    expect(note).toHaveValue("Keep this unsaved note");
+    expect(markdownSource(note)).toBe("Keep this unsaved note");
     expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
     expect(apiMocks.updateSavedListItemNote).not.toHaveBeenCalled();
   });
@@ -1352,9 +1354,7 @@ describe("list views", () => {
       fireEvent.change(screen.getByLabelText("Name"), {
         target: { value: name },
       });
-      fireEvent.change(screen.getByLabelText("Description"), {
-        target: { value: "Updated prep" },
-      });
+      replaceMarkdown(screen.getByLabelText("Description"), "Updated prep");
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() =>
@@ -1382,9 +1382,10 @@ describe("list views", () => {
       { wrapper },
     );
     fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-      target: { value: "My original list note" },
-    });
+    replaceMarkdown(
+      screen.getByRole("textbox", { name: "Note" }),
+      "My original list note",
+    );
 
     const original = savedListDetailFixture();
     apiMocks.filterSavedList.mockImplementation(async (listRef: string) =>
@@ -1418,7 +1419,7 @@ describe("list views", () => {
       expect.any(AbortSignal),
     );
     expect(screen.queryByText("Replacement list")).not.toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+    expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe(
       "My original list note",
     );
     apiMocks.updateSavedListItemNote.mockResolvedValueOnce({
@@ -1495,10 +1496,12 @@ describe("list views", () => {
       client.setQueryData(["saved-list", "list_research"], fresh);
     });
     await waitFor(() =>
-      expect(screen.getByLabelText("Description")).toHaveValue("Saved description"),
+      expect(markdownSource(screen.getByLabelText("Description"))).toBe(
+        "Saved description",
+      ),
     );
     expect(screen.getByLabelText("Name")).toHaveValue("My name");
-    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "" } });
+    replaceMarkdown(screen.getByLabelText("Description"), "");
 
     apiMocks.updateSavedList.mockRejectedValueOnce(
       new AtlasApiError(409, "Conflict", {
@@ -1529,7 +1532,7 @@ describe("list views", () => {
     fireEvent.click(keep);
     expect(apiMocks.updateSavedList).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText("Name")).toHaveFocus();
-    expect(screen.getByLabelText("Description")).toHaveValue("");
+    expect(markdownSource(screen.getByLabelText("Description"))).toBe("");
     apiMocks.updateSavedList.mockResolvedValueOnce({
       list: { ...fresh.list, name: "My name" },
     });
@@ -1555,9 +1558,7 @@ describe("list views", () => {
         { wrapper: queryClientWrapper() },
       );
       fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
-      fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-        target: { value: "A draft to keep" },
-      });
+      replaceMarkdown(screen.getByRole("textbox", { name: "Note" }), "A draft to keep");
       apiMocks.removeSavedListItem.mockImplementationOnce(async () => {
         apiMocks.getSavedListItemNote.mockRejectedValue(
           new AtlasApiError(404, "Missing item", {
@@ -1585,7 +1586,7 @@ describe("list views", () => {
       );
 
       expect(await screen.findByText("Item removed from this list")).toBeVisible();
-      expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+      expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe(
         "A draft to keep",
       );
       expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
@@ -1786,7 +1787,9 @@ describe("list views", () => {
     );
     expect(name).toHaveValue("My list draft");
     await waitFor(() =>
-      expect(screen.getByLabelText("Description")).toHaveValue("Server description"),
+      expect(markdownSource(screen.getByLabelText("Description"))).toBe(
+        "Server description",
+      ),
     );
     apiMocks.getSavedList.mockResolvedValue({
       ...savedListDetailFixture(),

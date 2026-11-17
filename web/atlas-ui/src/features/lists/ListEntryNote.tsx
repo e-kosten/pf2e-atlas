@@ -2,7 +2,10 @@ import {
   MarkdownDocument,
   MarkdownExcerpt,
 } from "../../shared/documents/MarkdownDocument";
-import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
+import {
+  MarkdownEditor,
+  type MarkdownEditorHandle,
+} from "../../shared/documents/MarkdownEditor";
 import { ReaderFooterContext } from "../../shared/records/ReaderFooterContext";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useTabCloseGuard } from "../../app/DesktopTabContext";
@@ -12,8 +15,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Alert, Button, Flex, Input, Space, Typography } from "antd";
-import type { GetRef } from "antd";
+import { Alert, Button, Flex, Space, Typography } from "antd";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useContext, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { getSavedListItemNote, updateSavedListItemNote } from "../../api/atlasApi";
@@ -75,7 +77,7 @@ export function useListEntryNote({
   listRouteRef?: string;
 }) {
   const client = useQueryClient();
-  const editor = useRef<GetRef<typeof Input.TextArea>>(null);
+  const editor = useRef<MarkdownEditorHandle>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [retainedDraft, setRetainedDraft] = useState<object>();
   const [pane, setPane] = useState<{ identity: string; mode: "read" | "edit" }>();

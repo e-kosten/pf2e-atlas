@@ -1,3 +1,8 @@
+import {
+  markdownSource,
+  pressMarkdownShortcut,
+  replaceMarkdown,
+} from "./markdownEditor";
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow, sentinel } from "./reading";
 import type { Locator, Page } from "@playwright/test";
@@ -73,10 +78,14 @@ test("a custom turn fits a short window and can expand its Notes editor", async 
     const longNote = Array.from({ length: 30 }, (_, i) => `Paragraph ${i + 1}.`).join(
       "\n\n",
     );
-    await notes.fill(longNote);
-    expect(await notes.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(
-      true,
-    );
+    await replaceMarkdown(notes, longNote);
+    await expect
+      .poll(() =>
+        expanded
+          .locator(".cm-scroller")
+          .evaluate((node) => node.scrollHeight > node.clientHeight),
+      )
+      .toBe(true);
     await activate(expanded.getByText("Preview", { exact: true }), info);
     const preview = expanded.getByRole("region", { name: "Note preview" });
     await page.setViewportSize({ ...page.viewportSize()!, height: 440 });
@@ -100,9 +109,16 @@ test("a custom turn fits a short window and can expand its Notes editor", async 
 
     await activate(collapse, info);
     await expect(expand).toBeFocused();
-    await expect(editor.getByText("Paragraph 30.", { exact: true })).toBeVisible();
+    await expect(
+      editor
+        .getByRole("region", { name: "Markdown preview" })
+        .getByText("Paragraph 30.", { exact: true }),
+    ).toBeVisible();
     await activate(editor.getByText("Write", { exact: true }), info);
-    await expect(notes).toHaveValue(longNote);
+    await pressMarkdownShortcut(notes, "Home");
+    await expect.poll(() => markdownSource(notes)).toContain("Paragraph 1.");
+    await pressMarkdownShortcut(notes, "End");
+    await expect.poll(() => markdownSource(notes)).toContain("Paragraph 30.");
     const add = editor.getByRole("button", { name: "Add", exact: true });
     await insideViewport(page, add);
     await activate(add, info);
@@ -458,13 +474,15 @@ test("settings saves stay in the originating index and direct edit links close t
     await activate(listTrigger, info);
     const description = listEditor.getByRole("textbox", { name: "Description" });
     await expect(description).toBeVisible();
-    await description.fill("Saved from the filtered index");
+    await replaceMarkdown(description, "Saved from the filtered index");
     await activate(listEditor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(listEditor).toBeHidden();
     await expect(listTrigger).toBeFocused();
     await expect(page).toHaveURL(/\/lists\?q=Session$/);
     await page.goto(`/lists/${listSlug}/edit`);
-    await expect(description).toHaveValue("Saved from the filtered index");
+    await expect
+      .poll(() => markdownSource(description))
+      .toBe("Saved from the filtered index");
     await activate(
       listEditor.getByRole("button", { name: "Cancel", exact: true }),
       info,

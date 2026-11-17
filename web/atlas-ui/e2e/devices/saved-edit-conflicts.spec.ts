@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
@@ -26,7 +27,7 @@ async function openNote(page: Page, slug: string) {
   const region = page.getByRole("region", { name: "List entry note" });
   await region.getByRole("button", { name: "Edit", exact: true }).click();
   const draft = region.getByRole("textbox", { name: "Note", exact: true });
-  await expect(draft).toHaveValue(original);
+  await expect.poll(() => markdownSource(draft)).toBe(original);
   return { region, draft };
 }
 
@@ -41,8 +42,12 @@ test("two tabs saving the same note finish without review", async ({
     const left = await openNote(page, slug);
     const right = await openNote(other, slug);
     const text = "Both tabs made the same edit";
-    await left.draft.fill(text);
-    await right.draft.fill(text);
+    await page.bringToFront();
+    await replaceMarkdown(left.draft, text);
+    await expect.poll(() => markdownSource(left.draft)).toBe(text);
+    await other.bringToFront();
+    await replaceMarkdown(right.draft, text);
+    await expect.poll(() => markdownSource(right.draft)).toBe(text);
     await right.region.getByRole("button", { name: "Save", exact: true }).click();
     await expect(right.region.getByText(text, { exact: true })).toBeVisible();
     const staleSave = page.waitForResponse(
@@ -75,7 +80,7 @@ test("reorder in the same list view preserves an open note draft and both saves"
   try {
     await createList(page, slug);
     const { region, draft } = await openNote(page, slug);
-    await draft.fill("Edited after opening");
+    await replaceMarkdown(draft, "Edited after opening");
     const handle = page.locator(".list-member__drag-handle").first();
     await expect(handle).toBeEnabled();
     await handle.focus();
@@ -96,7 +101,7 @@ test("reorder in the same list view preserves an open note draft and both saves"
         );
       })
       .toEqual([second, first]);
-    await expect(draft).toHaveValue("Edited after opening");
+    await expect.poll(() => markdownSource(draft)).toBe("Edited after opening");
     await region.getByRole("button", { name: "Save", exact: true }).click();
     await expect(
       region.getByText("Edited after opening", { exact: true }),
@@ -131,8 +136,8 @@ test("same-note saves from two tabs require explicit conflict resolution", async
     const draftText = "My draft\n" + "More draft details\n".repeat(25) + "End of draft";
     const savedText =
       "Other tab saved\n" + "More saved details\n".repeat(25) + "End of saved note";
-    await left.draft.fill(draftText);
-    await right.draft.fill(savedText);
+    await replaceMarkdown(left.draft, draftText);
+    await replaceMarkdown(right.draft, savedText);
     await right.region.getByRole("button", { name: "Save", exact: true }).click();
     await expect(
       right.region.getByText("Other tab saved").filter({ visible: true }),
@@ -154,13 +159,13 @@ test("same-note saves from two tabs require explicit conflict resolution", async
       name: "Retry loading saved note",
     });
     await expect(retry).toBeInViewport();
-    await expect(left.draft).toHaveValue(draftText);
+    await expect.poll(() => markdownSource(left.draft)).toBe(draftText);
     expect(await reader.boundingBox()).toEqual(beforeReview);
     await review.getByRole("button", { name: "Back to note" }).press("Enter");
     const reopen = left.region.getByRole("button", { name: "Review conflict" });
     await expect(review).toBeHidden();
     await expect(reopen).toBeFocused();
-    await expect(left.draft).toHaveValue(draftText);
+    await expect.poll(() => markdownSource(left.draft)).toBe(draftText);
     await reopen.press("Enter");
     if (keyboard) {
       await expect(
@@ -173,7 +178,7 @@ test("same-note saves from two tabs require explicit conflict resolution", async
     await expect(review.getByText("Latest saved note", { exact: true })).toBeVisible();
     await expect(review.getByText("Your version", { exact: true })).toBeVisible();
     await expect(review.getByText("Other tab saved")).toBeVisible();
-    await expect(left.draft).toHaveValue(draftText);
+    await expect.poll(() => markdownSource(left.draft)).toBe(draftText);
     if (keyboard) {
       await expect(review.getByText("Review note conflict")).toBeFocused();
       await page.keyboard.press("Tab");
