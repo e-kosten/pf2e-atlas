@@ -19,6 +19,11 @@ function workAreaElement(area?: ModalWorkArea) {
 }
 type Bounds = { top: number; left: number; width: number; height: number };
 type Area = { viewport: Bounds; bounds: Bounds };
+const gutter = 16;
+const preferredBody = 272;
+// Grow the preferred inset only with space the work area can spare.
+const comfortableWorkArea = 562;
+const usableBody = 80;
 
 function visibleArea(workArea?: ModalWorkArea): Area {
   const view = window.visualViewport;
@@ -37,10 +42,36 @@ function visibleArea(workArea?: ModalWorkArea): Area {
   return {
     viewport,
     bounds:
-      height < Math.min(240, viewport.height) ||
       right - left < Math.min(240, viewport.width)
         ? viewport
         : { top, left, width: right - left, height },
+  };
+}
+
+function frameMetrics(frame: HTMLDivElement | null) {
+  const body = frame?.querySelector<HTMLElement>(".ant-modal-body");
+  const container = body?.parentElement;
+  if (!frame?.getClientRects().length || !body || !container) return null;
+  const verticalMargins = (element: Element) => {
+    const style = getComputedStyle(element);
+    return parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+  };
+  const headersAndActions = Array.from(container.children)
+    .filter((element) => element.matches(".ant-modal-header, .ant-modal-footer"))
+    .reduce(
+      (height, el) => height + el.getBoundingClientRect().height + verticalMargins(el),
+      0,
+    );
+  const style = getComputedStyle(container);
+  const feedback = frame.firstElementChild?.getBoundingClientRect().height ?? 0;
+  return {
+    chrome: Math.ceil(
+      headersAndActions +
+        parseFloat(style.paddingTop) +
+        parseFloat(style.paddingBottom) +
+        (feedback ? feedback + parseFloat(getComputedStyle(frame).rowGap) : 0),
+    ),
+    body: Math.min(preferredBody, body.scrollHeight),
   };
 }
 
@@ -59,9 +90,12 @@ export function useModalLayout({
   open: boolean;
   layout: ModalLayout;
   workArea?: ModalWorkArea;
-  frame: RefObject<HTMLDivElement | null>;
+  frame: HTMLDivElement | null;
 }) {
   const [area, setArea] = useState(() => visibleArea());
+  const [openingMetrics, setOpeningMetrics] =
+    useState<ReturnType<typeof frameMetrics>>(null);
+  const [currentChrome, setCurrentChrome] = useState<number | null>(null);
   const [confirmationInset, setConfirmationInset] = useState<number | null>(null);
   const captured = useRef(false);
   const areaRoot = workArea?.root;
@@ -70,6 +104,8 @@ export function useModalLayout({
   const reset = useCallback(() => {
     captured.current = false;
     setConfirmationInset(null);
+    setOpeningMetrics(null);
+    setCurrentChrome(null);
   }, []);
   useLayoutEffect(() => {
     if (!open) return;
@@ -78,20 +114,25 @@ export function useModalLayout({
       : undefined;
     const measure = () => {
       const next = visibleArea(selectedArea);
+      const metrics = frameMetrics(frame);
+      if (metrics) {
+        setCurrentChrome(metrics.chrome);
+        setOpeningMetrics((previous) =>
+          previous?.chrome === metrics.chrome && previous.body === metrics.body
+            ? previous
+            : metrics,
+        );
+      }
       setArea((previous) =>
         sameBounds(previous.bounds, next.bounds) &&
         sameBounds(previous.viewport, next.viewport)
           ? previous
           : next,
       );
-      if (
-        layout === "confirmation" &&
-        !captured.current &&
-        frame.current?.offsetHeight
-      ) {
+      if (layout === "confirmation" && !captured.current && frame?.offsetHeight) {
         captured.current = true;
         setConfirmationInset(
-          Math.max(16, (next.bounds.height - frame.current.offsetHeight) / 2),
+          Math.max(gutter, (next.bounds.height - frame.offsetHeight) / 2),
         );
       }
     };
@@ -101,25 +142,43 @@ export function useModalLayout({
     window.visualViewport?.addEventListener("scroll", measure);
     // Underlying content can shrink and clamp page scrolling while a task is open.
     // Keep its captured work-area anchor until an explicit viewport change.
-    const observer = layout === "confirmation" ? new ResizeObserver(measure) : null;
-    if (frame.current) observer?.observe(frame.current);
+    const observer = new ResizeObserver(() => {
+      const metrics = frameMetrics(frame);
+      if (metrics) setCurrentChrome(metrics.chrome);
+      if (layout === "confirmation" && !captured.current) measure();
+    });
+    for (const element of frame?.querySelectorAll(
+      ".ant-modal-header, .ant-modal-footer, .global-feedback-host",
+    ) ?? []) {
+      observer.observe(element);
+    }
     return () => {
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("scroll", measure);
-      observer?.disconnect();
+      observer.disconnect();
     };
   }, [open, layout, areaRoot, areaSelector, frame]);
   return useMemo(() => {
-    const { bounds } = area;
+    const { bounds, viewport } = area;
     const inset = fill
-      ? 16
+      ? gutter
       : layout === "confirmation"
-        ? Math.min(confirmationInset ?? 16, Math.max(16, bounds.height - 240))
-        : bounds.height <= 600
-          ? 16
-          : Math.max(16, Math.min(80, bounds.height * 0.08));
-    const height = Math.max(0, bounds.height - inset - 16);
+        ? (confirmationInset ?? gutter)
+        : Math.max(
+            gutter,
+            Math.min(80, bounds.height * 0.08, bounds.height - comfortableWorkArea),
+          );
+    const bottom = viewport.top + viewport.height - gutter;
+    const minimumTop = viewport.top + gutter;
+    const chrome = openingMetrics?.chrome ?? 120;
+    const body = fill ? usableBody : (openingMetrics?.body ?? preferredBody);
+    const top = Math.max(
+      minimumTop,
+      Math.min(bounds.top + inset, bottom - chrome - body),
+    );
+    const height = Math.max(0, bottom - top);
+    const scrollFrame = height - (currentChrome ?? chrome) < Math.min(body, usableBody);
     const style: CSSProperties & { "--atlas-modal-height": string } = {
       "--atlas-modal-height": `${height}px`,
       top: 0,
@@ -137,12 +196,13 @@ export function useModalLayout({
       justifyContent: "center",
       boxSizing: "border-box",
       overflow: "hidden",
-      paddingTop: bounds.top + inset,
-      paddingBottom: Math.max(0, window.innerHeight - bounds.top - bounds.height) + 16,
-      paddingLeft: bounds.left + 16,
-      paddingRight: Math.max(0, window.innerWidth - bounds.left - bounds.width) + 16,
+      paddingTop: top,
+      paddingBottom: Math.max(0, window.innerHeight - bottom),
+      paddingLeft: bounds.left + gutter,
+      paddingRight:
+        Math.max(0, window.innerWidth - bounds.left - bounds.width) + gutter,
     };
     const styles: ModalProps["styles"] = { wrapper };
-    return { fill, style, styles, reset };
-  }, [area, fill, layout, confirmationInset, reset]);
+    return { fill, height, scrollFrame, style, styles, reset };
+  }, [area, fill, layout, openingMetrics, currentChrome, confirmationInset, reset]);
 }

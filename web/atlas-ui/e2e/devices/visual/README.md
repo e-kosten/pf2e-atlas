@@ -5,6 +5,19 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Continuous modal height budget
+
+The macOS phone WebKit Quickened dialog falls inside the transition to the
+roomier-window inset. The dialog sits 15px lower with the same controls and
+content. Only `darwin/phone-webkit/quickened-restrictions.png` changes.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.65.0, source
+  `a749e289833dd2a9d4896ef46dd9cb14238125bc`, checkout-local fixture.
+  Fixture SHA-256:
+  `529dfad262ff4c8311624ac40f31e719013edca1345ce30a11ac025a281dd43e`.
+- Frontend index SHA-256:
+  `9f3d4d6b0b00ac8f9da03cdace4a3ccba3b1e30e31fd23c2e62c3e8cc18acd1e`.
+
 ## Four-point Atlas mark
 
 PR #343 refreshes the header mark in 30 Linux references. The other 10 are

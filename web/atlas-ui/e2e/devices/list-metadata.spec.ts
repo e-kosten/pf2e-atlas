@@ -1,3 +1,8 @@
+import {
+  markdownSource,
+  pressMarkdownShortcut,
+  replaceMarkdown,
+} from "./markdownEditor";
 import { expect, test } from "./fixtures";
 import {
   activate,
@@ -295,11 +300,14 @@ test("long entry notes read in the selected record pane and preserve both scroll
     await activate(read, info);
     await activate(footer.getByRole("button", { name: "Edit", exact: true }), info);
     const draft = footer.getByRole("textbox", { name: "Note", exact: true });
-    await expect(draft).toHaveValue(source);
+    await pressMarkdownShortcut(draft, "Home");
+    await expect.poll(() => markdownSource(draft)).toContain(source.split("\n")[0]);
+    await pressMarkdownShortcut(draft, "End");
+    await expect.poll(() => markdownSource(draft)).toContain(source.split("\n").at(-1));
     await expect(footer.getByRole("button", { name: "Collapse editor" })).toHaveCount(
       0,
     );
-    await draft.fill("");
+    await replaceMarkdown(draft, "");
     await activate(footer.getByRole("button", { name: "Save", exact: true }), info);
     await expect(footer.getByRole("button", { name: "Add note" })).toBeFocused();
     await expect(rules).toBeVisible();
@@ -330,22 +338,25 @@ test("expanding a new entry note retains the editor, caret and preview choice", 
     await activate(note.getByRole("button", { name: "Add note" }), info);
     const editor = note.getByRole("textbox", { name: "Note", exact: true });
     const text = "Keep this **draft** while the list stays open. ".repeat(24).trimEnd();
-    await editor.fill(text);
-    await editor.evaluate((node: HTMLTextAreaElement) => node.setSelectionRange(5, 9));
+    await replaceMarkdown(editor, text);
+    await pressMarkdownShortcut(editor, "Home");
+    for (let index = 0; index < 5; index += 1) await editor.press("ArrowRight");
+    for (let index = 0; index < 4; index += 1) await editor.press("Shift+ArrowRight");
     const original = await editor.elementHandle();
     await expect(expand).toBeVisible();
     await activate(expand, info);
     await expect(collapse).toBeFocused();
-    await expect(editor).toHaveValue(text);
+    await expect.poll(() => markdownSource(editor)).toBe(text);
     expect(await editor.evaluate((node, before) => node === before, original)).toBe(
       true,
     );
-    expect(
-      await editor.evaluate((node: HTMLTextAreaElement) => [
-        node.selectionStart,
-        node.selectionEnd,
-      ]),
-    ).toEqual([5, 9]);
+    // The editor keeps its selection while the expand/collapse button owns focus.
+    await note.getByRole("button", { name: "Italic", exact: true }).click();
+    await expect
+      .poll(() => markdownSource(editor))
+      .toBe(text.replace("this", "*this*"));
+    await note.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect.poll(() => markdownSource(editor)).toBe(text);
     await page.screenshot({ path: info.outputPath("expanded-list-note-editor.png") });
 
     const results = page.getByRole("button", { name: "Results", exact: true });
@@ -385,7 +396,7 @@ test("expanding a new entry note retains the editor, caret and preview choice", 
       "draft",
     );
     await activate(note.getByText("Write", { exact: true }), info);
-    await expect(editor).toHaveValue(text);
+    await expect.poll(() => markdownSource(editor)).toBe(text);
     await activate(note.getByRole("button", { name: "Cancel", exact: true }), info);
     await expect(note.getByRole("button", { name: "Add note" })).toBeFocused();
   } finally {

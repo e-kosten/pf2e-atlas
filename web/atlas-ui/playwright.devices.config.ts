@@ -16,6 +16,7 @@ const touchSpecs = [
   "encounter-forms.spec.ts",
   "encounter-name-edit.spec.ts",
   "turn-reminders.spec.ts",
+  "custom-turn.spec.ts",
 ];
 
 const port = Number(process.env.ATLAS_DEVICE_PORT ?? 8796);

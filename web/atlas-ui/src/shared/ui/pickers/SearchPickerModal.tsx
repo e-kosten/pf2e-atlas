@@ -92,6 +92,7 @@ export function SearchPickerModal<FormValues>({
   confirmLabel = "Add",
   status,
   summary,
+  compactOptions = false,
   searchHeader,
   selectionContext,
   footerLayout = "form",
@@ -117,6 +118,7 @@ export function SearchPickerModal<FormValues>({
   confirmLabel?: string;
   status?: React.ReactNode;
   summary?: React.ReactNode;
+  compactOptions?: boolean;
   searchHeader?: (scope: SearchResultsPage["connection_scope"]) => React.ReactNode;
   selectionContext?: string;
   footerLayout?: "form" | "actions";
@@ -125,6 +127,7 @@ export function SearchPickerModal<FormValues>({
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const searchInput = useRef<InputRef>(null);
   const { token } = theme.useToken();
   const narrow = !Grid.useBreakpoint().lg;
@@ -383,6 +386,7 @@ export function SearchPickerModal<FormValues>({
     return () => cancelAnimationFrame(frame);
   }, [focusSearchOnOpen, open, openingReady]);
   const reset = () => {
+    setOptionsOpen(false);
     submission.current += 1;
     setSubmittedProfile(undefined);
     setCriteria({
@@ -449,6 +453,19 @@ export function SearchPickerModal<FormValues>({
         }
       : undefined;
   useSemanticRerunOwner(open, rerunSemantic);
+  const formDetails = footerLayout === "form" && (
+    <>
+      {summary && <div className="reference-picker__summary">{summary}</div>}
+      <div className="reference-picker__footer-content">
+        <div className="reference-picker__fields">
+          {typeof children === "function" ? children(reading.parentDetail) : children}
+        </div>
+        {!compactOptions && status && (
+          <div className="reference-picker__status">{status}</div>
+        )}
+      </div>
+    </>
+  );
   return (
     <SearchProfileContext value={profile}>
       <ReferenceHelpHost generation={recordResults.data?.artifact_generation}>
@@ -472,35 +489,51 @@ export function SearchPickerModal<FormValues>({
             footer={
               <Form
                 name={formId}
-                className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}${footerLayout === "actions" ? " reference-picker__footer--actions" : ""}`}
+                className={[
+                  "reference-picker__footer",
+                  summary && "reference-picker__footer--summary",
+                  compactOptions && "reference-picker__footer--compact-options",
+                  footerLayout === "actions" && "reference-picker__footer--actions",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 disabled={disabled}
                 form={form}
                 layout="vertical"
+                onFinishFailed={compactOptions ? () => setOptionsOpen(true) : undefined}
                 onFinish={(values) => {
-                  if (!disabled && !preparing) onFinish(values);
+                  if (!disabled && !preparing) {
+                    setOptionsOpen(false);
+                    onFinish(values);
+                  }
                 }}
               >
                 {footerLayout === "actions" ? (
                   <div className="reference-picker__action-status">
                     {status && <div className="reference-picker__status">{status}</div>}
                   </div>
-                ) : (
+                ) : compactOptions ? (
                   <>
-                    {summary && (
-                      <div className="reference-picker__summary">{summary}</div>
-                    )}
-                    <div className="reference-picker__footer-content">
-                      <div className="reference-picker__fields">
-                        {typeof children === "function"
-                          ? children(reading.parentDetail)
-                          : children}
-                      </div>
-                      {!summary && status}
-                      {summary && status && (
-                        <div className="reference-picker__status">{status}</div>
-                      )}
+                    <div
+                      className="reference-picker__options"
+                      id={`${formId}-options`}
+                      data-open={optionsOpen || undefined}
+                      onFocusCapture={() => setOptionsOpen(true)}
+                    >
+                      {formDetails}
                     </div>
+                    {status && <div className="reference-picker__status">{status}</div>}
+                    <Button
+                      className="reference-picker__options-toggle"
+                      aria-controls={`${formId}-options`}
+                      aria-expanded={optionsOpen}
+                      onClick={() => setOptionsOpen((shown) => !shown)}
+                    >
+                      Options
+                    </Button>
                   </>
+                ) : (
+                  formDetails
                 )}
                 <Space
                   wrap={footerLayout !== "actions"}

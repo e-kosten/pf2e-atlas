@@ -1276,9 +1276,11 @@ a pinned reader would be a separate product feature.
 `AtlasModal` owns modal geometry, viewport gutters and scrolling. Use its default
 form layout for edits and settings. Keep the top anchor stable as tabs, fields,
 previews, validation and failure feedback change height. The shared frame computes
-its height limit from that same anchor and a 16px bottom gutter; short work areas
-use the minimum top gutter to preserve editing space. Title and action areas stay
-outside the scrolling body. A condition editor can add duration/details
+its height limit from that same anchor and a 16px bottom gutter. When the
+preferred work-area anchor leaves too little editing space, move it toward the
+viewport gutter at open or resize. Title and action areas stay outside the
+scrolling body when they fit. At extreme heights the frame allows scrolling to
+the close control, body and actions. A condition editor can add duration/details
 without moving its title or placing Apply below the viewport.
 
 Use `layout="browse"` for sustained record browsing and comparison. It gives the
@@ -1286,6 +1288,9 @@ workspace a stable bounded height. Filters, navigation and actions stay outside
 results/reader scroll regions. Long picker fields and summaries have a bounded
 secondary scroller so they cannot push Cancel/Add offscreen. Do not restore an
 unshrinkable reader minimum to make the content look taller on short screens.
+Use the modal frame's actual height for compact picker controls. In the encounter
+creature picker, the Options control gives access to quantity, adjustment and
+difficulty while leaving the search and results room to work.
 
 Use `layout="document"` for focused document editing that fills the visible app
 window within its gutters. Keep the way back outside the scrolling editor.

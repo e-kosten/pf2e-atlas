@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -86,22 +87,20 @@ it("shows Note and Edit, preserves drafts through refresh and hidden reference r
   expect(await screen.findByText("A useful ally")).toBeVisible();
   expect(screen.getByText("Note")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-    target: { value: "Unfinished thought" },
-  });
+  replaceMarkdown(screen.getByRole("textbox", { name: "Note" }), "Unfinished thought");
   await act(async () => {
     view.client.setQueryData(["saved-list-item-note", "list_research", "actions:one"], {
       ...entry,
       note: "A newer saved note",
     });
   });
-  expect(screen.getByRole("textbox")).toHaveValue("Unfinished thought");
+  expect(markdownSource(screen.getByRole("textbox"))).toBe("Unfinished thought");
   view.rerender(
     <ListEntryNote listRef="list_research" recordKey="actions:one" hidden />,
   );
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   view.rerender(<ListEntryNote listRef="list_research" recordKey="actions:one" />);
-  expect(screen.getByRole("textbox")).toHaveValue("Unfinished thought");
+  expect(markdownSource(screen.getByRole("textbox"))).toBe("Unfinished thought");
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Edit" })).toHaveFocus(),
@@ -133,7 +132,7 @@ it("protects a changed note and its pending save from closing the desktop tab", 
   });
   fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
   expect(status()).toEqual([]);
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Draft note" } });
+  replaceMarkdown(screen.getByRole("textbox"), "Draft note");
   expect(status()).toContain("dirty");
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(status()).toContain("pending"));
@@ -146,11 +145,11 @@ it("protects a changed note and its pending save from closing the desktop tab", 
 it("retains the draft on failure, retries, and clears a blank note without losing focus", async () => {
   setup();
   fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "New purpose" } });
+  replaceMarkdown(screen.getByRole("textbox"), "New purpose");
   api.updateSavedListItemNote.mockRejectedValueOnce(new Error("Write failed"));
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(await screen.findByText("Unable to save note")).toBeVisible();
-  expect(screen.getByRole("textbox")).toHaveValue("New purpose");
+  expect(markdownSource(screen.getByRole("textbox"))).toBe("New purpose");
   expect(api.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith(
     "list_research",
     "actions:one",
@@ -166,7 +165,7 @@ it("retains the draft on failure, retries, and clears a blank note without losin
   );
   expect(screen.getByText("New purpose")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "  " } });
+  replaceMarkdown(screen.getByRole("textbox"), "  ");
   api.getSavedListItemNote.mockResolvedValue({ ...entry, note: null });
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
@@ -190,9 +189,7 @@ it("isolates late mutation completions from a different selected entry", async (
   );
   const view = setup();
   fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-  fireEvent.change(screen.getByRole("textbox"), {
-    target: { value: "Old entry draft" },
-  });
+  replaceMarkdown(screen.getByRole("textbox"), "Old entry draft");
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled(),
@@ -221,7 +218,9 @@ it("shows the selected member's note immediately and retains it through refresh 
   expect(await screen.findByText("Refreshed note")).toBeVisible();
   expect(screen.queryByText("Unable to refresh note")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("Refreshed note");
+  expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe(
+    "Refreshed note",
+  );
 });
 
 const conflict = new AtlasApiError(409, "Conflicting note", {
@@ -233,9 +232,7 @@ const conflict = new AtlasApiError(409, "Conflicting note", {
 it("overwrites against the reviewed saved note and reopens review after another conflict", async () => {
   const { client } = setup();
   fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-    target: { value: "My plan" },
-  });
+  replaceMarkdown(screen.getByRole("textbox", { name: "Note" }), "My plan");
   await act(async () => {
     client.setQueryData(["saved-list-item-note", "list_research", "actions:one"], {
       ...entry,
@@ -257,7 +254,9 @@ it("overwrites against the reviewed saved note and reopens review after another 
   fireEvent.click(within(dialog).getByRole("button", { name: "Back to note" }));
   const reopen = within(footer).getByRole("button", { name: "Review conflict" });
   await waitFor(() => expect(reopen).toHaveFocus());
-  expect(within(footer).getByRole("textbox", { name: "Note" })).toHaveValue("My plan");
+  expect(markdownSource(within(footer).getByRole("textbox", { name: "Note" }))).toBe(
+    "My plan",
+  );
   expect(
     within(footer).queryByRole("button", { name: "Save" }),
   ).not.toBeInTheDocument();
@@ -313,9 +312,7 @@ it.each([
   async ({ text, saved }) => {
     setup();
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-      target: { value: text },
-    });
+    replaceMarkdown(screen.getByRole("textbox", { name: "Note" }), text);
     let finishRead = () => {};
     api.getSavedListItemNote.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -345,9 +342,7 @@ it.each([
 it("keeps a copyable draft when an external removal makes the note unavailable", async () => {
   const { client } = setup();
   fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-    target: { value: "Copy this draft" },
-  });
+  replaceMarkdown(screen.getByRole("textbox", { name: "Note" }), "Copy this draft");
   api.getSavedListItemNote.mockRejectedValue(
     new AtlasApiError(404, "Missing item", {
       code: "saved_list_item_not_found",
@@ -360,8 +355,13 @@ it("keeps a copyable draft when an external removal makes the note unavailable",
     });
   });
   expect(await screen.findByText("Item removed from this list")).toBeVisible();
-  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("Copy this draft");
-  expect(screen.getByRole("textbox", { name: "Note" })).toHaveAttribute("readonly");
+  expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe(
+    "Copy this draft",
+  );
+  expect(screen.getByRole("textbox", { name: "Note" })).toHaveAttribute(
+    "aria-readonly",
+    "true",
+  );
   expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
   expect(screen.queryByRole("textbox", { name: "Note" })).not.toBeInTheDocument();

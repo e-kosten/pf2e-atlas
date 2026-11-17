@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -119,14 +120,14 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   setup(<AddToRecordButton recordKey="spells:light" />);
   const selector = await chooseList();
   const note = screen.getByRole("textbox", { name: "Note" });
-  fireEvent.change(note, { target: { value: "  Prepare for the night watch.  " } });
+  replaceMarkdown(note, "  Prepare for the night watch.  ");
   const dialog = screen.getByRole("dialog", { name: "Add to list" });
   const add = within(dialog).getByRole("button", { name: "Add" });
   fireEvent.click(add);
   fireEvent.click(add);
   await waitFor(() => expect(api.addSavedListItem).toHaveBeenCalledOnce());
   expect(selector).toBeDisabled();
-  expect(note).toBeDisabled();
+  expect(note).toHaveAttribute("aria-disabled", "true");
   expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
   fireEvent.keyDown(dialog, { key: "Escape" });
   fireEvent.mouseDown(document.querySelector(".ant-modal-wrap")!);
@@ -138,7 +139,7 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   );
   expect(selector.parentElement).toHaveTextContent("Review");
   expect(selector).toBeEnabled();
-  expect(note).toHaveValue("  Prepare for the night watch.  ");
+  expect(markdownSource(note)).toBe("  Prepare for the night watch.  ");
   fireEvent.click(add);
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(api.addSavedListItem).toHaveBeenCalledTimes(2);
@@ -155,16 +156,17 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
     .mockResolvedValueOnce({ list_key: "list_review", slug: "review" });
   setup(<AddToRecordButton recordKey="spells:light" />);
   fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-    target: { value: "Watch duty\nKeep a light ready." },
-  });
+  replaceMarkdown(
+    screen.getByRole("textbox", { name: "Note" }),
+    "Watch duty\nKeep a light ready.",
+  );
   fireEvent.click(screen.getByRole("button", { name: "New list" }));
   fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), {
     target: { value: "Review" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Review was created");
-  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+  expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe(
     "Watch duty\nKeep a light ready.",
   );
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -187,16 +189,14 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
     ],
   ]);
   fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
-  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
+  expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe("");
 });
 
 it("omits a whitespace-only entry note", async () => {
   api.addSavedListItem.mockResolvedValue({ list_key: "list_review", slug: "review" });
   setup(<AddToRecordButton recordKey="spells:light" />);
   await chooseList();
-  fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
-    target: { value: " \n " },
-  });
+  replaceMarkdown(screen.getByRole("textbox", { name: "Note" }), " \n ");
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
   await waitFor(() =>
     expect(api.addSavedListItem).toHaveBeenCalledWith("list_review", {

@@ -21,6 +21,7 @@ export function AtlasModal({
   onCancel,
   confirmDiscard,
   afterClose,
+  className,
   styles,
   style,
   layout = "form",
@@ -67,7 +68,7 @@ export function AtlasModal({
     } else if (confirmDiscard?.when()) {
       const active = draft.current?.ownerDocument.activeElement;
       previousFocus.current =
-        active instanceof HTMLElement && frame.current?.contains(active)
+        active instanceof HTMLElement && frame?.contains(active)
           ? active
           : draft.current;
       setConfirmingDiscard(true);
@@ -75,7 +76,7 @@ export function AtlasModal({
       onCancel?.(event);
     }
   };
-  const frame = useRef<HTMLDivElement>(null);
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const placement = useModalLayout({ open: !!open, layout, workArea, frame });
   return (
     <FeedbackOverlayActive value={visible}>
@@ -83,6 +84,13 @@ export function AtlasModal({
         transitionName=""
         maskTransitionName=""
         {...props}
+        className={[
+          className,
+          placement.height <= 568 && "atlas-modal--short",
+          placement.height <= 448 && "atlas-modal--tight",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         getContainer={props.getContainer ?? tab?.panel}
         keyboard={tabHidden ? false : props.keyboard}
         focusable={
@@ -130,22 +138,26 @@ export function AtlasModal({
               minHeight: 0,
               maxHeight: "100%",
               flex: "1 1 auto",
-              overflow: "hidden",
+              overflow: placement.scrollFrame ? "auto" : "hidden",
             },
             header: { ...custom?.header, flexShrink: 0 },
             body: {
               overflowY: "auto",
               ...custom?.body,
-              minHeight: 0,
-              flex: placement.fill ? "1 1 0" : "1 1 auto",
-              ...(placement.fill ? { height: 0 } : {}),
+              minHeight: placement.scrollFrame && placement.fill ? 144 : 0,
+              flex: placement.scrollFrame
+                ? "0 0 auto"
+                : placement.fill
+                  ? "1 1 0"
+                  : "1 1 auto",
+              ...(placement.fill ? { height: placement.scrollFrame ? 144 : 0 } : {}),
               overscrollBehavior: "contain",
             },
             footer: { ...custom?.footer, flexShrink: 0 },
           };
         }}
         modalRender={(node) => (
-          <FeedbackModalFrame active={!!open} frameRef={frame} fill={placement.fill}>
+          <FeedbackModalFrame active={!!open} frameRef={setFrame} fill={placement.fill}>
             {modalRender ? modalRender(node) : node}
           </FeedbackModalFrame>
         )}

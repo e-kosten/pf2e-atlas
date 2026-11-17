@@ -1,3 +1,8 @@
+import {
+  markdownSource,
+  pressMarkdownShortcut,
+  replaceMarkdown,
+} from "./markdownEditor";
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow, sentinel } from "./reading";
 import type { Locator, Page } from "@playwright/test";
@@ -73,10 +78,14 @@ test("a custom turn fits a short window and can expand its Notes editor", async 
     const longNote = Array.from({ length: 30 }, (_, i) => `Paragraph ${i + 1}.`).join(
       "\n\n",
     );
-    await notes.fill(longNote);
-    expect(await notes.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(
-      true,
-    );
+    await replaceMarkdown(notes, longNote);
+    await expect
+      .poll(() =>
+        expanded
+          .locator(".cm-scroller")
+          .evaluate((node) => node.scrollHeight > node.clientHeight),
+      )
+      .toBe(true);
     await activate(expanded.getByText("Preview", { exact: true }), info);
     const preview = expanded.getByRole("region", { name: "Note preview" });
     await page.setViewportSize({ ...page.viewportSize()!, height: 440 });
@@ -100,9 +109,16 @@ test("a custom turn fits a short window and can expand its Notes editor", async 
 
     await activate(collapse, info);
     await expect(expand).toBeFocused();
-    await expect(editor.getByText("Paragraph 30.", { exact: true })).toBeVisible();
+    await expect(
+      editor
+        .getByRole("region", { name: "Markdown preview" })
+        .getByText("Paragraph 30.", { exact: true }),
+    ).toBeVisible();
     await activate(editor.getByText("Write", { exact: true }), info);
-    await expect(notes).toHaveValue(longNote);
+    await pressMarkdownShortcut(notes, "Home");
+    await expect.poll(() => markdownSource(notes)).toContain("Paragraph 1.");
+    await pressMarkdownShortcut(notes, "End");
+    await expect.poll(() => markdownSource(notes)).toContain("Paragraph 30.");
     const add = editor.getByRole("button", { name: "Add", exact: true });
     await insideViewport(page, add);
     await activate(add, info);
@@ -181,6 +197,151 @@ test("encounter forms retain their anchor through expanding fields and reclamp o
     await page.request.delete(path);
   }
 });
+
+test("encounter form space does not jump at the former height cutoffs", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 940, height: 650 });
+  const { encounter } = await (
+    await page.request.post("/api/encounters", {
+      data: { name: `Anchor limits ${Date.now()}` },
+    })
+  ).json();
+  try {
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(page.getByRole("button", { name: "Add participants" }), info);
+    await activate(page.getByRole("menuitem", { name: "Add custom turn…" }), info);
+    const editor = page.getByRole("dialog", { name: "Add custom turn" });
+    const workArea = Math.ceil(
+      (await page.locator(".workspace-grid").boundingBox())!.y,
+    );
+    const measure = async (available: number) => {
+      await page.setViewportSize({ width: 940, height: workArea + available });
+      await page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          ),
+      );
+      return (await editor.boundingBox())!;
+    };
+    for (const threshold of [240, 601]) {
+      const before = await measure(threshold - 1);
+      const after = await measure(threshold);
+      expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
+      expect(after.height + 1).toBeGreaterThanOrEqual(before.height);
+    }
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+  }
+});
+
+for (const visualOnly of [false, true]) {
+  test(`creature picker remains usable after ${visualOnly ? "visual viewport shrink" : "short window resize"}`, async ({
+    page,
+  }, info) => {
+    const { encounter } = await (
+      await page.request.post("/api/encounters", {
+        data: { name: `Constrained picker ${Date.now()}` },
+      })
+    ).json();
+    const path = `/api/encounters/${encounter.encounter_key}`;
+    try {
+      const revision = (await (await page.request.get(path)).json()).revision;
+      expect(
+        (
+          await page.request.patch(`${path}/difficulty`, {
+            data: {
+              expected_revision: revision,
+              reference: { party_level: 5, party_size: 4 },
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`/encounters/${encounter.slug}`);
+      await activate(page.getByRole("button", { name: "Add participants" }), info);
+      await activate(
+        page.getByRole("menuitem", { name: "Add creature or hazard…" }),
+        info,
+      );
+      const picker = page.getByRole("dialog", { name: "Add creature or hazard" });
+      const result = picker.locator(`[data-record-key="${sentinel}"]`).first();
+      await expect(result).toBeAttached();
+      if (visualOnly) {
+        await page.evaluate(() => {
+          const keyboardViewport = Object.assign(new EventTarget(), {
+            width: innerWidth,
+            height: 400,
+            offsetTop: 0,
+            offsetLeft: 0,
+          });
+          Object.defineProperty(window, "visualViewport", { value: keyboardViewport });
+          window.dispatchEvent(new Event("resize"));
+        });
+      } else {
+        await page.setViewportSize({ width: 320, height: 300 });
+      }
+      await expect
+        .poll(async () => Math.round((await picker.boundingBox())!.height))
+        .toBe(visualOnly ? 368 : 268);
+      const search = picker.getByRole("searchbox", { name: "Search records" });
+      await expect(search).toBeInViewport({ ratio: 1 });
+      await activate(result, info);
+      const options = picker.getByRole("button", { name: "Options", exact: true });
+      await activate(options, info);
+      const quantity = picker.getByRole("spinbutton", { name: "Quantity" });
+      await quantity.fill("2");
+      await expect(quantity).toHaveValue("2");
+      const add = picker.getByRole("button", { name: /^(?:loading )?Add$/ });
+      await insideViewport(page, add);
+      await info.attach("Creature picker at constrained height", {
+        body: await picker.screenshot(),
+        contentType: "image/png",
+      });
+      if (!visualOnly) {
+        let failAdd!: () => void;
+        const pending = new Promise<void>((resolve) => {
+          failAdd = resolve;
+        });
+        await page.route(
+          "**/participants/record",
+          async (route) => {
+            await pending;
+            await route.fulfill({
+              status: 400,
+              contentType: "application/json",
+              body: JSON.stringify({
+                code: "invalid_request",
+                message: "Retry the participant add.",
+              }),
+            });
+          },
+          { times: 1 },
+        );
+        try {
+          await activate(add, info);
+          await expect(add).toBeDisabled();
+        } finally {
+          failAdd();
+        }
+        await expect(picker.getByText("Participant could not be added")).toBeVisible();
+        await activate(options, info);
+        await expect(quantity).toHaveValue("2");
+        await activate(add, info);
+        await expect(
+          picker.getByText("Added 2 × Atlas Sentinel.", { exact: true }),
+        ).toBeVisible();
+      }
+      await insideViewport(
+        page,
+        picker.getByRole("button", { name: "Done", exact: true }),
+      );
+    } finally {
+      await page.request.delete(path);
+    }
+  });
+}
 
 test("short settings, party forms and browse workspaces show actions before focus", async ({
   page,
@@ -397,6 +558,7 @@ test("confirmations focus Cancel and hold their anchor through errors and viewpo
       )
       .toBeLessThanOrEqual(385);
     await insideViewport(page, cancel);
+    await page.setViewportSize({ width: 320, height: 208 });
     await activate(cancel, info);
     await expect(trigger).toBeFocused();
   } finally {
@@ -458,13 +620,15 @@ test("settings saves stay in the originating index and direct edit links close t
     await activate(listTrigger, info);
     const description = listEditor.getByRole("textbox", { name: "Description" });
     await expect(description).toBeVisible();
-    await description.fill("Saved from the filtered index");
+    await replaceMarkdown(description, "Saved from the filtered index");
     await activate(listEditor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(listEditor).toBeHidden();
     await expect(listTrigger).toBeFocused();
     await expect(page).toHaveURL(/\/lists\?q=Session$/);
     await page.goto(`/lists/${listSlug}/edit`);
-    await expect(description).toHaveValue("Saved from the filtered index");
+    await expect
+      .poll(() => markdownSource(description))
+      .toBe("Saved from the filtered index");
     await activate(
       listEditor.getByRole("button", { name: "Cancel", exact: true }),
       info,

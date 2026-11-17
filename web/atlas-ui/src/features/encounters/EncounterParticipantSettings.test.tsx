@@ -1,3 +1,4 @@
+import { replaceMarkdown } from "../../test/markdownEditor";
 import {
   act,
   fireEvent,
@@ -64,9 +65,7 @@ it("saves participant metadata as one complete revision-checked write and cancel
   fireEvent.change(within(dialog).getByLabelText("Participant name"), {
     target: { value: "Mira Dawn" },
   });
-  fireEvent.change(within(dialog).getByLabelText("Participant notes"), {
-    target: { value: "North door" },
-  });
+  replaceMarkdown(within(dialog).getByLabelText("Participant notes"), "North door");
   expect(onUpdate).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onUpdate).toHaveBeenCalledOnce());
