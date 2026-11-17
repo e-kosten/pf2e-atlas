@@ -43,7 +43,7 @@ export function useTabOverlayLifecycle({
     session.opener = null;
     afterClose?.();
     afterOpenChange?.(false);
-  }, [afterClose, afterOpenChange, panel, restoreFocus, tab?.active]);
+  }, [afterClose, afterOpenChange, panel, restoreFocus, tab]);
 
   useLayoutEffect(() => {
     if (!tab) return;
