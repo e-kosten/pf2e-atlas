@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { basename } from "node:path";
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -42,7 +44,8 @@ if (action === "prepare") {
       || !/^\d+\.\d+\.\d+$/.test(info.data?.foundryVersion)) {
     throw new Error("Invalid compatibility metadata from the bundled Atlas CLI");
   }
-  writeFileSync(output, JSON.stringify({ version, ...info.data }) + "\n");
+  const commit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  writeFileSync(output, JSON.stringify({ version, commit, ...info.data }) + "\n");
   process.stdout.write(String(info.data.workspaceSchema));
 } else if (action === "sign") {
   if (version) {
@@ -56,14 +59,33 @@ if (action === "prepare") {
     } else if (!env.TAURI_SIGNING_PRIVATE_KEY && !env.TAURI_SIGNING_PRIVATE_KEY_PATH) {
       throw new Error("Configure the Atlas updater signing secret before packaging a release");
     }
-    // The signer binds the full Atlas version even when the platform bundle version is shorter.
-    execFileSync(process.execPath, [tauri, "signer", "sign", "--app-version", version, input], {
-      env,
-      stdio: ["ignore", "ignore", "inherit"],
-    });
-    if (keyId(publicKey, 42) !== keyId(readFileSync(input + ".sig", "utf8"), 74)) {
-      throw new Error("Updater signing secret does not match the packaged Atlas public key");
+    // Bind every signed file to the full version even when the bundle version is shorter.
+    const sign = (file) => {
+      execFileSync(process.execPath, [tauri, "signer", "sign", "--app-version", version, file], {
+        env,
+        stdio: ["ignore", "inherit", "inherit"],
+      });
+      if (keyId(publicKey, 42) !== keyId(readFileSync(file + ".sig", "utf8"), 74)) {
+        throw new Error("Updater signing secret does not match the packaged Atlas public key");
+      }
+    };
+    const info = JSON.parse(readFileSync(input + ".compatibility.json", "utf8"));
+    const nightly = version.match(/-nightly\.(\d{14}\.g[0-9a-f]{12})$/)?.[1];
+    if (info.version !== version || !/^[a-f0-9]{40}$/.test(info.commit)
+      || (nightly && !nightly.endsWith(".g" + info.commit.slice(0, 12)))) {
+      throw new Error("Atlas transition metadata does not match the packaged build");
     }
+    const descriptor = input + ".transition.json";
+    writeFileSync(descriptor, JSON.stringify({
+      protocol: 1,
+      channel: nightly ? "nightly" : "stable",
+      tag: nightly ? "nightly/" + nightly : "release/" + tag,
+      ...info,
+      asset: basename(input),
+      sha256: createHash("sha256").update(readFileSync(input)).digest("hex"),
+    }) + "\n");
+    sign(input);
+    sign(descriptor);
   }
 } else {
   throw new Error("Expected prepare, compatibility, or sign");

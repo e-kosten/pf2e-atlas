@@ -493,6 +493,7 @@ jobs:
             target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.receipt.json
             target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.sig
             target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.compatibility.json
+            target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.transition.json*
           if-no-files-found: error
 
   assemble:

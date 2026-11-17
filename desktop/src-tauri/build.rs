@@ -1,6 +1,7 @@
 fn main() {
     for name in [
         "ATLAS_DESKTOP_RELEASE",
+        "ATLAS_DESKTOP_SOURCE_COMMIT",
         "ATLAS_UPDATER_PUBLIC_KEY",
         "ATLAS_WORKSPACE_SCHEMA",
         "ATLAS_UPDATER_REHEARSAL_ROOT",
