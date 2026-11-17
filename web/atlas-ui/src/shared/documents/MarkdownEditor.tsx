@@ -54,7 +54,7 @@ export function MarkdownEditor({
   disabled,
   readOnly,
   editorRef,
-  roomy = false,
+  sizing = "compact",
 }: {
   value?: string;
   onChange?: (value: string) => void;
@@ -62,7 +62,7 @@ export function MarkdownEditor({
   label?: string;
   disabled?: boolean;
   readOnly?: boolean;
-  roomy?: boolean;
+  sizing?: "compact" | "roomy" | "fill";
   editorRef?: RefObject<GetRef<typeof Input.TextArea> | null>;
 }) {
   const [currentSelection, setCurrentSelection] = useState<Selection>({
@@ -206,7 +206,7 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className="markdown-editor">
+    <div className="markdown-editor" data-sizing={sizing}>
       <div className="markdown-editor__toolbar">
         <Segmented
           aria-label="Document editor mode"
@@ -266,7 +266,7 @@ export function MarkdownEditor({
           </Space>
         )}
       </div>
-      <div hidden={mode !== "Write"}>
+      <div className="markdown-editor__write" hidden={mode !== "Write"}>
         <Input.TextArea
           id={id}
           aria-label={label}
@@ -274,9 +274,9 @@ export function MarkdownEditor({
           value={value}
           disabled={disabled ?? componentDisabled}
           readOnly={readOnly}
-          autoSize={roomy ? false : { minRows: 3, maxRows: 10 }}
+          autoSize={sizing === "compact" ? { minRows: 3, maxRows: 10 } : false}
           style={
-            roomy
+            sizing === "roomy"
               ? {
                   height: "clamp(9rem, 40dvh, 28rem)",
                   maxHeight: "60dvh",
@@ -310,7 +310,12 @@ export function MarkdownEditor({
         />
       </div>
       {mode === "Preview" && (
-        <div className="markdown-editor__preview">
+        <div
+          className="markdown-editor__preview"
+          role={sizing === "fill" ? "region" : undefined}
+          aria-label={sizing === "fill" ? "Note preview" : undefined}
+          tabIndex={sizing === "fill" ? 0 : undefined}
+        >
           {value.trim() ? (
             <MarkdownDocument source={value} />
           ) : (

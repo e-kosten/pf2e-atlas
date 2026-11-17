@@ -1287,6 +1287,9 @@ results/reader scroll regions. Long picker fields and summaries have a bounded
 secondary scroller so they cannot push Cancel/Add offscreen. Do not restore an
 unshrinkable reader minimum to make the content look taller on short screens.
 
+Use `layout="document"` for focused document editing that fills the visible app
+window within its gutters. Keep the way back outside the scrolling editor.
+
 Compact destructive decisions use the shared confirmation layout: center on first
 open, then retain that anchor as retry/error content grows. Cancel receives initial
 focus and pending writes retain the existing dismissal and duplicate-submit guards.
@@ -2357,6 +2360,11 @@ larger editor. Save and Cancel return focus to Edit or Add note in the relevant
 view. Key presentation and draft state by canonical list identity and entry key.
 Inspecting another record hides the note while retaining its draft. Note mutations
 update their cache from the committed receipt before invalidating list reads.
+
+Add and Edit custom turn use the same expand and collapse labels for Notes.
+The expanded view reserves the app window for the editor. Keep the same draft
+mounted and return to the compact form to submit Name, Initiative and Notes
+together. Escape closes nested controls first, then collapses the editor.
 
 Lightweight entry removal uses the shared danger button's controlled popover.
 Pending writes block dismissal; failures retain the confirmation and local error
