@@ -186,6 +186,7 @@ export function EncounterInspectorPane({
         key={participant.participant_key}
         participant={participant}
         disabled={disabled}
+        pending={pending}
         error={errorKind === "participant" ? error : undefined}
         onUpdate={onUpdate}
       />
@@ -308,11 +309,13 @@ function ParticipantNotes({ source }: { source: string }) {
 function InitiativeEntryInspector({
   participant,
   disabled,
+  pending,
   error,
   onUpdate,
 }: {
   participant: EncounterParticipantView;
   disabled: boolean;
+  pending: boolean;
   error?: string;
   onUpdate: (key: string, edit: UpdateEncounterParticipantEdit) => Promise<boolean>;
 }) {
@@ -368,6 +371,7 @@ function InitiativeEntryInspector({
                 : undefined
             }
             disabled={disabled}
+            pending={pending}
             error={error}
             onSave={(values) =>
               onUpdate(participant.participant_key, {

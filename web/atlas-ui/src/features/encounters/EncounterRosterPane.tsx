@@ -55,6 +55,7 @@ export function EncounterRosterPane({
   onAddManual,
   onAddInitiativeEntry,
   initiativeEntryError,
+  pending,
   onAddParty,
   disabled,
   error,
@@ -86,6 +87,7 @@ export function EncounterRosterPane({
   ) => Promise<void>;
   onAddInitiativeEntry?: (request: InitiativeEntryFields) => Promise<boolean>;
   initiativeEntryError?: string;
+  pending: boolean;
   onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<boolean>;
   disabled: boolean;
   error?: string;
@@ -603,6 +605,7 @@ export function EncounterRosterPane({
       {entryOpen && onAddInitiativeEntry && (
         <InitiativeEntryEditor
           disabled={disabled}
+          pending={pending}
           error={initiativeEntryError}
           onSave={onAddInitiativeEntry}
           onClose={() => setEntryOpen(false)}

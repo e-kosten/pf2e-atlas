@@ -1,5 +1,5 @@
 import { Alert, Button, Form, Input, InputNumber, type GetRef } from "antd";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import type { AddEncounterInitiativeEntryRequest } from "../../generated/atlas";
 import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
@@ -20,6 +20,7 @@ function textValue(note?: string) {
 export function InitiativeEntryEditor({
   initial,
   disabled,
+  pending,
   error,
   conflict,
   onSave,
@@ -28,6 +29,7 @@ export function InitiativeEntryEditor({
 }: {
   initial?: InitiativeEntryFields;
   disabled: boolean;
+  pending: boolean;
   error?: string;
   conflict?: { latest: InitiativeEntryFields; keepDraft: () => void };
   onSave: (values: InitiativeEntryFields) => Promise<boolean>;
@@ -38,6 +40,7 @@ export function InitiativeEntryEditor({
   const formElement = useRef<GetRef<typeof Form<InitiativeEntryFields>>>(null);
   const baseline = useRef(initial);
   const [expanded, setExpanded] = useState(false);
+  const [saved, setSaved] = useState(false);
   const noteId = useId();
   const expandButton = useRef<HTMLButtonElement>(null);
   const collapseLabel = useRef<HTMLSpanElement>(null);
@@ -75,6 +78,11 @@ export function InitiativeEntryEditor({
     }, formElement.current?.nativeElement?.closest<HTMLElement>('[role="dialog"]'));
     onClose();
   };
+  const closeAfterSave = useEffectEvent(close);
+  useLayoutEffect(() => {
+    // The mutation can resolve before the parent enables the opener again.
+    if (saved && !pending) closeAfterSave();
+  }, [saved, pending]);
   return (
     <EncounterModal
       open
@@ -100,6 +108,7 @@ export function InitiativeEntryEditor({
           ? { close: { width: "auto", paddingInline: "var(--space-control)" } }
           : undefined
       }
+      focusable={{ focusTriggerAfterClose: false }}
       keyboard={!disabled}
       mask={{ closable: false }}
       confirmDiscard={{ when: () => !expanded && hasDraft(), onDiscard: close }}
@@ -119,7 +128,7 @@ export function InitiativeEntryEditor({
         disabled={disabled}
         onFinish={async (values) => {
           try {
-            if (!expanded && !conflict && (await onSave(values))) close();
+            if (!expanded && !conflict && (await onSave(values))) setSaved(true);
           } catch {
             // The encounter mutation owner reports the failure.
           }

@@ -464,6 +464,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
             filterHeaderActions={difficulty && <EncounterDifficulty {...difficulty} />}
             filter={
               <EncounterRosterPane
+                pending={mutations.pending}
                 encounterSummary={encounterSummary ?? undefined}
                 difficulty={difficulty}
                 removingKey={
