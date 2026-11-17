@@ -8,8 +8,7 @@ This guide covers platform support, alternate versions and agent integration.
 On Apple Silicon with macOS Tahoe 26 or later, download
 `atlas-desktop-aarch64-apple-darwin.dmg` from the
 [Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
-For a nightly, use the dated release named in
-[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt).
+For a nightly, visit the [Latest Nightly download page](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest).
 Check the image's SHA-256 against `SHA256SUMS` on the same release. Open the
 image and drag **PF2e Atlas** into **Applications**.
 
@@ -45,8 +44,7 @@ first updater-enabled release the same way you installed Atlas originally.
 
 On Windows x64, download `atlas-desktop-x86_64-pc-windows-msvc-setup.exe` from the
 [Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
-For a nightly, use the dated release named in
-[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt).
+For a nightly, visit the [Latest Nightly download page](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest).
 Check its SHA-256 against `SHA256SUMS` on the same release. The installer is
 unsigned, so Windows may show a warning when you open it.
 
@@ -54,9 +52,34 @@ Run the installer, open **PF2e Atlas** from the Start menu, and choose **Set up
 Atlas** for a new workspace. To update, close Atlas and run the installer from
 the newer release. When Atlas reopens, use **Setup and Updates** if prompted.
 
+## Standalone CLI
+
+On macOS or Linux, download and run the official installer:
+
+```bash
+(
+  set -eu
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' EXIT
+  curl --proto '=https' --tlsv1.2 -LsSf \
+    https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh -o "$installer"
+  test -s "$installer"
+  sh "$installer"
+)
+```
+
+On Windows, use PowerShell:
+
+```powershell
+irm https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 | iex
+```
+
+Follow the installer's PATH instructions, then run `atlas setup`.
+Before the first official release, use the [nightly installer](#nightly-builds).
+
 ## Update Atlas
 
-Rerun the [quick-start installer](../README.md#quick-start) to update the CLI to
+Rerun the [standalone installer](#standalone-cli) to update the CLI to
 the latest stable release, then run `atlas setup`. Restart a running web session.
 The installer updates the executable; setup updates reference data while retaining
 your saved lists and encounters. Atlas does not update itself automatically.

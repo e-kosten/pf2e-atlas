@@ -225,7 +225,7 @@ test('bad desktop upload digests keep the release in draft', async (t) => {
   }
 });
 
-test('older and current published retries leave the channel alone', async (t) => {
+test('older retries preserve the channel and current retries repair its download page', async (t) => {
   const old = publisher(t, { existing: [{ tag_name: channel, assets: [{ name: 'nightly-version.txt' }] }],
     channelTag: tag.replace('20261018092300', '20261019092300') });
   await old.execute();
@@ -236,7 +236,12 @@ test('older and current published retries leave the channel alone', async (t) =>
       assets: publishedAssets },
   ], channelTag: tag });
   await current.execute();
-  assert.ok(!current.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
+  assert.ok(!current.calls.some((call) => ['upload', 'create', '--method'].includes(call[2])));
+  const edit = current.calls.find((call) => call[2] === 'edit' && call[3] === channel);
+  assert.ok(edit);
+  const notes = edit[edit.indexOf('--notes') + 1];
+  assert.ok(notes.includes(`/download/${tag}/atlas-desktop-aarch64-apple-darwin.dmg`));
+  assert.ok(notes.includes(`/download/${tag}/atlas-desktop-x86_64-pc-windows-msvc-setup.exe`));
 });
 
 test('an existing dated release without the verified Windows installer cannot advance the channel', async (t) => {
