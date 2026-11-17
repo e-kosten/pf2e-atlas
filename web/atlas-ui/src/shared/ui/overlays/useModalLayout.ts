@@ -21,6 +21,8 @@ type Bounds = { top: number; left: number; width: number; height: number };
 type Area = { viewport: Bounds; bounds: Bounds };
 const gutter = 16;
 const preferredBody = 272;
+// Grow the preferred inset only with space the work area can spare.
+const comfortableWorkArea = 562;
 const usableBody = 80;
 
 function visibleArea(workArea?: ModalWorkArea): Area {
@@ -165,11 +167,7 @@ export function useModalLayout({
         ? (confirmationInset ?? gutter)
         : Math.max(
             gutter,
-            Math.min(
-              80,
-              bounds.height * 0.08,
-              gutter + Math.max(0, bounds.height - 600),
-            ),
+            Math.min(80, bounds.height * 0.08, bounds.height - comfortableWorkArea),
           );
     const bottom = viewport.top + viewport.height - gutter;
     const minimumTop = viewport.top + gutter;
