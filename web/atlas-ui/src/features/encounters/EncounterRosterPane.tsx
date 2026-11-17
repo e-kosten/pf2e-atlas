@@ -55,6 +55,7 @@ export function EncounterRosterPane({
   onAddManual,
   onAddInitiativeEntry,
   initiativeEntryError,
+  pending,
   onAddParty,
   disabled,
   error,
@@ -86,6 +87,7 @@ export function EncounterRosterPane({
   ) => Promise<void>;
   onAddInitiativeEntry?: (request: InitiativeEntryFields) => Promise<boolean>;
   initiativeEntryError?: string;
+  pending: boolean;
   onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<boolean>;
   disabled: boolean;
   error?: string;
@@ -131,6 +133,8 @@ export function EncounterRosterPane({
   const [recordOpen, setRecordOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
+  const entryOpener = useRef<HTMLElement | null>(null);
+  const roster = useRef<HTMLElement>(null);
   const [candidate, setCandidate] = useState<PickerSelection | null>(null);
   const selectedRecordKey = candidate?.record.record_key ?? null;
   const [preparedCreature, setPreparedCreature] =
@@ -373,7 +377,7 @@ export function EncounterRosterPane({
   };
 
   return (
-    <section className="encounter-pane encounter-roster">
+    <section ref={roster} tabIndex={-1} className="encounter-pane encounter-roster">
       <header className="encounter-roster__header">
         <PrimaryToolbar className="encounter-roster__turn-bar">
           <div className="encounter-roster__turn-summary">
@@ -470,7 +474,12 @@ export function EncounterRosterPane({
               setRecordOpen(true);
             }}
             onAddInitiativeEntry={
-              onAddInitiativeEntry ? () => setEntryOpen(true) : undefined
+              onAddInitiativeEntry
+                ? (opener) => {
+                    entryOpener.current = opener;
+                    setEntryOpen(true);
+                  }
+                : undefined
             }
             onAddPc={() => {
               setCommittedPc(false);
@@ -597,9 +606,14 @@ export function EncounterRosterPane({
       {entryOpen && onAddInitiativeEntry && (
         <InitiativeEntryEditor
           disabled={disabled}
+          pending={pending}
           error={initiativeEntryError}
           onSave={onAddInitiativeEntry}
           onClose={() => setEntryOpen(false)}
+          getDismissFocus={() => ({
+            opener: entryOpener.current,
+            pane: roster.current,
+          })}
         />
       )}
       <EncounterModal

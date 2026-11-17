@@ -17,7 +17,7 @@ export function EncounterAddMenu({
   onAdd: (request: AddEncounterPartyRequest) => Promise<void>;
   onAddCreature: () => void;
   onAddPc: () => void;
-  onAddInitiativeEntry?: () => void;
+  onAddInitiativeEntry?: (opener: HTMLElement | null) => void;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -107,7 +107,7 @@ export function EncounterAddMenu({
             onClick: () => {
               setOpen(false);
               trigger.current?.focus();
-              onAddInitiativeEntry();
+              onAddInitiativeEntry(trigger.current);
             },
           },
         ]

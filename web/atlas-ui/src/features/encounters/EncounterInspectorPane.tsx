@@ -1,5 +1,5 @@
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { InitiativeEntryEditor } from "./InitiativeEntryEditor";
 import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
 import type {
@@ -186,6 +186,7 @@ export function EncounterInspectorPane({
         key={participant.participant_key}
         participant={participant}
         disabled={disabled}
+        pending={pending}
         error={errorKind === "participant" ? error : undefined}
         onUpdate={onUpdate}
       />
@@ -308,19 +309,24 @@ function ParticipantNotes({ source }: { source: string }) {
 function InitiativeEntryInspector({
   participant,
   disabled,
+  pending,
   error,
   onUpdate,
 }: {
   participant: EncounterParticipantView;
   disabled: boolean;
+  pending: boolean;
   error?: string;
   onUpdate: (key: string, edit: UpdateEncounterParticipantEdit) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
   const [revision, setRevision] = useState(participant.revision);
+  const pane = useRef<HTMLElement>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
   const initiative = participant.initiative;
   return (
     <section
+      ref={pane}
       className="encounter-pane encounter-record-pane"
       aria-label="Custom turn"
       tabIndex={-1}
@@ -333,6 +339,7 @@ function InitiativeEntryInspector({
               <p className="muted">Initiative {initiative}</p>
             </div>
             <Button
+              ref={editButton}
               disabled={disabled || initiative == null}
               onClick={() => {
                 setRevision(participant.revision);
@@ -364,6 +371,7 @@ function InitiativeEntryInspector({
                 : undefined
             }
             disabled={disabled}
+            pending={pending}
             error={error}
             onSave={(values) =>
               onUpdate(participant.participant_key, {
@@ -373,6 +381,7 @@ function InitiativeEntryInspector({
               })
             }
             onClose={() => setEditing(false)}
+            getDismissFocus={() => ({ opener: editButton.current, pane: pane.current })}
           />
         )}
       </section>
