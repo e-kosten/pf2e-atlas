@@ -41,7 +41,7 @@ pub use setup_model::{
     SetupExitClass, SetupPathsReport, SetupPublication, SetupReadiness, SetupReadinessItem,
     SetupReadinessStatus, SetupTarget,
 };
-pub use workspace::{WORKSPACE_SCHEMA_VERSION, initialize_workspace};
+pub use workspace::{WORKSPACE_SCHEMA_VERSION, desktop_migration_ledger, initialize_workspace};
 
 pub use operations::{ExactRecordRead, StateRead, WorkspaceRead, WorkspaceWrite};
 

@@ -11,6 +11,11 @@ pub const WORKSPACE_SCHEMA_VERSION: u32 = RELEASE_HISTORY.target();
 mod release_history;
 pub(crate) use release_history::RELEASE_HISTORY;
 
+/// Workspace compatibility facts from this executable's migration history.
+pub fn desktop_migration_ledger() -> atlas_storage::MigrationLedger {
+    RELEASE_HISTORY.ledger()
+}
+
 /// Initialize or upgrade one workspace. Reference readiness is independent:
 /// an empty reference corpus must not prevent creating saved lists or encounters.
 pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> {

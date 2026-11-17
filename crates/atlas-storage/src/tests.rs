@@ -14,6 +14,42 @@ pub(super) fn fixture() -> (tempfile::TempDir, Workspace) {
 }
 
 #[test]
+fn update_preflight_requires_the_target_ledger_without_migrating_the_workspace() {
+    let (_dir, workspace) = fixture();
+    let second = Migration {
+        version: 2,
+        name: "later",
+        sql: "UPDATE saved SET title='upgraded';",
+        backfill: None,
+    };
+    let history = [FIRST, second];
+    let ledger = MigrationHistory::new(&history).ledger();
+    let read = workspace.read(1).unwrap();
+    assert_eq!(
+        workspace.check_update_history(&ledger).unwrap(),
+        (read.workspace_key().unwrap(), 1)
+    );
+    drop(read);
+
+    let mut divergent = ledger;
+    divergent.entries[0].checksum = "0".repeat(64);
+    assert!(matches!(
+        workspace.check_update_history(&divergent),
+        Err(StorageError::Migration(_))
+    ));
+    assert!(!workspace.upgrade_backup_path().exists());
+    assert_eq!(
+        workspace
+            .read(1)
+            .unwrap()
+            .connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+}
+
+#[test]
 fn read_session_allows_local_validation_tables_but_cannot_change_saved_data() {
     let (_dir, workspace) = fixture();
     let read = workspace.read(1).unwrap();

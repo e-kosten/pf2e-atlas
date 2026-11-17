@@ -430,6 +430,7 @@ dependencies = [
  "atlas-sqlite-vec",
  "fs2",
  "rusqlite",
+ "serde",
  "sha2",
  "tempfile",
  "thiserror",

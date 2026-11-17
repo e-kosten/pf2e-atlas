@@ -59,6 +59,7 @@ pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
         let (commit, version) = atlas_runtime::desktop_reference_baseline();
         atlas_cli_support::write_json_data(serde_json::json!({
             "workspaceSchema": atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+            "migrationLedger": atlas_runtime::desktop_migration_ledger(),
             "foundryCommit": commit,
             "foundryVersion": version,
         }))?;
