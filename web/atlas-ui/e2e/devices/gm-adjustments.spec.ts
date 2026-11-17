@@ -41,6 +41,14 @@ test("GM adjustments preview and change multiple stats through the participant i
     await editor.getByRole("textbox", { name: "Name" }).fill("Sacrifice Armor");
     await expect(editor.getByText("AC 22 → 20")).toBeVisible();
     await noPageOverflow(page);
+    await expect
+      .poll(() =>
+        editor.evaluate((element) => {
+          const { top, bottom } = element.getBoundingClientRect();
+          return top >= 0 && bottom <= innerHeight;
+        }),
+      )
+      .toBe(true);
     await page.screenshot({
       path: info.outputPath("gm-adjustment-editor.png"),
       animations: "disabled",

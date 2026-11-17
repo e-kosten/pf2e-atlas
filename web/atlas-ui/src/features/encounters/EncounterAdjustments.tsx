@@ -177,7 +177,7 @@ export function EncounterAdjustments({
         <Popover
           open={!!draft && !draft.modal}
           trigger="click"
-          placement="bottomRight"
+          placement="left"
           onOpenChange={(next) => {
             if (!next && !pending && !draft?.modal) close();
           }}
@@ -564,7 +564,7 @@ function AdjustmentEditor({
         />
       )}
       {ending ? (
-        <p>End {draft.entry?.name}?</p>
+        <p>End {current?.name ?? draft.entry?.name}?</p>
       ) : (
         <Form<Values>
           form={form}
