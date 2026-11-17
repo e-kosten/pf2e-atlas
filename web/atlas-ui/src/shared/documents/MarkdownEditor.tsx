@@ -1,3 +1,4 @@
+import { useDesktopTab } from "../../app/DesktopTabContext";
 import {
   Button,
   ConfigProvider,
@@ -71,6 +72,9 @@ export function MarkdownEditor({
   });
   const ranges = useMemo(() => emphasisRanges(value), [value]);
   const [mode, setMode] = useState<"Write" | "Preview">("Write");
+  const tabActive = useDesktopTab()?.active ?? true;
+  const [headingOpen, setHeadingOpen] = useState(false);
+  if (!tabActive && headingOpen) setHeadingOpen(false);
   const [insertion, setInsertion] = useState<Selection | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [form] = Form.useForm();
@@ -217,12 +221,16 @@ export function MarkdownEditor({
         {mode === "Write" && (
           <Space wrap size={4}>
             <Dropdown
+              open={tabActive && headingOpen}
+              onOpenChange={setHeadingOpen}
               trigger={["click"]}
               disabled={locked}
               menu={{
                 items: headingItems,
-                onClick: ({ key }) =>
-                  formatLine("#".repeat(Number(key)) + " ", headingMarker),
+                onClick: ({ key }) => {
+                  setHeadingOpen(false);
+                  formatLine("#".repeat(Number(key)) + " ", headingMarker);
+                },
               }}
             >
               <Button size="small" type="text" disabled={locked}>

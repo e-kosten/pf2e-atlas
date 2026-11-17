@@ -18,6 +18,7 @@ import { antDesignTheme, type ResolvedColorScheme } from "../shared/theme/atlasT
 import { DesktopTabBar, desktopTabButtonId, desktopTabPanelId } from "./DesktopTabBar";
 import {
   DesktopTabContext,
+  canFocusTabElement,
   type DesktopTabRuntime,
   type TabCloseGuard,
 } from "./DesktopTabContext";
@@ -262,12 +263,12 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
       );
       if (closeFocus.current) {
         closeFocus.current = false;
-        const content = position?.focus?.isConnected
+        const content = canFocusTabElement(position?.focus)
           ? position.focus
           : document.getElementById("atlas-main");
         (selected ?? content)?.focus({ preventScroll: true });
       } else if (!strip.current?.contains(document.activeElement)) {
-        const focus = position?.focus?.isConnected ? position.focus : selected;
+        const focus = canFocusTabElement(position?.focus) ? position.focus : selected;
         focus?.focus({ preventScroll: true });
       }
     });
