@@ -1,5 +1,9 @@
 import type { Locator } from "@playwright/test";
-import { markdownSource, replaceMarkdown } from "./markdownEditor";
+import {
+  markdownSource,
+  pressMarkdownShortcut,
+  replaceMarkdown,
+} from "./markdownEditor";
 import { expect, test } from "./fixtures";
 
 async function switchEditorMode(dialog: Locator, mode: "Write" | "Preview") {
@@ -72,7 +76,7 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await expect(headings).toBeHidden();
     await expect(expanded).toBeVisible();
 
-    await note.press("ControlOrMeta+End");
+    await pressMarkdownShortcut(note, "End");
     await note.pressSequentially("[[");
 
     const picker = page.getByRole("dialog", { name: "Insert record link" });
@@ -91,7 +95,7 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await redo.click();
     await expect.poll(() => markdownSource(note)).toBe(withLink);
     await note.click();
-    await note.press("ControlOrMeta+Home");
+    await pressMarkdownShortcut(note, "Home");
     await note.press("ArrowDown");
     await note.press("ArrowDown");
     await note.press("Home");
@@ -112,7 +116,7 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await expect(expanded).toBeVisible();
     await expect(note).toBeFocused();
     await expect.poll(selectedText).toBe("font");
-    await note.press("ControlOrMeta+b");
+    await pressMarkdownShortcut(note, "b");
     const formatted = withLink.replace("font", "**font**");
     await expect.poll(() => markdownSource(note)).toBe(formatted);
     await expect(note).toBeFocused();
@@ -198,7 +202,7 @@ test("Enter continues both kinds of lists and exits empty items", async ({
     }
 
     await replaceMarkdown(note, "1. First\n2. Third");
-    await note.press("ControlOrMeta+Home");
+    await pressMarkdownShortcut(note, "Home");
     await note.press("End");
     await note.press("Enter");
     await expect.poll(() => markdownSource(note)).toBe("1. First\n2. \n3. Third");
@@ -209,16 +213,17 @@ test("Enter continues both kinds of lists and exits empty items", async ({
       await expect.poll(() => markdownSource(note)).toBe(text + "\n");
     }
     await replaceMarkdown(note, "One stage\nTwo stages\nThree stages");
-    await note.press("ControlOrMeta+a");
+    await pressMarkdownShortcut(note, "a");
     await editor.getByRole("button", { name: "Numbered list" }).click();
     await expect
       .poll(() => markdownSource(note))
       .toBe("1. One stage\n2. Two stages\n3. Three stages");
-    await note.press("ControlOrMeta+z");
+    await pressMarkdownShortcut(note, "z");
     await expect
       .poll(() => markdownSource(note))
       .toBe("One stage\nTwo stages\nThree stages");
-    await note.press("ControlOrMeta+Shift+z");
+    // Playwright needs the uppercase key value for a shifted letter on WebKit.
+    await pressMarkdownShortcut(note, "Shift+Z", "y");
     await expect
       .poll(() => markdownSource(note))
       .toBe("1. One stage\n2. Two stages\n3. Three stages");

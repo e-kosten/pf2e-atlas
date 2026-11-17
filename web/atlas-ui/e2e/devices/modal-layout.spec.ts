@@ -1,4 +1,8 @@
-import { markdownSource, replaceMarkdown } from "./markdownEditor";
+import {
+  markdownSource,
+  pressMarkdownShortcut,
+  replaceMarkdown,
+} from "./markdownEditor";
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow, sentinel } from "./reading";
 import type { Locator, Page } from "@playwright/test";
@@ -111,9 +115,9 @@ test("a custom turn fits a short window and can expand its Notes editor", async 
         .getByText("Paragraph 30.", { exact: true }),
     ).toBeVisible();
     await activate(editor.getByText("Write", { exact: true }), info);
-    await notes.press("ControlOrMeta+Home");
+    await pressMarkdownShortcut(notes, "Home");
     await expect.poll(() => markdownSource(notes)).toContain("Paragraph 1.");
-    await notes.press("ControlOrMeta+End");
+    await pressMarkdownShortcut(notes, "End");
     await expect.poll(() => markdownSource(notes)).toContain("Paragraph 30.");
     const add = editor.getByRole("button", { name: "Add", exact: true });
     await insideViewport(page, add);

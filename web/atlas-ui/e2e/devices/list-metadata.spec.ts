@@ -1,4 +1,8 @@
-import { markdownSource, replaceMarkdown } from "./markdownEditor";
+import {
+  markdownSource,
+  pressMarkdownShortcut,
+  replaceMarkdown,
+} from "./markdownEditor";
 import { expect, test } from "./fixtures";
 import {
   activate,
@@ -296,9 +300,9 @@ test("long entry notes read in the selected record pane and preserve both scroll
     await activate(read, info);
     await activate(footer.getByRole("button", { name: "Edit", exact: true }), info);
     const draft = footer.getByRole("textbox", { name: "Note", exact: true });
-    await draft.press("ControlOrMeta+Home");
+    await pressMarkdownShortcut(draft, "Home");
     await expect.poll(() => markdownSource(draft)).toContain(source.split("\n")[0]);
-    await draft.press("ControlOrMeta+End");
+    await pressMarkdownShortcut(draft, "End");
     await expect.poll(() => markdownSource(draft)).toContain(source.split("\n").at(-1));
     await expect(footer.getByRole("button", { name: "Collapse editor" })).toHaveCount(
       0,
@@ -335,7 +339,7 @@ test("expanding a new entry note retains the editor, caret and preview choice", 
     const editor = note.getByRole("textbox", { name: "Note", exact: true });
     const text = "Keep this **draft** while the list stays open. ".repeat(24).trimEnd();
     await replaceMarkdown(editor, text);
-    await editor.press("ControlOrMeta+Home");
+    await pressMarkdownShortcut(editor, "Home");
     for (let index = 0; index < 5; index += 1) await editor.press("ArrowRight");
     for (let index = 0; index < 4; index += 1) await editor.press("Shift+ArrowRight");
     const original = await editor.elementHandle();
