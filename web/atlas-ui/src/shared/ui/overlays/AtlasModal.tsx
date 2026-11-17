@@ -137,19 +137,15 @@ export function AtlasModal({
               overflowY: "auto",
               ...custom?.body,
               minHeight: 0,
-              flex: layout === "browse" ? "1 1 0" : "1 1 auto",
-              ...(layout === "browse" ? { height: 0 } : {}),
+              flex: placement.fill ? "1 1 0" : "1 1 auto",
+              ...(placement.fill ? { height: 0 } : {}),
               overscrollBehavior: "contain",
             },
             footer: { ...custom?.footer, flexShrink: 0 },
           };
         }}
         modalRender={(node) => (
-          <FeedbackModalFrame
-            active={!!open}
-            frameRef={frame}
-            fill={layout === "browse"}
-          >
+          <FeedbackModalFrame active={!!open} frameRef={frame} fill={placement.fill}>
             {modalRender ? modalRender(node) : node}
           </FeedbackModalFrame>
         )}

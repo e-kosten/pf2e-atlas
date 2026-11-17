@@ -16,12 +16,31 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     const editor = page.getByRole("dialog", { name: "Add custom turn" });
     await editor.getByRole("textbox", { name: "Name" }).fill("Lair action · Void Font");
     await editor.getByRole("spinbutton", { name: "Initiative" }).fill("20");
-    const note = editor.getByRole("textbox", { name: "Notes" });
+    const expand = editor.getByRole("button", { name: "Expand editor" });
+    await expand.focus();
+    await expand.press("Enter");
+    const expanded = page.getByRole("dialog", { name: "Notes", exact: true });
+    const collapse = expanded.getByRole("button", { name: "Collapse editor" });
+    await expect(collapse).toBeFocused();
+    const note = page.getByRole("textbox", { name: "Notes", exact: true });
     await note.fill("## Trigger\n\nThe font pulses. Resolve ");
-    await note.press("End");
-    await note.pressSequentially("[[");
+    const heading = expanded.getByRole("button", { name: "Heading", exact: true });
+    await heading.click();
+    const headings = page.getByRole("menuitem", { name: "Heading 1", exact: true });
+    await expect(headings).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(headings).toBeHidden();
+    await expect(expanded).toBeVisible();
 
     const picker = page.getByRole("dialog", { name: "Insert record link" });
+    await expanded.getByRole("button", { name: "Insert record link" }).click();
+    await expect(picker).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(picker).toBeHidden();
+    await expect(expanded).toBeVisible();
+
+    await note.press("End");
+    await note.pressSequentially("[[");
     await expect(
       picker.getByRole("searchbox", { name: "Search records" }),
     ).toBeFocused();
@@ -29,14 +48,26 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await picker.getByRole("button", { name: "Insert link" }).click();
     await expect(picker).toBeHidden();
     await expect(note).toBeFocused();
-    await note.evaluate((textarea: HTMLTextAreaElement) => {
+    const beforeFormatting = await note.evaluate((textarea: HTMLTextAreaElement) => {
       const start = textarea.value.indexOf("font");
       textarea.setSelectionRange(start, start + "font ".length);
+      return [textarea.selectionStart, textarea.selectionEnd];
     });
-    await editor.getByRole("button", { name: "Bold" }).click();
+    await page.keyboard.press("Escape");
+    await expect(expand).toBeFocused();
+    await expand.press("Enter");
+    expect(
+      await note.evaluate((textarea: HTMLTextAreaElement) => [
+        textarea.selectionStart,
+        textarea.selectionEnd,
+      ]),
+    ).toEqual(beforeFormatting);
+    await expanded.getByRole("button", { name: "Bold" }).click();
     await expect(note).toHaveValue(/The \*\*font\*\* pulses/);
     await expect(note).toBeFocused();
-    await editor.getByText("Preview", { exact: true }).click();
+    await expanded.getByText("Preview", { exact: true }).click();
+    await collapse.click();
+    await expect(expand).toBeFocused();
     await expect(editor.getByRole("heading", { name: "Trigger" })).toBeVisible();
     await expect(editor.locator("strong")).toHaveText("font");
     await expect(editor.getByRole("link", { name: "Lantern Ward" })).toBeVisible();
@@ -53,6 +84,12 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await inspector.getByRole("button", { name: "Edit custom turn" }).click();
     const edit = page.getByRole("dialog", { name: "Edit custom turn" });
     await expect(edit).toBeVisible();
+    await edit.getByRole("button", { name: "Expand editor" }).click();
+    await expect(note).toHaveValue(/The \*\*font\*\* pulses/);
+    await collapse.click();
+    await expect(edit.getByRole("textbox", { name: "Name" })).toHaveValue(
+      "Lair action · Void Font",
+    );
     await edit.getByRole("button", { name: "Cancel" }).click();
     await expect(edit).toBeHidden();
     await expect(page.getByRole("heading", { name: "Trigger" })).toBeVisible();

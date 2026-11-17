@@ -60,3 +60,19 @@
   min-block-size: 5rem;
   padding-block: var(--space-control);
 }
+
+.markdown-editor[data-sizing="fill"] {
+  block-size: 100%;
+  grid-template-rows: auto minmax(5rem, 1fr);
+}
+
+.markdown-editor[data-sizing="fill"] .markdown-editor__write textarea {
+  block-size: 100%;
+  resize: none;
+}
+
+.markdown-editor[data-sizing="fill"] .markdown-editor__preview {
+  min-block-size: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}

@@ -12,7 +12,7 @@ async function insideViewport(page: Page, control: Locator) {
   expect(rect.x + rect.width).toBeLessThanOrEqual(size.width + 1);
 }
 
-test("a new custom turn fits its fields and actions in a short window", async ({
+test("a custom turn fits a short window and can expand its Notes editor", async ({
   page,
 }, info) => {
   const created = await page.request.post("/api/encounters", {
@@ -43,9 +43,8 @@ test("a new custom turn fits its fields and actions in a short window", async ({
     await expect(editor.getByRole("spinbutton", { name: "Initiative" })).toBeInViewport(
       { ratio: 1 },
     );
-    await expect(editor.getByRole("textbox", { name: "Notes" })).toBeInViewport({
-      ratio: 1,
-    });
+    const notes = page.getByRole("textbox", { name: "Notes", exact: true });
+    await expect(notes).toBeInViewport({ ratio: 1 });
     await insideViewport(
       page,
       editor.getByRole("button", { name: "Add", exact: true }),
@@ -55,6 +54,62 @@ test("a new custom turn fits its fields and actions in a short window", async ({
       body: await editor.screenshot(),
       contentType: "image/png",
     });
+    const compactHeight = (await notes.boundingBox())!.height;
+    const expand = editor.getByRole("button", { name: "Expand editor", exact: true });
+    await activate(expand, info);
+    const expanded = page.getByRole("dialog", { name: "Notes", exact: true });
+    const collapse = expanded.getByRole("button", { name: "Collapse editor" });
+    await expect(collapse).toBeFocused();
+    await expect(editor).toBeHidden();
+    await expect(expanded.getByRole("textbox", { name: "Name" })).toHaveCount(0);
+    await expect(
+      expanded.getByRole("button", { name: "Add", exact: true }),
+    ).toHaveCount(0);
+    await expect
+      .poll(async () => (await notes.boundingBox())!.height)
+      .toBeGreaterThan(compactHeight * 2);
+    await expect(notes).toBeInViewport({ ratio: 1 });
+
+    const longNote = Array.from({ length: 30 }, (_, i) => `Paragraph ${i + 1}.`).join(
+      "\n\n",
+    );
+    await notes.fill(longNote);
+    expect(await notes.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(
+      true,
+    );
+    await activate(expanded.getByText("Preview", { exact: true }), info);
+    const preview = expanded.getByRole("region", { name: "Note preview" });
+    await page.setViewportSize({ ...page.viewportSize()!, height: 440 });
+    await expect
+      .poll(async () => {
+        const rect = (await expanded.boundingBox())!;
+        return rect.y + rect.height;
+      })
+      .toBeLessThanOrEqual(425);
+    await insideViewport(page, collapse);
+    const scrolled = await preview.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+      return node.scrollTop;
+    });
+    expect(scrolled).toBeGreaterThan(0);
+    await noPageOverflow(page);
+    await info.attach("Expanded custom turn Notes in a short window", {
+      body: await expanded.screenshot(),
+      contentType: "image/png",
+    });
+
+    await activate(collapse, info);
+    await expect(expand).toBeFocused();
+    await expect(editor.getByText("Paragraph 30.", { exact: true })).toBeVisible();
+    await activate(editor.getByText("Write", { exact: true }), info);
+    await expect(notes).toHaveValue(longNote);
+    const add = editor.getByRole("button", { name: "Add", exact: true });
+    await insideViewport(page, add);
+    await activate(add, info);
+    await expect(editor.getByRole("textbox", { name: "Name" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   } finally {
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
   }
