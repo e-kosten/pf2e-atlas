@@ -5,6 +5,29 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## PC reference in the encounter inspector
+
+The condition workflows show the new View PC reference button in the encounter
+behind their dialogs. The button changes header layout and the retained screen
+position in narrow views. Review covered the condition controls and dialog
+actions on both platforms. The macOS capture also picks up minor header mark
+rendering differences.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.65.0, source
+  `9d856fae7fc15aa951db9a75d48026ee1b78c5e1`.
+  Fixture SHA-256
+  `607e96063068337ab2e452146b4f93bb2159e1dbfa85c29144119da1b2549e3a`.
+  Frontend index SHA-256
+  `a9da842eb48f3e01808ef99de9ac112074fe11b5281c3bcdb4933ebb749284dd`.
+- Ubuntu 24.04 x64, Playwright 1.65.0,
+  [capture 44048555449](https://github.com/e-kosten/pf2e-atlas/actions/runs/44048555449).
+  The capture used CI run 44045589481's authenticated fixture from the synthetic
+  merge commit `dcd6523a23fde60ec5fec9716b371abd2235f36a`.
+  Fixture SHA-256
+  `99110a03fcffaa6ff34eb1bfea25b976221ce6db42fc347ac148ee869dd1713f`.
+  Frontend index SHA-256
+  `d485e771a76ca1548c2dbc6bfb624ee19ea7c9151224073f7b13944273621652`.
+
 ## Continuous modal height budget
 
 The macOS phone WebKit Quickened dialog falls inside the transition to the

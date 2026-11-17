@@ -48,6 +48,15 @@ test("Pathbuilder imports and links PC rules in place", async ({ page }, info) =
     const character = partyRow.getByRole("button", { name: "Aster", exact: true });
     await activate(character, info);
     const drawer = page.getByRole("dialog", { name: "Aster", exact: true });
+    const waitForDrawer = () =>
+      expect
+        .poll(() =>
+          drawer.evaluate((element) =>
+            Math.abs(element.getBoundingClientRect().right - window.innerWidth),
+          ),
+        )
+        .toBeLessThan(0.5);
+    await waitForDrawer();
     const darkvision = drawer.getByRole("button", { name: "Darkvision", exact: true });
     await activate(darkvision, info);
     await expect(
@@ -97,6 +106,7 @@ test("Pathbuilder imports and links PC rules in place", async ({ page }, info) =
       );
     }
     await activate(reference, info);
+    await waitForDrawer();
     await activate(
       drawer.getByRole("button", { name: "Night sight", exact: true }),
       info,
