@@ -1,5 +1,5 @@
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { InitiativeEntryEditor } from "./InitiativeEntryEditor";
 import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
 import type {
@@ -318,9 +318,12 @@ function InitiativeEntryInspector({
 }) {
   const [editing, setEditing] = useState(false);
   const [revision, setRevision] = useState(participant.revision);
+  const pane = useRef<HTMLElement>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
   const initiative = participant.initiative;
   return (
     <section
+      ref={pane}
       className="encounter-pane encounter-record-pane"
       aria-label="Custom turn"
       tabIndex={-1}
@@ -333,6 +336,7 @@ function InitiativeEntryInspector({
               <p className="muted">Initiative {initiative}</p>
             </div>
             <Button
+              ref={editButton}
               disabled={disabled || initiative == null}
               onClick={() => {
                 setRevision(participant.revision);
@@ -373,6 +377,7 @@ function InitiativeEntryInspector({
               })
             }
             onClose={() => setEditing(false)}
+            getDismissFocus={() => ({ opener: editButton.current, pane: pane.current })}
           />
         )}
       </section>

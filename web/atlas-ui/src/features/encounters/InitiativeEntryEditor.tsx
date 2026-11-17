@@ -1,16 +1,21 @@
-import { Alert, Button, Form, Input, InputNumber } from "antd";
+import { Alert, Button, Form, Input, InputNumber, type GetRef } from "antd";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import type { AddEncounterInitiativeEntryRequest } from "../../generated/atlas";
 import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
 import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { EncounterModal } from "./EncounterModal";
 
 export type InitiativeEntryFields = Omit<
   AddEncounterInitiativeEntryRequest,
   "expected_revision" | "request_id"
 >;
+
+function textValue(note?: string) {
+  return note?.trim() ? note : "";
+}
 
 export function InitiativeEntryEditor({
   initial,
@@ -19,6 +24,7 @@ export function InitiativeEntryEditor({
   conflict,
   onSave,
   onClose,
+  getDismissFocus,
 }: {
   initial?: InitiativeEntryFields;
   disabled: boolean;
@@ -26,8 +32,11 @@ export function InitiativeEntryEditor({
   conflict?: { latest: InitiativeEntryFields; keepDraft: () => void };
   onSave: (values: InitiativeEntryFields) => Promise<boolean>;
   onClose: () => void;
+  getDismissFocus: () => { opener: HTMLElement | null; pane: HTMLElement | null };
 }) {
   const [form] = Form.useForm<InitiativeEntryFields>();
+  const formElement = useRef<GetRef<typeof Form<InitiativeEntryFields>>>(null);
+  const baseline = useRef(initial);
   const [expanded, setExpanded] = useState(false);
   const noteId = useId();
   const expandButton = useRef<HTMLButtonElement>(null);
@@ -41,9 +50,31 @@ export function InitiativeEntryEditor({
       expandButton.current?.focus({ preventScroll: true });
     }
   }, [expanded]);
-  useTabCloseGuard(() =>
-    disabled ? "pending" : form.isFieldsTouched() ? "dirty" : undefined,
-  );
+  const hasDraft = () => {
+    const values = form.getFieldsValue();
+    const original = baseline.current;
+    return (
+      textValue(values.display_name) !== textValue(original?.display_name) ||
+      (values.initiative ?? null) !== (original?.initiative ?? null) ||
+      textValue(values.note) !== textValue(original?.note)
+    );
+  };
+  useTabCloseGuard(() => (expanded && hasDraft() ? "dirty" : undefined));
+  const close = () => {
+    restoreOverlayFocus(() => {
+      const { opener, pane } = getDismissFocus();
+      return (
+        [opener, pane, pane?.closest<HTMLElement>("#atlas-main")].find(
+          (element) =>
+            element?.isConnected &&
+            !element.matches(":disabled") &&
+            !element.closest("[inert]") &&
+            element.getClientRects().length > 0,
+        ) ?? null
+      );
+    }, formElement.current?.nativeElement?.closest<HTMLElement>('[role="dialog"]'));
+    onClose();
+  };
   return (
     <EncounterModal
       open
@@ -71,13 +102,15 @@ export function InitiativeEntryEditor({
       }
       keyboard={!disabled}
       mask={{ closable: false }}
+      confirmDiscard={{ when: () => !expanded && hasDraft(), onDiscard: close }}
       onCancel={() => {
         if (expanded) setExpanded(false);
-        else onClose();
+        else close();
       }}
       onOk={() => form.submit()}
     >
-      <Form
+      <Form<InitiativeEntryFields>
+        ref={formElement}
         form={form}
         layout="vertical"
         className="initiative-entry-editor"
@@ -86,7 +119,7 @@ export function InitiativeEntryEditor({
         disabled={disabled}
         onFinish={async (values) => {
           try {
-            if (!expanded && !conflict && (await onSave(values))) onClose();
+            if (!expanded && !conflict && (await onSave(values))) close();
           } catch {
             // The encounter mutation owner reports the failure.
           }
