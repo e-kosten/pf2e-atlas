@@ -81,7 +81,7 @@ impl AtlasAppService {
             })?;
             let participants = party
                 .members
-                .into_iter()
+                .iter()
                 .map(|member| AddEncounterParticipant {
                     level_override: member.level,
                     spell_resources: vec![],
@@ -90,7 +90,7 @@ impl AtlasAppService {
                     variant_origin: ParticipantVariantOrigin::Explicit,
                     record_key: None,
                     participant_kind: ParticipantKind::Pc,
-                    display_name: member.name,
+                    display_name: member.name.clone(),
                     record_title_snapshot: None,
                     record_kind_snapshot: None,
                     side: ParticipantSide::Pc,
@@ -101,9 +101,17 @@ impl AtlasAppService {
                     note: None,
                 })
                 .collect();
-            state
+            let added = state
                 .encounters()
                 .add_participants(&encounter.encounter_key, participants)?;
+            let parties = state.parties();
+            for (participant, member) in added.into_iter().zip(party.members) {
+                parties.associate_added_pc(
+                    &encounter.encounter_key,
+                    &participant.participant_key,
+                    &member.member_key,
+                )?;
+            }
             Ok(EncounterMutationView {
                 encounter_key: encounter.encounter_key,
             })

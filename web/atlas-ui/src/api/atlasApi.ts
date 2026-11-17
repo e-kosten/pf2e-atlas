@@ -836,3 +836,58 @@ export function applyEncounterRecovery(
     intent: "action",
   });
 }
+
+export function previewPathbuilderPc(json: string) {
+  return http.previewPathbuilderPc(checkRequest({ json }), { intent: "read" });
+}
+
+export function savePathbuilderPc(
+  partyKey: string,
+  request: import("../generated/atlas").SavePathbuilderPcRequest,
+) {
+  return http.savePathbuilderPc(partyKey, checkRequest(request), { intent: "action" });
+}
+
+export function getPcReference(
+  partyKey: string,
+  memberKey: string,
+  signal?: AbortSignal,
+) {
+  return http.pcReference(partyKey, memberKey, { signal });
+}
+
+export function savePcAbilityLink(
+  partyKey: string,
+  memberKey: string,
+  abilityKey: string,
+  request: import("../generated/atlas").SavePcAbilityLinkRequest,
+) {
+  return http.savePcAbilityLink(
+    partyKey,
+    memberKey,
+    abilityKey,
+    checkRequest(request),
+    { intent: "action" },
+  );
+}
+
+export function getEncounterPcReference(
+  encounterRef: string,
+  participantKey: string,
+  signal?: AbortSignal,
+) {
+  return http.encounterPcReference(encounterRef, participantKey, { signal });
+}
+
+export function setEncounterPcReference(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").SetEncounterPcReferenceRequest,
+) {
+  return http.setEncounterPcReference(
+    encounterRef,
+    participantKey,
+    checkRequest(request),
+    { intent: "action" },
+  );
+}

@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 45. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 46. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -214,6 +214,20 @@ maintenance, migrations and backups operate on the complete workspace. When
 adding saved access paths, cover the scope using a foreign owner's key or child
 ID, or a slug shared by two owners as appropriate to the operation.
 
+### Party member rule references
+
+A Pathbuilder reference belongs to an owned party member. It stores ability
+labels and choices, automatic record keys, and explicit overrides. PC
+participants can point to an owned member for rule reading, with encounter
+levels and gameplay state stored on the participant. Retained party member
+keys survive reorder and edits. Schema 46 adds a member reference table and
+an encounter PC association table.
+
+Workspace archive 3.0 carries optional party reference data and local PC
+associations. A restore validates cross-row links within each owner before
+writing. Standalone encounter files carry the independently saved encounter
+PCs and can be attached to party members in the destination workspace.
+
 ### Inline Markdown and custom turns
 
 List descriptions, saved list item notes and encounter participant notes store
@@ -241,9 +255,10 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 Archive versions advance independently of the database schema. Capture emits
-`2.0` when the workspace contains an archived list, so readers that cannot
-preserve its status reject the archive before restore. Otherwise capture emits
-`1.1`. New readers treat lists in backups from before schema 44 as active.
+`3.0` for PC rule references and live encounter associations, `2.0` for archived
+lists, and `1.1` for other saved state. Readers that predate a required archive
+major reject it before restore. New readers treat lists in backups from before
+schema 44 as active.
 Custom turns use a detectable participant kind value. Older readers reject
 archives and standalone encounter files containing that kind before writing.
 Bump the minor version for compatible additions, including new encounter

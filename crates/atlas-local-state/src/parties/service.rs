@@ -5,11 +5,11 @@ use std::collections::HashSet;
 
 #[derive(Clone, Copy)]
 pub struct PartiesRead<'a> {
-    connection: &'a rusqlite::Connection,
-    owner_id: i64,
+    pub(super) connection: &'a rusqlite::Connection,
+    pub(super) owner_id: i64,
 }
 pub struct PartiesWrite<'a> {
-    read: PartiesRead<'a>,
+    pub(super) read: PartiesRead<'a>,
 }
 impl<'a> std::ops::Deref for PartiesWrite<'a> {
     type Target = PartiesRead<'a>;
@@ -97,23 +97,10 @@ fn validate(
             "Enter a party name of 1 to 255 characters.",
         ));
     }
-    if members.len() > 50 {
-        return Err(LocalStateError::InvalidParty(
-            "A party can contain at most 50 PCs.",
-        ));
-    }
+    validate_member_count(members.len())?;
     let mut keys = HashSet::new();
     for member in members {
-        if member.level.is_some_and(|level| !(1..=20).contains(&level)) {
-            return Err(LocalStateError::InvalidParty(
-                "Enter a PC level from 1 to 20, or leave it blank.",
-            ));
-        }
-        if !valid_name(&member.name) {
-            return Err(LocalStateError::InvalidParty(
-                "Enter a PC name of 1 to 255 characters.",
-            ));
-        }
+        validate_member_fields(&member.name, member.level)?;
         if let Some(key) = &member.member_key
             && (!keys.insert(key)
                 || !existing.is_some_and(|p| p.members.iter().any(|m| &m.member_key == key)))
@@ -122,6 +109,29 @@ fn validate(
                 "Member does not belong to this party or was supplied twice.",
             ));
         }
+    }
+    Ok(())
+}
+
+pub(super) fn validate_member_count(count: usize) -> LocalStateResult<()> {
+    if count > 50 {
+        return Err(LocalStateError::InvalidParty(
+            "A party can contain at most 50 PCs.",
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn validate_member_fields(name: &str, level: Option<i64>) -> LocalStateResult<()> {
+    if level.is_some_and(|level| !(1..=20).contains(&level)) {
+        return Err(LocalStateError::InvalidParty(
+            "Enter a PC level from 1 to 20, or leave it blank.",
+        ));
+    }
+    if !(1..=255).contains(&name.trim().chars().count()) {
+        return Err(LocalStateError::InvalidParty(
+            "Enter a PC name of 1 to 255 characters.",
+        ));
     }
     Ok(())
 }

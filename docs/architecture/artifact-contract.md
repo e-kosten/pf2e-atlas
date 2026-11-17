@@ -179,7 +179,7 @@ The current reference DDL lives in
 [the index release schema](../../crates/atlas-index/src/release_schema.sql).
 The [local-state release schema](../../crates/atlas-local-state/src/release/schema.sql)
 and its three saved-owner table definitions own saved-domain DDL. The production
-paths are direct creation at schema 45 and the authenticated schema 42 through 44 upgrades
+paths are direct creation at schema 46 and the authenticated schema 42 through 45 upgrades
 described in [ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
 Migrations 1–41 are retained in Git history. Their descriptions here record
 the provenance of retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation

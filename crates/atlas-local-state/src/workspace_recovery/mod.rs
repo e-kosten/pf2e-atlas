@@ -1,5 +1,8 @@
 //! All-owner saved state for workspace maintenance.
 mod collections;
+mod pc;
+
+use pc::PcState;
 
 use crate::encounters::portability::workspace::{RecoveryEncounter, ValidatedEncounter};
 use crate::{LocalStateError, LocalStateResult};
@@ -23,6 +26,8 @@ struct Owner<E> {
     lists: Vec<List>,
     parties: Vec<Party>,
     encounters: Vec<E>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pc: Option<PcState>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -76,12 +81,17 @@ impl SavedWorkspace {
                             .map(|key| key.to_string()),
                     );
                 }
+                let pc = PcState::capture(db, id)?;
+                if let Some(pc) = &pc {
+                    keys.extend(pc.record_keys());
+                }
                 Ok(Owner {
                     key,
                     name,
                     lists,
                     parties: Party::capture(db, id)?,
                     encounters,
+                    pc,
                 })
             })
             .collect::<LocalStateResult<_>>()?;
@@ -102,6 +112,10 @@ impl SavedWorkspace {
             references,
             condition_floor: condition_floor(db)?,
         })
+    }
+
+    pub fn has_pc_references(&self) -> bool {
+        self.owners.iter().any(|owner| owner.pc.is_some())
     }
 
     pub fn has_archived_lists(&self) -> bool {
@@ -150,7 +164,7 @@ impl SavedWorkspace {
                     party.validate(&mut parties, &mut members)?;
                 }
                 let mut encounter_slugs = BTreeSet::new();
-                let restored = owner
+                let restored: Vec<_> = owner
                     .encounters
                     .into_iter()
                     .map(|encounter| {
@@ -194,12 +208,20 @@ impl SavedWorkspace {
                         Ok(encounter)
                     })
                     .collect::<LocalStateResult<_>>()?;
+                if let Some(pc) = &owner.pc {
+                    pc.validate(
+                        owner.parties.iter().flat_map(Party::member_keys),
+                        &restored,
+                        &references,
+                    )?;
+                }
                 Ok(Owner {
                     key: owner.key,
                     name: owner.name,
                     lists: owner.lists,
                     parties: owner.parties,
                     encounters: restored,
+                    pc: owner.pc,
                 })
             })
             .collect::<LocalStateResult<_>>()?;
@@ -240,6 +262,9 @@ impl ValidatedWorkspace {
             }
             for encounter in &owner.encounters {
                 encounter.restore(db, id)?;
+            }
+            if let Some(pc) = &owner.pc {
+                pc.restore(db, id)?;
             }
         }
         if floor > condition_floor(db)? {

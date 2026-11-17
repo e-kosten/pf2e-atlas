@@ -6,6 +6,7 @@ mod compatibility;
 mod error;
 mod handlers;
 mod parties;
+mod pc_reference;
 mod router;
 mod schema_directions;
 mod service;

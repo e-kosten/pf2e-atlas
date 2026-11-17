@@ -15,6 +15,7 @@ const touchSpecs = [
   "condition-refinement.spec.ts",
   "encounter-forms.spec.ts",
   "encounter-name-edit.spec.ts",
+  "pc-reference.spec.ts",
   "turn-reminders.spec.ts",
   "custom-turn.spec.ts",
 ];

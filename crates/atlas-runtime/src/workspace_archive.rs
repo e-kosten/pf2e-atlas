@@ -21,6 +21,7 @@ use std::{
 const FORMAT: &str = "pf2e-atlas-workspace";
 const ACTIVE_ONLY_VERSION: &str = "1.1";
 const ARCHIVED_LIST_VERSION: &str = "2.0";
+const PC_REFERENCE_VERSION: &str = "3.0";
 
 #[derive(Serialize)]
 pub struct WorkspaceArchive {
@@ -115,7 +116,9 @@ impl WorkspaceArchive {
         let reference_config = read_requested_reference_config_snapshot(snapshot)
             .map_err(message)?
             .map(ReferenceConfig::from);
-        let version = if saved.has_archived_lists() {
+        let version = if saved.has_pc_references() {
+            PC_REFERENCE_VERSION
+        } else if saved.has_archived_lists() {
             ARCHIVED_LIST_VERSION
         } else {
             ACTIVE_ONLY_VERSION
@@ -188,6 +191,9 @@ impl WorkspaceArchive {
         if major == 1 && saved.has_archived_lists() {
             return Err("Archived lists require workspace archive version 2.0 or later".into());
         }
+        if major < 3 && saved.has_pc_references() {
+            return Err("PC rule references require workspace archive version 3.0 or later".into());
+        }
         let config = archive
             .reference_config
             .map(|value| {
@@ -238,7 +244,7 @@ fn validate_version(version: &str) -> Result<u32, String> {
         .split_once('.')
         .and_then(|(major, minor)| Some((component(major)?, component(minor)?)))
         .ok_or_else(|| format!("Invalid workspace archive version {version:?}"))?;
-    if !matches!(major, 1 | 2) {
+    if !matches!(major, 1..=3) {
         return Err(format!("Unsupported workspace archive version {version}"));
     }
     Ok(major)

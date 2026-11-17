@@ -466,3 +466,48 @@ fn domain_fixture_has_the_runtime_release_schema_and_ledger() {
         sql_rows(domain.connection(), LEDGER)
     );
 }
+
+#[test]
+fn schema_45_upgrade_captures_party_before_reference_tables_exist() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = Workspace::at(directory.path().join("workspace.sqlite")).unwrap();
+    register_extensions().unwrap();
+    let migrations = RELEASE_HISTORY.migrations;
+    workspace
+        .migrate_history(
+            MigrationHistory {
+                migrations: &migrations[..4],
+                ..RELEASE_HISTORY
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+    let write = workspace.write(45).unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO parties(owner_id,party_key,name,revision) VALUES(1,'stable-party','Party',2);
+         INSERT INTO party_members(member_key,party_key,position,name,level)
+             VALUES('stable-member','stable-party',0,'PC',7);",
+    ).unwrap();
+    write.commit().unwrap();
+
+    initialize_workspace(workspace.path()).unwrap();
+    let backup: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(archive_path(&workspace)).unwrap()).unwrap();
+    assert_eq!(backup["version"], "1.1");
+    assert_eq!(
+        backup["saved"]["owners"][0]["parties"][0]["members"][0]["key"],
+        "stable-member"
+    );
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let store = atlas_local_state::LocalStateRead::for_local(&read).unwrap();
+    let party = store.parties().get("stable-party").unwrap();
+    assert_eq!(party.revision, 2);
+    assert_eq!(party.members[0].level, Some(7));
+    assert!(
+        store
+            .parties()
+            .pc_reference("stable-party", "stable-member")
+            .unwrap()
+            .is_none()
+    );
+}

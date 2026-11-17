@@ -113,6 +113,12 @@ pub use remaster::{
 mod equipment_family;
 mod graph;
 mod list;
+mod pc_reference;
+pub use pc_reference::{
+    EncounterPcAssociation, EncounterPcReferenceView, PathbuilderPreviewRequest,
+    PathbuilderPreviewView, PcAbilitySelection, PcAbilityView, PcReferenceView,
+    SavePathbuilderPcRequest, SavePcAbilityLinkRequest, SetEncounterPcReferenceRequest,
+};
 mod party;
 pub use party::{
     AddEncounterPartyRequest, CreatePartyRequest, DeletePartyRequest, PartyIndexView,

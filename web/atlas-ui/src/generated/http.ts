@@ -3741,6 +3741,38 @@ export const EncounterNextTurnUnavailableReason = {
   no_active_participants: 'no_active_participants',
 } as const;
 
+export type EncounterPcAssociation = {
+  kind: 'attach';
+  member_key: string;
+} | {
+  kind: 'detach';
+};
+
+export interface PcAbilityView {
+  ability_key: string;
+  ambiguous: boolean;
+  choice?: string;
+  kind: string;
+  label: string;
+  manual: boolean;
+  record_key?: RecordKey;
+  record_title?: string;
+}
+
+export interface PcReferenceView {
+  abilities: PcAbilityView[];
+  imported: boolean;
+  level?: number;
+  member_key: string;
+  name: string;
+  party_key: string;
+  party_revision: number;
+}
+
+export interface EncounterPcReferenceView {
+  reference?: PcReferenceView;
+}
+
 export interface EncounterRecoveryParticipantView {
   changes: string[];
   /** @nullable */
@@ -4508,6 +4540,25 @@ export interface PartyMutationView {
   party_key: string;
 }
 
+export interface PathbuilderPreviewRequest {
+  json: string;
+}
+
+export interface PathbuilderPreviewView {
+  abilities: PcAbilityView[];
+  artifact_generation: string;
+  level: number;
+  name: string;
+}
+
+export type PcAbilitySelection = {
+  kind: 'automatic';
+} | {
+  expected_artifact_generation: string;
+  kind: 'manual';
+  record_key: RecordKey;
+};
+
 export interface PendingConditionConsequenceView {
   condition_ref: string;
   consequence_key: string;
@@ -5031,6 +5082,18 @@ export interface RollTableRequest {
   selection: RecordSelection;
 }
 
+export interface SavePathbuilderPcRequest {
+  expected_artifact_generation: string;
+  expected_party_revision: number;
+  json: string;
+  member_key?: string;
+}
+
+export interface SavePcAbilityLinkRequest {
+  expected_party_revision: number;
+  selection: PcAbilitySelection;
+}
+
 export interface SavedListItemSnapshotView {
   kind?: string;
   title: string;
@@ -5398,6 +5461,11 @@ export interface SetEncounterLifeSettingsRequest {
   mortality?: MortalityStateView | null;
   request_id: string;
   track_dying: boolean;
+}
+
+export interface SetEncounterPcReferenceRequest {
+  association: EncounterPcAssociation;
+  expected_encounter_revision: number;
 }
 
 export interface SetEncounterTurnRequest {
@@ -6904,6 +6972,67 @@ return fetchGenerated<EncounterMutationView>(getUpdateEncounterManualTrackerUrl(
 
 
 
+export const getEncounterPcReferenceUrl = (encounterRef: string,
+    participantKey: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/${encodeURIComponent(String(participantKey))}/pc-reference`
+}
+
+export const encounterPcReference = async (encounterRef: string,
+    participantKey: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterPcReferenceView> => {
+
+  return fetchGenerated<EncounterPcReferenceView>(getEncounterPcReferenceUrl(encounterRef,participantKey),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getSetEncounterPcReferenceUrl = (encounterRef: string,
+    participantKey: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/${encodeURIComponent(String(participantKey))}/pc-reference`
+}
+
+export const setEncounterPcReference = async (encounterRef: string,
+    participantKey: string,
+    setEncounterPcReferenceRequest: SetEncounterPcReferenceRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterMutationView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<EncounterMutationView>(getSetEncounterPcReferenceUrl(encounterRef,participantKey),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(setEncounterPcReferenceRequest)
+  }
+);}
+
+
+
 export const getEncounterReferenceUrl = (encounterRef: string,
     participantKey: string,) => {
 
@@ -7977,6 +8106,41 @@ return fetchGenerated<PartyView>(getCreatePartyUrl(),
 
 
 
+export const getPreviewPathbuilderPcUrl = () => {
+
+
+
+
+  return `/api/parties/pathbuilder/preview`
+}
+
+export const previewPathbuilderPc = async (pathbuilderPreviewRequest: PathbuilderPreviewRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<PathbuilderPreviewView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<PathbuilderPreviewView>(getPreviewPathbuilderPcUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pathbuilderPreviewRequest)
+  }
+);}
+
+
+
 export const getDeletePartyUrl = (partyKey: string,) => {
 
 
@@ -8044,6 +8208,105 @@ return fetchGenerated<PartyView>(getUpdatePartyUrl(partyKey),
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updatePartyRequest)
+  }
+);}
+
+
+
+export const getPcReferenceUrl = (partyKey: string,
+    memberKey: string,) => {
+
+
+
+
+  return `/api/parties/${encodeURIComponent(String(partyKey))}/members/${encodeURIComponent(String(memberKey))}/reference`
+}
+
+export const pcReference = async (partyKey: string,
+    memberKey: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<PcReferenceView> => {
+
+  return fetchGenerated<PcReferenceView>(getPcReferenceUrl(partyKey,memberKey),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getSavePcAbilityLinkUrl = (partyKey: string,
+    memberKey: string,
+    abilityKey: string,) => {
+
+
+
+
+  return `/api/parties/${encodeURIComponent(String(partyKey))}/members/${encodeURIComponent(String(memberKey))}/reference/${encodeURIComponent(String(abilityKey))}`
+}
+
+export const savePcAbilityLink = async (partyKey: string,
+    memberKey: string,
+    abilityKey: string,
+    savePcAbilityLinkRequest: SavePcAbilityLinkRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<PcReferenceView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<PcReferenceView>(getSavePcAbilityLinkUrl(partyKey,memberKey,abilityKey),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(savePcAbilityLinkRequest)
+  }
+);}
+
+
+
+export const getSavePathbuilderPcUrl = (partyKey: string,) => {
+
+
+
+
+  return `/api/parties/${encodeURIComponent(String(partyKey))}/pathbuilder`
+}
+
+export const savePathbuilderPc = async (partyKey: string,
+    savePathbuilderPcRequest: SavePathbuilderPcRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<PcReferenceView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<PcReferenceView>(getSavePathbuilderPcUrl(partyKey),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(savePathbuilderPcRequest)
   }
 );}
 

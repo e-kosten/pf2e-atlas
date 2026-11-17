@@ -26,6 +26,8 @@ mod lists;
 mod parties;
 #[cfg(test)]
 mod party_tests;
+mod pathbuilder;
+mod pc_reference;
 mod prepared_content;
 mod presentation;
 mod projection;

@@ -161,6 +161,10 @@ struct Member {
 }
 
 impl Party {
+    pub(super) fn member_keys(&self) -> impl Iterator<Item = &str> {
+        self.members.iter().map(|member| member.key.as_str())
+    }
+
     pub(super) fn capture(db: &Connection, owner: i64) -> LocalStateResult<Vec<Self>> {
         let mut parties = rows(
             db,

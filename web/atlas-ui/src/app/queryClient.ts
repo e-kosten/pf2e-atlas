@@ -72,6 +72,7 @@ export function createAtlasQueryClient() {
     "saved-list",
     "saved-list-item-note",
     "parties",
+    "pc-reference",
     "encounters",
     "encounter",
     "encounter-route",

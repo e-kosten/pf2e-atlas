@@ -119,3 +119,19 @@ and custom paths, or [Installation](installation.md) to update Atlas.
 
 Editing a party changes the names and levels used when you add it to a future
 encounter. PCs already added to an encounter keep their existing state.
+
+In **Parties**, choose **Import from Pathbuilder** for the destination party. In
+Pathbuilder, open **Export JSON** and copy the JSON text. Paste it in Atlas,
+preview the character, and choose **Add to party**. To update an existing member,
+open that PC and choose **Refresh from Pathbuilder**.
+
+Open a PC from **Parties** or choose **View PC reference** in the encounter
+inspector. Filter abilities by name and open their rules. **Search for this
+ability** starts a search in the same drawer. Review a match and use **Link this
+rule** to save it for that PC. Use **Change link** to correct a match and
+**Use automatic match** to clear your choice.
+
+**Add Party** attaches the copied PCs to their party references. For a PC already
+in an encounter, use **Attach to party member** in the reference drawer. Refreshing
+a character updates the rules shown in linked encounters. Each encounter stores
+its own participant name, level, HP, and initiative.

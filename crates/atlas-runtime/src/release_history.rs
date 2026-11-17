@@ -30,6 +30,12 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
                 apply: |_| Ok(()),
             }),
         },
+        Migration {
+            version: 46,
+            name: "pc-rule-references",
+            sql: include_str!("../../atlas-local-state/src/release/pc_references.sql"),
+            backfill: None,
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

@@ -22,6 +22,8 @@ import type {
 } from "../../generated/atlas";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { useParties } from "./useParties";
+import { PathbuilderImport } from "./PathbuilderImport";
+import { PcCharacterDrawer } from "./PcCharacterDrawer";
 
 export function PartyManager({
   onClose,
@@ -37,6 +39,26 @@ export function PartyManager({
   const [editor, setEditor] = useState<PartyView | "new" | null>(
     initialCreate ? "new" : null,
   );
+  const [reference, setReference] = useState<{
+    partyKey: string;
+    memberKey: string;
+    name: string;
+    opener: HTMLElement;
+  } | null>(null);
+  const [importing, setImporting] = useState<{
+    party: PartyView;
+    memberKey?: string;
+  } | null>(null);
+  const importParty =
+    parties.data?.parties.find(
+      (party) => party.party_key === importing?.party.party_key,
+    ) ?? importing?.party;
+  const importMember =
+    importParty?.members.find((member) => member.member_key === importing?.memberKey) ??
+    importing?.party.members.find(
+      (member) => member.member_key === importing.memberKey,
+    );
+  const hasChild = Boolean(editor || reference || importing);
   const remove = useMutation({
     retry: false,
     mutationFn: (party: PartyView) => deleteParty(party.party_key, party.revision),
@@ -47,6 +69,7 @@ export function PartyManager({
         ),
       }));
       void client.invalidateQueries({ queryKey: ["parties"] });
+      void client.invalidateQueries({ queryKey: ["pc-reference"] });
     },
   });
   if (initialCreate) return <PartyEditor onClose={onClose} />;
@@ -57,9 +80,9 @@ export function PartyManager({
         afterClose={onClose}
         title="Parties"
         onCancel={() => setClosing(true)}
-        closable={!remove.isPending && !editor}
-        keyboard={!remove.isPending && !editor}
-        mask={{ closable: !remove.isPending && !editor }}
+        closable={!remove.isPending && !hasChild}
+        keyboard={!remove.isPending && !hasChild}
+        mask={{ closable: !remove.isPending && !hasChild }}
         footer={
           <Space>
             <Button disabled={remove.isPending} onClick={() => setClosing(true)}>
@@ -114,25 +137,56 @@ export function PartyManager({
               title: "Party",
               dataIndex: "name",
               render: (_value, party) => (
-                <Button
-                  type="link"
-                  block
-                  style={{
-                    height: "auto",
-                    paddingInline: 0,
-                    whiteSpace: "normal",
-                    overflowWrap: "anywhere",
-                    textAlign: "start",
-                    justifyContent: "start",
-                  }}
-                  disabled={paused || remove.isPending}
-                  onClick={(event) => {
-                    event.currentTarget.focus();
-                    setEditor(party);
-                  }}
-                >
-                  {party.name}
-                </Button>
+                <Space orientation="vertical" size="small" style={{ display: "flex" }}>
+                  <Button
+                    type="link"
+                    block
+                    style={{
+                      height: "auto",
+                      paddingInline: 0,
+                      whiteSpace: "normal",
+                      overflowWrap: "anywhere",
+                      textAlign: "start",
+                      justifyContent: "start",
+                    }}
+                    disabled={paused || remove.isPending}
+                    onClick={(event) => {
+                      event.currentTarget.focus();
+                      setEditor(party);
+                    }}
+                  >
+                    {party.name}
+                  </Button>
+                  <Space wrap size={[8, 4]}>
+                    {party.members.map((member) => (
+                      <Button
+                        key={member.member_key}
+                        size="small"
+                        onClick={(event) => {
+                          event.currentTarget.focus();
+                          setReference({
+                            partyKey: party.party_key,
+                            memberKey: member.member_key,
+                            name: member.name,
+                            opener: event.currentTarget,
+                          });
+                        }}
+                      >
+                        {member.name}
+                      </Button>
+                    ))}
+                    <Button
+                      size="small"
+                      disabled={paused || party.members.length >= 50}
+                      onClick={(event) => {
+                        event.currentTarget.focus();
+                        setImporting({ party });
+                      }}
+                    >
+                      Import from Pathbuilder
+                    </Button>
+                  </Space>
+                </Space>
               ),
             },
             {
@@ -161,6 +215,31 @@ export function PartyManager({
           ]}
         />
       </Modal>
+      {reference && !importing && (
+        <PcCharacterDrawer
+          location={{
+            kind: "party",
+            partyKey: reference.partyKey,
+            memberKey: reference.memberKey,
+          }}
+          name={reference.name}
+          opener={reference.opener}
+          onClose={() => setReference(null)}
+          onRefresh={() => {
+            const party = parties.data?.parties.find(
+              (party) => party.party_key === reference.partyKey,
+            );
+            if (party) setImporting({ party, memberKey: reference.memberKey });
+          }}
+        />
+      )}
+      {importing && importParty && (importMember || !importing.memberKey) && (
+        <PathbuilderImport
+          party={importParty}
+          member={importMember}
+          onClose={() => setImporting(null)}
+        />
+      )}
       {editor && (
         <PartyEditor
           party={editor === "new" ? undefined : editor}
@@ -206,6 +285,7 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
         ],
       }));
       void client.invalidateQueries({ queryKey: ["parties"] });
+      void client.invalidateQueries({ queryKey: ["pc-reference"] });
       setClosing(true);
     },
   });
