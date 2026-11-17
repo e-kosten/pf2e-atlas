@@ -370,8 +370,8 @@ fn speed_fact(
         label: kind.into(),
         base_value_feet: number.clone(),
         adjusted_value_feet: number.clone(),
-        adjustments: vec![],
-        suppressed_adjustments: vec![],
+        modifiers: vec![],
+        suppressed_modifiers: vec![],
         notes: vec![],
     }
 }

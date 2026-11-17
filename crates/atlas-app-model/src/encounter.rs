@@ -112,6 +112,12 @@ pub struct EncounterTurnReviewView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterTurnReminderView {
+    AdjustmentExpired {
+        participant_key: String,
+        participant_name: String,
+        adjustment_key: String,
+        adjustment_name: String,
+    },
     TrackerElapsed {
         participant_key: String,
         participant_name: String,
@@ -535,6 +541,9 @@ pub struct EncounterMutationView {
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
     pub manual_trackers: Vec<crate::EncounterManualTrackerView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub gm_adjustments: Option<crate::EncounterAdjustmentsView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub ability_states: Option<Vec<crate::EncounterAbilityStateView>>,

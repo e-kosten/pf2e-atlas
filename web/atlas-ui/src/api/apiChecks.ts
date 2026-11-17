@@ -163,7 +163,8 @@ export function checkTurnReview(
     checkInteger(turn.round_number);
     for (const reminder of turn.reminders) {
       if (!isRecord(reminder)) throw new AtlasApiError(200, "Invalid turn reminder");
-      if (reminder.kind === "tracker_elapsed") continue;
+      if (reminder.kind === "tracker_elapsed" || reminder.kind === "adjustment_expired")
+        continue;
       if (reminder.kind === "condition_recovery") {
         if (!Array.isArray(reminder.condition_ids))
           throw new AtlasApiError(200, "Invalid condition recovery reminder");

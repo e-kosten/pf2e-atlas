@@ -151,6 +151,9 @@ impl EncountersWrite<'_> {
                     start,
                 )?;
             }
+            for change in &update.adjustments {
+                self.save_adjustment(&saved.snapshot.encounter.encounter_key, change)?;
+            }
             for change in &update.manual_trackers {
                 self.save_manual_tracker(&saved.snapshot.encounter.encounter_key, change)?;
             }

@@ -224,6 +224,7 @@ fn retain_reminder(
 ) -> Option<atlas_app_model::EncounterTurnReminderView> {
     use atlas_app_model::EncounterTurnReminderView as R;
     let (participant_key, participant_name, condition_id, condition_name) = match &reminder {
+        R::AdjustmentExpired { .. } => return Some(reminder),
         R::TrackerElapsed {
             participant_key,
             participant_name,

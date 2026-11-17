@@ -442,6 +442,7 @@ mod tests {
     fn participant() -> EncounterParticipant {
         EncounterParticipant {
             manual_trackers: vec![],
+            adjustments: vec![],
             ability_states: vec![],
             turn_resources: None,
             level_override: None,

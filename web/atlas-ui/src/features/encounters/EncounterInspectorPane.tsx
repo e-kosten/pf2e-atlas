@@ -17,6 +17,7 @@ import {
   EncounterManualTrackers,
   type ManualTrackerHandler,
 } from "./EncounterManualTrackers";
+import { EncounterAdjustments, type AdjustmentHandler } from "./EncounterAdjustments";
 import { EncounterAbilityStates } from "./EncounterAbilityStates";
 import {
   EncounterTurnResources,
@@ -76,6 +77,7 @@ export function EncounterInspectorPane({
   onTurnResources,
   onAbilityState,
   onManualTracker,
+  onAdjustment,
   onHpAction,
   onSpellAction,
   onConditionRecovery,
@@ -94,6 +96,7 @@ export function EncounterInspectorPane({
   onReset?: () => void;
   onAbilityState?: AbilityStateHandler;
   onManualTracker?: ManualTrackerHandler;
+  onAdjustment?: AdjustmentHandler;
   disabled: boolean;
   encounterRevision: number;
   currentTurnKey?: string | null;
@@ -241,6 +244,7 @@ export function EncounterInspectorPane({
             onTurnResources={onTurnResources}
             onAbilityState={onAbilityState}
             onManualTracker={onManualTracker}
+            onAdjustment={onAdjustment}
             onHpAction={onHpAction}
             onSpellAction={onSpellAction}
             onUpdateCondition={onUpdateCondition}
@@ -418,6 +422,7 @@ function EncounterParticipantSurface({
   onTurnResources,
   onAbilityState,
   onManualTracker,
+  onAdjustment,
   onHpAction,
   onSpellAction,
   onUpdateCondition,
@@ -431,6 +436,7 @@ function EncounterParticipantSurface({
 }: {
   onAbilityState?: AbilityStateHandler;
   onManualTracker?: ManualTrackerHandler;
+  onAdjustment?: AdjustmentHandler;
   disabled: boolean;
   encounterRevision: number;
   currentTurnKey?: string | null;
@@ -623,6 +629,19 @@ function EncounterParticipantSurface({
         onRecoverPersistent={onRecoverPersistent}
         onResolveDrained={onResolveDrained}
         participants={participants}
+      />
+      <EncounterAdjustments
+        key={participant.participant_key}
+        participant={participant}
+        participants={participants}
+        encounterRef={encounterKey}
+        encounterRevision={encounterRevision}
+        referenceGeneration={artifactGeneration}
+        disabled={disabled}
+        pending={pending}
+        recovery={recovery}
+        error={errorFor("gm-adjustment")}
+        onChange={onAdjustment}
       />
       <EncounterManualTrackers
         participant={participant}

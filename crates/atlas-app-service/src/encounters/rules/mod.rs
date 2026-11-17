@@ -1,5 +1,6 @@
 //! Shared pure encounter rules. Durable state and presentation are adapted at the edges.
 pub(super) mod capabilities;
+pub(super) mod gm_adjustments;
 pub(crate) mod modifiers;
 pub(in crate::encounters) mod overnight;
 mod projection;

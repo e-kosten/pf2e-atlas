@@ -7,6 +7,7 @@ use serde_json::json;
 pub(super) fn participant() -> EncounterParticipant {
     EncounterParticipant {
         manual_trackers: vec![],
+        adjustments: vec![],
         ability_states: vec![],
         turn_resources: None,
         level_override: None,
@@ -275,8 +276,8 @@ fn immobilized_preserves_speed_while_encumbered_reduces_it_independently() {
         .push(super::super::stat_block::MovementSpeedView {
             movement_type: "land".into(),
             label: "Speed".into(),
-            adjustments: vec![],
-            suppressed_adjustments: vec![],
+            modifiers: vec![],
+            suppressed_modifiers: vec![],
             base_value_feet: 25.into(),
             adjusted_value_feet: 25.into(),
             notes: vec![],

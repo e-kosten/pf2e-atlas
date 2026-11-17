@@ -14,6 +14,7 @@ import {
   updateTurnResources,
   updateEncounterAbilityState,
   updateEncounterManualTracker,
+  updateEncounterAdjustment,
   applyEncounterHpAction,
   applyEncounterConditionLifecycle,
   rollInitiative,
@@ -56,6 +57,14 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | {
+      kind: "gm-adjustment";
+      participantKey: string;
+      request: Omit<
+        import("../../generated/atlas").EncounterAdjustmentRequest,
+        "request_id"
+      >;
+    }
   | {
       kind: "manual-tracker";
       participantKey: string;
@@ -184,7 +193,7 @@ export type EncounterMutationCommand =
     }
   | { kind: "delete" };
 
-function isEncounterConflict(error: unknown): boolean {
+export function isEncounterConflict(error: unknown): boolean {
   return (
     error instanceof AtlasApiError &&
     (error.appError?.code === "encounter_participant_conflict" ||
@@ -292,6 +301,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       switch (command.kind) {
         case "recovery":
           return applyEncounterRecovery(currentRef, command.request);
+        case "gm-adjustment":
+          return updateEncounterAdjustment(currentRef, command.participantKey, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "manual-tracker":
           return updateEncounterManualTracker(currentRef, command.participantKey, {
             ...command.request,
@@ -442,7 +456,13 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       ) {
         await queryClient.invalidateQueries({ queryKey: conditionEventPreviewKey });
       }
-      const conflict = isEncounterConflict(error);
+      if (command.kind === "gm-adjustment" && isArtifactGenerationChanged(error))
+        await queryClient.invalidateQueries({
+          queryKey: ["encounter-adjustment-preview"],
+        });
+      const conflict =
+        isEncounterConflict(error) ||
+        (command.kind === "gm-adjustment" && isArtifactGenerationChanged(error));
       const uncertain =
         (command.kind === "initiative" ||
           command.kind === "recovery" ||

@@ -347,6 +347,9 @@ impl EncountersWrite<'_> {
                     }
                 }
             }
+            for change in &changes.adjustments {
+                self.save_adjustment(encounter_key, change)?;
+            }
             for change in &changes.manual_trackers {
                 self.save_manual_tracker(encounter_key, change)?;
             }

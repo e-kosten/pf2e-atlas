@@ -241,9 +241,11 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 Archive versions advance independently of the database schema. Capture emits
+`3.0` when encounters contain GM adjustment state or history, or emits
 `2.0` when the workspace contains an archived list, so readers that cannot
 preserve its status reject the archive before restore. Otherwise capture emits
 `1.1`. New readers treat lists in backups from before schema 44 as active.
+Standalone encounter exports with adjustment state or history use version 2.
 Custom turns use a detectable participant kind value. Older readers reject
 archives and standalone encounter files containing that kind before writing.
 Bump the minor version for compatible additions, including new encounter

@@ -179,6 +179,22 @@ removal or restart, with its result projected from canonical state. Existing zer
 trackers do not notify on later boundaries. The first turn start can retain a
 completion notice without presenting end-of-turn damage groups or claims.
 
+Participant-owned GM adjustments store a named signed contribution and typed
+target. The encounter modifier evaluator applies them beside supported condition
+modifiers for general and contextual defenses, checks, existing movement speeds,
+Strike and spell attacks, and spell DCs. Initiative and Strike consumers reuse the
+same projected modifiers. Status and circumstance modifiers compete by type
+and sign. Stacking adjustments accumulate. Existing condition replacements keep
+their precedence. Movement restrictions apply to the GM-adjusted subtotal and
+preserve zero. Unsupported or unavailable statistics do not get invented bases.
+
+A manual adjustment lasts until ended. A timed adjustment retains an original
+duration and independent saved progress. Re-anchoring and metadata edits preserve
+progress. A committed turn boundary or explicit overnight recovery updates
+progress and removes expired contributions atomically. Frozen turn review
+retains the expiry reminder. The app-service preview and guarded write prepare
+the same operation against the saved revisions and checked reference revision.
+
 Anchored non-round conditions retain their entered amount/unit plus separate saved
 remaining-second progress. Round conditions retain their existing remaining amount.
 Metadata-only edits preserve saved progress; changed durations reinitialize it.

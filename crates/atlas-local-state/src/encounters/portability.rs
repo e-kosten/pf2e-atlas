@@ -14,6 +14,7 @@ use serde_json::Value;
 use std::io::{Read, Write};
 
 const VERSION: u32 = 1;
+const ADJUSTMENT_VERSION: u32 = 2;
 const BYTE_LIMIT: usize = 64 * 1024 * 1024;
 const ENTRY_LIMIT: usize = 100_000;
 
@@ -90,6 +91,22 @@ fn invalid(message: impl Into<String>) -> LocalStateError {
 }
 
 impl EncounterDocument {
+    fn requires_adjustment_support(&self) -> bool {
+        has_adjustments(&self.snapshot)
+            || self
+                .baselines
+                .iter()
+                .any(|row| !row.gameplay.adjustments.is_empty())
+            || self
+                .outgoing
+                .as_ref()
+                .is_some_and(|row| has_adjustments(&row.turn.snapshot))
+            || self
+                .receipts
+                .iter()
+                .any(|row| is_adjustment_intent(&row.intent))
+    }
+
     pub fn read(input: impl Read) -> LocalStateResult<Self> {
         let mut bytes = Vec::new();
         input
@@ -125,6 +142,17 @@ impl EncounterDocument {
                 .flat_map(|row| snapshot_markdown_keys(&row.turn.snapshot)),
         )
     }
+}
+
+fn has_adjustments(snapshot: &EncounterWithParticipants) -> bool {
+    snapshot
+        .participants
+        .iter()
+        .any(|p| !p.adjustments.is_empty())
+}
+
+fn is_adjustment_intent(intent: &Value) -> bool {
+    intent.get("action").and_then(Value::as_str) == Some("gm_adjustment")
 }
 
 fn snapshot_markdown_keys(

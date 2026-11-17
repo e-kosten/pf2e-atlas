@@ -658,6 +658,15 @@ pub(super) fn participants(
     owner_id: i64,
     encounter_key: &str,
 ) -> LocalStateResult<Vec<EncounterParticipant>> {
+    participants_at_schema(connection, owner_id, encounter_key, true)
+}
+
+pub(super) fn participants_at_schema(
+    connection: &Connection,
+    owner_id: i64,
+    encounter_key: &str,
+    has_adjustments: bool,
+) -> LocalStateResult<Vec<EncounterParticipant>> {
     let mut statement = connection.prepare(
         "SELECT participant.participant_key, participant.record_key, participant.participant_kind,
                 participant.participant_variant, participant.position, participant.display_name,
@@ -690,8 +699,14 @@ pub(super) fn participants(
         super::spell_resources::read_for_encounter(connection, owner_id, encounter_key)?;
     let mut trackers =
         super::manual_trackers::read_for_encounter(connection, owner_id, encounter_key)?;
+    let mut adjustments = if has_adjustments {
+        super::adjustments::read_for_encounter(connection, owner_id, encounter_key)?
+    } else {
+        Default::default()
+    };
     for participant in &mut participants {
         let key = &participant.participant_key;
+        participant.adjustments = adjustments.remove(key).unwrap_or_default();
         participant.manual_trackers = trackers.remove(key).unwrap_or_default();
         participant.ability_states = abilities.remove(key).unwrap_or_default();
         participant.conditions = conditions.remove(key).unwrap_or_default();
@@ -747,6 +762,7 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
     Ok(EncounterParticipant {
         turn_resources,
         manual_trackers: Vec::new(),
+        adjustments: Vec::new(),
         persistent_precedence: Vec::new(),
         track_dying: row.get(23)?,
         level_override: row.get(25)?,
@@ -812,6 +828,7 @@ pub(crate) fn participant(
     else {
         return Ok(None);
     };
+    participant.adjustments = super::adjustments::read(connection, owner_id, participant_key)?;
     participant.manual_trackers =
         super::manual_trackers::read(connection, owner_id, participant_key)?;
     participant.ability_states = super::ability_state::read(connection, owner_id, participant_key)?;

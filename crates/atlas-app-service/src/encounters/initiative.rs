@@ -166,6 +166,7 @@ fn options_with_records(
                 .and_then(|r| {
                     r.arithmetic_baseline.as_ref().map(|b| {
                         let mut baseline = b.clone();
+                        let mut participant = std::borrow::Cow::Borrowed(p);
                         let source = &r.detail.source;
                         if atlas_record::source_record::SourceQueryView::new(
                             source.source(),
@@ -177,10 +178,23 @@ fn options_with_records(
                         .value()
                             == Some("npc")
                         {
+                            // Fallback skills exist only for initiative. A stored adjustment
+                            // remains inactive if its participant-visible skill disappears.
+                            let visible_skill = |entry: &atlas_local_state::EncounterAdjustment| {
+                                match &entry.target {
+                                    atlas_domain::AdjustmentTarget::Skill { key } => baseline.values.iter().any(|stat| {
+                                        matches!(&stat.target, super::stat_block::StatisticTarget::Skill(name) if name == key)
+                                    }),
+                                    _ => true,
+                                }
+                            };
+                            if p.adjustments.iter().any(|entry| !visible_skill(entry)) {
+                                participant.to_mut().adjustments.retain(visible_skill);
+                            }
                             add_unlisted_npc_skills(&mut baseline);
                         }
                         super::rules::project_participant(
-                            p,
+                            &participant,
                             &baseline,
                             r.adjustment_applicable,
                             &[],
