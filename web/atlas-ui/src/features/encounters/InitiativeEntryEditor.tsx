@@ -104,7 +104,7 @@ export function InitiativeEntryEditor({
           </Form.Item>
         </div>
         <Form.Item name="note" label="Notes">
-          <MarkdownEditor disabled={disabled} roomy />
+          <MarkdownEditor disabled={disabled} />
         </Form.Item>
       </Form>
     </EncounterModal>

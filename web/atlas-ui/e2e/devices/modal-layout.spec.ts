@@ -12,6 +12,54 @@ async function insideViewport(page: Page, control: Locator) {
   expect(rect.x + rect.width).toBeLessThanOrEqual(size.width + 1);
 }
 
+test("a new custom turn fits its fields and actions in a short window", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Custom turn layout ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  try {
+    await page.setViewportSize({
+      width: Math.min(page.viewportSize()!.width, 860),
+      height: 640,
+    });
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Add participants", exact: true }),
+      info,
+    );
+    const addCustomTurn = page.getByRole("menuitem", {
+      name: "Add custom turn…",
+      exact: true,
+    });
+    await activate(addCustomTurn, info);
+    await expect(addCustomTurn).toBeHidden();
+    const editor = page.getByRole("dialog", { name: "Add custom turn", exact: true });
+    await expect(editor.getByRole("textbox", { name: "Name" })).toBeInViewport({
+      ratio: 1,
+    });
+    await expect(editor.getByRole("spinbutton", { name: "Initiative" })).toBeInViewport(
+      { ratio: 1 },
+    );
+    await expect(editor.getByRole("textbox", { name: "Notes" })).toBeInViewport({
+      ratio: 1,
+    });
+    await insideViewport(
+      page,
+      editor.getByRole("button", { name: "Add", exact: true }),
+    );
+    await insideViewport(page, editor.getByRole("button", { name: "Cancel" }));
+    await info.attach("Add custom turn in a short window", {
+      body: await editor.screenshot(),
+      contentType: "image/png",
+    });
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+  }
+});
+
 test("encounter forms retain their anchor through expanding fields and reclamp on resize", async ({
   page,
 }, info) => {
