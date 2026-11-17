@@ -114,7 +114,7 @@ export function EncounterAdjustments({
   const [draft, setDraft] = useState<Draft>();
   const [closingModal, setClosingModal] = useState(false);
   const data = participant.gm_adjustments;
-  if (!data || !onChange) return null;
+  if (!data || !onChange || (!data.targets.length && !data.entries.length)) return null;
 
   const open = (
     element: HTMLElement,

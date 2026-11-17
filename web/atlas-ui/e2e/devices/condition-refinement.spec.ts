@@ -320,6 +320,7 @@ test("delayed condition previews retain geometry, focus and the HP opt-out", asy
       page.getByRole("button", { name: "Preview hero", exact: true }),
       info,
     );
+    await expect(page.getByRole("region", { name: "Adjustments" })).toHaveCount(0);
     await activate(
       page.getByRole("button", { name: "Add Condition", exact: true }),
       info,
