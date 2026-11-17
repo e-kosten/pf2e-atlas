@@ -151,7 +151,12 @@ export function AtlasModal({
         )}
       >
         {confirmDiscard ? (
-          <div ref={draft} inert={confirmingDiscard} tabIndex={-1}>
+          <div
+            ref={draft}
+            inert={confirmingDiscard}
+            tabIndex={-1}
+            style={placement.fill ? { height: "100%" } : undefined}
+          >
             {children}
           </div>
         ) : (
