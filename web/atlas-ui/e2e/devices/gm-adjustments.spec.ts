@@ -31,12 +31,13 @@ test("GM adjustments preview and change multiple stats through the participant i
     const add = adjustments.getByRole("button", { name: "Add adjustment" });
     await activate(add, info);
     const editor = page.getByRole("dialog", { name: "Add adjustment" });
-    await expect(editor).toBeVisible();
-    await editor.getByRole("combobox", { name: "Statistic" }).fill("AC");
-    await page
-      .locator(".ant-select-dropdown:visible")
-      .getByText("AC", { exact: true })
-      .click();
+    const addStatistic = editor.getByRole("combobox", { name: "Statistic" });
+    await expect(addStatistic).toBeFocused();
+    await addStatistic.fill("AC");
+    await activate(
+      page.locator(".ant-select-dropdown:visible").getByText("AC", { exact: true }),
+      info,
+    );
     await editor.getByRole("spinbutton", { name: "Change" }).fill("-2");
     await editor.getByRole("textbox", { name: "Name" }).fill("Sacrifice Armor");
     await expect(editor.getByText("AC 22 → 20")).toBeVisible();
@@ -71,11 +72,16 @@ test("GM adjustments preview and change multiple stats through the participant i
       info,
     );
     const edit = page.getByRole("dialog", { name: "Edit adjustment" });
-    await edit.getByRole("combobox", { name: "Statistic" }).fill("Fortitude");
-    await page
-      .locator(".ant-select-dropdown:visible")
-      .getByText("Fortitude", { exact: true })
-      .click();
+    await expect(edit.getByRole("spinbutton", { name: "Change" })).toBeFocused();
+    const editStatistic = edit.getByRole("combobox", { name: "Statistic" });
+    await activate(editStatistic, info);
+    await editStatistic.fill("Fortitude");
+    await activate(
+      page
+        .locator(".ant-select-dropdown:visible")
+        .getByText("Fortitude", { exact: true }),
+      info,
+    );
     await expect(edit.getByText("AC 20 → 22")).toBeVisible();
     await expect(edit.getByText("Fortitude 15 → 13")).toBeVisible();
     await activate(edit.getByRole("button", { name: "Save changes" }), info);
