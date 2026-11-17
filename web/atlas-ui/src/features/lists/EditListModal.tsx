@@ -349,7 +349,7 @@ function ListEditor({
             <Input />
           </Form.Item>
           <Form.Item label="Description" name="description">
-            <MarkdownEditor />
+            <MarkdownEditor label="Description" />
           </Form.Item>
           <Form.Item label="Tags" name="tags">
             <Select

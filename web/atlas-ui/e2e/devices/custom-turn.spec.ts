@@ -1,8 +1,9 @@
+import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { expect, test } from "./fixtures";
 
 test("a custom turn previews its linked notes and becomes the active turn", async ({
   page,
-}) => {
+}, info) => {
   const created = await page.request.post("/api/encounters", {
     data: { name: `Void Font rehearsal ${Date.now()}` },
   });
@@ -17,8 +18,10 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await editor.getByRole("textbox", { name: "Name" }).fill("Lair action · Void Font");
     await editor.getByRole("spinbutton", { name: "Initiative" }).fill("20");
     const note = editor.getByRole("textbox", { name: "Notes" });
-    await note.fill("## Trigger\n\nThe font pulses. Resolve ");
-    await note.press("End");
+    await editor.locator("label", { hasText: "Notes" }).click();
+    await expect(note).toBeFocused();
+    const prefix = "## Trigger\n\nThe font pulses. Resolve ";
+    await replaceMarkdown(note, prefix);
     await note.pressSequentially("[[");
 
     const picker = page.getByRole("dialog", { name: "Insert record link" });
@@ -29,27 +32,58 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await picker.getByRole("button", { name: "Insert link" }).click();
     await expect(picker).toBeHidden();
     await expect(note).toBeFocused();
-    await note.evaluate((textarea: HTMLTextAreaElement) => {
-      const start = textarea.value.indexOf("font");
-      textarea.setSelectionRange(start, start + "font ".length);
-    });
-    await editor.getByRole("button", { name: "Bold" }).click();
-    await expect(note).toHaveValue(/The \*\*font\*\* pulses/);
+    const undo = editor.getByRole("button", { name: "Undo" });
+    const redo = editor.getByRole("button", { name: "Redo" });
+    const withLink = prefix + "[Lantern Ward](record:browser-spells:spell00000000001)";
+    await undo.click();
+    await expect.poll(() => markdownSource(note)).toBe(prefix + "[[");
+    await redo.click();
+    await expect.poll(() => markdownSource(note)).toBe(withLink);
+    await note.press("ControlOrMeta+Home");
+    await note.press("ArrowDown");
+    await note.press("ArrowDown");
+    await note.press("Home");
+    for (let offset = 0; offset < 4; offset += 1) await note.press("ArrowRight");
+    for (let offset = 0; offset < 4; offset += 1) await note.press("Shift+ArrowRight");
+    await editor.getByRole("button", { name: "Record link" }).click();
+    await expect(
+      picker.getByRole("searchbox", { name: "Search records" }),
+    ).toBeFocused();
+    await picker.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(picker).toBeHidden();
     await expect(note).toBeFocused();
+    await note.press("ControlOrMeta+b");
+    const formatted = withLink.replace("font", "**font**");
+    await expect.poll(() => markdownSource(note)).toBe(formatted);
+    await expect(note).toBeFocused();
+    const height = await editor.locator(".markdown-editor").boundingBox();
+    await editor.screenshot({ path: info.outputPath("custom-turn-write.png") });
     await editor.getByText("Preview", { exact: true }).click();
     await expect(editor.getByRole("heading", { name: "Trigger" })).toBeVisible();
     await expect(editor.locator("strong")).toHaveText("font");
     await expect(editor.getByRole("link", { name: "Lantern Ward" })).toBeVisible();
+    expect((await editor.locator(".markdown-editor").boundingBox())?.height).toBe(
+      height?.height,
+    );
+    await editor.screenshot({ path: info.outputPath("custom-turn-preview.png") });
     await editor.getByText("Write", { exact: true }).click();
-    await expect(note).toHaveValue(/record:browser-spells:spell00000000001/);
+    await undo.click();
+    await expect.poll(() => markdownSource(note)).toBe(withLink);
+    await redo.click();
+    await expect.poll(() => markdownSource(note)).toBe(formatted);
     await editor.getByRole("button", { name: "Add", exact: true }).click();
 
     await page.getByRole("button", { name: "Start turn" }).click();
-    await expect(
-      page.getByRole("button", { name: "Lair action · Void Font, Current turn" }),
-    ).toBeVisible();
     const inspector = page.getByRole("region", { name: "Custom turn" });
     await expect(inspector).toBeVisible();
+    const back = page.getByRole("button", { name: "Back to roster" });
+    const current = page.getByRole("button", {
+      name: "Lair action · Void Font, Current turn",
+    });
+    const narrow = await back.isVisible();
+    if (narrow) await back.click();
+    await expect(current).toBeVisible();
+    if (narrow) await current.click();
     await inspector.getByRole("button", { name: "Edit custom turn" }).click();
     const edit = page.getByRole("dialog", { name: "Edit custom turn" });
     await expect(edit).toBeVisible();
@@ -64,6 +98,63 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     ).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(link).toBeFocused();
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+  }
+});
+
+test("Enter continues both kinds of lists and exits empty items", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `List continuation ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  try {
+    await page.goto(`/encounters/${encounter.slug}`);
+    await page.getByRole("button", { name: "Add participants" }).click();
+    await page.getByRole("menuitem", { name: "Add custom turn…" }).click();
+    const editor = page.getByRole("dialog", { name: "Add custom turn" });
+    const note = editor.getByRole("textbox", { name: "Notes" });
+    for (const [source, continuation, emptyExit] of [
+      ["- First", "- First\n- ", "- First\n"],
+      ["- First\n  - Nested", "- First\n  - Nested\n  - ", "- First\n  - Nested\n- "],
+      ["7. First", "7. First\n8. ", "7. First\n"],
+    ]) {
+      await replaceMarkdown(note, source);
+      await note.press("Enter");
+      await expect.poll(() => markdownSource(note)).toBe(continuation);
+      await note.press("Enter");
+      await expect.poll(() => markdownSource(note)).toBe(emptyExit);
+    }
+
+    await replaceMarkdown(note, "1. First\n2. Third");
+    await note.press("ControlOrMeta+Home");
+    await note.press("End");
+    await note.press("Enter");
+    await expect.poll(() => markdownSource(note)).toBe("1. First\n2. \n3. Third");
+
+    for (const text of ["Plain paragraph", "  Indented prose", "```\n- Inside code"]) {
+      await replaceMarkdown(note, text);
+      await note.press("Enter");
+      await expect.poll(() => markdownSource(note)).toBe(text + "\n");
+    }
+    await replaceMarkdown(note, "One stage\nTwo stages\nThree stages");
+    await note.press("ControlOrMeta+a");
+    await editor.getByRole("button", { name: "Numbered list" }).click();
+    await expect
+      .poll(() => markdownSource(note))
+      .toBe("1. One stage\n2. Two stages\n3. Three stages");
+    await note.press("ControlOrMeta+z");
+    await expect
+      .poll(() => markdownSource(note))
+      .toBe("One stage\nTwo stages\nThree stages");
+    await note.press("ControlOrMeta+Shift+z");
+    await expect
+      .poll(() => markdownSource(note))
+      .toBe("1. One stage\n2. Two stages\n3. Three stages");
+    await editor.screenshot({ path: info.outputPath("custom-turn-ordered-list.png") });
   } finally {
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
   }

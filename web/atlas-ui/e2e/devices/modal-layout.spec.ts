@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow, sentinel } from "./reading";
 import type { Locator, Page } from "@playwright/test";
@@ -355,13 +356,15 @@ test("settings saves stay in the originating index and direct edit links close t
     await activate(listTrigger, info);
     const description = listEditor.getByRole("textbox", { name: "Description" });
     await expect(description).toBeVisible();
-    await description.fill("Saved from the filtered index");
+    await replaceMarkdown(description, "Saved from the filtered index");
     await activate(listEditor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(listEditor).toBeHidden();
     await expect(listTrigger).toBeFocused();
     await expect(page).toHaveURL(/\/lists\?q=Session$/);
     await page.goto(`/lists/${listSlug}/edit`);
-    await expect(description).toHaveValue("Saved from the filtered index");
+    await expect
+      .poll(() => markdownSource(description))
+      .toBe("Saved from the filtered index");
     await activate(
       listEditor.getByRole("button", { name: "Cancel", exact: true }),
       info,

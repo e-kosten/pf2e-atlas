@@ -45,18 +45,139 @@
 }
 
 .markdown-editor {
-  display: grid;
-  gap: var(--space-control);
+  min-inline-size: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+}
+
+.markdown-editor[data-invalid="true"] {
+  border-color: var(--danger);
 }
 
 .markdown-editor__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: var(--space-micro) var(--space-control);
+  padding: var(--space-micro) var(--space-control);
+  border-block-end: 1px solid var(--line);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--panel-subtle);
+}
+
+.markdown-editor__mode {
+  display: flex;
+  align-items: center;
   gap: var(--space-control);
 }
 
+.markdown-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-micro);
+}
+
+.markdown-editor__group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.markdown-editor__history,
+.markdown-editor__group + .markdown-editor__group {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: var(--space-micro);
+}
+
+.markdown-editor__toolbar .ant-btn {
+  min-inline-size: 28px;
+  min-block-size: 28px;
+}
+
+.markdown-editor__toolbar .ant-btn[aria-pressed="true"] {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+.markdown-editor__body {
+  position: relative;
+}
+
+.markdown-editor__source .cm-editor {
+  min-block-size: calc(4.8em + 2 * var(--space-control));
+  max-block-size: 15rem;
+  color: inherit;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.markdown-editor[data-roomy] .markdown-editor__body {
+  block-size: clamp(9rem, 40dvh, 28rem);
+  min-block-size: 8rem;
+  max-block-size: 60dvh;
+  resize: vertical;
+  overflow: hidden;
+}
+
+.markdown-editor[data-roomy] :is(.markdown-editor__source, .cm-editor) {
+  block-size: 100%;
+  max-block-size: none;
+}
+
+.markdown-editor__source .cm-scroller {
+  overflow: auto;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.markdown-editor__source .cm-content {
+  padding: var(--space-control);
+  caret-color: currentColor;
+}
+
+.markdown-editor__source .cm-line {
+  padding: 0;
+}
+
+.markdown-editor__source .cm-editor.cm-focused {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.markdown-editor
+  :is(
+    .markdown-editor__source,
+    .markdown-editor__actions,
+    .markdown-editor__history
+  )[inert] {
+  visibility: hidden;
+}
+
 .markdown-editor__preview {
-  min-block-size: 5rem;
-  padding-block: var(--space-control);
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: var(--space-control);
+}
+
+.markdown-editor__preview:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.markdown-editor__preview > p {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (pointer: coarse) {
+  .markdown-editor__source {
+    font-size: max(1em, 16px);
+  }
+
+  .markdown-editor__toolbar .ant-btn {
+    min-inline-size: 34px;
+    min-block-size: 34px;
+  }
 }

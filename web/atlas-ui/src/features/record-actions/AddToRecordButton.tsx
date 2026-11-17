@@ -546,7 +546,7 @@ function AddToRecordModal({
           )}
           {kind === "list" && (
             <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
-              <MarkdownEditor />
+              <MarkdownEditor label="Note" />
             </Form.Item>
           )}
         </Form>
