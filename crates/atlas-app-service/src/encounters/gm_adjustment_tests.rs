@@ -246,3 +246,85 @@ fn timed_gm_adjustment_expires_once_and_standalone_import_remaps_its_anchor() {
     let review = f.worker.encounter_turn_review(&new.encounter_key).unwrap();
     assert_eq!(review.incoming.unwrap().reminders.iter().filter(|item| matches!(item, EncounterTurnReminderView::AdjustmentExpired { adjustment_name, .. } if adjustment_name == "Table ruling")).count(), 1);
 }
+
+#[test]
+fn overnight_gm_adjustment_advances_exact_seconds_and_keeps_manual_changes() {
+    let (f, encounter, actor) = fixture();
+    for (id, duration) in [("overnight", Some(24)), ("manual", None)] {
+        let mut value = adjustment(AdjustmentTarget::ArmorClass, -2);
+        value.timing = duration.map(|amount| EncounterAdjustmentTimingInput {
+            duration: ConditionDurationView {
+                amount,
+                unit: ConditionDurationUnit::Hours,
+                timing: Some(ConditionTimingView {
+                    participant_key: actor.clone(),
+                    event: ConditionTurnEvent::End,
+                }),
+                remaining_rounds: None,
+            },
+            remaining: None,
+        });
+        apply(
+            &f,
+            &encounter,
+            &actor,
+            request(&f, &encounter, id, EncounterAdjustmentAction::Add { value }),
+        );
+    }
+    for (index, remaining) in [Some(16 * 3600), Some(8 * 3600), None]
+        .into_iter()
+        .enumerate()
+    {
+        let snapshot = f.worker.encounter(&encounter).unwrap();
+        let action = EncounterRecoveryAction::RestOvernight {
+            healing_mode: OvernightHealingMode::Natural,
+            participants: vec![OvernightParticipantInput {
+                participant_key: actor.clone(),
+                healing: Some(0),
+            }],
+        };
+        let preview = f
+            .worker
+            .preview_encounter_recovery(
+                &encounter,
+                PreviewEncounterRecoveryRequest {
+                    expected_encounter_revision: snapshot.revision,
+                    action: action.clone(),
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            preview.participants[0]
+                .changes
+                .iter()
+                .any(|change| change == "Table ruling expired"),
+            index == 2
+        );
+        f.worker
+            .apply_encounter_recovery(
+                &encounter,
+                ApplyEncounterRecoveryRequest {
+                    expected_encounter_revision: snapshot.revision,
+                    action,
+                },
+            )
+            .unwrap();
+        let restored = f.worker.encounter(&encounter).unwrap();
+        let adjustments = &restored.participants[0]
+            .gm_adjustments
+            .as_ref()
+            .unwrap()
+            .entries;
+        assert_eq!(
+            adjustments
+                .iter()
+                .find_map(|entry| entry.timing.as_ref().map(|v| v.remaining)),
+            remaining
+        );
+        assert!(
+            adjustments
+                .iter()
+                .any(|entry| entry.adjustment_key == "adjustment_manual")
+        );
+    }
+}
