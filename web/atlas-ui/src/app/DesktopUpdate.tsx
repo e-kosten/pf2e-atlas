@@ -22,6 +22,7 @@ type ChannelAction =
   | { kind: "review"; workspace: Role; seed_if_missing: boolean }
   | { kind: "wait"; workspace: Role; updates: Waiting }
   | { kind: "cancel_wait" }
+  | { kind: "retry_pending" }
   | { kind: "install"; token: string };
 
 type UpdateAttachment = {
@@ -32,6 +33,7 @@ type UpdateAttachment = {
     trial_path: string | null;
     returning: { workspace: Role; updates: Waiting } | null;
     ready: boolean;
+    pending_version?: string | null;
     busy: boolean;
     error?: string | null;
   } | null;
@@ -255,79 +257,97 @@ export function DesktopReleaseChannel() {
               }
             />
           )}
-          <Typography.Text>
-            Choose the workspace to open after switching to {target}.
-          </Typography.Text>
-          <Flex wrap gap="small">
-            {(["primary", "trial"] as const).map((role) => (
-              <Button
-                key={role}
-                aria-pressed={workspace === role}
-                color={workspace === role ? "primary" : "default"}
-                variant={workspace === role ? "filled" : "outlined"}
-                disabled={disabled}
-                onClick={() => {
-                  setSelection(role);
-                  setReview(null);
-                  setError(null);
-                }}
-              >
-                {role === "primary" ? "Primary workspace" : "Trial workspace"}
-              </Button>
-            ))}
-          </Flex>
-          {!installedNightly && workspace === "trial" && (
-            <Typography.Text type="secondary">
-              If you haven’t used the trial workspace yet, Atlas will start it with a
-              copy of your primary workspace.
-            </Typography.Text>
-          )}
-          {review ? (
+          {channel.pending_version ? (
             <>
-              <Typography.Text>
-                Atlas will install {target} {review.version} and open the{" "}
-                {workspaceName(review.workspace)}.
-              </Typography.Text>
-              {review.will_seed && (
-                <Alert
-                  type="info"
-                  title="Atlas will copy your primary workspace to start the trial."
-                />
-              )}
-              {(review.needs_setup || review.will_upgrade) && (
-                <Alert
-                  type="info"
-                  title="Atlas will ask you to prepare the selected workspace after restart."
-                />
-              )}
+              <Alert
+                type="info"
+                title={`Atlas ${channel.pending_version} still has a pending installation.`}
+              />
               <Button
                 type="primary"
                 disabled={disabled}
-                onClick={() => void request({ kind: "install", token: review.id })}
+                onClick={() => void request({ kind: "retry_pending" })}
               >
-                {disabled ? "Installing…" : `Install ${target} and restart`}
+                Retry pending install
               </Button>
             </>
           ) : (
-            <Button
-              type="primary"
-              loading={busy}
-              disabled={channel.busy}
-              onClick={() =>
-                void request({
-                  kind: "review",
-                  workspace,
-                  seed_if_missing: !installedNightly,
-                })
-              }
-            >
-              {channel.busy ? "Installing…" : `Check ${target} compatibility`}
-            </Button>
+            <>
+              <Typography.Text>
+                Choose the workspace to open after switching to {target}.
+              </Typography.Text>
+              <Flex wrap gap="small">
+                {(["primary", "trial"] as const).map((role) => (
+                  <Button
+                    key={role}
+                    aria-pressed={workspace === role}
+                    color={workspace === role ? "primary" : "default"}
+                    variant={workspace === role ? "filled" : "outlined"}
+                    disabled={disabled}
+                    onClick={() => {
+                      setSelection(role);
+                      setReview(null);
+                      setError(null);
+                    }}
+                  >
+                    {role === "primary" ? "Primary workspace" : "Trial workspace"}
+                  </Button>
+                ))}
+              </Flex>
+              {!installedNightly && workspace === "trial" && (
+                <Typography.Text type="secondary">
+                  If you haven’t used the trial workspace yet, Atlas will start it with
+                  a copy of your primary workspace.
+                </Typography.Text>
+              )}
+              {review ? (
+                <>
+                  <Typography.Text>
+                    Atlas will install {target} {review.version} and open the{" "}
+                    {workspaceName(review.workspace)}.
+                  </Typography.Text>
+                  {review.will_seed && (
+                    <Alert
+                      type="info"
+                      title="Atlas will copy your primary workspace to start the trial."
+                    />
+                  )}
+                  {(review.needs_setup || review.will_upgrade) && (
+                    <Alert
+                      type="info"
+                      title="Atlas will ask you to prepare the selected workspace after restart."
+                    />
+                  )}
+                  <Button
+                    type="primary"
+                    disabled={disabled}
+                    onClick={() => void request({ kind: "install", token: review.id })}
+                  >
+                    {disabled ? "Installing…" : `Install ${target} and restart`}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="primary"
+                  loading={busy}
+                  disabled={channel.busy}
+                  onClick={() =>
+                    void request({
+                      kind: "review",
+                      workspace,
+                      seed_if_missing: !installedNightly,
+                    })
+                  }
+                >
+                  {channel.busy ? "Installing…" : `Check ${target} compatibility`}
+                </Button>
+              )}
+            </>
           )}
           {(error ?? channel.error) && (
             <Alert type="error" title={error ?? channel.error} />
           )}
-          {installedNightly && !review && (
+          {installedNightly && !review && !channel.pending_version && (
             <Flex vertical align="start" gap="small">
               <Button
                 disabled={disabled}

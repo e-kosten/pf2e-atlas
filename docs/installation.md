@@ -60,8 +60,9 @@ while waiting**. Atlas saves the choice across restarts and asks before
 installing a compatible Stable. Change or cancel the request in Release channel.
 
 Guided switching requires release builds with signed workspace compatibility.
-If an installer was interrupted, follow the workspace selection recovery shown
-on startup. When a supported workspace needs an upgrade, Atlas uses its normal
+If an installer was interrupted, close it before resuming the previous workspace.
+Use **Retry pending install** in Release channel to retry the same build and
+workspace selection. When a supported workspace needs an upgrade, Atlas uses its normal
 [workspace backup and upgrade procedure](setup-and-maintenance.md#upgrade-an-older-prerelease-workspace).
 Older apps installed manually may reopen the primary workspace.
 

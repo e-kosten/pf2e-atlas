@@ -65,7 +65,7 @@ pub(crate) struct Transition {
     pub(crate) returning_to_stable: bool,
     pub(crate) initialization_key: Option<String>,
     #[serde(default)]
-    previous_resumed: bool,
+    pub(crate) previous_resumed: bool,
 }
 
 impl Transition {

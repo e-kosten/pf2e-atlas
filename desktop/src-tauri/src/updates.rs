@@ -308,6 +308,7 @@ pub(crate) struct ChannelSnapshot {
     trial_path: Option<std::path::PathBuf>,
     returning: Option<workspace_switch::ReturnChoice>,
     ready: bool,
+    pending_version: Option<String>,
     busy: bool,
     error: Option<String>,
 }
@@ -318,13 +319,17 @@ pub(crate) fn channel_snapshot(app: &AppHandle) -> Option<ChannelSnapshot> {
     let desktop = app.state::<Desktop>();
     let state = lock(&desktop.updates.state);
     Some(ChannelSnapshot {
-        installed,
+        installed: installed.clone(),
         active: config.active,
         trial_path: (config.active == Role::Trial)
             .then(|| desktop.workspace_route.index().ok().flatten())
             .flatten(),
         returning: config.returning,
         ready: state.return_version.is_some(),
+        pending_version: config
+            .pending
+            .filter(|pending| pending.previous_resumed && pending.before == installed)
+            .map(|pending| pending.target.version),
         busy: state.phase != Phase::Available,
         error: state.error.clone(),
     })
@@ -594,6 +599,27 @@ async fn check(
     if tag == channel.tag(installed) {
         return Ok(None);
     }
+    check_tag(
+        app,
+        installed,
+        tag,
+        key,
+        source,
+        switching,
+        require_descriptor,
+    )
+    .await
+}
+
+async fn check_tag(
+    app: &AppHandle,
+    installed: &Version,
+    tag: String,
+    key: &str,
+    source: &ReleaseSource,
+    switching: bool,
+    require_descriptor: bool,
+) -> Result<Option<Offer>, String> {
     let base = format!("{}/download/{tag}", source.root);
     let http_source = source.clone();
     let current = installed.clone();
@@ -723,6 +749,16 @@ pub(crate) async fn desktop_update_action(
     }
 }
 
+fn retries_pending(offer: &Offer, pending: &Transition) -> bool {
+    pending.previous_resumed
+        && installed_build().as_ref() == Some(&pending.before)
+        && offer.switch.as_ref().is_some_and(|switch| {
+            switch.descriptor.build() == pending.target
+                && switch.admission == pending.admission
+                && switch.seed_source.is_none()
+        })
+}
+
 fn begin_install(
     app: &AppHandle,
     offer: Offer,
@@ -751,7 +787,10 @@ fn begin_install(
             return Err("Wait for Atlas setup to finish and try again.".into());
         }
         let config = workspace_switch::load(app)?;
-        if config.pending.is_some()
+        if config
+            .pending
+            .as_ref()
+            .is_some_and(|pending| !retries_pending(&offer, pending))
             || (offer.switch.is_none()
                 && (config.active != Role::Primary || config.returning.is_some()))
         {
@@ -827,6 +866,7 @@ pub(crate) enum ChannelAction {
         updates: Waiting,
     },
     CancelWait,
+    RetryPending,
     Install {
         token: String,
     },
@@ -873,8 +913,53 @@ pub(crate) async fn desktop_channel_action(
     let installed_version = Version::parse(&installed.version).map_err(display)?;
     let nightly = installed.tag.starts_with("nightly/");
     let mut config = workspace_switch::load(&app)?;
-    if config.pending.is_some() || lock(&desktop.updates.state).phase != Phase::Available {
+    if lock(&desktop.updates.state).phase != Phase::Available {
         return Err("Atlas is already installing an update.".into());
+    }
+    if let Some(pending) = &config.pending {
+        if !matches!(action, ChannelAction::RetryPending)
+            || !pending.previous_resumed
+            || pending.before != installed
+        {
+            return Err("Finish the pending Atlas installation before changing channels.".into());
+        }
+        let version = Version::parse(&pending.target.version).map_err(display)?;
+        if Channel::from_version(&version)
+            .is_none_or(|channel| channel.tag(&version) != pending.target.tag)
+        {
+            return Err("The pending release identity is invalid.".into());
+        }
+        let key = option_env!("ATLAS_UPDATER_PUBLIC_KEY")
+            .ok_or("This build does not support signed updates.")?;
+        let source = ReleaseSource::bundled()?;
+        let offer = check_tag(
+            &app,
+            &installed_version,
+            pending.target.tag.clone(),
+            key,
+            &source,
+            true,
+            true,
+        )
+        .await?
+        .ok_or("The pending Atlas release is unavailable.")?;
+        let offer = authorize(
+            offer,
+            config.clone(),
+            pending.admission.role,
+            pending.returning_to_stable,
+            false,
+        )
+        .await?;
+        if workspace_switch::load(&app)? != config
+            || !retries_pending(&offer, pending)
+            || current_product(&app)?.1 != instance
+        {
+            return Err("The previously confirmed release or workspace changed. Atlas kept both workspaces.".into());
+        }
+        lock(&desktop.updates.state).channel_offer = Some(offer.clone());
+        begin_install(&app, offer, instance, true)?;
+        return Ok(None);
     }
     match action {
         ChannelAction::Review {
@@ -1071,8 +1156,13 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
         return Err("The workspace connection changed. Try the update again.".into());
     }
     let mut config = workspace_switch::load(app)?;
-    if config.pending.is_some() {
-        return Err("An Atlas install is already pending.".into());
+    let retry = config.pending.is_some();
+    if config
+        .pending
+        .as_ref()
+        .is_some_and(|pending| !retries_pending(offer, pending))
+    {
+        return Err("A different Atlas install is already pending.".into());
     }
     let reservation = if let Some(transition) = &offer.switch {
         if transition.config != config {
@@ -1094,13 +1184,15 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
         if reservation.admission != expected {
             return Err("The destination workspace changed. Review the update again.".into());
         }
-        config.pending = Some(Transition::new(
-            installed_build().ok_or("Cannot identify this Atlas build.")?,
-            transition.descriptor.build(),
-            expected,
-            transition.returning_to_stable,
-        )?);
-        workspace_switch::save(app, &mut config)?;
+        if !retry {
+            config.pending = Some(Transition::new(
+                installed_build().ok_or("Cannot identify this Atlas build.")?,
+                transition.descriptor.build(),
+                expected,
+                transition.returning_to_stable,
+            )?);
+            workspace_switch::save(app, &mut config)?;
+        }
         Some(reservation)
     } else {
         if config.active != Role::Primary || config.returning.is_some() {
@@ -1132,7 +1224,8 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
     #[cfg(target_os = "macos")]
     drop(reservation);
     if let Err(error) = install {
-        if config.pending.take().is_some()
+        if !retry
+            && config.pending.take().is_some()
             && let Err(error) = workspace_switch::save(app, &mut config)
         {
             eprintln!("Atlas could not clear its interrupted transition: {error}");
