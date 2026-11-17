@@ -1,5 +1,38 @@
+import type { Locator } from "@playwright/test";
 import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { expect, test } from "./fixtures";
+
+async function switchEditorMode(dialog: Locator, mode: "Write" | "Preview") {
+  const frame = await dialog.getByText(mode, { exact: true }).evaluate((control) => {
+    const editor = control.closest(".markdown-editor")!;
+    const bold = editor.querySelector('button[aria-label="Bold"]')!;
+    const source = editor.querySelector(".markdown-editor__source")!;
+    const choice = control.closest("label")!;
+    // Resolve the old styles before switching so a visibility transition can start.
+    const visiblyEditing = () => getComputedStyle(bold).visibility === "visible";
+    visiblyEditing();
+    control.click();
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        resolve({
+          preview: !!editor.querySelector(".markdown-editor__preview"),
+          source: getComputedStyle(source).visibility === "visible",
+          bold: visiblyEditing(),
+          selected: choice.querySelector("input")!.checked,
+          highlighted: getComputedStyle(choice).backgroundColor !== "rgba(0, 0, 0, 0)",
+        });
+      });
+    });
+  });
+
+  expect(frame).toEqual({
+    preview: mode === "Preview",
+    source: mode === "Write",
+    bold: mode === "Write",
+    selected: true,
+    highlighted: true,
+  });
+}
 
 test("a custom turn previews its linked notes and becomes the active turn", async ({
   page,
@@ -58,7 +91,7 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await expect(note).toBeFocused();
     const height = await editor.locator(".markdown-editor").boundingBox();
     await editor.screenshot({ path: info.outputPath("custom-turn-write.png") });
-    await editor.getByText("Preview", { exact: true }).click();
+    await switchEditorMode(editor, "Preview");
     await expect(editor.getByRole("heading", { name: "Trigger" })).toBeVisible();
     await expect(editor.locator("strong")).toHaveText("font");
     await expect(editor.getByRole("link", { name: "Lantern Ward" })).toBeVisible();
@@ -66,7 +99,7 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
       height?.height,
     );
     await editor.screenshot({ path: info.outputPath("custom-turn-preview.png") });
-    await editor.getByText("Write", { exact: true }).click();
+    await switchEditorMode(editor, "Write");
     await undo.click();
     await expect.poll(() => markdownSource(note)).toBe(withLink);
     await redo.click();

@@ -72,6 +72,11 @@
   gap: var(--space-control);
 }
 
+/* Keep the checked pill painted while Segmented clears its zero-width motion thumb. */
+.markdown-editor__mode .ant-segmented-item:has(input:checked) {
+  background-color: var(--panel-elevated);
+}
+
 .markdown-editor__actions {
   display: flex;
   flex-wrap: wrap;

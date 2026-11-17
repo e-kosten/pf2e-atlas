@@ -335,19 +335,20 @@ export function MarkdownEditor({
       data-roomy={roomy || undefined}
       data-invalid={invalid || undefined}
     >
-      <div className="markdown-editor__toolbar">
-        <div className="markdown-editor__mode">
-          <ConfigProvider
-            theme={{
-              components: {
-                Segmented: {
-                  itemSelectedBg: "var(--panel-elevated)",
-                  itemSelectedColor: "var(--text)",
-                  trackBg: "var(--panel)",
-                },
-              },
-            }}
-          >
+      <ConfigProvider
+        theme={{
+          token: { motion: false },
+          components: {
+            Segmented: {
+              itemSelectedBg: "var(--panel-elevated)",
+              itemSelectedColor: "var(--text)",
+              trackBg: "var(--panel)",
+            },
+          },
+        }}
+      >
+        <div className="markdown-editor__toolbar">
+          <div className="markdown-editor__mode">
             <Segmented
               size="small"
               aria-label="Document editor mode"
@@ -355,103 +356,104 @@ export function MarkdownEditor({
               value={mode}
               onChange={setMode}
             />
-          </ConfigProvider>
+            <div
+              className="markdown-editor__group markdown-editor__history"
+              role="group"
+              aria-label="Edit history"
+              inert={!writing}
+              aria-hidden={!writing || undefined}
+            >
+              <FormatButton
+                label="Undo"
+                icon={<Undo2 size={16} />}
+                disabled={locked || !controls.undo}
+                onClick={() => run(undo)}
+              />
+              <FormatButton
+                label="Redo"
+                icon={<Redo2 size={16} />}
+                disabled={locked || !controls.redo}
+                onClick={() => run(redo)}
+              />
+            </div>
+          </div>
           <div
-            className="markdown-editor__group markdown-editor__history"
+            className="markdown-editor__actions"
             role="group"
-            aria-label="Edit history"
+            aria-label="Markdown formatting"
             inert={!writing}
             aria-hidden={!writing || undefined}
           >
-            <FormatButton
-              label="Undo"
-              icon={<Undo2 size={16} />}
-              disabled={locked || !controls.undo}
-              onClick={() => run(undo)}
-            />
-            <FormatButton
-              label="Redo"
-              icon={<Redo2 size={16} />}
-              disabled={locked || !controls.redo}
-              onClick={() => run(redo)}
-            />
-          </div>
-        </div>
-        <div
-          className="markdown-editor__actions"
-          role="group"
-          aria-label="Markdown formatting"
-          inert={!writing}
-          aria-hidden={!writing || undefined}
-        >
-          <div className="markdown-editor__group">
-            <Dropdown
-              trigger={["click"]}
-              disabled={locked}
-              menu={{
-                items: headingItems,
-                onClick: ({ key }) => run((editor) => setHeading(editor, Number(key))),
-              }}
-            >
+            <div className="markdown-editor__group">
+              <Dropdown
+                trigger={["click"]}
+                disabled={locked}
+                menu={{
+                  items: headingItems,
+                  onClick: ({ key }) =>
+                    run((editor) => setHeading(editor, Number(key))),
+                }}
+              >
+                <Button
+                  size="small"
+                  type="text"
+                  aria-label="Heading"
+                  aria-haspopup="menu"
+                  title="Heading"
+                  disabled={locked}
+                >
+                  <Heading size={16} aria-hidden="true" />{" "}
+                  <ChevronDown size={12} aria-hidden="true" />
+                </Button>
+              </Dropdown>
+              <FormatButton
+                label="Bold"
+                icon={<Bold size={16} />}
+                pressed={controls.bold}
+                shortcut="Control+B Meta+B"
+                disabled={locked || controls.boldDisabled}
+                onClick={() => run((editor) => toggleEmphasis(editor, "strong"))}
+              />
+              <FormatButton
+                label="Italic"
+                icon={<Italic size={16} />}
+                pressed={controls.italic}
+                shortcut="Control+I Meta+I"
+                disabled={locked || controls.italicDisabled}
+                onClick={() => run((editor) => toggleEmphasis(editor, "emphasis"))}
+              />
+            </div>
+            <div className="markdown-editor__group">
+              <FormatButton
+                label="Bulleted list"
+                icon={<List size={16} />}
+                disabled={locked}
+                onClick={() => run((editor) => toggleList(editor, false))}
+              />
+              <FormatButton
+                label="Numbered list"
+                icon={<ListOrdered size={16} />}
+                disabled={locked}
+                onClick={() => run((editor) => toggleList(editor, true))}
+              />
+            </div>
+            <div className="markdown-editor__group">
               <Button
                 size="small"
                 type="text"
-                aria-label="Heading"
-                aria-haspopup="menu"
-                title="Heading"
+                icon={<Link2 size={16} />}
                 disabled={locked}
+                onClick={() => {
+                  const selected = view.current?.state.selection.main;
+                  if (selected) openPicker({ from: selected.from, to: selected.to });
+                }}
               >
-                <Heading size={16} aria-hidden="true" />{" "}
-                <ChevronDown size={12} aria-hidden="true" />
+                Record link
               </Button>
-            </Dropdown>
-            <FormatButton
-              label="Bold"
-              icon={<Bold size={16} />}
-              pressed={controls.bold}
-              shortcut="Control+B Meta+B"
-              disabled={locked || controls.boldDisabled}
-              onClick={() => run((editor) => toggleEmphasis(editor, "strong"))}
-            />
-            <FormatButton
-              label="Italic"
-              icon={<Italic size={16} />}
-              pressed={controls.italic}
-              shortcut="Control+I Meta+I"
-              disabled={locked || controls.italicDisabled}
-              onClick={() => run((editor) => toggleEmphasis(editor, "emphasis"))}
-            />
-          </div>
-          <div className="markdown-editor__group">
-            <FormatButton
-              label="Bulleted list"
-              icon={<List size={16} />}
-              disabled={locked}
-              onClick={() => run((editor) => toggleList(editor, false))}
-            />
-            <FormatButton
-              label="Numbered list"
-              icon={<ListOrdered size={16} />}
-              disabled={locked}
-              onClick={() => run((editor) => toggleList(editor, true))}
-            />
-          </div>
-          <div className="markdown-editor__group">
-            <Button
-              size="small"
-              type="text"
-              icon={<Link2 size={16} />}
-              disabled={locked}
-              onClick={() => {
-                const selected = view.current?.state.selection.main;
-                if (selected) openPicker({ from: selected.from, to: selected.to });
-              }}
-            >
-              Record link
-            </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </ConfigProvider>
       <div className="markdown-editor__body">
         <div
           className="markdown-editor__source"
