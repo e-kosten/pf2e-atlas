@@ -117,7 +117,7 @@
   border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
-.markdown-editor[data-roomy] .markdown-editor__body {
+.markdown-editor[data-sizing="roomy"] .markdown-editor__body {
   block-size: clamp(9rem, 40dvh, 28rem);
   min-block-size: 8rem;
   max-block-size: 60dvh;
@@ -125,7 +125,7 @@
   overflow: hidden;
 }
 
-.markdown-editor[data-roomy] :is(.markdown-editor__source, .cm-editor) {
+.markdown-editor[data-sizing="roomy"] :is(.markdown-editor__source, .cm-editor) {
   block-size: 100%;
   max-block-size: none;
 }
@@ -185,4 +185,19 @@
     min-inline-size: 34px;
     min-block-size: 34px;
   }
+}
+
+.markdown-editor[data-sizing="fill"] {
+  block-size: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(5rem, 1fr);
+}
+
+.markdown-editor[data-sizing="fill"] :is(.markdown-editor__source, .cm-editor) {
+  block-size: 100%;
+  max-block-size: none;
+}
+
+.markdown-editor[data-sizing="fill"] :is(.cm-scroller, .markdown-editor__preview) {
+  overscroll-behavior: contain;
 }

@@ -502,7 +502,7 @@ export function ListEntryNoteEditor({
             disabled={pending}
             readOnly={removed || paused}
             onChange={state.change}
-            roomy={expanded}
+            sizing={expanded ? "roomy" : "compact"}
           />
         ) : !removed && savedNote ? (
           <ListNoteReadout

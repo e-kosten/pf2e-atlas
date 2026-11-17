@@ -50,11 +50,29 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     const editor = page.getByRole("dialog", { name: "Add custom turn" });
     await editor.getByRole("textbox", { name: "Name" }).fill("Lair action · Void Font");
     await editor.getByRole("spinbutton", { name: "Initiative" }).fill("20");
-    const note = editor.getByRole("textbox", { name: "Notes" });
+    const compactNote = editor.getByRole("textbox", { name: "Notes" });
     await editor.locator("label", { hasText: "Notes" }).click();
-    await expect(note).toBeFocused();
+    await expect(compactNote).toBeFocused();
+    await switchEditorMode(editor, "Preview");
+    await switchEditorMode(editor, "Write");
+
+    const expand = editor.getByRole("button", { name: "Expand editor" });
+    await expand.focus();
+    await expand.press("Enter");
+    const expanded = page.getByRole("dialog", { name: "Notes", exact: true });
+    const collapse = expanded.getByRole("button", { name: "Collapse editor" });
+    await expect(collapse).toBeFocused();
+    const note = expanded.getByRole("textbox", { name: "Notes", exact: true });
     const prefix = "## Trigger\n\nThe font pulses. Resolve ";
     await replaceMarkdown(note, prefix);
+    await expanded.getByRole("button", { name: "Heading", exact: true }).click();
+    const headings = page.getByRole("menuitem", { name: "Heading 1", exact: true });
+    await expect(headings).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(headings).toBeHidden();
+    await expect(expanded).toBeVisible();
+
+    await note.press("ControlOrMeta+End");
     await note.pressSequentially("[[");
 
     const picker = page.getByRole("dialog", { name: "Insert record link" });
@@ -65,45 +83,56 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await picker.getByRole("button", { name: "Insert link" }).click();
     await expect(picker).toBeHidden();
     await expect(note).toBeFocused();
-    const undo = editor.getByRole("button", { name: "Undo" });
-    const redo = editor.getByRole("button", { name: "Redo" });
+    const undo = expanded.getByRole("button", { name: "Undo" });
+    const redo = expanded.getByRole("button", { name: "Redo" });
     const withLink = prefix + "[Lantern Ward](record:browser-spells:spell00000000001)";
     await undo.click();
     await expect.poll(() => markdownSource(note)).toBe(prefix + "[[");
     await redo.click();
     await expect.poll(() => markdownSource(note)).toBe(withLink);
+    await note.click();
     await note.press("ControlOrMeta+Home");
     await note.press("ArrowDown");
     await note.press("ArrowDown");
     await note.press("Home");
     for (let offset = 0; offset < 4; offset += 1) await note.press("ArrowRight");
     for (let offset = 0; offset < 4; offset += 1) await note.press("Shift+ArrowRight");
-    await editor.getByRole("button", { name: "Record link" }).click();
+    const selectedText = () => page.evaluate(() => document.getSelection()?.toString());
+    await expect.poll(selectedText).toBe("font");
+    await page.keyboard.press("Escape");
+    await expect(expand).toBeFocused();
+    await expand.press("Enter");
+    await expect(collapse).toBeFocused();
+    await expanded.getByRole("button", { name: "Record link" }).click();
     await expect(
       picker.getByRole("searchbox", { name: "Search records" }),
     ).toBeFocused();
-    await picker.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.keyboard.press("Escape");
     await expect(picker).toBeHidden();
+    await expect(expanded).toBeVisible();
     await expect(note).toBeFocused();
+    await expect.poll(selectedText).toBe("font");
     await note.press("ControlOrMeta+b");
     const formatted = withLink.replace("font", "**font**");
     await expect.poll(() => markdownSource(note)).toBe(formatted);
     await expect(note).toBeFocused();
-    const height = await editor.locator(".markdown-editor").boundingBox();
-    await editor.screenshot({ path: info.outputPath("custom-turn-write.png") });
-    await switchEditorMode(editor, "Preview");
+    const height = await expanded.locator(".markdown-editor").boundingBox();
+    await expanded.screenshot({ path: info.outputPath("custom-turn-write.png") });
+    await switchEditorMode(expanded, "Preview");
+    expect((await expanded.locator(".markdown-editor").boundingBox())?.height).toBe(
+      height?.height,
+    );
+    await expanded.screenshot({ path: info.outputPath("custom-turn-preview.png") });
+    await collapse.click();
+    await expect(expand).toBeFocused();
     await expect(editor.getByRole("heading", { name: "Trigger" })).toBeVisible();
     await expect(editor.locator("strong")).toHaveText("font");
     await expect(editor.getByRole("link", { name: "Lantern Ward" })).toBeVisible();
-    expect((await editor.locator(".markdown-editor").boundingBox())?.height).toBe(
-      height?.height,
-    );
-    await editor.screenshot({ path: info.outputPath("custom-turn-preview.png") });
     await switchEditorMode(editor, "Write");
-    await undo.click();
-    await expect.poll(() => markdownSource(note)).toBe(withLink);
-    await redo.click();
-    await expect.poll(() => markdownSource(note)).toBe(formatted);
+    await editor.getByRole("button", { name: "Undo" }).click();
+    await expect.poll(() => markdownSource(compactNote)).toBe(withLink);
+    await editor.getByRole("button", { name: "Redo" }).click();
+    await expect.poll(() => markdownSource(compactNote)).toBe(formatted);
     await editor.getByRole("button", { name: "Add", exact: true }).click();
 
     await page.getByRole("button", { name: "Start turn" }).click();
@@ -120,6 +149,12 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await inspector.getByRole("button", { name: "Edit custom turn" }).click();
     const edit = page.getByRole("dialog", { name: "Edit custom turn" });
     await expect(edit).toBeVisible();
+    await edit.getByRole("button", { name: "Expand editor" }).click();
+    await expect.poll(() => markdownSource(note)).toBe(formatted);
+    await collapse.click();
+    await expect(edit.getByRole("textbox", { name: "Name" })).toHaveValue(
+      "Lair action · Void Font",
+    );
     await edit.getByRole("button", { name: "Cancel" }).click();
     await expect(edit).toBeHidden();
     await expect(page.getByRole("heading", { name: "Trigger" })).toBeVisible();

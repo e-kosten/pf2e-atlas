@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { ModalProps } from "antd";
 
-export type ModalLayout = "form" | "browse" | "confirmation";
+export type ModalLayout = "form" | "browse" | "document" | "confirmation";
 export type ModalWorkArea = { root: RefObject<HTMLElement | null>; selector?: string };
 function workAreaElement(area?: ModalWorkArea) {
   const root = area?.root.current;
@@ -66,6 +66,7 @@ export function useModalLayout({
   const captured = useRef(false);
   const areaRoot = workArea?.root;
   const areaSelector = workArea?.selector;
+  const fill = layout === "browse" || layout === "document";
   const reset = useCallback(() => {
     captured.current = false;
     setConfirmationInset(null);
@@ -111,14 +112,13 @@ export function useModalLayout({
   }, [open, layout, areaRoot, areaSelector, frame]);
   return useMemo(() => {
     const { bounds } = area;
-    const inset =
-      layout === "browse"
-        ? 16
-        : layout === "confirmation"
-          ? Math.min(confirmationInset ?? 16, Math.max(16, bounds.height - 240))
-          : bounds.height <= 600
-            ? 16
-            : Math.max(16, Math.min(80, bounds.height * 0.08));
+    const inset = fill
+      ? 16
+      : layout === "confirmation"
+        ? Math.min(confirmationInset ?? 16, Math.max(16, bounds.height - 240))
+        : bounds.height <= 600
+          ? 16
+          : Math.max(16, Math.min(80, bounds.height * 0.08));
     const height = Math.max(0, bounds.height - inset - 16);
     const style: CSSProperties & { "--atlas-modal-height": string } = {
       "--atlas-modal-height": `${height}px`,
@@ -129,7 +129,7 @@ export function useModalLayout({
       maxHeight: height,
       display: "flex",
       flexDirection: "column",
-      ...(layout === "browse" ? { height } : {}),
+      ...(fill ? { height } : {}),
     };
     const wrapper: CSSProperties = {
       display: "flex",
@@ -143,6 +143,6 @@ export function useModalLayout({
       paddingRight: Math.max(0, window.innerWidth - bounds.left - bounds.width) + 16,
     };
     const styles: ModalProps["styles"] = { wrapper };
-    return { style, styles, reset };
-  }, [area, layout, confirmationInset, reset]);
+    return { fill, style, styles, reset };
+  }, [area, fill, layout, confirmationInset, reset]);
 }

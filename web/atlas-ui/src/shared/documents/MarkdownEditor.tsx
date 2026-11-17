@@ -74,7 +74,8 @@ const editorExtensions = [
     { key: "Mod-b", run: (view) => toggleEmphasis(view, "strong") },
     { key: "Mod-i", run: (view) => toggleEmphasis(view, "emphasis") },
     ...historyKeymap,
-    ...defaultKeymap,
+    // Atlas overlays own Escape and preserve the selection when collapsing notes.
+    ...defaultKeymap.filter(({ key }) => key !== "Escape"),
   ]),
   EditorView.lineWrapping,
 ];
@@ -145,7 +146,7 @@ export function MarkdownEditor({
   disabled,
   readOnly,
   editorRef,
-  roomy = false,
+  sizing = "compact",
   "aria-describedby": describedBy,
   "aria-invalid": invalid,
   "aria-required": required,
@@ -156,7 +157,7 @@ export function MarkdownEditor({
   label: string;
   disabled?: boolean;
   readOnly?: boolean;
-  roomy?: boolean;
+  sizing?: "compact" | "roomy" | "fill";
   editorRef?: RefObject<MarkdownEditorHandle | null>;
 }) {
   const [mode, setMode] = useState<"Write" | "Preview">("Write");
@@ -297,12 +298,28 @@ export function MarkdownEditor({
   );
 
   function closePicker() {
+    const editor = view.current;
+    const state = editor?.state;
     insertion.current = null;
     setPickerOpen(false);
     setCandidate(null);
     restoreFocus.current = requestAnimationFrame(() => {
       restoreFocus.current = undefined;
-      if (!inactive) view.current?.focus();
+      if (inactive || !editor || view.current !== editor) return;
+      editor.focus();
+      if (!state || editor.state.doc !== state.doc) return;
+      const { anchor, head, empty } = state.selection.main;
+      const selection = editor.contentDOM.ownerDocument.getSelection();
+      if (empty || !selection?.isCollapsed) return;
+      // WebKit can collapse the DOM selection when focus returns from the picker.
+      const start = editor.domAtPos(anchor);
+      const end = editor.domAtPos(head);
+      if (
+        editor.posAtDOM(start.node, start.offset) === anchor &&
+        editor.posAtDOM(end.node, end.offset) === head
+      ) {
+        selection.setBaseAndExtent(start.node, start.offset, end.node, end.offset);
+      }
     });
   }
 
@@ -332,7 +349,7 @@ export function MarkdownEditor({
   return (
     <div
       className="markdown-editor"
-      data-roomy={roomy || undefined}
+      data-sizing={sizing}
       data-invalid={invalid || undefined}
     >
       <ConfigProvider
@@ -465,7 +482,7 @@ export function MarkdownEditor({
           <div
             className="markdown-editor__preview"
             role="region"
-            aria-label="Markdown preview"
+            aria-label={sizing === "fill" ? "Note preview" : "Markdown preview"}
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The bounded preview needs focus for keyboard scrolling in WebKit.
             tabIndex={0}
           >
