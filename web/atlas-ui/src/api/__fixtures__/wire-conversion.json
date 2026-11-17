@@ -137,6 +137,10 @@
           "state": "missing",
           "value": null
         },
+        "gm_adjustments": {
+          "entries": [],
+          "targets": []
+        },
         "hazard_disabled": false,
         "hidden": false,
         "hp_origin": "explicit",
@@ -489,6 +493,10 @@
           "adjustment": null,
           "state": "value",
           "value": 20
+        },
+        "gm_adjustments": {
+          "entries": [],
+          "targets": []
         },
         "hazard_disabled": false,
         "hidden": false,

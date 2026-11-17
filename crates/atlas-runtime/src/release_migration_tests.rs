@@ -107,6 +107,7 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     let mut migrated =
         atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap();
     migrated.remove("workspace_settings");
+    assert_eq!(migrated.remove("encounter_adjustments"), Some(Vec::new()));
     migrated.remove("reference_component_digests");
     let changed: Vec<_> = reference_rows
         .keys()
@@ -178,6 +179,7 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
     for list in expected.get_mut("saved_lists").unwrap() {
         list.push(rusqlite::types::Value::Integer(0));
     }
+    expected.insert("encounter_adjustments".into(), vec![]);
     assert_eq!(
         atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap(),
         expected
