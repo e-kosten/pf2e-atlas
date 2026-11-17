@@ -530,6 +530,7 @@ export function EncounterRosterPane({
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
         dismissLabel="Done"
+        compactOptions
         summary={
           difficulty && recordOpen ? (
             <EncounterAddDifficulty
@@ -545,53 +546,53 @@ export function EncounterRosterPane({
           ) : undefined
         }
         status={
-          added || (!disabled && committedAdd) ? (
-            <span role="status" className="encounter-add-receipt">
-              {committedAdd ?? added}
-            </span>
-          ) : undefined
+          (recovery || error || added || (!disabled && committedAdd)) && (
+            <>
+              {recovery}
+              {error && (
+                <ErrorNotice
+                  error={error}
+                  title="Participant could not be added"
+                  description={error}
+                />
+              )}
+              {(added || (!disabled && committedAdd)) && (
+                <span role="status" className="encounter-add-receipt">
+                  {committedAdd ?? added}
+                </span>
+              )}
+            </>
+          )
         }
       >
-        <>
-          {recovery}
-          {error && (
-            <ErrorNotice
-              error={error}
-              title="Participant could not be added"
-              description={error}
-            />
-          )}
-          <div
-            className="encounter-add-fields"
-            inert={!selectedRecordKey}
-            style={selectedRecordKey ? undefined : { visibility: "hidden", opacity: 0 }}
+        <div
+          className="encounter-add-fields"
+          inert={!selectedRecordKey}
+          style={selectedRecordKey ? undefined : { visibility: "hidden", opacity: 0 }}
+        >
+          {(!selectedRecordKey || selectedIsCreature) && <EncounterRecordAdjustment />}
+          <Form.Item
+            name="quantity"
+            label="Quantity"
+            initialValue={1}
+            rules={[
+              {
+                required: true,
+                type: "integer",
+                min: 1,
+                max: 50,
+                message: "Enter a whole number from 1 to 50.",
+              },
+            ]}
           >
-            {(!selectedRecordKey || selectedIsCreature) && (
-              <EncounterRecordAdjustment />
-            )}
-            <Form.Item
-              name="quantity"
-              label="Quantity"
-              initialValue={1}
-              rules={[
-                {
-                  required: true,
-                  type: "integer",
-                  min: 1,
-                  max: 50,
-                  message: "Enter a whole number from 1 to 50.",
-                },
-              ]}
-            >
-              <InputNumber
-                className="encounter-add-quantity"
-                aria-label="Quantity"
-                min={1}
-                max={50}
-              />
-            </Form.Item>
-          </div>
-        </>
+            <InputNumber
+              className="encounter-add-quantity"
+              aria-label="Quantity"
+              min={1}
+              max={50}
+            />
+          </Form.Item>
+        </div>
       </SearchPickerModal>
       {entryOpen && onAddInitiativeEntry && (
         <InitiativeEntryEditor

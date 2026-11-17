@@ -47,9 +47,9 @@ counterpart exists. [ADR0067](decisions/0067-remaster-relationships.md) owns thi
 distinction and keeps navigation separate from independently matching results.
 
 `web/atlas-ui` renders generated app contracts with React and Ant Design. Its shared
-`AtlasModal` frame owns form, browsing and confirmation geometry, viewport gutters,
-feedback budgeting and scroll boundaries. Encounter presentation supplies a visible
-work-area element rather than maintaining another placement algorithm. Destructive
+`AtlasModal` frame owns form, browsing, document and confirmation geometry, viewport
+gutters, feedback budgeting and scroll boundaries. Encounter presentation supplies
+a preferred work-area element, which yields to the viewport's usable height. Destructive
 confirmations render through that same frame while retaining their own pending,
 retry and focus lifecycle. See the frontend guide's modal layout policy.
 
