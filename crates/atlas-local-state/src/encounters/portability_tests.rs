@@ -144,6 +144,8 @@ fn portability_inventory_covers_current_encounter_tables() -> crate::LocalStateR
             "encounter_participant_baselines",
             "encounter_participant_conditions",
             "encounter_participants",
+            // The PC link is captured by whole-workspace recovery only.
+            "encounter_pc_party_members",
             "encounter_pending_consequences",
             "encounter_persistent_precedence",
             "encounter_spell_resources",

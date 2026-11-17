@@ -108,6 +108,8 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
         atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap();
     migrated.remove("workspace_settings");
     migrated.remove("reference_component_digests");
+    assert_eq!(migrated.remove("encounter_pc_party_members"), Some(vec![]));
+    assert_eq!(migrated.remove("party_member_references"), Some(vec![]));
     let changed: Vec<_> = reference_rows
         .keys()
         .chain(migrated.keys())
@@ -175,6 +177,8 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
     let after = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(after.reference_revision().unwrap(), revision);
     let mut expected = reference;
+    expected.insert("encounter_pc_party_members".into(), vec![]);
+    expected.insert("party_member_references".into(), vec![]);
     for list in expected.get_mut("saved_lists").unwrap() {
         list.push(rusqlite::types::Value::Integer(0));
     }
