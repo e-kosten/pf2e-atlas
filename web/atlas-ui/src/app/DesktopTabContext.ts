@@ -23,3 +23,15 @@ export function useTabCloseGuard(guard: TabCloseGuard) {
   const register = useDesktopTab()?.guard;
   useLayoutEffect(() => register?.(guard), [guard, register]);
 }
+
+export function canFocusTabElement(
+  element: HTMLElement | null | undefined,
+): element is HTMLElement {
+  return (
+    !!element &&
+    element.isConnected &&
+    !element.closest("[hidden], [inert]") &&
+    !element.matches(":disabled") &&
+    (element.checkVisibility?.({ visibilityProperty: true }) ?? true)
+  );
+}

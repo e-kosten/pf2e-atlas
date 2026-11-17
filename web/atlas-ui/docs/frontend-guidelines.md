@@ -1310,6 +1310,11 @@ the backdrop must not move that anchor when the underlying page shrinks or scrol
 Shared recovery feedback is included in the same height
 budget. Keep the backdrop hit surface full viewport, regardless of work-area bounds.
 
+Desktop tab switching suspends the modal and drawer presentation in inactive
+tabs. The logical open session and its draft survive. Only the topmost active
+overlay receives Escape. Open and close callbacks belong to the logical session,
+including a write that completes while its tab is inactive.
+
 The frame omits scale transitions so initial positioning and child popup measurement
 use final layout dimensions. Retain native focus/border feedback. Check desktop,
 narrow and short views before focusing footer actions: the actions must already be
