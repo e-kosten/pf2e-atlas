@@ -36,7 +36,9 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
             return invalid_setup_input(json, "invalid desktop workspace upgrade options".into());
         }
         let runtime = setup_runtime(args.paths)?;
-        if let Err(message) = runtime.upgrade_desktop_workspace() {
+        if let Err(message) =
+            runtime.upgrade_desktop_workspace(crate::commands::desktop::verify_expected_workspace)
+        {
             write_json_error("workspace_upgrade_failed", message)?;
             return Ok(ExitCode::FAILURE);
         }
@@ -48,7 +50,11 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
             || args.command.is_some()
             || !matches!(args.paths.path_mode, atlas_cli_support::CliPathMode::Global)
             || args.paths.source.is_some()
-            || args.paths.index.is_some()
+            || args
+                .paths
+                .index
+                .as_deref()
+                .is_some_and(|path| !crate::commands::desktop::is_managed_index(path))
             || args.paths.embedding_cache_path.is_some()
             || args.run.check
             || args.run.no_embeddings
@@ -134,7 +140,6 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
     if args.desktop_stage.is_some()
         && (args.command.is_some()
             || (args.paths.source.is_some() && !fixture)
-            || args.paths.index.is_some()
             || args.paths.embedding_cache_path.is_some()
             || args.run.checks_embedding_coverage()
             || (args.run.offline && !fixture))
@@ -234,6 +239,8 @@ fn run_setup_install(
         search_profiles: options.search_profiles,
         embedding_batch_size: options.embedding_batch_size,
         locale: options.locale,
+        desktop_workspace_check: std::env::var_os("ATLAS_DESKTOP_EXPECTED_WORKSPACE")
+            .map(|_| crate::commands::desktop::verify_expected_workspace as _),
     };
     let report = if let Some(stage) = desktop_stage {
         let stage = match stage {

@@ -18,8 +18,8 @@ to approve that download. See [Apple's first-open instructions](https://support.
 
 Open the app and choose **Set up Atlas** on a new workspace. For upgrades,
 quit Atlas, replace the app in Applications, reopen it, and use **Setup and
-Updates** if Atlas asks to prepare the workspace. Nightly and stable builds
-use the same workspace. Back it up before switching channels.
+Updates** if Atlas asks to prepare the workspace. Stable and Nightly open the primary workspace by default. Use Release channel
+in Atlas Desktop to review a switch and select the workspace to open.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
 Access** to link it at `~/.local/bin/atlas`. If you already installed a
@@ -39,6 +39,31 @@ download can be retried in Atlas.
 
 Updater-enabled builds can install subsequent updates in the app. Install the
 first updater-enabled release the same way you installed Atlas originally.
+
+### Switch between Stable and Nightly
+
+Open **Release channel** in Atlas Desktop. Choose the workspace you want to open
+after switching and check the other channel's compatibility. When the verified
+build can open or upgrade that workspace, Atlas shows the version and any setup
+requirements before installing.
+
+Take the primary workspace along to continue a campaign between compatible
+releases. To try Nightly in isolation, choose **Trial workspace**. Atlas starts
+it from a copy of the primary workspace and preserves both copies when you
+switch back. The linked terminal command and standalone CLI still use the primary
+workspace. To access the trial explicitly, pass the trial path shown in Release
+channel with `--index`.
+
+If Stable cannot open the selected workspace, choose **Stay on this build and
+wait for Stable** to pause Nightly offers, or **Keep receiving Nightly updates
+while waiting**. Atlas saves the choice across restarts and asks before
+installing a compatible Stable. Change or cancel the request in Release channel.
+
+Guided switching requires release builds with signed workspace compatibility.
+If an installer was interrupted, follow the workspace selection recovery shown
+on startup. When a supported workspace needs an upgrade, Atlas uses its normal
+[workspace backup and upgrade procedure](setup-and-maintenance.md#upgrade-an-older-prerelease-workspace).
+Older apps installed manually may reopen the primary workspace.
 
 ## Windows desktop app
 

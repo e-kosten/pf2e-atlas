@@ -56,3 +56,6 @@ rusqlite.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 atlas-desktop-protocol.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winapi-util = "0.1"

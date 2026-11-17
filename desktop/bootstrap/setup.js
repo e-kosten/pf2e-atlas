@@ -268,6 +268,23 @@ function show(inspection, auto) {
   ui.diagnostic.hidden = true;
   action(ui.primary);
   action(ui.secondary);
+  const recoverWorkspace = async (previous) => {
+    try {
+      await invoke("recover_workspace", { previous });
+      await refresh(true);
+    } catch (error) {
+      failure(error, "workspace-selection");
+    }
+  };
+  if (inspection.selection_error) {
+    status("Choose a workspace", [inspection.selection_error, inspection.recovery_release].filter(Boolean).join(" "));
+    if (inspection.resume_previous_workspace) {
+      action(ui.primary, "Resume my previous workspace", () => recoverWorkspace(true));
+    } else {
+      action(ui.primary, "Open my primary workspace", () => recoverWorkspace(false));
+    }
+    return;
+  }
   const setup = (heading, copy) => () => work(heading, copy, "prepare");
   const usable = probe.status === "ready" || probe.status === "browsable";
   if (usable && openingError) {
@@ -324,7 +341,10 @@ function show(inspection, auto) {
     case "upgrade_required":
       status(
         "Update your workspace for this version of Atlas",
-        "This version needs to update your existing workspace before Atlas can open it. Atlas backs up your saved work before upgrading.",
+        [
+          "This version needs to update your existing workspace before Atlas can open it. Atlas backs up your saved work before upgrading.",
+          inspection.recovery_release,
+        ].filter(Boolean).join(" "),
       );
       action(
         ui.primary,
@@ -334,6 +354,7 @@ function show(inspection, auto) {
           "Your saved work will be available when Atlas reopens.",
         ),
       );
+      if (inspection.recovery_release) action(ui.secondary, "Open my primary workspace", () => recoverWorkspace(false));
       break;
     case "recovery_required":
       status(

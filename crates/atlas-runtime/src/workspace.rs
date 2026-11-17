@@ -16,6 +16,56 @@ pub fn desktop_migration_ledger() -> atlas_storage::MigrationLedger {
     RELEASE_HISTORY.ledger()
 }
 
+/// Seed an isolated trial using the source workspace's authenticated history.
+pub fn seed_desktop_trial(
+    primary: &Path,
+    trial: &Path,
+    expected_key: &str,
+    expected_schema: u32,
+    verify_source: impl FnOnce() -> StorageResult<()>,
+) -> StorageResult<()> {
+    register_extensions()?;
+    Workspace::existing(primary)?.seed_trial(
+        &Workspace::at(trial)?,
+        RELEASE_HISTORY,
+        expected_key,
+        expected_schema,
+        verify_source,
+    )
+}
+
+/// Initialize a missing workspace after a confirmed desktop switch. The
+/// recorded key also identifies this initialization across an interrupted boot.
+pub fn claim_desktop_workspace(path: &Path, key: &str) -> StorageResult<()> {
+    if key.len() != 32
+        || !key
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(atlas_storage::StorageError::Unsupported(
+            "invalid desktop workspace identity".into(),
+        ));
+    }
+    register_extensions()?;
+    let workspace = Workspace::at(path)?;
+    if let Some(initialization) = workspace.begin_initialization()? {
+        let parent = workspace.path().parent().ok_or_else(|| {
+            atlas_storage::StorageError::Unsupported("missing workspace parent".into())
+        })?;
+        let staging = tempfile::tempdir_in(parent)?;
+        let source = staging.path().join("workspace.sqlite");
+        initialize_workspace(&source)?;
+        initialization.install_claimed(&source, RELEASE_HISTORY, key)?;
+    }
+    let (actual, _) = workspace.check_update_history(&RELEASE_HISTORY.ledger())?;
+    if actual != key {
+        return Err(atlas_storage::StorageError::Unsupported(
+            "Another workspace appeared at the selected destination.".into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Initialize or upgrade one workspace. Reference readiness is independent:
 /// an empty reference corpus must not prevent creating saved lists or encounters.
 pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> {
@@ -93,6 +143,26 @@ mod release_migration_tests;
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn a_desktop_claim_resumes_its_own_initialization_and_preserves_an_existing_workspace() {
+        let directory = tempfile::tempdir().unwrap();
+        let claimed = directory.path().join("claimed.sqlite");
+        let key = "a".repeat(32);
+        claim_desktop_workspace(&claimed, &key).unwrap();
+        let first = Workspace::existing(&claimed).unwrap();
+        let ledger = desktop_migration_ledger();
+        let (actual, schema) = first.check_update_history(&ledger).unwrap();
+        assert_eq!(actual, key);
+        assert_eq!(schema, WORKSPACE_SCHEMA_VERSION);
+        claim_desktop_workspace(&claimed, &key).unwrap();
+
+        let independent = directory.path().join("independent.sqlite");
+        let independent = initialize_workspace(&independent).unwrap();
+        let before = independent.check_update_history(&ledger).unwrap();
+        assert!(claim_desktop_workspace(independent.path(), &key).is_err());
+        assert_eq!(independent.check_update_history(&ledger).unwrap(), before);
+    }
 
     #[test]
     fn runtime_automatically_upgrades_core_without_source_models_or_changed_reference_values() {

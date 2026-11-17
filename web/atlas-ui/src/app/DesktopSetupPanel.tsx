@@ -42,6 +42,7 @@ type ReferenceStatus = {
 };
 type DesktopAttachment = {
   token: string;
+  channel?: { trial_path: string | null } | null;
   openRequest?: number | null;
   openTerminal?: boolean;
   terminalLinking?: boolean;
@@ -438,12 +439,24 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
     }
   }
 
+  const trial = readAttachment()?.channel?.trial_path;
   return (
     <section
       className="desktop-setup__section"
       aria-labelledby="desktop-setup-terminal"
     >
       <h2 id="desktop-setup-terminal">Terminal and agent access</h2>
+      {trial && (
+        <Alert
+          type="info"
+          title={
+            <>
+              Terminal commands use the primary workspace. To access the trial, pass{" "}
+              <code>--index</code> and <code>{trial}</code>.
+            </>
+          }
+        />
+      )}
       {!status && busy && (
         <Typography.Text role="status">Checking terminal command…</Typography.Text>
       )}

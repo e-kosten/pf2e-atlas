@@ -14,6 +14,48 @@ pub(super) fn fixture() -> (tempfile::TempDir, Workspace) {
 }
 
 #[test]
+fn a_trial_preserves_saved_data_with_its_own_workspace_identity() {
+    let (dir, primary) = fixture();
+    let trial = Workspace::at(dir.path().join("trial.sqlite")).unwrap();
+    let history = MigrationHistory::new(&[FIRST]);
+    let key = primary.read(1).unwrap().workspace_key().unwrap();
+    assert!(
+        primary
+            .seed_trial(&trial, history, "different-workspace", 1, || Ok(()))
+            .is_err()
+    );
+    assert!(!trial.path().exists());
+    primary
+        .seed_trial(&trial, history, &key, 1, || Ok(()))
+        .unwrap();
+
+    let primary_read = primary.read(1).unwrap();
+    let trial_read = trial.read(1).unwrap();
+    assert_ne!(
+        primary_read.workspace_key().unwrap(),
+        trial_read.workspace_key().unwrap()
+    );
+    assert_eq!(
+        trial_read
+            .connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+    drop(trial_read);
+    assert!(
+        primary
+            .seed_trial(&trial, history, &key, 1, || Ok(()))
+            .is_err()
+    );
+    assert!(
+        primary
+            .seed_trial(&primary, history, &key, 1, || Ok(()))
+            .is_err()
+    );
+}
+
+#[test]
 fn update_preflight_requires_the_target_ledger_without_migrating_the_workspace() {
     let (_dir, workspace) = fixture();
     let second = Migration {

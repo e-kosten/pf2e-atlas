@@ -1,6 +1,10 @@
 #[cfg(target_os = "macos")]
 use std::process::Command;
-use std::{path::PathBuf, process::ExitCode};
+use std::{
+    io::{self, BufRead, Read, Write},
+    path::PathBuf,
+    process::ExitCode,
+};
 
 use atlas_app_model::{AppErrorCode, AppReadinessStatus};
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
@@ -52,9 +56,216 @@ pub(crate) struct ProbeArgs {
     reference_status: bool,
     #[arg(long, hide = true, conflicts_with_all = ["wait_for_service", "reference_status"])]
     update_compatibility: bool,
+    #[arg(long, hide = true)]
+    transition_workspace: Option<TransitionWorkspace>,
+    #[arg(long, hide = true, requires = "transition_workspace")]
+    reserve_transition: bool,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+enum TransitionWorkspace {
+    Primary,
+    Trial,
+}
+
+#[cfg(unix)]
+fn file_identity(path: &std::path::Path) -> io::Result<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = path.metadata()?;
+    Ok((metadata.dev(), metadata.ino()))
+}
+
+#[cfg(windows)]
+fn file_identity(path: &std::path::Path) -> io::Result<(u64, u64)> {
+    let information = winapi_util::file::information(std::fs::File::open(path)?)?;
+    Ok((information.volume_serial_number(), information.file_index()))
+}
+
+pub(crate) fn verify_expected_workspace(workspace: &Workspace) -> Result<(), String> {
+    #[derive(serde::Deserialize)]
+    struct Expected {
+        workspace: PathBuf,
+        key: Option<String>,
+        file_id: Option<(u64, u64)>,
+    }
+    let Ok(expected) = std::env::var("ATLAS_DESKTOP_EXPECTED_WORKSPACE") else {
+        return Ok(());
+    };
+    let expected: Expected = serde_json::from_str(&expected).map_err(|error| error.to_string())?;
+    let current = workspace.path();
+    let changed = || {
+        "The selected workspace changed after the switch. Choose which workspace to open."
+            .to_owned()
+    };
+    if current != expected.workspace {
+        return Err(changed());
+    }
+    match (expected.key, expected.file_id) {
+        (Some(key), Some(identity)) => {
+            let ledger = atlas_runtime::desktop_migration_ledger();
+            let (actual_key, _) = workspace
+                .check_update_history(&ledger)
+                .map_err(|error| error.to_string())?;
+            if actual_key != key
+                || file_identity(current).map_err(|error| error.to_string())? != identity
+            {
+                return Err(changed());
+            }
+        }
+        (None, None) => match std::fs::symlink_metadata(current) {
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            _ => return Err(changed()),
+        },
+        _ => return Err(changed()),
+    }
+    Ok(())
+}
+
+pub(crate) fn is_managed_index(index: &std::path::Path) -> bool {
+    let Ok(runtime) = AtlasRuntime::resolve(AtlasRuntimeOptions::default()) else {
+        return false;
+    };
+    let primary = runtime.index_path();
+    [
+        primary.to_path_buf(),
+        primary.with_file_name("nightly-trial.sqlite"),
+    ]
+    .iter()
+    .any(|expected| expected == index || expected.canonicalize().is_ok_and(|path| path == index))
+}
+
+fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitCode, String> {
+    let runtime =
+        AtlasRuntime::resolve(AtlasRuntimeOptions::default()).map_err(|err| err.to_string())?;
+    let primary = runtime.index_path();
+    let trial = primary.with_file_name("nightly-trial.sqlite");
+    let path = match role {
+        TransitionWorkspace::Primary => primary,
+        TransitionWorkspace::Trial => &trial,
+    };
+    let mut input = io::stdin().lock();
+    let mut line = String::new();
+    (&mut input)
+        .take(65_537)
+        .read_line(&mut line)
+        .map_err(|err| err.to_string())?;
+    if line.len() > 65_536 || !line.ends_with('\n') {
+        return Err("Invalid update migration history.".into());
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct SeedSource {
+        workspace: PathBuf,
+        key: String,
+        schema: u32,
+        file_id: (u64, u64),
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Initialization {
+        workspace: PathBuf,
+        key: String,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Request {
+        ledger: atlas_runtime::MigrationLedger,
+        seed: Option<SeedSource>,
+        initialize: Option<Initialization>,
+    }
+    let Request {
+        ledger,
+        seed,
+        initialize,
+    } = serde_json::from_str(&line).map_err(|err| err.to_string())?;
+    if let Some(initialization) = initialize {
+        if seed.is_some() || args.reserve_transition {
+            return Err("Invalid workspace initialization request.".into());
+        }
+        let destination = Workspace::at(path).map_err(|err| err.to_string())?;
+        if destination.path() != initialization.workspace {
+            return Err("The selected workspace moved before initialization.".into());
+        }
+        atlas_runtime::claim_desktop_workspace(destination.path(), &initialization.key)
+            .map_err(|err| err.to_string())?;
+    }
+    if let Some(seed) = seed {
+        if !matches!(role, TransitionWorkspace::Trial) || args.reserve_transition {
+            return Err("Only the trial workspace can be seeded.".into());
+        }
+        let verify_source = || {
+            if primary.canonicalize()? != seed.workspace || file_identity(primary)? != seed.file_id
+            {
+                return Err(atlas_runtime::StorageError::Migration(
+                    "The primary workspace changed. Review the switch again.".into(),
+                ));
+            }
+            Ok(())
+        };
+        verify_source().map_err(|err| err.to_string())?;
+        atlas_runtime::seed_desktop_trial(primary, &trial, &seed.key, seed.schema, verify_source)
+            .map_err(|err| err.to_string())?;
+    }
+    let workspace = Workspace::at(path).map_err(|err| err.to_string())?;
+    let mut setup = None;
+    let mut update = None;
+    let mut initialization = None;
+    let state = match std::fs::symlink_metadata(path) {
+        Err(err) if err.kind() == io::ErrorKind::NotFound => {
+            if args.reserve_transition {
+                initialization = Some(
+                    workspace
+                        .begin_initialization()
+                        .map_err(|err| err.to_string())?
+                        .ok_or("Workspace appeared before the switch. Try again.")?,
+                );
+            }
+            serde_json::json!({"workspace": workspace.path(), "role": role})
+        }
+        Err(err) => return Err(err.to_string()),
+        Ok(_) => {
+            if args.reserve_transition {
+                setup = Some(workspace.setup_guard().map_err(|err| err.to_string())?);
+                update = Some(workspace.update_owner().map_err(|err| err.to_string())?);
+            }
+            let identity = file_identity(path).map_err(|err| err.to_string())?;
+            if matches!(role, TransitionWorkspace::Trial) {
+                match file_identity(primary) {
+                    Ok(primary) if primary == identity => {
+                        return Err("The trial workspace points to the primary workspace.".into());
+                    }
+                    Err(err) if err.kind() != io::ErrorKind::NotFound => {
+                        return Err(err.to_string());
+                    }
+                    _ => {}
+                }
+            }
+            let (key, schema) = workspace
+                .check_update_history(&ledger)
+                .map_err(|err| err.to_string())?;
+            if file_identity(path).map_err(|err| err.to_string())? != identity {
+                return Err("The workspace file changed during the check.".into());
+            }
+            serde_json::json!({
+                "workspace": workspace.path(), "role": role, "key": key,
+                "schema": schema, "file_id": identity
+            })
+        }
+    };
+    atlas_cli_support::write_json_data(state)?;
+    if args.reserve_transition {
+        io::stdout().flush().map_err(|err| err.to_string())?;
+        io::copy(&mut input, &mut io::sink()).map_err(|err| err.to_string())?;
+    }
+    drop((initialization, update, setup));
+    Ok(ExitCode::SUCCESS)
 }
 
 pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
+    if let Some(role) = args.transition_workspace {
+        return check_transition(&args, role);
+    }
     if args.update_compatibility {
         let (commit, version) = atlas_runtime::desktop_reference_baseline();
         atlas_cli_support::write_json_data(serde_json::json!({

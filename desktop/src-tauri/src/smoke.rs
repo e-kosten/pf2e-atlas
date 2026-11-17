@@ -115,7 +115,7 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
 fn run(app: &AppHandle) -> Result<(), String> {
     let deadline = Instant::now() + Duration::from_secs(10);
     let home = process::home()?.canonicalize().map_err(display)?;
-    let probe = process::probe()?;
+    let probe = process::probe(app)?;
     if probe.status != atlas_desktop_protocol::WorkspaceStatus::NeedsSetup
         || !probe.workspace.starts_with(home)
         || probe.workspace.exists()
@@ -432,7 +432,7 @@ fn fixture_record_rendered(window: &WebviewWindow, path: &str) -> bool {
 
 fn run_links(app: &AppHandle) -> Result<(), String> {
     let home = process::home()?.canonicalize().map_err(display)?;
-    let probe = process::probe()?;
+    let probe = process::probe(app)?;
     if probe.status != atlas_desktop_protocol::WorkspaceStatus::Browsable
         || !probe.workspace.starts_with(&home)
     {
@@ -509,8 +509,8 @@ fn run_links(app: &AppHandle) -> Result<(), String> {
 fn run_reference(app: &AppHandle) -> Result<(), String> {
     let deadline = Instant::now() + Duration::from_secs(10);
     let home = process::home()?.canonicalize().map_err(display)?;
-    let probe = process::probe()?;
-    let initial = process::reference_status()?;
+    let probe = process::probe(app)?;
+    let initial = process::reference_status(app)?;
     if probe.status != atlas_desktop_protocol::WorkspaceStatus::Browsable
         || !probe.workspace.starts_with(&home)
         || initial.offer.is_none()
@@ -590,7 +590,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     wait_for(deadline, "verified no-op", || {
         text_visible(&window, "Reference data is already up to date.")
     })?;
-    if process::reference_status()?.generation != initial.generation {
+    if process::reference_status(app)?.generation != initial.generation {
         return Err("the no-op changed the committed generation".into());
     }
 
@@ -607,7 +607,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
             && text_visible(&second, "Reference data updated.")
     })?;
     if SETUP_RUNS.load(Ordering::Relaxed) != 3
-        || process::reference_status()?.generation == initial.generation
+        || process::reference_status(app)?.generation == initial.generation
         || app.webview_windows().len() != 2
     {
         return Err(

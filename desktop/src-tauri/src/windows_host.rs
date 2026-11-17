@@ -4,7 +4,7 @@
 
 use std::ptr::null_mut;
 
-use tauri::WebviewWindow;
+use tauri::{AppHandle, Manager, WebviewWindow};
 use url::Url;
 use windows_sys::Win32::{
     System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW},
@@ -71,14 +71,24 @@ pub fn open_external(destination: &Url) {
     }
 }
 
-pub fn show_cli_path() -> Result<(), String> {
-    let path = process::bundled_cli()?;
+pub fn show_cli_path(app: &AppHandle) -> Result<(), String> {
+    let path = process::bundled_cli()?
+        .display()
+        .to_string()
+        .replace('\'', "''");
+    let mut details = format!("Run the bundled Atlas command in PowerShell.\n\n& '{path}'");
+    if let Some(trial) = app.state::<crate::Desktop>().workspace_route.index()?
+        && crate::workspace_switch::load(app)?.active == crate::workspace_switch::Role::Trial
+    {
+        let trial = trial.display().to_string().replace('\'', "''");
+        details.push_str(&format!(" web --index '{trial}'"));
+        details.push_str(
+            "\n\nWithout an explicit workspace path, the command opens the primary workspace.",
+        );
+    }
     message(
         "Terminal and Agent Access",
-        &format!(
-            "Run the bundled Atlas command in PowerShell.\n\n& '{}'",
-            path.display().to_string().replace('\'', "''")
-        ),
+        &details,
         MB_OK | MB_ICONINFORMATION,
     );
     Ok(())

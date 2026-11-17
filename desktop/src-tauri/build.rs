@@ -11,12 +11,14 @@ fn main() {
     }
     let commands = tauri_build::AppManifest::new().commands(&[
         "inspect",
+        "recover_workspace",
         "launch",
         "prepare",
         "cancel_setup",
         "enable_cli",
         "desktop_setup_action",
         "desktop_update_action",
+        "desktop_channel_action",
         "desktop_startup_trace",
         "desktop_tab_link",
         "desktop_native_tab_title",
