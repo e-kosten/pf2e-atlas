@@ -25,7 +25,7 @@ for (let index = 0; index < releases.length; index += 2) {
   const manifest = JSON.parse(readFileSync(join(directory, "atlas-desktop-update.json"), "utf8"));
   for (const platform of Object.values(manifest.platforms)) {
     const name = new URL(platform.url).pathname.split("/").at(-1);
-    if (!/^atlas-desktop-[a-z0-9.-]+$/.test(name)) throw new Error("Invalid update package name");
+    if (!/^atlas-desktop-[a-z0-9._-]+$/.test(name)) throw new Error("Invalid update package name");
     for (const asset of [name, name + ".transition.json", name + ".transition.json.sig"]) {
       const file = join(directory, asset);
       const metadata = statSync(file, { throwIfNoEntry: false });
