@@ -90,7 +90,9 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     }
     let app = app.clone();
     thread::spawn(move || {
-        match if links_mode {
+        match if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "channels") {
+            run_channels(&app)
+        } else if links_mode {
             run_links(&app)
         } else if selector_mode() {
             run_selector(&app)
@@ -110,6 +112,45 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
         }
     });
     Ok(())
+}
+
+fn run_channels(app: &AppHandle) -> Result<(), String> {
+    let installed =
+        crate::updates::installed_build().ok_or("Channel smoke requires a release identity.")?;
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary window unavailable")?;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    wait_for(deadline, "release channel controls", || {
+        click_product_button(&window, "Release channel", false)
+    })?;
+    if installed.tag.starts_with("release/") {
+        wait_for(deadline, "Stable channel after restart", || {
+            text_visible(
+                &window,
+                &format!(
+                    "Running Stable {} with the primary workspace.",
+                    installed.version
+                ),
+            )
+        })?;
+        if crate::workspace_switch::load(app)?.pending.is_some() {
+            return Err("Stable still has a pending switch after opening.".into());
+        }
+        std::fs::write(
+            process::home()?.join("channel-switch-complete"),
+            installed.version,
+        )
+        .map_err(display)?;
+        return Ok(());
+    }
+    wait_for(deadline, "Stable compatibility review", || {
+        click_product_button(&window, "Check Stable compatibility", true)
+    })?;
+    wait_for(deadline, "signed Stable install confirmation", || {
+        click_product_button(&window, "Install Stable and restart", true)
+    })?;
+    wait_for(deadline, "installer restart", || false)
 }
 
 fn run(app: &AppHandle) -> Result<(), String> {
