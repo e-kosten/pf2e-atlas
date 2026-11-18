@@ -106,7 +106,7 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
   fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
   const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   fireEvent.click(
-    within(dialog).getByRole("button", { name: "Return to my original workspace" }),
+    within(dialog).getByRole("button", { name: "Return to my original data" }),
   );
   invoke.mockRejectedValueOnce("Stable cannot open this workspace yet.");
   fireEvent.click(
@@ -151,16 +151,20 @@ it("explains creating a separate copy and keeps the reviewed destination through
     },
   };
   render(<DesktopReleaseChannel />);
-  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
+  expect(screen.getByText("Preview builds").closest("details")).not.toHaveAttribute(
+    "open",
+  );
+  fireEvent.click(screen.getByText("Preview builds"));
+  fireEvent.click(screen.getByRole("button", { name: "Try Nightly…" }));
   const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   expect(within(dialog).getAllByRole("button", { name: "Close" })).toHaveLength(1);
   expect(
-    within(dialog).getByRole("button", { name: "Continue with my current workspace" }),
+    within(dialog).getByRole("button", { name: "Use my existing data" }),
   ).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(within(dialog).getByRole("button", { name: "Use a separate copy" }));
   expect(
     within(dialog).getByText(
-      "Starts with a copy of your current workspace. Changes stay separate from the original.",
+      "Creates a copy of your current data. Changes stay separate from the original.",
     ),
   ).toBeVisible();
   invoke.mockResolvedValueOnce({
@@ -179,7 +183,7 @@ it("explains creating a separate copy and keeps the reviewed destination through
   });
   expect(
     within(dialog).getByText(
-      "After switching, the app and its bundled CLI will use this workspace.",
+      "After switching, the app and its bundled CLI will use your existing data.",
     ),
   ).toBeVisible();
   invoke.mockResolvedValueOnce(null);
@@ -207,17 +211,19 @@ it("reopens the retained other workspace after the separate workspace became the
     },
   };
   render(<DesktopReleaseChannel />);
-  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
+  expect(screen.getByText("Preview builds").closest("details")).not.toHaveAttribute(
+    "open",
+  );
+  fireEvent.click(screen.getByText("Preview builds"));
+  fireEvent.click(screen.getByRole("button", { name: "Try Nightly…" }));
   const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   expect(
     within(dialog).queryByRole("button", { name: "Use a separate copy" }),
   ).toBeNull();
-  fireEvent.click(
-    within(dialog).getByRole("button", { name: "Use my other workspace" }),
-  );
+  fireEvent.click(within(dialog).getByRole("button", { name: "Use the other copy" }));
   expect(
     within(dialog).getByText(
-      "Reopens your other workspace with its earlier changes. Neither workspace is overwritten.",
+      "Reopens your other copy with its earlier changes. Neither copy is overwritten.",
     ),
   ).toBeVisible();
   invoke.mockRejectedValueOnce("Try again later.");

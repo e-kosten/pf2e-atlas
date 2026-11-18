@@ -122,10 +122,32 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
         .ok_or("primary window unavailable")?;
     let deadline = Instant::now() + Duration::from_secs(30);
     wait_for(deadline, "desktop settings", || open_setup_panel(&window))?;
+    let stable = installed.tag.starts_with("release/");
+    if stable {
+        wait_for(deadline, "preview build disclosure", || {
+            evaluates_true(
+                &window,
+                r#"(() => {
+                const summary = document.querySelector('.desktop-channel__preview summary');
+                if (!summary?.getClientRects().length) return false;
+                if (!summary.parentElement.open) summary.click();
+                return true;
+            })()"#,
+            )
+        })?;
+    }
     wait_for(deadline, "release channel controls", || {
-        click_product_button(&window, "Change release channel", true)
+        click_product_button(
+            &window,
+            if stable {
+                "Try Nightly…"
+            } else {
+                "Change release channel"
+            },
+            true,
+        ) || (!stable && click_product_button(&window, "Stable available", true))
     })?;
-    if installed.tag.starts_with("release/") {
+    if stable {
         wait_for(deadline, "Stable channel after restart", || {
             text_visible(&window, &format!("Version {}", installed.version))
         })?;

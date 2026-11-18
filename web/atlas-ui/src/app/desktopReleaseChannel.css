@@ -1,0 +1,15 @@
+.desktop-channel__choices > button {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: auto;
+  min-height: var(--control-height);
+  white-space: normal;
+}
+
+.desktop-channel__preview summary {
+  cursor: pointer;
+}
+
+.desktop-channel__preview > button {
+  margin-block-start: 8px;
+}

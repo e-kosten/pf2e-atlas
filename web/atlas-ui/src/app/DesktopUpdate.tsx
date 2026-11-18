@@ -2,6 +2,7 @@ import { Alert, Button, Flex, Progress, Typography } from "antd";
 import { ArrowDownToLine } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import { AtlasModal } from "../shared/ui/overlays/AtlasModal";
+import "./desktopReleaseChannel.css";
 
 type Phase =
   | { kind: "available" }
@@ -179,8 +180,8 @@ export function DesktopUpdate() {
   );
 }
 
-function workspaceName(role: Role) {
-  return role === "original" ? "original workspace" : "separate workspace";
+function dataName(role: Role) {
+  return role === "original" ? "original data" : "separate copy";
 }
 
 export function DesktopStableUpdate() {
@@ -249,9 +250,16 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
             <Typography.Text type="secondary">
               Version {channel.installed.version}
             </Typography.Text>
-            <Button onClick={show}>
-              {channel.ready ? "Stable available" : "Change release channel"}
-            </Button>
+            {installedNightly || channel.pending_version || channel.ready ? (
+              <Button onClick={show}>
+                {channel.ready ? "Stable available" : "Change release channel"}
+              </Button>
+            ) : (
+              <details className="desktop-channel__preview">
+                <summary>Preview builds</summary>
+                <Button onClick={show}>Try Nightly…</Button>
+              </details>
+            )}
           </Flex>
         </section>
       )}
@@ -272,8 +280,8 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
               type="info"
               title={
                 channel.returning.updates === "hold"
-                  ? `Nightly update offers are paused while Atlas waits for Stable for your ${workspaceName(channel.returning.workspace)}.`
-                  : `Atlas is still offering Nightly updates and checking for Stable for your ${workspaceName(channel.returning.workspace)}.`
+                  ? `Nightly update offers are paused while Atlas waits for Stable that can open your ${dataName(channel.returning.workspace)}.`
+                  : `Atlas is still offering Nightly updates and checking whether Stable can open your ${dataName(channel.returning.workspace)}.`
               }
             />
           )}
@@ -294,9 +302,9 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
           ) : (
             <>
               <Typography.Text>
-                Choose the workspace to open after switching to {target}.
+                Choose which data to use after switching to {target}.
               </Typography.Text>
-              <Flex wrap gap="small">
+              <Flex wrap gap="small" className="desktop-channel__choices">
                 {[
                   channel.active,
                   ...(!installedNightly || channel.other_exists ? [other] : []),
@@ -315,14 +323,14 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                   >
                     {role === channel.active
                       ? installedNightly
-                        ? "Continue with this workspace"
-                        : "Continue with my current workspace"
+                        ? "Keep using this data"
+                        : "Use my existing data"
                       : installedNightly
                         ? role === "original"
-                          ? "Return to my original workspace"
-                          : "Return to my separate workspace"
+                          ? "Return to my original data"
+                          : "Return to my separate copy"
                         : channel.other_exists
-                          ? "Use my other workspace"
+                          ? "Use the other copy"
                           : "Use a separate copy"}
                   </Button>
                 ))}
@@ -330,24 +338,24 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
               {!installedNightly && workspace !== channel.active && (
                 <Typography.Text type="secondary">
                   {(review ? !review.will_seed : channel.other_exists)
-                    ? "Reopens your other workspace with its earlier changes. Neither workspace is overwritten."
-                    : "Starts with a copy of your current workspace. Changes stay separate from the original."}
+                    ? "Reopens your other copy with its earlier changes. Neither copy is overwritten."
+                    : "Creates a copy of your current data. Changes stay separate from the original."}
                 </Typography.Text>
               )}
               {review ? (
                 <>
                   <Typography.Text>
-                    Atlas will install {target} {review.version} and open the{" "}
-                    {workspaceName(review.workspace)}.
+                    Atlas will install {target} {review.version} and use your{" "}
+                    {dataName(review.workspace)}.
                   </Typography.Text>
                   <Typography.Text type="secondary">
-                    After switching, the app and its bundled CLI will use this
-                    workspace.
+                    After switching, the app and its bundled CLI will use your existing
+                    data.
                   </Typography.Text>
                   {(review.needs_setup || review.will_upgrade) && (
                     <Alert
                       type="info"
-                      title="Atlas will ask you to prepare the selected workspace after restart."
+                      title="Atlas will ask you to prepare your data after restarting."
                     />
                   )}
                   <Button

@@ -19,8 +19,7 @@ to approve that download. See [Apple's first-open instructions](https://support.
 Open the app and choose **Set up Atlas** on a new workspace. For upgrades,
 quit Atlas, replace the app in Applications, reopen it, and use **Setup and
 Updates** if Atlas asks to prepare the workspace. Stable and Nightly use the same
-selected workspace by default. Use **Setup and Updates → Change release channel**
-to review a switch and select its workspace.
+selected data by default. Channel switching lives in **Setup and Updates**.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
 Access** to link it at `~/.local/bin/atlas`. If you already installed a
@@ -43,19 +42,19 @@ first updater-enabled release the same way you installed Atlas originally.
 
 ### Switch between Stable and Nightly
 
-Open **Setup and Updates → Change release channel** in Atlas Desktop. Choose the workspace you want to open
-after switching and check the other channel's compatibility. When the verified
-build can open or upgrade that workspace, Atlas shows the version and any setup
-requirements before installing.
+Open **Setup and Updates** in Atlas Desktop. On Stable, expand **Preview builds**
+and choose **Try Nightly…**. On Nightly, choose **Change release channel** to return
+to Stable. Choose which data to use and check the other channel's compatibility.
+Atlas shows the version and any setup requirements before installing.
 
-Choose **Continue with my current workspace** to keep the same campaign on
+Choose **Use my existing data** to keep the same campaign on
 Nightly, or **Use a separate copy** to try it with an independent copy of your
 saved work. Changes stay separate from the original. If another workspace
-already exists, **Use my other workspace** reopens its earlier work instead of
+already exists, **Use the other copy** reopens its earlier work instead of
 overwriting it.
 
-When returning to compatible Stable, choose **Continue with this workspace** to
-keep your current campaign or **Return to my original workspace** to go back.
+When returning to compatible Stable, choose **Keep using this data** to
+keep your current campaign or **Return to my original data** to go back.
 Atlas preserves both workspaces. The selected workspace becomes the default for
 the app and its bundled terminal command after the switch opens successfully.
 This also applies while using Nightly. Already running CLI processes keep their
