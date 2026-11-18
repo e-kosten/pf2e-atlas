@@ -85,3 +85,15 @@ impl PcReference {
         })
     }
 }
+
+pub(crate) fn encode(reference: &PcReference) -> LocalStateResult<String> {
+    serde_json::to_string(reference)
+        .map_err(|error| LocalStateError::InvalidWorkspaceRecovery(error.to_string()))
+}
+
+pub(crate) fn decode(payload: &str) -> LocalStateResult<PcReference> {
+    let reference: PcReference = serde_json::from_str(payload)
+        .map_err(|error| LocalStateError::InvalidWorkspaceRecovery(error.to_string()))?;
+    reference.validate()?;
+    Ok(reference)
+}

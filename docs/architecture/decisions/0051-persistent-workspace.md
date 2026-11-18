@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 46. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 47. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -214,19 +214,36 @@ maintenance, migrations and backups operate on the complete workspace. When
 adding saved access paths, cover the scope using a foreign owner's key or child
 ID, or a slug shared by two owners as appropriate to the operation.
 
-### Party member rule references
+### Shared characters and party rule references
 
-A Pathbuilder reference belongs to an owned party member. It stores ability
-labels and choices, automatic record keys, and explicit overrides. PC
-participants can point to an owned member for rule reading, with encounter
-levels and gameplay state stored on the participant. Retained party member
-keys survive reorder and edits. Schema 46 adds a member reference table and
-an encounter PC association table.
+Every saved PC has an independent owner-scoped character identity, including
+manual entries with only a name. Level and an imported Pathbuilder reference are
+optional. Parties own ordered memberships, unique per character and party. A
+character can appear in several parties or have no memberships. Removing a
+membership or deleting a party preserves the character. Character edits and
+bulk level changes update its canonical data across all rosters.
 
-Workspace archive 3.0 carries optional party reference data and local PC
-associations. A restore validates cross-row links within each owner before
-writing. Standalone encounter files carry the independently saved encounter
-PCs and can be attached to party members in the destination workspace.
+A character owns the imported ability labels, choices, automatic record keys and
+explicit link corrections. Encounter PCs reference that character directly for
+live rule reading. Their name/level snapshots and combat state remain
+participant-owned. Explicit character deletion removes memberships and detaches
+live references while preserving encounter participants. These writes check
+owner and aggregate revisions within one workspace transaction. Adding a party
+also checks the reviewed character revisions.
+
+Schema 47 promotes each existing saved member independently, retaining its key,
+reference payload, choices and live encounter links. It adds character-creation
+receipts and the typed PC-addition family of encounter receipts. Receipt intent
+binds the original normalized request, and replay precedes mutable guards after
+owner authentication. Historical receipt targets may have been deleted. A replay
+returns its original outcome and never recreates a deleted character.
+
+Workspace archive 4.0 carries independent characters, memberships, associations
+and creation/addition receipts. It is required whenever any of that state is
+present, including historical receipts with no current character. Older supported
+archive members normalize into distinct characters during validation. Standalone
+encounter files retain participant state and omit workspace-local character
+associations and PC-addition receipts.
 
 ### Inline Markdown and custom turns
 
@@ -255,8 +272,9 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 Archive versions advance independently of the database schema. Capture emits
-`3.0` for PC rule references and live encounter associations, `2.0` for archived
-lists, and `1.1` for other saved state. Readers that predate a required archive
+`4.0` for shared characters and their creation/addition receipts, `3.0` for
+historical member-owned PC references, `2.0` for archived lists, and `1.1` for
+other saved state. Readers that predate a required archive
 major reject it before restore. New readers treat lists in backups from before
 schema 44 as active.
 Custom turns use a detectable participant kind value. Older readers reject

@@ -365,7 +365,13 @@ it("never resubmits a committed party addition when its refresh fails", async ()
   const { result } = mount();
   const command = {
     kind: "add-party" as const,
-    request: { party_key: "party", expected_revision: 2 },
+    request: {
+      party_key: "party",
+      expected_revision: 2,
+      request_id: "add-party",
+      expected_encounter_revision: 1,
+      characters: [],
+    },
   };
   await act(async () => {
     const saved = await result.current.run(command);

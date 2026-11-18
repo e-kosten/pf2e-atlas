@@ -1,14 +1,16 @@
 #![deny(unsafe_code)]
 
 mod atomic_action;
+mod characters;
+pub use characters::{
+    Character, CharacterParty, CharacterSummary, CharactersRead, CharactersWrite, MAX_PC_ABILITIES,
+    MAX_PC_ABILITY_LABEL, PcAbility, PcAbilityKind, PcReference,
+};
 mod encounters;
 mod error;
 mod markdown;
 mod parties;
-pub use parties::{
-    MAX_PC_ABILITIES, MAX_PC_ABILITY_LABEL, PartiesRead, PartiesWrite, Party, PartyMember,
-    PartyMemberInput, PcAbility, PcAbilityKind, PcPartyMember, PcReference,
-};
+pub use parties::{PartiesRead, PartiesWrite, Party, PartyMember, PartyMemberInput};
 mod references;
 mod saved_lists;
 mod slug;
@@ -28,7 +30,7 @@ pub use encounters::{
     FrightenedRecovery, InitiativeRollReceipt, LifecycleCheckPurpose, MortalityState, NewEncounter,
     ParticipantAbilityState, ParticipantEventChange, ParticipantHpOrigin,
     ParticipantInitiativeRoll, ParticipantKind, ParticipantSide, ParticipantVariant,
-    ParticipantVariantOrigin, PendingConsequence, PersistentDamageOutcome,
+    ParticipantVariantOrigin, PcAdditionReceipt, PendingConsequence, PersistentDamageOutcome,
     PersistentDamageProtection, PersistentPrecedenceChange, PersistentRecovery,
     PersistentSourcePrecedence, PreparedConditionEvent, ReorderEncounterParticipant,
     ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,

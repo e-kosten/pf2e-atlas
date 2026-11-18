@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+mod characters;
 
 #[cfg(feature = "embedded-ui")]
 mod assets;

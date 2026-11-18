@@ -12,7 +12,7 @@ use axum::{
     response::IntoResponse,
 };
 
-#[utoipa::path(post, path = "/api/parties/pathbuilder/preview", operation_id = "previewPathbuilderPc", request_body = PathbuilderPreviewRequest,
+#[utoipa::path(post, path = "/api/characters/pathbuilder/preview", operation_id = "previewPathbuilderPc", request_body = PathbuilderPreviewRequest,
     responses((status = 200, description = "Successful response", body = atlas_app_model::PathbuilderPreviewView),
     (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse),
     (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
@@ -23,57 +23,41 @@ pub(crate) async fn preview_pathbuilder_pc(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.preview_pathbuilder_pc(&request.json)).await?,
-    ))
-}
-
-#[utoipa::path(post, path = "/api/parties/{party_key}/pathbuilder", operation_id = "savePathbuilderPc", params(("party_key" = String, Path)), request_body = SavePathbuilderPcRequest,
-    responses((status = 200, description = "Successful response", body = atlas_app_model::PcReferenceView),
-    (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse),
-    (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
-pub(crate) async fn save_pathbuilder_pc(
-    State(state): State<AtlasWebState>,
-    Path(party_key): Path<String>,
-    payload: Result<Json<SavePathbuilderPcRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
         call_service(state, move || {
-            service.save_pathbuilder_pc(&party_key, request)
+            service.preview_pathbuilder_pc(&request.json, request.character_key.as_deref())
         })
         .await?,
     ))
 }
 
-#[utoipa::path(get, path = "/api/parties/{party_key}/members/{member_key}/reference", operation_id = "pcReference", params(("party_key" = String, Path), ("member_key" = String, Path)),
-    responses((status = 200, description = "Successful response", body = atlas_app_model::PcReferenceView),
+#[utoipa::path(post, path = "/api/characters/pathbuilder", operation_id = "savePathbuilderPc", request_body = SavePathbuilderPcRequest,
+    responses((status = 200, description = "Successful response", body = atlas_app_model::CharacterMutationView),
     (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse),
     (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
-pub(crate) async fn pc_reference(
+pub(crate) async fn save_pathbuilder_pc(
     State(state): State<AtlasWebState>,
-    Path((party_key, member_key)): Path<(String, String)>,
+    payload: Result<Json<SavePathbuilderPcRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.pc_reference(&party_key, &member_key)).await?,
+        call_service(state, move || service.save_pathbuilder_pc(request)).await?,
     ))
 }
-
-#[utoipa::path(patch, path = "/api/parties/{party_key}/members/{member_key}/reference/{ability_key}", operation_id = "savePcAbilityLink", params(("party_key" = String, Path), ("member_key" = String, Path), ("ability_key" = String, Path)), request_body = SavePcAbilityLinkRequest,
+#[utoipa::path(patch, path = "/api/characters/{character_key}/reference/{ability_key}", operation_id = "savePcAbilityLink", params(("character_key" = String, Path), ("ability_key" = String, Path)), request_body = SavePcAbilityLinkRequest,
     responses((status = 200, description = "Successful response", body = atlas_app_model::PcReferenceView),
     (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse),
     (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn save_pc_ability_link(
     State(state): State<AtlasWebState>,
-    Path((party_key, member_key, ability_key)): Path<(String, String, String)>,
+    Path((character_key, ability_key)): Path<(String, String)>,
     payload: Result<Json<SavePcAbilityLinkRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.save_pc_ability_link(&party_key, &member_key, &ability_key, request)
+            service.save_pc_ability_link(&character_key, &ability_key, request)
         })
         .await?,
     ))

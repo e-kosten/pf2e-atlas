@@ -86,7 +86,7 @@ pub(super) fn capture_document(
             }).collect::<LocalStateResult<_>>()?;
     let receipts = rows(connection,
             "SELECT family,request_id,intent_json,boundary_key,receipt_json FROM encounter_command_receipts
-             WHERE encounter_id=?1 ORDER BY family,request_id",
+             WHERE encounter_id=?1 AND family != 'pc_addition' ORDER BY family,request_id",
             id, limit, |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?, row.get::<_, Option<String>>(4)?)))?
             .into_iter().map(|(family, request_id, intent, boundary, payload)| {

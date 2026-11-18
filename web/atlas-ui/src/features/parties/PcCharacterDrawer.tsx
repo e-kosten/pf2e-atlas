@@ -9,11 +9,12 @@ import {
   Space,
   Typography,
 } from "antd";
+import { Ellipsis } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import {
   getEncounterPcReference,
-  getPcReference,
+  getCharacter,
   savePcAbilityLink,
   searchPage,
   setEncounterPcReference,
@@ -38,16 +39,16 @@ import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import { searchExecution } from "../../shared/search/searchExecution";
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
-import { useParties } from "./useParties";
+import { refreshCharacters, useCharacters } from "./characterQueries";
 
-type PartyLocation = { kind: "party"; partyKey: string; memberKey: string };
+type CharacterLocation = { kind: "character"; characterKey: string };
 type EncounterLocation = {
   kind: "encounter";
   encounterKey: string;
   participantKey: string;
   revision: number;
 };
-type Location = PartyLocation | EncounterLocation;
+type Location = CharacterLocation | EncounterLocation;
 
 const allPcReferences = ["pc-reference"] as const;
 const getPopupContainer = (trigger?: HTMLElement) =>
@@ -55,17 +56,19 @@ const getPopupContainer = (trigger?: HTMLElement) =>
 const abilityLabel = (ability: PcAbilityView) =>
   ability.choice ? `${ability.label} (${ability.choice})` : ability.label;
 
-export function PcCharacterDrawer({
+export function CharacterReference({
   location,
   name,
   opener,
   onClose,
   onRefresh,
+  mode = "drawer",
 }: {
   location: Location;
   name: string;
-  opener: HTMLElement | null;
-  onClose: () => void;
+  opener?: HTMLElement | null;
+  onClose?: () => void;
+  mode?: "page" | "drawer";
   onRefresh?: () => void;
 }) {
   const client = useQueryClient();
@@ -73,6 +76,7 @@ export function PcCharacterDrawer({
   const paused = useSavedWritesPaused();
   const [closing, setClosing] = useState(false);
   const [filter, setFilter] = useState("");
+  const [selectedAbility, setSelectedAbility] = useState<string>();
   const [search, setSearch] = useState<{
     ability: PcAbilityView;
     query: string;
@@ -81,7 +85,7 @@ export function PcCharacterDrawer({
   const [editingAssociation, setEditingAssociation] = useState(false);
   const [memberKey, setMemberKey] = useState<string>();
   const searchInput = useRef<React.ComponentRef<typeof Input>>(null);
-  const ruleHeading = useRef<HTMLDivElement>(null);
+  const ruleHeading = useRef<HTMLHeadingElement>(null);
   const preview = useRecordPreview();
   const selectedRecord = preview.detail?.selected.record_key;
   const previewOpen = preview.destination !== null;
@@ -128,8 +132,8 @@ export function PcCharacterDrawer({
   const reference = useQuery({
     queryKey: resultReferenceKey(location),
     queryFn: async ({ signal }) =>
-      location.kind === "party"
-        ? getPcReference(location.partyKey, location.memberKey, signal)
+      location.kind === "character"
+        ? getCharacter(location.characterKey, signal)
         : ((
             await getEncounterPcReference(
               location.encounterKey,
@@ -140,7 +144,7 @@ export function PcCharacterDrawer({
     retry: false,
     meta: referenceQueryMeta,
   });
-  const parties = useParties(location.kind === "encounter" && editingAssociation);
+  const characters = useCharacters(location.kind === "encounter" && editingAssociation);
   const save = useMutation({
     retry: false,
     mutationFn: ({
@@ -152,16 +156,13 @@ export function PcCharacterDrawer({
       ability: PcAbilityView;
       selection: PcAbilitySelection;
     }) =>
-      savePcAbilityLink(target.party_key, target.member_key, ability.ability_key, {
-        expected_party_revision: target.party_revision,
+      savePcAbilityLink(target.character_key, ability.ability_key, {
+        expected_character_revision: target.character_revision,
         selection,
       }),
     onSuccess: async (saved) => {
       client.setQueryData(resultReferenceKey(location), saved);
-      await Promise.all([
-        client.invalidateQueries({ queryKey: allPcReferences }),
-        client.invalidateQueries({ queryKey: ["parties"] }),
-      ]);
+      await refreshCharacters(client);
       if (search) {
         preview.closeForNavigation();
         setSearch(null);
@@ -216,6 +217,7 @@ export function PcCharacterDrawer({
   function startSearch(ability: PcAbilityView, anchor?: HTMLElement) {
     searchAnchor.current = anchor ?? (document.activeElement as HTMLElement | null);
     save.reset();
+    setSelectedAbility(ability.ability_key);
     setSearch({ ability, query: ability.label, draft: ability.label });
   }
   function back() {
@@ -236,49 +238,18 @@ export function PcCharacterDrawer({
       label?.toLocaleLowerCase().includes(term),
     );
   });
-  const associationOptions = parties.data?.parties.map((party) => ({
-    label: party.name,
-    options: party.members.map((member) => ({
-      value: member.member_key,
-      label: member.name,
-    })),
+  const associationOptions = characters.data?.characters.map((character) => ({
+    value: character.character_key,
+    label: character.name,
   }));
   const busy = save.isPending || attach.isPending;
-  return (
-    <AtlasDrawer
-      open={!closing}
-      aria-labelledby={titleId}
-      onClose={() => setClosing(true)}
-      closable={!busy}
-      keyboard={!busy}
-      mask={{ closable: !busy }}
-      afterOpenChange={(open) => {
-        if (!open) {
-          onClose();
-          opener?.focus({ preventScroll: true });
-        }
-      }}
-      size="min(760px, 100vw)"
-      title={
-        <Space wrap>
-          {(search || previewOpen) && (
-            <Button type="text" size="small" onClick={back}>
-              Back
-            </Button>
-          )}
-          <span id={titleId}>{doc?.name ?? name}</span>
-        </Space>
-      }
-      focusable={{ focusTriggerAfterClose: false }}
-      classNames={{ root: "pc-character-drawer-root" }}
-      styles={{
-        root: { overflow: "hidden", pointerEvents: "auto" },
-        body: { display: "flex", flexDirection: "column", gap: 12 },
-      }}
-      drawerRender={(content) => (
-        <ConfigProvider getPopupContainer={getPopupContainer}>{content}</ConfigProvider>
+  const content = (
+    <>
+      {mode === "page" && (search || previewOpen) && (
+        <Button className="character-reference__back" onClick={back}>
+          Back
+        </Button>
       )}
-    >
       {reference.error && (
         <ErrorNotice
           error={reference.error}
@@ -290,10 +261,11 @@ export function PcCharacterDrawer({
         <ErrorNotice error={save.error} title="Could not save rule link" />
       )}
       {attach.error && (
-        <ErrorNotice error={attach.error} title="Could not update party member link" />
+        <ErrorNotice error={attach.error} title="Could not update character link" />
       )}
       <section
-        hidden={Boolean(search || previewOpen)}
+        hidden={Boolean(search)}
+        className="character-reference__index"
         style={{ minHeight: 0, overflow: "auto" }}
         aria-label="PC abilities"
       >
@@ -303,17 +275,17 @@ export function PcCharacterDrawer({
             <Space wrap>
               {doc && (
                 <Typography.Text type="secondary">
-                  {doc.name}’s party reference
+                  {doc.name}’s character reference
                 </Typography.Text>
               )}
               <Button
                 disabled={paused || busy}
                 onClick={() => {
-                  setMemberKey(doc?.member_key);
+                  setMemberKey(doc?.character_key);
                   setEditingAssociation(!editingAssociation);
                 }}
               >
-                {doc ? "Change party member" : "Attach to party member"}
+                {doc ? "Change character" : "Attach to character"}
               </Button>
               {doc && (
                 <Button
@@ -332,20 +304,20 @@ export function PcCharacterDrawer({
           )}
           {location.kind === "encounter" && editingAssociation && (
             <>
-              {parties.error && (
+              {characters.error && (
                 <ErrorNotice
-                  error={parties.error}
-                  title="Could not load party members"
+                  error={characters.error}
+                  title="Could not load characters"
                 />
               )}
               <Space wrap>
                 <Select
-                  aria-label="Party member"
-                  placeholder="Choose a party member"
+                  aria-label="Character"
+                  placeholder="Choose a character"
                   options={associationOptions}
                   value={memberKey}
                   onChange={setMemberKey}
-                  loading={parties.isPending}
+                  loading={characters.isPending}
                   style={{ minWidth: "14rem" }}
                 />
                 <Button
@@ -355,7 +327,7 @@ export function PcCharacterDrawer({
                     if (memberKey)
                       attach.mutate({
                         encounter: location,
-                        association: { kind: "attach", member_key: memberKey },
+                        association: { kind: "attach", character_key: memberKey },
                       });
                   }}
                 >
@@ -366,143 +338,207 @@ export function PcCharacterDrawer({
           )}
           {doc && (
             <>
-              <Space wrap>
-                {doc.level !== undefined && (
-                  <Typography.Text type="secondary">Level {doc.level}</Typography.Text>
-                )}
-                {onRefresh && (
-                  <Button disabled={paused} onClick={onRefresh}>
-                    {doc.imported
-                      ? "Refresh from Pathbuilder"
-                      : "Import from Pathbuilder"}
-                  </Button>
-                )}
-              </Space>
+              {(mode === "drawer" || onRefresh) && (
+                <Space wrap>
+                  {mode === "drawer" && doc.level !== undefined && (
+                    <Typography.Text type="secondary">
+                      Level {doc.level}
+                    </Typography.Text>
+                  )}
+                  {onRefresh && (
+                    <Button disabled={paused} onClick={onRefresh}>
+                      {doc.imported
+                        ? "Refresh from Pathbuilder"
+                        : "Import from Pathbuilder"}
+                    </Button>
+                  )}
+                </Space>
+              )}
               {doc.imported ? (
                 <>
                   <Input
-                    aria-label="Filter abilities"
-                    placeholder="Filter abilities"
+                    aria-label="Find an ability"
+                    placeholder="Find an ability"
                     value={filter}
                     onChange={(event) => setFilter(event.target.value)}
                     allowClear
                   />
-                  <List
-                    size="small"
-                    dataSource={visible}
-                    locale={{
-                      emptyText: filter
+                  <nav
+                    className="character-reference__sections"
+                    aria-label="Ability sections"
+                  >
+                    {doc.sections
+                      .filter((section) =>
+                        section.abilities.some((ability) =>
+                          visible?.some(
+                            (item) => item.ability_key === ability.ability_key,
+                          ),
+                        ),
+                      )
+                      .map((section) => (
+                        <a key={section.kind} href={`#${titleId}-${section.kind}`}>
+                          {section.label}
+                        </a>
+                      ))}
+                  </nav>
+                  {doc.sections.map((section) => {
+                    const sectionAbilities = section.abilities.filter((ability) =>
+                      visible?.some((item) => item.ability_key === ability.ability_key),
+                    );
+                    if (!sectionAbilities.length) return null;
+                    return (
+                      <section
+                        key={section.kind}
+                        id={`${titleId}-${section.kind}`}
+                        className="character-ability-section"
+                      >
+                        <h3>
+                          {section.label} <span>{sectionAbilities.length}</span>
+                        </h3>
+                        <List
+                          size="small"
+                          dataSource={sectionAbilities}
+                          locale={{
+                            emptyText: filter
+                              ? "No matching abilities."
+                              : "No abilities in this export.",
+                          }}
+                          renderItem={(ability) => {
+                            const label = abilityLabel(ability);
+                            return (
+                              <List.Item key={ability.ability_key}>
+                                <div className="character-ability-row">
+                                  <div>
+                                    {ability.record_key && ability.record_title ? (
+                                      <Button
+                                        type="link"
+                                        className="character-ability-link"
+                                        aria-current={
+                                          previewOpen &&
+                                          selectedAbility === ability.ability_key
+                                            ? "true"
+                                            : undefined
+                                        }
+                                        style={{
+                                          paddingInline: 0,
+                                          whiteSpace: "normal",
+                                          height: "auto",
+                                          textAlign: "start",
+                                        }}
+                                        onClick={(event) => {
+                                          resultAnchor.current = event.currentTarget;
+                                          setSelectedAbility(ability.ability_key);
+                                          preview.open(
+                                            ability.record_key!,
+                                            event.currentTarget,
+                                          );
+                                        }}
+                                      >
+                                        {label}
+                                      </Button>
+                                    ) : (
+                                      <Typography.Text>{label}</Typography.Text>
+                                    )}
+                                    {ability.record_title &&
+                                      ability.record_title
+                                        .trim()
+                                        .toLocaleLowerCase() !==
+                                        ability.label.trim().toLocaleLowerCase() && (
+                                        <span className="character-secondary">
+                                          {ability.record_title}
+                                        </span>
+                                      )}
+                                  </div>
+                                  <Space wrap>
+                                    {ability.record_key && ability.record_title ? (
+                                      <Dropdown
+                                        trigger={["click"]}
+                                        menu={{
+                                          items: [
+                                            { key: "change", label: "Change link" },
+                                            ...(ability.manual
+                                              ? [
+                                                  {
+                                                    key: "automatic",
+                                                    label: "Use automatic match",
+                                                  },
+                                                ]
+                                              : []),
+                                          ],
+                                          onClick: ({ key }) => {
+                                            if (key === "change")
+                                              startSearch(
+                                                ability,
+                                                resultAnchor.current ?? undefined,
+                                              );
+                                            else
+                                              save.mutate({
+                                                target: doc,
+                                                ability,
+                                                selection: { kind: "automatic" },
+                                              });
+                                          },
+                                        }}
+                                      >
+                                        <Button
+                                          size="small"
+                                          aria-label={`Link options for ${label}`}
+                                          type="text"
+                                          icon={
+                                            <Ellipsis size={16} aria-hidden="true" />
+                                          }
+                                          disabled={paused || busy}
+                                          onClick={(event) => {
+                                            resultAnchor.current = event.currentTarget;
+                                          }}
+                                        ></Button>
+                                      </Dropdown>
+                                    ) : (
+                                      <>
+                                        <Button
+                                          size="small"
+                                          aria-label={`Search for ${label}`}
+                                          onClick={(event) =>
+                                            startSearch(ability, event.currentTarget)
+                                          }
+                                        >
+                                          {ability.record_key
+                                            ? "Find replacement"
+                                            : "Find rule"}
+                                        </Button>
+                                        {ability.manual && (
+                                          <Button
+                                            size="small"
+                                            disabled={paused || busy}
+                                            onClick={() =>
+                                              save.mutate({
+                                                target: doc,
+                                                ability,
+                                                selection: { kind: "automatic" },
+                                              })
+                                            }
+                                          >
+                                            Use automatic match
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                  </Space>
+                                </div>
+                              </List.Item>
+                            );
+                          }}
+                        />
+                      </section>
+                    );
+                  })}
+                  {visible?.length === 0 && (
+                    <p>
+                      {filter
                         ? "No matching abilities."
-                        : "No abilities in this export.",
-                    }}
-                    renderItem={(ability) => {
-                      const label = abilityLabel(ability);
-                      return (
-                        <List.Item key={ability.ability_key}>
-                          <Space
-                            wrap
-                            style={{ width: "100%", justifyContent: "space-between" }}
-                          >
-                            {ability.record_key && ability.record_title ? (
-                              <Button
-                                type="link"
-                                style={{
-                                  paddingInline: 0,
-                                  whiteSpace: "normal",
-                                  height: "auto",
-                                  textAlign: "start",
-                                }}
-                                onClick={(event) => {
-                                  resultAnchor.current = event.currentTarget;
-                                  preview.open(
-                                    ability.record_key!,
-                                    event.currentTarget,
-                                  );
-                                }}
-                              >
-                                {label}
-                              </Button>
-                            ) : (
-                              <Typography.Text>{label}</Typography.Text>
-                            )}
-                            <Space wrap>
-                              {ability.record_key && ability.record_title ? (
-                                <Dropdown
-                                  trigger={["click"]}
-                                  menu={{
-                                    items: [
-                                      { key: "change", label: "Change link" },
-                                      ...(ability.manual
-                                        ? [
-                                            {
-                                              key: "automatic",
-                                              label: "Use automatic match",
-                                            },
-                                          ]
-                                        : []),
-                                    ],
-                                    onClick: ({ key }) => {
-                                      if (key === "change")
-                                        startSearch(
-                                          ability,
-                                          resultAnchor.current ?? undefined,
-                                        );
-                                      else
-                                        save.mutate({
-                                          target: doc,
-                                          ability,
-                                          selection: { kind: "automatic" },
-                                        });
-                                    },
-                                  }}
-                                >
-                                  <Button
-                                    size="small"
-                                    aria-label={`Link options for ${label}`}
-                                    disabled={paused || busy}
-                                    onClick={(event) => {
-                                      resultAnchor.current = event.currentTarget;
-                                    }}
-                                  >
-                                    Link options
-                                  </Button>
-                                </Dropdown>
-                              ) : (
-                                <>
-                                  <Button
-                                    size="small"
-                                    aria-label={`Search for ${label}`}
-                                    onClick={(event) =>
-                                      startSearch(ability, event.currentTarget)
-                                    }
-                                  >
-                                    {ability.record_key
-                                      ? "Find replacement"
-                                      : "Search for this ability"}
-                                  </Button>
-                                  {ability.manual && (
-                                    <Button
-                                      size="small"
-                                      disabled={paused || busy}
-                                      onClick={() =>
-                                        save.mutate({
-                                          target: doc,
-                                          ability,
-                                          selection: { kind: "automatic" },
-                                        })
-                                      }
-                                    >
-                                      Use automatic match
-                                    </Button>
-                                  )}
-                                </>
-                              )}
-                            </Space>
-                          </Space>
-                        </List.Item>
-                      );
-                    }}
-                  />
+                        : "No abilities in this export."}
+                    </p>
+                  )}
                 </>
               ) : (
                 <Typography.Text type="secondary">
@@ -515,7 +551,7 @@ export function PcCharacterDrawer({
       </section>
       {search && (
         <section
-          hidden={previewOpen}
+          className="character-reference__index"
           style={{ minHeight: 0, overflow: "auto" }}
           aria-label="Ability search"
         >
@@ -597,9 +633,17 @@ export function PcCharacterDrawer({
         </section>
       )}
       {previewOpen && (
-        <div style={{ minHeight: 0, overflow: "auto" }} data-reference-body>
+        <div
+          className="character-reference__rule"
+          style={{ minHeight: 0, overflow: "auto" }}
+          data-reference-body
+        >
           <section ref={ruleContent} data-reference-host aria-label="Rule preview">
-            <div ref={ruleHeading} tabIndex={-1} aria-label="Rule preview" />
+            <h2 ref={ruleHeading} tabIndex={-1} className="sr-only">
+              {preview.detail?.record.title ??
+                preview.definition?.label ??
+                "Rule preview"}
+            </h2>
             {doc &&
               search &&
               selectedRecord &&
@@ -659,12 +703,66 @@ export function PcCharacterDrawer({
           </section>
         </div>
       )}
+    </>
+  );
+  return mode === "page" ? (
+    <div
+      className={`character-reference character-reference--page${previewOpen ? " character-reference--reading" : ""}`}
+    >
+      {content}
+    </div>
+  ) : (
+    <AtlasDrawer
+      open={!closing}
+      aria-labelledby={titleId}
+      onClose={() => setClosing(true)}
+      closable={!busy}
+      keyboard={!busy}
+      mask={{ closable: !busy }}
+      afterOpenChange={(open) => {
+        if (!open) {
+          onClose?.();
+          opener?.focus({ preventScroll: true });
+        }
+      }}
+      size="min(1080px, 100vw)"
+      title={
+        <Space wrap>
+          {(search || previewOpen) && (
+            <Button type="text" size="small" onClick={back}>
+              Back
+            </Button>
+          )}
+          <span id={titleId}>{doc?.name ?? name}</span>
+        </Space>
+      }
+      focusable={{ focusTriggerAfterClose: false }}
+      classNames={{ root: "pc-character-drawer-root" }}
+      styles={{
+        root: { overflow: "hidden", pointerEvents: "auto" },
+        body: { display: "flex", flexDirection: "column", gap: 12, minHeight: 0 },
+      }}
+      drawerRender={(content) => (
+        <ConfigProvider getPopupContainer={getPopupContainer}>{content}</ConfigProvider>
+      )}
+    >
+      <div
+        className={`character-reference${previewOpen ? " character-reference--reading" : ""}`}
+      >
+        {content}
+      </div>
     </AtlasDrawer>
   );
 }
 
 function resultReferenceKey(location: Location) {
-  return location.kind === "party"
-    ? [...allPcReferences, "party", location.partyKey, location.memberKey]
+  return location.kind === "character"
+    ? ["character", location.characterKey]
     : [...allPcReferences, "encounter", location.encounterKey, location.participantKey];
+}
+
+export function PcCharacterDrawer(
+  props: Omit<React.ComponentProps<typeof CharacterReference>, "mode">,
+) {
+  return <CharacterReference {...props} mode="drawer" />;
 }

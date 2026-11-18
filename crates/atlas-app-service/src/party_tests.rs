@@ -20,26 +20,44 @@ fn service() -> (tempfile::TempDir, crate::AtlasAppService) {
     .unwrap();
     (directory, service)
 }
-fn create(service: &crate::AtlasAppService, name: &str) -> PartyView {
+
+fn next_id() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+fn character(service: &crate::AtlasAppService, name: &str, level: Option<i64>) -> PcReferenceView {
+    let saved = service
+        .create_character(CreateCharacterRequest {
+            request_id: format!("create-{}", next_id()),
+            name: name.into(),
+            level,
+            party: None,
+        })
+        .unwrap();
+    service.character(&saved.character_key).unwrap()
+}
+fn member(character: &PcReferenceView) -> PartyMemberInput {
+    PartyMemberInput {
+        character_key: character.character_key.clone(),
+        expected_character_revision: character.character_revision,
+    }
+}
+fn party(
+    service: &crate::AtlasAppService,
+    name: &str,
+    characters: &[&PcReferenceView],
+) -> PartyView {
     service
         .create_party(CreatePartyRequest {
             name: name.into(),
-            members: ["First PC", "Second PC", "Second PC"]
-                .into_iter()
-                .enumerate()
-                .map(|(index, name)| PartyMemberInput {
-                    level: [None, Some(4), Some(5)][index],
-                    member_key: None,
-                    name: name.into(),
-                })
-                .collect(),
+            members: characters.iter().map(|c| member(c)).collect(),
         })
         .unwrap()
 }
 fn encounter(service: &crate::AtlasAppService) -> String {
     service
         .create_encounter(CreateEncounterRequest {
-            name: "Encounter".into(),
+            name: format!("Encounter {}", next_id()),
             description: None,
             note: None,
         })
@@ -47,244 +65,301 @@ fn encounter(service: &crate::AtlasAppService) -> String {
         .encounter
         .encounter_key
 }
-#[test]
-fn party_addition_is_source_free_ordered_and_independent_of_later_edits_and_deletion() {
-    let (_directory, service) = service();
-    let party = create(&service, "  Campaign  ");
-    assert_eq!(party.name, "Campaign");
-    assert_ne!(party.members[1].member_key, party.members[2].member_key);
-    create(&service, "Other campaign");
-    let key = encounter(&service);
-    service
-        .add_encounter_party(
-            &key,
-            AddEncounterPartyRequest {
-                party_key: party.party_key.clone(),
-                expected_revision: party.revision,
-            },
-        )
-        .unwrap();
-    let updated = service
-        .update_party(
-            &party.party_key,
-            UpdatePartyRequest {
-                expected_revision: party.revision,
-                name: "Renamed".into(),
-                members: vec![PartyMemberInput {
-                    level: None,
-                    member_key: Some(party.members[0].member_key.clone()),
-                    name: "Changed PC".into(),
-                }],
-            },
-        )
-        .unwrap();
-    service
-        .delete_party(
-            &party.party_key,
-            DeletePartyRequest {
-                expected_revision: updated.revision,
-            },
-        )
-        .unwrap();
-    assert_eq!(service.parties().unwrap().parties.len(), 1);
-    let detail = service.encounter(&key).unwrap();
-    assert_eq!(detail.artifact_generation, None);
-    assert_eq!(
-        detail
-            .participants
-            .iter()
-            .map(|p| p.display_name.as_str())
-            .collect::<Vec<_>>(),
-        ["First PC", "Second PC", "Second PC"]
-    );
-    assert_eq!(
-        detail
-            .participants
-            .iter()
-            .map(|pc| pc.level_override)
-            .collect::<Vec<_>>(),
-        vec![None, Some(4), Some(5)]
-    );
-    for pc in detail.participants {
-        assert_eq!(pc.participant_kind, EncounterParticipantKindView::Pc);
-        assert_eq!(pc.side, EncounterParticipantSideView::Pc);
-        assert_eq!(pc.current_hp, None);
-        assert_eq!(pc.max_hp, None);
-        assert_eq!(pc.initiative, None);
-        assert!(pc.conditions.is_empty());
-    }
-}
-#[test]
-fn stale_empty_and_deleted_parties_add_nothing() {
-    let (_directory, service) = service();
-    let party = create(&service, "Campaign");
-    let key = encounter(&service);
-    let updated = service
-        .update_party(
-            &party.party_key,
-            UpdatePartyRequest {
-                expected_revision: party.revision,
-                name: "Changed".into(),
-                members: vec![],
-            },
-        )
-        .unwrap();
-    assert_eq!(
-        service
-            .add_encounter_party(
-                &key,
-                AddEncounterPartyRequest {
-                    party_key: updated.party_key.clone(),
-                    expected_revision: updated.revision
-                }
-            )
-            .unwrap_err()
-            .into_app_error()
-            .code,
-        AppErrorCode::InvalidRequest
-    );
-    let request = AddEncounterPartyRequest {
+fn party_add(
+    service: &crate::AtlasAppService,
+    encounter: &str,
+    party: &PartyView,
+) -> AddEncounterPartyRequest {
+    AddEncounterPartyRequest {
+        request_id: format!("add-party-{}", next_id()),
+        expected_encounter_revision: service.encounter(encounter).unwrap().revision,
         party_key: party.party_key.clone(),
         expected_revision: party.revision,
-    };
+        characters: party
+            .members
+            .iter()
+            .map(|m| CharacterRevision {
+                character_key: m.character_key.clone(),
+                expected_revision: m.character_revision,
+            })
+            .collect(),
+    }
+}
+fn single_add(
+    service: &crate::AtlasAppService,
+    encounter: &str,
+    character: &PcReferenceView,
+) -> AddEncounterCharacterRequest {
+    AddEncounterCharacterRequest {
+        request_id: format!("add-single-{}", next_id()),
+        expected_encounter_revision: service.encounter(encounter).unwrap().revision,
+        party: None,
+        source: EncounterCharacterSource::Existing {
+            character_key: character.character_key.clone(),
+            expected_character_revision: character.character_revision,
+        },
+    }
+}
+#[test]
+fn shared_characters_keep_identity_when_memberships_and_parties_change() {
+    let (_directory, service) = service();
+    let first = character(&service, "First", Some(7));
+    let second = character(&service, "Second", None);
+    let full = party(&service, "Full", &[&first, &second]);
+    let active = party(&service, "Active", &[&first]);
+    assert_eq!(service.characters().unwrap().characters.len(), 2);
     assert_eq!(
         service
-            .add_encounter_party(&key, request.clone())
-            .unwrap_err()
-            .into_app_error()
-            .code,
-        AppErrorCode::PartyConflict
+            .character(&first.character_key)
+            .unwrap()
+            .parties
+            .len(),
+        2
     );
+    let key = encounter(&service);
+    let add = party_add(&service, &key, &full);
+    service.add_encounter_party(&key, add.clone()).unwrap();
+    service.add_encounter_party(&key, add).unwrap();
+    assert_eq!(service.encounter(&key).unwrap().participants.len(), 2);
     service
-        .delete_party(
-            &party.party_key,
-            DeletePartyRequest {
-                expected_revision: updated.revision,
+        .update_character(
+            &first.character_key,
+            UpdateCharacterRequest {
+                expected_revision: first.character_revision,
+                name: "Renamed".into(),
+                level: Some(8),
             },
         )
         .unwrap();
+    let parties = service.parties().unwrap().parties;
+    assert!(
+        parties
+            .iter()
+            .all(|p| p.members[0].name == "Renamed" && p.members[0].level == Some(8))
+    );
+    assert_eq!(
+        service.encounter(&key).unwrap().participants[0].level_override,
+        Some(7)
+    );
+    service
+        .update_party(
+            &full.party_key,
+            UpdatePartyRequest {
+                expected_revision: full.revision,
+                name: full.name.clone(),
+                members: vec![],
+                level_updates: vec![],
+            },
+        )
+        .unwrap();
+    service
+        .delete_party(
+            &active.party_key,
+            DeletePartyRequest {
+                expected_revision: active.revision,
+            },
+        )
+        .unwrap();
+    assert!(
+        service
+            .character(&first.character_key)
+            .unwrap()
+            .parties
+            .is_empty()
+    );
+    let pc = service.encounter(&key).unwrap().participants[0]
+        .participant_key
+        .clone();
     assert_eq!(
         service
-            .add_encounter_party(&key, request)
-            .unwrap_err()
-            .into_app_error()
-            .code,
-        AppErrorCode::PartyNotFound
+            .encounter_pc_reference(&key, &pc)
+            .unwrap()
+            .reference
+            .unwrap()
+            .name,
+        "Renamed"
     );
-    assert!(service.encounter(&key).unwrap().participants.is_empty());
+    let current = service.character(&first.character_key).unwrap();
+    service
+        .delete_character(
+            &first.character_key,
+            DeleteCharacterRequest {
+                expected_revision: current.character_revision,
+            },
+        )
+        .unwrap();
+    assert!(
+        service
+            .encounter_pc_reference(&key, &pc)
+            .unwrap()
+            .reference
+            .is_none()
+    );
+    assert_eq!(service.encounter(&key).unwrap().participants.len(), 2);
 }
 #[test]
-fn invalid_party_edit_preserves_the_complete_roster_and_rejects_foreign_member_keys() {
+fn stale_character_or_party_inputs_preserve_the_reviewed_roster() {
     let (_directory, service) = service();
-    let party = create(&service, "Campaign");
-    let other = create(&service, "Other");
-    for member in [
-        PartyMemberInput {
+    let first = character(&service, "First", Some(7));
+    let full = party(&service, "Full", &[&first]);
+    let key = encounter(&service);
+    let stale = party_add(&service, &key, &full);
+    service
+        .update_character(
+            &first.character_key,
+            UpdateCharacterRequest {
+                expected_revision: 0,
+                name: "First".into(),
+                level: Some(8),
+            },
+        )
+        .unwrap();
+    assert!(service.add_encounter_party(&key, stale).is_err());
+    assert!(service.encounter(&key).unwrap().participants.is_empty());
+    let current = service.character(&first.character_key).unwrap();
+    let membership = member(&current);
+    assert!(
+        service
+            .update_party(
+                &full.party_key,
+                UpdatePartyRequest {
+                    expected_revision: full.revision,
+                    name: "Invalid".into(),
+                    members: vec![membership.clone(), membership],
+                    level_updates: vec![]
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(service.parties().unwrap().parties[0].name, "Full");
+    let empty = party(&service, "Empty", &[]);
+    assert!(
+        service
+            .add_encounter_party(&key, party_add(&service, &key, &empty))
+            .is_err()
+    );
+}
+#[test]
+fn manual_creation_retry_and_encounter_addition_are_atomic_and_owner_scoped() {
+    let (_directory, service) = service();
+    let group = party(&service, "Group", &[]);
+    let request = CreateCharacterRequest {
+        request_id: "manual".into(),
+        name: "Name only".into(),
+        level: None,
+        party: Some(CharacterPartyTarget {
+            party_key: group.party_key.clone(),
+            expected_revision: group.revision,
+        }),
+    };
+    let created = service.create_character(request.clone()).unwrap();
+    let again = service.create_character(request.clone()).unwrap();
+    assert_eq!(created.character_key, again.character_key);
+    assert_eq!(service.characters().unwrap().characters.len(), 1);
+    assert_eq!(service.parties().unwrap().parties[0].members.len(), 1);
+    let mut changed = request.clone();
+    changed.name = "Changed".into();
+    assert!(service.create_character(changed).is_err());
+    service
+        .delete_character(
+            &created.character_key,
+            DeleteCharacterRequest {
+                expected_revision: 0,
+            },
+        )
+        .unwrap();
+    assert!(!service.create_character(request).unwrap().available);
+    assert!(service.characters().unwrap().characters.is_empty());
+    let key = encounter(&service);
+    let manual = AddEncounterCharacterRequest {
+        request_id: "encounter-manual".into(),
+        expected_encounter_revision: service.encounter(&key).unwrap().revision,
+        party: Some(CharacterPartyTarget {
+            party_key: "missing".into(),
+            expected_revision: 0,
+        }),
+        source: EncounterCharacterSource::Manual {
+            name: "New PC".into(),
             level: None,
-            member_key: None,
-            name: " ".into(),
+            max_hp: Some(25),
+            initiative: Some(12),
         },
-        PartyMemberInput {
-            level: None,
-            member_key: Some(other.members[0].member_key.clone()),
-            name: "Foreign PC".into(),
-        },
-    ] {
-        assert!(
-            service
-                .update_party(
-                    &party.party_key,
-                    UpdatePartyRequest {
-                        expected_revision: party.revision,
-                        name: "Changed".into(),
-                        members: vec![member]
-                    }
-                )
-                .is_err()
-        );
-        assert_eq!(
-            service
-                .parties()
-                .unwrap()
-                .parties
-                .into_iter()
-                .find(|p| p.party_key == party.party_key)
-                .unwrap(),
-            party
-        );
-    }
+    };
+    assert!(
+        service
+            .add_encounter_character(&key, manual.clone())
+            .is_err()
+    );
+    assert!(service.characters().unwrap().characters.is_empty());
+    let manual = AddEncounterCharacterRequest {
+        party: None,
+        ..manual
+    };
+    service
+        .add_encounter_character(&key, manual.clone())
+        .unwrap();
+    service
+        .add_encounter_character(&key, manual.clone())
+        .unwrap();
+    assert_eq!(service.characters().unwrap().characters.len(), 1);
+    let detail = service.encounter(&key).unwrap();
+    assert_eq!(detail.participants.len(), 1);
+    assert_eq!(detail.participants[0].max_hp, Some(25));
+    let mut changed = manual;
+    changed.source = EncounterCharacterSource::Manual {
+        name: "Different".into(),
+        level: None,
+        max_hp: None,
+        initiative: None,
+    };
+    assert!(service.add_encounter_character(&key, changed).is_err());
+    let foreign = service.characters().unwrap().characters[0]
+        .character_key
+        .clone();
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    let db = write.connection();
+    db.execute(
+        "INSERT INTO principals(principal_key,name) VALUES('other','Other')",
+        [],
+    )
+    .unwrap();
+    db.execute("UPDATE characters SET owner_id=(SELECT id FROM principals WHERE principal_key='other') WHERE character_key=?1",[&foreign]).unwrap();
+    write.commit().unwrap();
+    assert!(service.character(&foreign).is_err());
+    assert!(
+        service
+            .update_character(
+                &foreign,
+                UpdateCharacterRequest {
+                    expected_revision: 0,
+                    name: "Hijack".into(),
+                    level: None
+                }
+            )
+            .is_err()
+    );
     assert!(
         service
             .create_party(CreatePartyRequest {
-                name: " ".into(),
-                members: vec![]
+                name: "Foreign".into(),
+                members: vec![PartyMemberInput {
+                    character_key: foreign,
+                    expected_character_revision: 0
+                }]
             })
             .is_err()
     );
 }
 
 #[test]
-fn adding_a_party_requires_both_documents_to_belong_to_the_local_owner() {
-    let (_directory, service) = service();
-    let party = create(&service, "Local party");
-    let encounter_key = encounter(&service);
-    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
-    let write = workspace
-        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
-        .unwrap();
-    write
-        .connection()
-        .execute_batch(
-            "INSERT INTO principals VALUES (7, 'other', 'Other');
-         INSERT INTO parties(owner_id,party_key,name) VALUES (7,'foreign-party','Other party');
-         INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
-         VALUES (7,'foreign-encounter','encounter','Other encounter','draft','now','now');",
-        )
-        .unwrap();
-    write.commit().unwrap();
-
-    let from_other_party = service.add_encounter_party(
-        &encounter_key,
-        AddEncounterPartyRequest {
-            party_key: "foreign-party".into(),
-            expected_revision: 0,
-        },
-    );
-    assert_eq!(
-        from_other_party.unwrap_err().into_app_error().code,
-        AppErrorCode::PartyNotFound
-    );
-
-    let into_other_encounter = service.add_encounter_party(
-        "foreign-encounter",
-        AddEncounterPartyRequest {
-            party_key: party.party_key,
-            expected_revision: party.revision,
-        },
-    );
-    assert_eq!(
-        into_other_encounter.unwrap_err().into_app_error().code,
-        AppErrorCode::EncounterNotFound
-    );
-    let read = workspace
-        .read(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
-        .unwrap();
-    let participant_count: i64 = read
-        .connection()
-        .query_row("SELECT COUNT(*) FROM encounter_participants", [], |row| {
-            row.get(0)
-        })
-        .unwrap();
-    assert_eq!(participant_count, 0);
-}
-
-#[test]
-fn pathbuilder_links_recover_and_refresh_in_linked_encounters() {
+fn imported_references_refresh_once_across_shared_parties_encounters_and_recovery() {
     use atlas_search::test_support::{
         ReferencePreparation, hash, input, record, reference_inventory_identity,
     };
     use serde_json::json;
-
     let (directory, service) = service();
     let path = directory.path().join("workspace.sqlite");
     let spell = |pack, id| {
@@ -321,81 +396,92 @@ fn pathbuilder_links_recover_and_refresh_in_linked_encounters() {
     });
     crate::test_support::publish_input(&path, &index).unwrap();
 
-    let party = create(&service, "Campaign");
     let export = |level| {
-        json!({
-            "success": true, "build": { "name": "Wizard", "level": level,
-                "feats": [["Counterspell",null,"Class Feat",2]], "specials": [],
-                "spellCasters": [], "focus": {"arcane":{"int":{"focusSpells":["Test Focus Spell"]}}}
-            }
-        })
-        .to_string()
+        json!({"success":true,"build":{"name":"Wizard","level":level,"feats":[["Counterspell",null,"Class Feat",2]],"specials":[],"spellCasters":[],"focus":{"arcane":{"int":{"focusSpells":["Test Focus Spell"]}}}}}).to_string()
     };
-    let draft = service.preview_pathbuilder_pc(&export(7)).unwrap();
+    let draft = service.preview_pathbuilder_pc(&export(7), None).unwrap();
     assert!(draft.abilities[0].record_key.is_none());
     assert_eq!(
         draft.abilities[1].record_key.as_ref().unwrap().to_string(),
         "spells:testspell0000001"
     );
-    assert!(
-        service
-            .save_pathbuilder_pc(
-                &party.party_key,
-                SavePathbuilderPcRequest {
-                    json: export(7),
-                    expected_party_revision: party.revision,
-                    expected_artifact_generation: "stale-exhibit".into(),
-                    member_key: None,
-                }
-            )
-            .is_err()
+    assert_eq!(draft.sections.len(), 2);
+    assert_eq!((draft.resolved_count, draft.unresolved_count), (1, 1));
+    let request = SavePathbuilderPcRequest {
+        request_id: "import".into(),
+        json: export(7),
+        expected_artifact_generation: draft.artifact_generation.clone(),
+        character_key: None,
+        expected_character_revision: None,
+        party: None,
+    };
+    let mut stale = request.clone();
+    stale.expected_artifact_generation = "stale".into();
+    assert!(service.save_pathbuilder_pc(stale).is_err());
+    let saved = service.save_pathbuilder_pc(request.clone()).unwrap();
+    assert_eq!(
+        service.save_pathbuilder_pc(request).unwrap().character_key,
+        saved.character_key
     );
-    assert!(
-        service
-            .save_pathbuilder_pc(
-                &party.party_key,
-                SavePathbuilderPcRequest {
-                    json: export(7),
-                    expected_party_revision: party.revision + 1,
-                    expected_artifact_generation: draft.artifact_generation.clone(),
-                    member_key: None,
-                }
-            )
-            .is_err()
-    );
-    assert_eq!(service.parties().unwrap().parties[0].members, party.members);
-    let saved = service
-        .save_pathbuilder_pc(
-            &party.party_key,
-            SavePathbuilderPcRequest {
-                json: export(7),
-                expected_party_revision: party.revision,
-                expected_artifact_generation: draft.artifact_generation.clone(),
-                member_key: None,
-            },
-        )
+    let view = service.character(&saved.character_key).unwrap();
+    let direct_encounter = encounter(&service);
+    let direct_request = AddEncounterCharacterRequest {
+        request_id: "direct-import".into(),
+        expected_encounter_revision: service.encounter(&direct_encounter).unwrap().revision,
+        source: EncounterCharacterSource::Pathbuilder {
+            json: export(7),
+            expected_artifact_generation: draft.artifact_generation.clone(),
+        },
+        party: None,
+    };
+    let direct = service
+        .add_encounter_character(&direct_encounter, direct_request.clone())
         .unwrap();
-    let encounter_key = encounter(&service);
+    assert!(direct.available);
+    assert_ne!(direct.character_key, saved.character_key);
+    let mut equivalent_request = direct_request.clone();
+    if let EncounterCharacterSource::Pathbuilder { json, .. } = &mut equivalent_request.source {
+        *json =
+            serde_json::to_string_pretty(&serde_json::from_str::<serde_json::Value>(json).unwrap())
+                .unwrap();
+    }
+    let replay = service
+        .add_encounter_character(&direct_encounter, equivalent_request)
+        .unwrap();
+    assert_eq!(replay.character_key, direct.character_key);
+    assert_eq!(replay.participant_key, direct.participant_key);
+    assert_eq!(
+        service
+            .encounter(&direct_encounter)
+            .unwrap()
+            .participants
+            .len(),
+        1
+    );
+    let mut changed_request = direct_request;
+    if let EncounterCharacterSource::Pathbuilder { json, .. } = &mut changed_request.source {
+        *json = export(8);
+    }
+    assert!(
+        service
+            .add_encounter_character(&direct_encounter, changed_request)
+            .is_err()
+    );
+    let full = party(&service, "Full", &[&view]);
+    let active = party(&service, "Active", &[&view]);
+    let key = encounter(&service);
     service
-        .add_encounter_party(
-            &encounter_key,
-            AddEncounterPartyRequest {
-                party_key: saved.party_key.clone(),
-                expected_revision: saved.party_revision,
-            },
-        )
+        .add_encounter_character(&key, single_add(&service, &key, &view))
         .unwrap();
-    let detail = service.encounter(&encounter_key).unwrap();
-    let pc = detail.participants.last().unwrap();
-    assert_eq!(pc.level_override, Some(7));
-
+    let pc = service.encounter(&key).unwrap().participants[0]
+        .participant_key
+        .clone();
     let linked = service
         .save_pc_ability_link(
-            &saved.party_key,
-            &saved.member_key,
-            &saved.abilities[0].ability_key,
+            &view.character_key,
+            &view.abilities[0].ability_key,
             SavePcAbilityLinkRequest {
-                expected_party_revision: saved.party_revision,
+                expected_character_revision: view.character_revision,
                 selection: PcAbilitySelection::Manual {
                     record_key: "feats:testfeat00000001".parse().unwrap(),
                     expected_artifact_generation: draft.artifact_generation.clone(),
@@ -403,19 +489,33 @@ fn pathbuilder_links_recover_and_refresh_in_linked_encounters() {
             },
         )
         .unwrap();
-    let refreshed = service
-        .save_pathbuilder_pc(
-            &party.party_key,
-            SavePathbuilderPcRequest {
-                json: export(8),
-                expected_party_revision: linked.party_revision,
-                expected_artifact_generation: draft.artifact_generation,
-                member_key: Some(linked.member_key.clone()),
-            },
-        )
+    let refresh_preview = service
+        .preview_pathbuilder_pc(&export(8), Some(&linked.character_key))
+        .unwrap();
+    assert_eq!(refresh_preview.retained_manual_count, 1);
+    assert_eq!(
+        refresh_preview.character_revision,
+        Some(linked.character_revision)
+    );
+    assert_eq!(refresh_preview.previous_name.as_deref(), Some("Wizard"));
+    assert_eq!(refresh_preview.previous_level, Some(7));
+    assert!(refresh_preview.abilities[0].manual);
+    assert_eq!(
+        refresh_preview.abilities[0].record_title.as_deref(),
+        Some("Prepared Counterspell")
+    );
+    service
+        .save_pathbuilder_pc(SavePathbuilderPcRequest {
+            request_id: "refresh".into(),
+            json: export(8),
+            expected_artifact_generation: draft.artifact_generation.clone(),
+            character_key: Some(linked.character_key.clone()),
+            expected_character_revision: Some(linked.character_revision),
+            party: None,
+        })
         .unwrap();
     let table = service
-        .encounter_pc_reference(&encounter_key, &pc.participant_key)
+        .encounter_pc_reference(&key, &pc)
         .unwrap()
         .reference
         .unwrap();
@@ -426,113 +526,63 @@ fn pathbuilder_links_recover_and_refresh_in_linked_encounters() {
         Some("Prepared Counterspell")
     );
     assert_eq!(
-        service
-            .encounter(&encounter_key)
-            .unwrap()
-            .participants
-            .last()
-            .unwrap()
-            .level_override,
+        service.encounter(&key).unwrap().participants[0].level_override,
         Some(7)
     );
-
-    let revised = service
-        .update_party(
-            &party.party_key,
-            UpdatePartyRequest {
-                name: "New campaign".into(),
-                expected_revision: refreshed.party_revision,
-                members: vec![PartyMemberInput {
-                    member_key: Some(saved.member_key),
-                    name: "Changed Wizard".into(),
-                    level: Some(8),
-                }],
-            },
-        )
-        .unwrap();
-    let table = service
-        .encounter_pc_reference(&encounter_key, &pc.participant_key)
-        .unwrap()
-        .reference
-        .unwrap();
-    assert_eq!(table.name, "Changed Wizard");
-    assert!(table.abilities[0].manual);
-
-    let portable = service.export_encounter(&encounter_key).unwrap();
+    assert!(
+        service
+            .parties()
+            .unwrap()
+            .parties
+            .iter()
+            .all(|p| p.members[0].level == Some(8))
+    );
+    let portable = service.export_encounter(&key).unwrap();
+    assert!(!String::from_utf8_lossy(&portable).contains("pc_addition"));
     let copied = service
-        .import_encounter(portable.as_slice(), Some("portable-pc-test".into()))
+        .import_encounter(portable.as_slice(), Some("copy".into()))
         .unwrap();
-    let imported_detail = service.encounter(&copied.encounter_key).unwrap();
-    let imported_pc = imported_detail.participants.last().unwrap();
+    let copied_pc = service
+        .encounter(&copied.encounter_key)
+        .unwrap()
+        .participants[0]
+        .participant_key
+        .clone();
     assert!(
         service
-            .encounter_pc_reference(&copied.encounter_key, &imported_pc.participant_key)
+            .encounter_pc_reference(&copied.encounter_key, &copied_pc)
             .unwrap()
             .reference
             .is_none()
     );
-    let attach = |revision, member: &str| SetEncounterPcReferenceRequest {
-        expected_encounter_revision: revision,
-        association: EncounterPcAssociation::Attach {
-            member_key: member.into(),
-        },
-    };
-    let revision = imported_detail.revision;
-    let member = &revised.members[0].member_key;
+    let revision = service.encounter(&copied.encounter_key).unwrap().revision;
     assert!(
         service
             .set_encounter_pc_reference(
                 &copied.encounter_key,
-                &imported_pc.participant_key,
-                attach(revision, "unknown")
-            )
-            .is_err()
-    );
-    assert!(
-        service
-            .set_encounter_pc_reference(
-                &copied.encounter_key,
-                &imported_pc.participant_key,
-                attach(revision + 1, member)
+                &copied_pc,
+                SetEncounterPcReferenceRequest {
+                    expected_encounter_revision: revision,
+                    association: EncounterPcAssociation::Attach {
+                        character_key: "foreign".into()
+                    }
+                }
             )
             .is_err()
     );
     service
         .set_encounter_pc_reference(
             &copied.encounter_key,
-            &imported_pc.participant_key,
-            attach(revision, member),
-        )
-        .unwrap();
-    assert_eq!(
-        service
-            .encounter_pc_reference(&copied.encounter_key, &imported_pc.participant_key)
-            .unwrap()
-            .reference
-            .unwrap()
-            .member_key,
-        *member
-    );
-    let detail = service.encounter(&copied.encounter_key).unwrap();
-    service
-        .set_encounter_pc_reference(
-            &copied.encounter_key,
-            &imported_pc.participant_key,
+            &copied_pc,
             SetEncounterPcReferenceRequest {
-                expected_encounter_revision: detail.revision,
-                association: EncounterPcAssociation::Detach,
+                expected_encounter_revision: revision,
+                association: EncounterPcAssociation::Attach {
+                    character_key: view.character_key.clone(),
+                },
             },
         )
         .unwrap();
-    assert!(
-        service
-            .encounter_pc_reference(&copied.encounter_key, &imported_pc.participant_key)
-            .unwrap()
-            .reference
-            .is_none()
-    );
-
-    let archive_runtime = |path: std::path::PathBuf| {
+    let runtime = |path| {
         atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
             overrides: atlas_runtime::AtlasPathOverrides {
                 index_path: Some(path),
@@ -542,79 +592,237 @@ fn pathbuilder_links_recover_and_refresh_in_linked_encounters() {
         })
         .unwrap()
     };
-    let runtime = archive_runtime(path);
-    let archive = runtime.capture_workspace_archive().unwrap();
+    let archive = runtime(path).capture_workspace_archive().unwrap();
     let mut bytes = Vec::new();
     archive.write(&mut bytes).unwrap();
-    let mut json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(json["version"], "3.0");
-    let mut cross_owner = json.clone();
-    cross_owner["saved"]["owners"][0]["pc"]["associations"][0]["member_key"] =
-        json!("foreign-member");
-    cross_owner["saved"]["owners"].as_array_mut().unwrap().push(json!({
-        "key": "another-owner", "name": "Another GM", "lists": [], "encounters": [],
-        "parties": [{
-            "key": "foreign-party", "name": "Foreign party", "revision": 0,
-            "members": [{"key": "foreign-member", "name": "Foreign PC", "level": 7, "position": 0}]
-        }],
-    }));
-    assert!(
-        atlas_runtime::WorkspaceArchive::read(cross_owner.to_string().as_bytes())
-            .err()
-            .is_some_and(|error| error.contains("PC association has no owned party member"))
-    );
-    let restored_path = directory.path().join("restored.sqlite");
-    atlas_runtime::initialize_workspace(&restored_path).unwrap();
-    json["version"] = json!("2.0");
-    assert!(atlas_runtime::WorkspaceArchive::read(json.to_string().as_bytes()).is_err());
-    let archive = atlas_runtime::WorkspaceArchive::read(bytes.as_slice()).unwrap();
-    let other = archive_runtime(restored_path);
+    let raw: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(raw["version"], "4.0");
+    let mut invalid = raw.clone();
+    invalid["version"] = json!("3.0");
+    assert!(atlas_runtime::WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    let mut invalid = raw.clone();
+    invalid["saved"]["owners"][0]["pc"]["character_associations"][0]["character_key"] =
+        json!("foreign");
+    assert!(atlas_runtime::WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    let restored = directory.path().join("restored.sqlite");
+    atlas_runtime::initialize_workspace(&restored).unwrap();
+    let other = runtime(restored);
     let preflight = other.preflight_workspace_restore().unwrap();
     other
-        .restore_workspace_archive(&archive, &preflight, false)
+        .restore_workspace_archive(
+            &atlas_runtime::WorkspaceArchive::read(bytes.as_slice()).unwrap(),
+            &preflight,
+            false,
+        )
         .unwrap();
     let state = other.read_state().unwrap();
-    let store = state.local_state().unwrap();
-    let association = store
-        .parties()
-        .encounter_pc_member(&encounter_key, &pc.participant_key)
-        .unwrap()
-        .unwrap();
-    assert_eq!(association.member_key, revised.members[0].member_key);
+    let characters = state.local_state().unwrap().characters();
+    assert_eq!(
+        characters.encounter_character(&key, &pc).unwrap().unwrap(),
+        view.character_key
+    );
     assert!(
-        store
-            .parties()
-            .pc_reference(&association.party_key, &association.member_key)
+        characters
+            .get(&view.character_key)
             .unwrap()
+            .reference
             .unwrap()
             .abilities[0]
             .manual
             .is_some()
     );
-
     service
         .delete_party(
-            &revised.party_key,
+            &full.party_key,
             DeletePartyRequest {
-                expected_revision: revised.revision,
+                expected_revision: full.revision,
+            },
+        )
+        .unwrap();
+    service
+        .delete_party(
+            &active.party_key,
+            DeletePartyRequest {
+                expected_revision: active.revision,
             },
         )
         .unwrap();
     assert!(
         service
-            .encounter_pc_reference(&encounter_key, &pc.participant_key)
+            .character(&view.character_key)
+            .unwrap()
+            .parties
+            .is_empty()
+    );
+    assert!(
+        service
+            .encounter_pc_reference(&key, &pc)
             .unwrap()
             .reference
-            .is_none()
+            .is_some()
     );
+}
+
+#[test]
+fn deleted_character_creation_history_round_trips_without_recreating_it() {
+    let (directory, service) = service();
+    let request = CreateCharacterRequest {
+        request_id: "deleted-create".into(),
+        name: "Retired PC".into(),
+        level: None,
+        party: None,
+    };
+    let created = service.create_character(request.clone()).unwrap();
+    service
+        .delete_character(
+            &created.character_key,
+            DeleteCharacterRequest {
+                expected_revision: 0,
+            },
+        )
+        .unwrap();
+    let runtime = atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
+        overrides: atlas_runtime::AtlasPathOverrides {
+            index_path: Some(service.workspace_path().into()),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .unwrap();
+    let archive = runtime.capture_workspace_archive().unwrap();
+    let mut bytes = Vec::new();
+    archive.write(&mut bytes).unwrap();
     assert_eq!(
-        service
-            .encounter(&encounter_key)
-            .unwrap()
-            .participants
-            .last()
-            .unwrap()
-            .level_override,
-        Some(7)
+        serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()["version"],
+        "4.0"
     );
+    let target_path = directory.path().join("deleted-restored.sqlite");
+    atlas_runtime::initialize_workspace(&target_path).unwrap();
+    let target = atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
+        overrides: atlas_runtime::AtlasPathOverrides {
+            index_path: Some(target_path.clone()),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .unwrap();
+    let preflight = target.preflight_workspace_restore().unwrap();
+    target
+        .restore_workspace_archive(
+            &atlas_runtime::WorkspaceArchive::read(bytes.as_slice()).unwrap(),
+            &preflight,
+            false,
+        )
+        .unwrap();
+    let restored = crate::AtlasAppService::new(
+        crate::service::RetrievalBackend::command(
+            crate::service::CommandRetrievalMode::NoQueryInference,
+        ),
+        atlas_runtime::AtlasRuntimeOptions {
+            overrides: atlas_runtime::AtlasPathOverrides {
+                index_path: Some(target_path),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let replay = restored.create_character(request).unwrap();
+    assert_eq!(replay.character_key, created.character_key);
+    assert!(!replay.available);
+    assert!(restored.characters().unwrap().characters.is_empty());
+}
+
+#[test]
+fn historical_encounter_addition_alone_requires_v4_and_replays_without_recreation() {
+    let (directory, service) = service();
+    let encounter_key = encounter(&service);
+    let request = AddEncounterCharacterRequest {
+        request_id: "retired-encounter-import".into(),
+        expected_encounter_revision: service.encounter(&encounter_key).unwrap().revision,
+        source: EncounterCharacterSource::Manual {
+            name: "Retired PC".into(),
+            level: Some(7),
+            max_hp: Some(42),
+            initiative: Some(12),
+        },
+        party: None,
+    };
+    let created = service
+        .add_encounter_character(&encounter_key, request.clone())
+        .unwrap();
+    service
+        .delete_character(
+            &created.character_key,
+            DeleteCharacterRequest {
+                expected_revision: 0,
+            },
+        )
+        .unwrap();
+    let source = atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
+        overrides: atlas_runtime::AtlasPathOverrides {
+            index_path: Some(service.workspace_path().into()),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .unwrap();
+    let mut bytes = Vec::new();
+    source
+        .capture_workspace_archive()
+        .unwrap()
+        .write(&mut bytes)
+        .unwrap();
+    let archive: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(archive["version"], "4.0");
+    let pc_history = &archive["saved"]["owners"][0]["pc"];
+    assert!(pc_history.get("characters").is_none());
+    assert!(pc_history.get("creation_receipts").is_none());
+    assert_eq!(pc_history["addition_receipts"].as_array().unwrap().len(), 1);
+    let mut invalid = archive.clone();
+    let receipt_json =
+        &mut invalid["saved"]["owners"][0]["pc"]["addition_receipts"][0]["receipt_json"];
+    let mut envelope: serde_json::Value =
+        serde_json::from_str(receipt_json.as_str().unwrap()).unwrap();
+    envelope["unknown"] = serde_json::json!(true);
+    *receipt_json = serde_json::json!(envelope.to_string());
+    assert!(atlas_runtime::WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    let target_path = directory.path().join("addition-restored.sqlite");
+    atlas_runtime::initialize_workspace(&target_path).unwrap();
+    let options = atlas_runtime::AtlasRuntimeOptions {
+        overrides: atlas_runtime::AtlasPathOverrides {
+            index_path: Some(target_path),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let target = atlas_runtime::AtlasRuntime::resolve(options.clone()).unwrap();
+    let preflight = target.preflight_workspace_restore().unwrap();
+    target
+        .restore_workspace_archive(
+            &atlas_runtime::WorkspaceArchive::read(bytes.as_slice()).unwrap(),
+            &preflight,
+            false,
+        )
+        .unwrap();
+    let restored = crate::AtlasAppService::new(
+        crate::service::RetrievalBackend::command(
+            crate::service::CommandRetrievalMode::NoQueryInference,
+        ),
+        options,
+    )
+    .unwrap();
+    let replay = restored
+        .add_encounter_character(&encounter_key, request)
+        .unwrap();
+    assert_eq!(replay.encounter_key, created.encounter_key);
+    assert_eq!(replay.character_key, created.character_key);
+    assert_eq!(replay.participant_key, created.participant_key);
+    assert!(!replay.available);
+    assert!(restored.characters().unwrap().characters.is_empty());
+    let participants = restored.encounter(&encounter_key).unwrap().participants;
+    assert_eq!(participants.len(), 1);
+    assert_eq!(participants[0].participant_key, created.participant_key);
+    assert_eq!(participants[0].current_hp, Some(42));
+    assert_eq!(participants[0].initiative, Some(12));
 }

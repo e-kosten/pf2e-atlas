@@ -1,4 +1,11 @@
 #![deny(unsafe_code)]
+mod character;
+pub use character::{
+    AddEncounterCharacterRequest, CharacterIndexView, CharacterLevelUpdate, CharacterMutationView,
+    CharacterPartyTarget, CharacterPartyView, CharacterRevision, CharacterSummaryView,
+    CreateCharacterRequest, DeleteCharacterRequest, EncounterCharacterMutationView,
+    EncounterCharacterSource, UpdateCharacterRequest,
+};
 mod encounter_tracker;
 pub use encounter_tracker::{
     EncounterManualTrackerAction, EncounterManualTrackerView, UpdateEncounterManualTrackerRequest,
@@ -116,8 +123,9 @@ mod list;
 mod pc_reference;
 pub use pc_reference::{
     EncounterPcAssociation, EncounterPcReferenceView, PathbuilderPreviewRequest,
-    PathbuilderPreviewView, PcAbilitySelection, PcAbilityView, PcReferenceView,
-    SavePathbuilderPcRequest, SavePcAbilityLinkRequest, SetEncounterPcReferenceRequest,
+    PathbuilderPreviewView, PcAbilitySectionView, PcAbilitySelection, PcAbilityView,
+    PcReferenceView, SavePathbuilderPcRequest, SavePcAbilityLinkRequest,
+    SetEncounterPcReferenceRequest,
 };
 mod party;
 pub use party::{

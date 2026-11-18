@@ -114,6 +114,12 @@ impl SavedWorkspace {
         })
     }
 
+    pub fn has_characters(&self) -> bool {
+        self.owners
+            .iter()
+            .any(|owner| owner.pc.as_ref().is_some_and(PcState::has_characters))
+    }
+
     pub fn has_pc_references(&self) -> bool {
         self.owners.iter().any(|owner| owner.pc.is_some())
     }
@@ -137,6 +143,7 @@ impl SavedWorkspace {
         let mut lists = BTreeSet::new();
         let mut parties = BTreeSet::new();
         let mut members = BTreeSet::new();
+        let mut legacy_members = BTreeSet::new();
         let mut encounters = BTreeSet::new();
         let mut participants = BTreeSet::new();
         let mut conditions = BTreeSet::new();
@@ -148,7 +155,7 @@ impl SavedWorkspace {
         let validated = self
             .owners
             .into_iter()
-            .map(|owner| {
+            .map(|mut owner| {
                 unique(&mut owners, &owner.key, "principal key")?;
                 let mut list_slugs = BTreeSet::new();
                 for list in &owner.lists {
@@ -161,7 +168,7 @@ impl SavedWorkspace {
                     }
                 }
                 for party in &owner.parties {
-                    party.validate(&mut parties, &mut members)?;
+                    party.validate(&mut parties, &mut legacy_members)?;
                 }
                 let mut encounter_slugs = BTreeSet::new();
                 let restored: Vec<_> = owner
@@ -208,13 +215,15 @@ impl SavedWorkspace {
                         Ok(encounter)
                     })
                     .collect::<LocalStateResult<_>>()?;
-                if let Some(pc) = &owner.pc {
-                    pc.validate(
-                        owner.parties.iter().flat_map(Party::member_keys),
-                        &restored,
-                        &references,
-                    )?;
-                }
+                let mut pc = owner.pc.take().unwrap_or_default();
+                pc.normalize_legacy(&mut owner.parties)?;
+                pc.validate(
+                    owner.parties.iter().map(Party::key),
+                    &restored,
+                    &references,
+                    &mut members,
+                )?;
+                owner.pc = pc.has_characters().then_some(pc);
                 Ok(Owner {
                     key: owner.key,
                     name: owner.name,
@@ -284,7 +293,8 @@ impl ValidatedWorkspace {
 pub fn check_empty(db: &Connection) -> LocalStateResult<()> {
     let empty = db.query_row(
         "SELECT NOT (EXISTS(SELECT 1 FROM saved_lists) OR EXISTS(SELECT 1 FROM parties)
-                     OR EXISTS(SELECT 1 FROM encounters)
+                     OR EXISTS(SELECT 1 FROM encounters) OR EXISTS(SELECT 1 FROM characters)
+                     OR EXISTS(SELECT 1 FROM character_creation_receipts)
                      OR EXISTS(SELECT 1 FROM principals WHERE principal_key != 'local'))",
         [],
         |row| row.get(0),

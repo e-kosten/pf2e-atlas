@@ -55,4 +55,6 @@ pub use service::{EncountersRead, EncountersWrite};
 #[cfg(test)]
 mod tests;
 
+mod pc_additions;
 mod spell_resources;
+pub use pc_additions::PcAdditionReceipt;

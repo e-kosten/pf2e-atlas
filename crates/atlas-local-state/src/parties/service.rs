@@ -47,7 +47,7 @@ impl<'a> PartiesWrite<'a> {
     }
     pub fn create(&self, name: &str, members: &[PartyMemberInput]) -> LocalStateResult<Party> {
         crate::atomic_action::run(self.connection, || {
-            validate(name, members, None)?;
+            validate(name, members)?;
             let key = storage::new_key("party");
             self.connection.execute(
                 "INSERT INTO parties(party_key,name,owner_id) VALUES(?1,?2,?3)",
@@ -66,7 +66,7 @@ impl<'a> PartiesWrite<'a> {
     ) -> LocalStateResult<Party> {
         crate::atomic_action::run(self.connection, || {
             let existing = self.get_at_revision(key, revision)?;
-            validate(name, members, Some(&existing))?;
+            validate(name, members)?;
             self.connection.execute(
                 "UPDATE parties SET name=?1,revision=revision+1 WHERE party_key=?2 AND owner_id=?3",
                 params![name.trim(), key, self.owner_id],
@@ -86,11 +86,7 @@ impl<'a> PartiesWrite<'a> {
         })
     }
 }
-fn validate(
-    name: &str,
-    members: &[PartyMemberInput],
-    existing: Option<&Party>,
-) -> LocalStateResult<()> {
+fn validate(name: &str, members: &[PartyMemberInput]) -> LocalStateResult<()> {
     let valid_name = |s: &str| !s.trim().is_empty() && s.trim().chars().count() <= 255;
     if !valid_name(name) {
         return Err(LocalStateError::InvalidParty(
@@ -100,13 +96,9 @@ fn validate(
     validate_member_count(members.len())?;
     let mut keys = HashSet::new();
     for member in members {
-        validate_member_fields(&member.name, member.level)?;
-        if let Some(key) = &member.member_key
-            && (!keys.insert(key)
-                || !existing.is_some_and(|p| p.members.iter().any(|m| &m.member_key == key)))
-        {
+        if !keys.insert(&member.character_key) {
             return Err(LocalStateError::InvalidParty(
-                "Member does not belong to this party or was supplied twice.",
+                "Character was supplied twice.",
             ));
         }
     }
@@ -117,20 +109,6 @@ pub(super) fn validate_member_count(count: usize) -> LocalStateResult<()> {
     if count > 50 {
         return Err(LocalStateError::InvalidParty(
             "A party can contain at most 50 PCs.",
-        ));
-    }
-    Ok(())
-}
-
-pub(super) fn validate_member_fields(name: &str, level: Option<i64>) -> LocalStateResult<()> {
-    if level.is_some_and(|level| !(1..=20).contains(&level)) {
-        return Err(LocalStateError::InvalidParty(
-            "Enter a PC level from 1 to 20, or leave it blank.",
-        ));
-    }
-    if !(1..=255).contains(&name.trim().chars().count()) {
-        return Err(LocalStateError::InvalidParty(
-            "Enter a PC name of 1 to 255 characters.",
         ));
     }
     Ok(())

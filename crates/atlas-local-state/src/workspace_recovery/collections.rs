@@ -153,16 +153,19 @@ pub(super) struct Party {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Member {
-    key: String,
-    name: String,
-    level: Option<i64>,
-    position: i64,
+pub(super) struct Member {
+    pub(super) key: String,
+    pub(super) name: String,
+    pub(super) level: Option<i64>,
+    pub(super) position: i64,
 }
 
 impl Party {
-    pub(super) fn member_keys(&self) -> impl Iterator<Item = &str> {
-        self.members.iter().map(|member| member.key.as_str())
+    pub(super) fn key(&self) -> &str {
+        &self.key
+    }
+    pub(super) fn take_members(&mut self) -> Vec<Member> {
+        std::mem::take(&mut self.members)
     }
 
     pub(super) fn capture(db: &Connection, owner: i64) -> LocalStateResult<Vec<Self>> {
@@ -179,7 +182,15 @@ impl Party {
                 })
             },
         )?;
+        let legacy = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='party_members')",
+            [],
+            |r| r.get::<_, bool>(0),
+        )?;
         for party in &mut parties {
+            if !legacy {
+                break;
+            }
             party.members = rows(
                 db,
                 "SELECT member_key,name,level,position FROM party_members WHERE party_key=?1 ORDER BY position",
@@ -237,10 +248,6 @@ impl Party {
             "INSERT INTO parties(party_key,owner_id,name,revision) VALUES(?1,?2,?3,?4)",
             params![self.key, owner, self.name, self.revision],
         )?;
-        for member in &self.members {
-            db.execute("INSERT INTO party_members(member_key,party_key,name,level,position) VALUES(?1,?2,?3,?4,?5)",
-                params![member.key,self.key,member.name,member.level,member.position])?;
-        }
         Ok(())
     }
 }

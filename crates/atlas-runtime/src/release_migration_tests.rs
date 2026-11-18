@@ -108,8 +108,28 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
         atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap();
     migrated.remove("workspace_settings");
     migrated.remove("reference_component_digests");
-    assert_eq!(migrated.remove("encounter_pc_party_members"), Some(vec![]));
-    assert_eq!(migrated.remove("party_member_references"), Some(vec![]));
+    assert_eq!(reference_rows.remove("party_members").unwrap().len(), 1);
+    assert_eq!(migrated.remove("encounter_pc_characters"), Some(vec![]));
+    assert_eq!(migrated.remove("character_creation_receipts"), Some(vec![]));
+    assert_eq!(
+        migrated.remove("party_character_memberships"),
+        Some(vec![vec![
+            "kept-party".to_owned().into(),
+            "kept-member".to_owned().into(),
+            0.into()
+        ]])
+    );
+    assert_eq!(
+        migrated.remove("characters"),
+        Some(vec![vec![
+            "kept-member".to_owned().into(),
+            1.into(),
+            "Retained member".to_owned().into(),
+            2.into(),
+            0.into(),
+            rusqlite::types::Value::Null
+        ]])
+    );
     let changed: Vec<_> = reference_rows
         .keys()
         .chain(migrated.keys())
@@ -125,9 +145,15 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     let bytes = std::fs::read(&archive_file).unwrap();
     let archive = WorkspaceArchive::read(bytes.as_slice()).unwrap();
     let source = runtime(&workspace);
+    let preserved: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(preserved["version"], "1.1");
     assert_eq!(
-        serde_json::from_slice::<serde_json::Value>(&bytes).unwrap(),
-        archived_json(source.capture_workspace_archive().unwrap())
+        preserved["saved"]["owners"][0]["parties"][0]["members"][0]["key"],
+        "kept-member"
+    );
+    assert_eq!(
+        archived_json(source.capture_workspace_archive().unwrap())["version"],
+        "4.0"
     );
     let target = initialize_workspace(directory.path().join("restore.sqlite")).unwrap();
     let target = runtime(&target);
@@ -177,8 +203,15 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
     let after = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(after.reference_revision().unwrap(), revision);
     let mut expected = reference;
-    expected.insert("encounter_pc_party_members".into(), vec![]);
-    expected.insert("party_member_references".into(), vec![]);
+    assert_eq!(expected.remove("party_members"), Some(vec![]));
+    for table in [
+        "characters",
+        "party_character_memberships",
+        "encounter_pc_characters",
+        "character_creation_receipts",
+    ] {
+        expected.insert(table.into(), vec![]);
+    }
     for list in expected.get_mut("saved_lists").unwrap() {
         list.push(rusqlite::types::Value::Integer(0));
     }
@@ -509,9 +542,168 @@ fn schema_45_upgrade_captures_party_before_reference_tables_exist() {
     assert_eq!(party.members[0].level, Some(7));
     assert!(
         store
-            .parties()
-            .pc_reference("stable-party", "stable-member")
+            .characters()
+            .get("stable-member")
             .unwrap()
+            .reference
             .is_none()
+    );
+}
+
+#[test]
+fn schema_46_promotes_characters_without_losing_choices_or_encounter_links() {
+    let directory = tempfile::tempdir().unwrap();
+    register_extensions().unwrap();
+    let workspace = Workspace::at(directory.path().join("workspace.sqlite")).unwrap();
+    workspace
+        .migrate_history(
+            MigrationHistory {
+                migrations: &RELEASE_HISTORY.migrations[..5],
+                ..RELEASE_HISTORY
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+    let write = workspace.write(46).unwrap();
+    let reference = serde_json::json!({"abilities":[{"key":"a".repeat(64),"kind":"feat","label":"Selected feat","choice":"Chosen option","automatic":null,"ambiguous":false,"manual":"feats:testfeat00000001"}]});
+    write.connection().execute_batch("INSERT INTO parties(party_key,owner_id,name) VALUES('old-party',1,'Party'); INSERT INTO party_members(member_key,party_key,position,name,level) VALUES('old-pc','old-party',0,'Shared later',7); INSERT INTO record_identity(key,last_known_name,availability) VALUES('feats:testfeat00000001','Selected feat','unavailable');").unwrap();
+    write
+        .connection()
+        .execute(
+            "INSERT INTO party_member_references(member_key,payload) VALUES('old-pc',?1)",
+            [reference.to_string()],
+        )
+        .unwrap();
+    let state = atlas_local_state::LocalStateWrite::for_local(&write).unwrap();
+    let encounter = state
+        .encounters()
+        .create(atlas_local_state::NewEncounter {
+            name: "Existing fight".into(),
+            slug: "existing-fight".into(),
+            note: None,
+            description: None,
+        })
+        .unwrap();
+    let mut participant = atlas_local_state::AddEncounterParticipant {
+        level_override: Some(7),
+        spell_resources: vec![],
+        participant_variant: atlas_local_state::ParticipantVariant::Normal,
+        hp_origin: atlas_local_state::ParticipantHpOrigin::Explicit,
+        variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
+        record_key: None,
+        participant_kind: atlas_local_state::ParticipantKind::Pc,
+        display_name: "Old combat name".into(),
+        record_title_snapshot: None,
+        record_kind_snapshot: None,
+        side: atlas_local_state::ParticipantSide::Pc,
+        initiative: Some(12),
+        max_hp: Some(35),
+        current_hp: Some(23),
+        temporary_hp: 0,
+        note: None,
+    };
+    let pc = state
+        .encounters()
+        .add_participant(&encounter.encounter_key, participant.clone())
+        .unwrap();
+    participant.display_name = "Same name is separate".into();
+    state
+        .encounters()
+        .add_participant(&encounter.encounter_key, participant)
+        .unwrap();
+    write.connection().execute("INSERT INTO encounter_pc_party_members(participant_id,member_key) SELECT id,'old-pc' FROM encounter_participants WHERE participant_key=?1",[&pc.participant_key]).unwrap();
+    write.commit().unwrap();
+    initialize_workspace(workspace.path()).unwrap();
+    let backup = std::fs::read(archive_path(&workspace)).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&backup).unwrap()["version"],
+        "3.0"
+    );
+    let migrated = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let state = atlas_local_state::LocalStateRead::for_local(&migrated).unwrap();
+    let character = state.characters().get("old-pc").unwrap();
+    assert_eq!(character.level, Some(7));
+    assert_eq!(
+        character.reference.unwrap().abilities[0].choice.as_deref(),
+        Some("Chosen option")
+    );
+    assert_eq!(
+        state
+            .characters()
+            .encounter_character(&encounter.encounter_key, &pc.participant_key)
+            .unwrap()
+            .as_deref(),
+        Some("old-pc")
+    );
+    let saved = state
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved.participants[0].current_hp, Some(23));
+    assert_eq!(saved.participants[0].initiative, Some(12));
+    assert_eq!(saved.participants[0].display_name, "Old combat name");
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let boundary_index: String = write
+        .connection()
+        .query_row(
+            "SELECT sql FROM sqlite_schema WHERE name='encounter_command_turn_boundary'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(boundary_index.contains("UNIQUE"));
+    let add_turn_receipt = "INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,boundary_key) SELECT id,'turn',?2,'{}','migration-test-boundary' FROM encounters WHERE encounter_key=?1";
+    write
+        .connection()
+        .execute(
+            add_turn_receipt,
+            [&encounter.encounter_key, "first-turn-receipt"],
+        )
+        .unwrap();
+    let duplicate_boundary = write
+        .connection()
+        .execute(
+            add_turn_receipt,
+            [&encounter.encounter_key, "second-turn-receipt"],
+        )
+        .unwrap_err();
+    assert_eq!(
+        duplicate_boundary.sqlite_error().unwrap().extended_code,
+        rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE
+    );
+    drop(write);
+    let mut duplicate: serde_json::Value = serde_json::from_slice(&backup).unwrap();
+    let references = duplicate["saved"]["owners"][0]["pc"]["members"]
+        .as_array_mut()
+        .unwrap();
+    references.push(references[0].clone());
+    assert!(
+        WorkspaceArchive::read(duplicate.to_string().as_bytes())
+            .err()
+            .is_some_and(|message| message.contains("duplicate legacy PC reference"))
+    );
+    let target = initialize_workspace(directory.path().join("recover-v3.sqlite")).unwrap();
+    let target = runtime(&target);
+    let preflight = target.preflight_workspace_restore().unwrap();
+    target
+        .restore_workspace_archive(
+            &WorkspaceArchive::read(backup.as_slice()).unwrap(),
+            &preflight,
+            false,
+        )
+        .unwrap();
+    let read = target.read_state().unwrap();
+    assert!(
+        read.local_state()
+            .unwrap()
+            .characters()
+            .get("old-pc")
+            .unwrap()
+            .reference
+            .unwrap()
+            .abilities[0]
+            .manual
+            .is_some()
     );
 }

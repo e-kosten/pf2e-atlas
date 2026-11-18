@@ -187,13 +187,13 @@ fn major_minor_admission_and_conflicting_configuration_leave_no_partial_restore(
         &input,
         &serde_json::json!({
             "format": "pf2e-atlas-workspace",
-            "version": "4.0",
+            "version": "5.0",
             "future_saved_state": {}
         }),
     );
     failure(
         workspace_command(&db, "restore", &input, &[]),
-        "Unsupported workspace archive version 4.0",
+        "Unsupported workspace archive version 5.0",
     );
     archive["version"] = "1.10".into();
     archive["saved"]["owners"][0]["lists"][0]["future_display_hint"] = "ignored".into();
@@ -253,8 +253,9 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
         INSERT INTO principals(principal_key,name) VALUES('guest','Guest');
         INSERT INTO parties(party_key,owner_id,name,revision)
             SELECT 'guest-party',id,'Guests',7 FROM principals WHERE principal_key='guest';
-        INSERT INTO party_members(member_key,party_key,name,level,position)
-            VALUES('pc-two','guest-party','Second',5,9),('pc-one','guest-party','First',5,3);
+        INSERT INTO characters(character_key,owner_id,name,level) SELECT 'pc-two',id,'Second',5 FROM principals WHERE principal_key='guest';
+        INSERT INTO characters(character_key,owner_id,name,level) SELECT 'pc-one',id,'First',5 FROM principals WHERE principal_key='guest';
+        INSERT INTO party_character_memberships(party_key,character_key,position) VALUES('guest-party','pc-two',9),('guest-party','pc-one',3);
         INSERT INTO record_identity(key,last_known_name,availability)
             VALUES('bestiary:aaaaaaaaaaaaaaaa',NULL,'unavailable');
         INSERT INTO saved_lists(owner_id,list_key,slug,name,revision,created_at,updated_at,archived)
@@ -313,7 +314,7 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
         2
     );
     assert_eq!(original["saved"]["condition_floor"], 73);
-    assert_eq!(original["version"], "2.0");
+    assert_eq!(original["version"], "4.0");
     assert_eq!(original["saved"]["owners"][0]["lists"][0]["archived"], true);
     assert!(
         original["saved"]["owners"][0]["encounters"]
@@ -463,7 +464,30 @@ fn rich_sample_round_trips_and_retries_through_the_app_offline() {
 
     success(workspace_command(&db, "export", &reexported, &[]));
     let mut expected = read_archive(&sample);
-    expected["version"] = "1.1".into();
+    expected["version"] = "4.0".into();
+    for owner in expected["saved"]["owners"].as_array_mut().unwrap() {
+        let mut characters = Vec::new();
+        let mut memberships = Vec::new();
+        for party in owner["parties"].as_array_mut().unwrap() {
+            let members = std::mem::take(party["members"].as_array_mut().unwrap());
+            for member in members {
+                characters.push(serde_json::json!({"character_key":member["key"],"name":member["name"],"level":member["level"],"revision":0,"reference":null}));
+                memberships.push(serde_json::json!({"party_key":party["key"],"character_key":member["key"],"position":member["position"]}));
+            }
+        }
+        if !characters.is_empty() {
+            characters.sort_by(|a, b| {
+                a["character_key"]
+                    .as_str()
+                    .cmp(&b["character_key"].as_str())
+            });
+            memberships.sort_by(|a, b| {
+                (a["party_key"].as_str(), a["position"].as_i64())
+                    .cmp(&(b["party_key"].as_str(), b["position"].as_i64()))
+            });
+            owner["pc"] = serde_json::json!({"characters":characters,"memberships":memberships});
+        }
+    }
     assert_eq!(expected, read_archive(&reexported));
 }
 

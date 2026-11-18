@@ -1,5 +1,5 @@
 use super::*;
-use crate::{LocalStateError, test_support::initialize_schema};
+use crate::{CharactersWrite, LocalStateError, test_support::initialize_schema};
 use rusqlite::Connection;
 
 fn connection() -> Connection {
@@ -8,13 +8,16 @@ fn connection() -> Connection {
     initialize_schema(&connection).unwrap();
     connection
 }
-fn member(name: &str) -> PartyMemberInput {
+
+fn member(connection: &Connection, owner: i64, name: &str, level: Option<i64>) -> PartyMemberInput {
     PartyMemberInput {
-        level: None,
-        member_key: None,
-        name: name.into(),
+        character_key: CharactersWrite::from_connection(connection, owner)
+            .create(name, level, None)
+            .unwrap()
+            .character_key,
     }
 }
+
 #[test]
 fn party_members_cannot_be_read_or_replaced_through_another_owner() {
     let mut connection = connection();
@@ -26,10 +29,14 @@ fn party_members_cannot_be_read_or_replaced_through_another_owner() {
     .unwrap();
     let first = PartiesWrite::from_connection(&tx, 1);
     let second = PartiesWrite::from_connection(&tx, 2);
-    let other = first.create("Party", &[member("First")]).unwrap();
-    let own = second.create("Party", &[member("Second")]).unwrap();
+    let foreign_member = member(&tx, 1, "First", None);
+    let own_member = member(&tx, 2, "Second", None);
+    let other = first
+        .create("Party", std::slice::from_ref(&foreign_member))
+        .unwrap();
+    let own = second.create("Party", &[own_member]).unwrap();
 
-    assert_eq!(second.list().unwrap(), vec![own]);
+    assert_eq!(second.list().unwrap(), vec![own.clone()]);
     assert!(matches!(
         second.get(&other.party_key),
         Err(LocalStateError::PartyNotFound(_))
@@ -42,6 +49,11 @@ fn party_members_cannot_be_read_or_replaced_through_another_owner() {
         second.delete(&other.party_key, other.revision),
         Err(LocalStateError::PartyNotFound(_))
     ));
+    assert!(matches!(
+        second.update(&own.party_key, own.revision, "Changed", &[foreign_member]),
+        Err(LocalStateError::CharacterNotFound(_))
+    ));
+    assert_eq!(second.get(&own.party_key).unwrap(), own);
     assert_eq!(first.get(&other.party_key).unwrap(), other);
 }
 
@@ -51,46 +63,52 @@ fn failed_roster_save_rolls_back_its_action_even_if_the_caller_commits() {
     let tx = connection.transaction().unwrap();
     let parties = PartiesWrite::from_connection(&tx, 1);
     let original = parties
-        .create("Original", &[member("First"), member("Second")])
+        .create(
+            "Original",
+            &[
+                member(&tx, 1, "First", None),
+                member(&tx, 1, "Second", None),
+            ],
+        )
         .unwrap();
-    tx.execute_batch("CREATE TRIGGER reject_member BEFORE INSERT ON party_members WHEN NEW.name='Reject' BEGIN SELECT RAISE(ABORT,'test member failure'); END;").unwrap();
+    let replacement = [
+        member(&tx, 1, "Added", None),
+        member(&tx, 1, "Reject", None),
+    ];
+    tx.execute_batch("CREATE TRIGGER reject_member BEFORE INSERT ON party_character_memberships WHEN (SELECT name FROM characters WHERE character_key=NEW.character_key)='Reject' BEGIN SELECT RAISE(ABORT,'test member failure'); END;").unwrap();
     assert!(
         parties
             .update(
                 &original.party_key,
                 original.revision,
                 "Changed",
-                &[member("Added"), member("Reject")]
+                &replacement
             )
             .is_err()
     );
-    assert!(
-        parties
-            .create("Failed new party", &[member("Added"), member("Reject")])
-            .is_err()
-    );
+    assert!(parties.create("Failed new party", &replacement).is_err());
     tx.commit().unwrap();
     assert_eq!(
         PartiesRead::from_connection(&connection, 1).list().unwrap(),
         vec![original]
     );
 }
+
 #[test]
 fn stale_edits_and_deletions_preserve_newer_party_names_and_members() {
     let mut connection = connection();
     let tx = connection.transaction().unwrap();
     let parties = PartiesWrite::from_connection(&tx, 1);
-    let party = parties.create("Original", &[member("First")]).unwrap();
+    let original_member = member(&tx, 1, "First", None);
+    let party = parties
+        .create("Original", std::slice::from_ref(&original_member))
+        .unwrap();
     let latest = parties
         .update(
             &party.party_key,
             party.revision,
             "Latest",
-            &[PartyMemberInput {
-                level: None,
-                member_key: Some(party.members[0].member_key.clone()),
-                name: "Renamed PC".into(),
-            }],
+            &[original_member],
         )
         .unwrap();
     assert!(matches!(
@@ -105,77 +123,59 @@ fn stale_edits_and_deletions_preserve_newer_party_names_and_members() {
 }
 
 #[test]
-fn levels_remain_optional_and_invalid_edits_preserve_the_whole_roster() {
+fn memberships_use_live_character_levels_and_preserve_distinct_same_names() {
     let mut connection = connection();
     let tx = connection.transaction().unwrap();
     let parties = PartiesWrite::from_connection(&tx, 1);
+    let characters = CharactersWrite::from_connection(&tx, 1);
+    let first = member(&tx, 1, "Same", Some(4));
+    let second = member(&tx, 1, "Same", None);
     let party = parties
-        .create(
-            "Mixed",
-            &[
-                PartyMemberInput {
-                    member_key: None,
-                    name: "Same".into(),
-                    level: Some(4),
-                },
-                PartyMemberInput {
-                    member_key: None,
-                    name: "Same".into(),
-                    level: None,
-                },
-            ],
-        )
+        .create("Mixed", &[first.clone(), second.clone()])
         .unwrap();
+    assert_ne!(first.character_key, second.character_key);
     assert_eq!(
         party.members.iter().map(|m| m.level).collect::<Vec<_>>(),
         vec![Some(4), None]
     );
     for level in [-1, 0, 21, i64::MAX] {
         assert!(
-            parties
-                .update(
-                    &party.party_key,
-                    party.revision,
-                    "Invalid",
-                    &[PartyMemberInput {
-                        member_key: Some(party.members[0].member_key.clone()),
-                        name: "Changed".into(),
-                        level: Some(level)
-                    }]
-                )
+            characters
+                .update(&first.character_key, 0, "Changed", Some(level), None)
                 .is_err()
         );
         assert_eq!(parties.get(&party.party_key).unwrap(), party);
     }
+    characters
+        .update(&first.character_key, 0, "Same", None, None)
+        .unwrap();
+    characters
+        .update(&second.character_key, 0, "Same", Some(20), None)
+        .unwrap();
     let changed = parties
         .update(
             &party.party_key,
             party.revision,
             "Mixed",
-            &[
-                PartyMemberInput {
-                    member_key: Some(party.members[1].member_key.clone()),
-                    name: "Same".into(),
-                    level: Some(20),
-                },
-                PartyMemberInput {
-                    member_key: Some(party.members[0].member_key.clone()),
-                    name: "Same".into(),
-                    level: None,
-                },
-            ],
+            &[second.clone(), first.clone()],
         )
         .unwrap();
-    assert_eq!(changed.members[1].member_key, party.members[0].member_key);
+    assert_eq!(changed.members[1].character_key, first.character_key);
     assert_eq!(
         changed.members.iter().map(|m| m.level).collect::<Vec<_>>(),
         vec![Some(20), None]
     );
     assert!(
         parties
-            .update(&party.party_key, party.revision, "Stale", &[])
+            .update(
+                &party.party_key,
+                changed.revision,
+                "Duplicate",
+                &[second.clone(), second]
+            )
             .is_err()
     );
+    assert_eq!(parties.get(&party.party_key).unwrap(), changed);
     tx.commit().unwrap();
     assert_eq!(
         PartiesRead::from_connection(&connection, 1)

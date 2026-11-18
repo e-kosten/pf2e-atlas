@@ -34,6 +34,9 @@ impl<'a> LocalStateRead<'a> {
             owner_id: local_owner(session.connection())?,
         })
     }
+    pub fn characters(&self) -> crate::CharactersRead<'a> {
+        crate::CharactersRead::from_connection(self.session.connection(), self.owner_id)
+    }
     pub fn parties(&self) -> crate::PartiesRead<'a> {
         crate::PartiesRead::from_connection(self.session.connection(), self.owner_id)
     }
@@ -51,6 +54,9 @@ impl<'a> LocalStateWrite<'a> {
             session,
             owner_id: local_owner(session.connection())?,
         })
+    }
+    pub fn characters(&self) -> crate::CharactersWrite<'a> {
+        crate::CharactersWrite::from_connection(self.session.connection(), self.owner_id)
     }
     pub fn parties(&self) -> crate::PartiesWrite<'a> {
         crate::PartiesWrite::from_connection(self.session.connection(), self.owner_id)

@@ -1,4 +1,6 @@
 #![deny(unsafe_code)]
+mod characters;
+mod encounter_characters;
 
 mod completions;
 mod content_roll;

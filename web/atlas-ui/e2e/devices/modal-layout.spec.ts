@@ -358,11 +358,13 @@ test("short settings, party forms and browse workspaces show actions before focu
   await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
   await expect(settings).toBeFocused();
   await page.goto("/encounters");
-  await activate(page.getByRole("button", { name: "Parties", exact: true }), info);
-  await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
-  dialog = page.getByRole("dialog", { name: "New Party", exact: true });
-  await activate(dialog.getByRole("button", { name: "Add PC", exact: true }), info);
-  await insideViewport(page, dialog.getByRole("button", { name: "Save", exact: true }));
+  await activate(page.getByRole("link", { name: "Parties", exact: true }), info);
+  await activate(page.getByRole("button", { name: "New party", exact: true }), info);
+  dialog = page.getByRole("dialog", { name: "New party", exact: true });
+  await insideViewport(
+    page,
+    dialog.getByRole("button", { name: "Create party", exact: true }),
+  );
   await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
 
   const { encounter } = await (
