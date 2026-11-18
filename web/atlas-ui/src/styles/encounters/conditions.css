@@ -394,3 +394,14 @@
     grid-template-columns: subgrid;
   }
 }
+
+.encounter-adjustment-preview {
+  position: relative;
+  min-block-size: 3.5rem;
+  padding-block-end: 1.5rem;
+  margin-block: var(--space-control);
+}
+.encounter-adjustment-preview__loading {
+  position: absolute;
+  inset-block-end: 0;
+}

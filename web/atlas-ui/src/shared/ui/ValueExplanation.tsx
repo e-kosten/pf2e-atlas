@@ -1,6 +1,14 @@
 import { Button, Popover, theme, Tooltip } from "antd";
 import { Info, X } from "lucide-react";
-import { useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { InlineIconButton } from "./actions/InlineAction";
 import { restoreOverlayFocus } from "./overlays/restoreOverlayFocus";
 
@@ -28,6 +36,15 @@ export function ValueExplanation({
     restoreOverlayFocus(trigger.current, popup.current);
     setOpen(false);
   };
+  const dismissOffscreen = useEffectEvent(close);
+  useEffect(() => {
+    if (!open || !trigger.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) dismissOffscreen();
+    });
+    observer.observe(trigger.current);
+    return () => observer.disconnect();
+  }, [open]);
   const dismissEscape = (event: React.KeyboardEvent) => {
     if (event.key !== "Escape" || !open) return;
     event.preventDefault();
@@ -70,19 +87,19 @@ export function ValueExplanation({
           tabIndex={-1}
           onKeyDown={dismissEscape}
         >
-          <div>
+          <div className="value-explanation__header">
             {title && <strong className="value-explanation__title">{title}</strong>}
-            {content}
+            <Tooltip title="Close explanation" trigger={["hover", "focus"]}>
+              <Button
+                type="text"
+                size="small"
+                aria-label="Close explanation"
+                icon={<X size={14} aria-hidden="true" />}
+                onClick={close}
+              />
+            </Tooltip>
           </div>
-          <Tooltip title="Close explanation" trigger={["hover", "focus"]}>
-            <Button
-              type="text"
-              size="small"
-              aria-label="Close explanation"
-              icon={<X size={14} aria-hidden="true" />}
-              onClick={close}
-            />
-          </Tooltip>
+          {content}
         </div>
       }
     >

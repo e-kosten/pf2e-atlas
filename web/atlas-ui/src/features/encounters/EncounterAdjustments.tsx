@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Grid, Input, InputNumber, Popover, Select, Space } from "antd";
-import { Copy, Pencil, X } from "lucide-react";
+import { Button, Form, Input, InputNumber, Select, Space, Tooltip } from "antd";
+import { Copy, Pencil, Plus, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { previewEncounterAdjustment } from "../../api/atlasApi";
 import type {
@@ -12,6 +12,7 @@ import type {
   EncounterAdjustmentView,
   EncounterParticipantView,
 } from "../../generated/atlas";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { EncounterDurationFields } from "./EncounterDurationFields";
@@ -29,7 +30,6 @@ type Draft = {
   mode: "add" | "edit" | "repeat" | "end";
   entry?: EncounterAdjustmentView;
   id: string;
-  modal: boolean;
 };
 type Values = {
   stat?: string;
@@ -107,7 +107,6 @@ export function EncounterAdjustments({
   onChange?: AdjustmentHandler;
 }) {
   const heading = useId();
-  const screens = Grid.useBreakpoint();
   const add = useRef<HTMLButtonElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -121,12 +120,12 @@ export function EncounterAdjustments({
     mode: Draft["mode"],
     entry?: EncounterAdjustmentView,
   ) => {
+    element.focus({ preventScroll: true });
     opener.current = element;
     setDraft({
       mode,
       entry,
       id: crypto.randomUUID(),
-      modal: !screens.lg || window.innerHeight < 640,
     });
   };
   const returnFocus = () => {
@@ -134,12 +133,7 @@ export function EncounterAdjustments({
     restoreOverlayFocus(element, panel.current);
   };
   const close = () => {
-    if (draft?.modal) {
-      setClosingModal(true);
-    } else {
-      returnFocus();
-      setDraft(undefined);
-    }
+    setClosingModal(true);
   };
   const editor = draft && (
     <AdjustmentEditor
@@ -174,36 +168,24 @@ export function EncounterAdjustments({
         <h3 id={heading} className="encounter-inspector-heading">
           Adjustments
         </h3>
-        <Popover
-          open={!!draft && !draft.modal}
-          trigger="click"
-          placement="left"
-          onOpenChange={(next) => {
-            if (!next && !pending && !draft?.modal) close();
-          }}
-          title={title}
-          styles={{
-            root: { width: "min(25rem, calc(100vw - 2rem))" },
-            content: {
-              maxHeight: "min(38rem, calc(100dvh - 8rem))",
-              overflowY: "auto",
-            },
-          }}
-          content={!draft?.modal ? editor : null}
-          destroyOnHidden
+        <Tooltip
+          title="Add adjustment"
+          trigger={["hover", "focus"]}
+          open={draft ? false : undefined}
         >
           <Button
             ref={add}
+            type="text"
             size="small"
+            icon={<Plus size={16} aria-hidden="true" />}
             disabled={disabled || !data.targets.length}
+            aria-label="Add adjustment"
             onClick={(event) => {
-              if (!draft) open(event.currentTarget, "add");
+              event.currentTarget.focus({ preventScroll: true });
+              open(event.currentTarget, "add");
             }}
-            aria-haspopup="dialog"
-          >
-            Add adjustment
-          </Button>
-        </Popover>
+          />
+        </Tooltip>
       </div>
       {!data.targets.length && (
         <p className="encounter-empty-note">No adjustable stats available.</p>
@@ -215,6 +197,7 @@ export function EncounterAdjustments({
             <span className="encounter-condition-actions">
               <EncounterRowAction
                 tooltip="Edit"
+                hideTooltip={!!draft}
                 icon={<Pencil size={14} aria-hidden="true" />}
                 aria-label={`Edit ${entry.name}`}
                 disabled={disabled}
@@ -222,6 +205,7 @@ export function EncounterAdjustments({
               />
               <EncounterRowAction
                 tooltip="Apply again"
+                hideTooltip={!!draft}
                 icon={<Copy size={14} aria-hidden="true" />}
                 aria-label={`Apply ${entry.name} again`}
                 disabled={disabled || !entry.target_available}
@@ -229,6 +213,7 @@ export function EncounterAdjustments({
               />
               <EncounterRowAction
                 tooltip="End now"
+                hideTooltip={!!draft}
                 icon={<X size={14} aria-hidden="true" />}
                 aria-label={`End ${entry.name} now`}
                 disabled={disabled}
@@ -242,7 +227,7 @@ export function EncounterAdjustments({
           </div>
         ))}
       </div>
-      {draft?.modal && (
+      {draft && (
         <EncounterModal
           open={!closingModal}
           title={title}
@@ -436,6 +421,8 @@ function AdjustmentEditor({
       encounterRef,
       participant.participant_key,
       referenceGeneration,
+      JSON.stringify([encounterRevision, participant.revision, target]),
+      draft.id,
       readyBody,
     ],
     queryFn: async ({ signal }) => {
@@ -456,13 +443,32 @@ function AdjustmentEditor({
         throw error;
       }
     },
+    placeholderData: (previous, previousQuery) => {
+      const key = previousQuery?.queryKey;
+      return key?.[2] === participantKey &&
+        key?.[3] === referenceGeneration &&
+        key?.[4] ===
+          JSON.stringify([encounterRevision, participant.revision, target]) &&
+        key?.[5] === draft.id
+        ? previous
+        : undefined;
+    },
     retry: false,
     staleTime: Infinity,
   });
   const matchingPreview =
-    readyBody === body && !preview.isFetching && !conflict && !removed
+    readyBody === body &&
+    !preview.isFetching &&
+    !preview.isPlaceholderData &&
+    !preview.isError &&
+    !conflict &&
+    !removed
       ? preview.data
       : undefined;
+  const displayedPreview =
+    request && !removed && !conflict && !preview.isError ? preview.data : undefined;
+  const previewLoading =
+    !!request && !removed && !conflict && !matchingPreview && !preview.isError;
   const staleEntry = removed ? "This adjustment has ended or was removed." : undefined;
   const applying = useRef(false);
   const submit = async () => {
@@ -502,30 +508,7 @@ function AdjustmentEditor({
   }, [focusSelector, panel]);
 
   return (
-    <div
-      ref={panel}
-      role={draft.modal ? undefined : "dialog"}
-      aria-label={
-        draft.modal
-          ? undefined
-          : ending
-            ? "End adjustment"
-            : editing
-              ? "Edit adjustment"
-              : "Add adjustment"
-      }
-      onKeyDown={(event) => {
-        if (
-          event.key === "Escape" &&
-          !draft.modal &&
-          !event.defaultPrevented &&
-          !pending
-        ) {
-          event.stopPropagation();
-          onClose();
-        }
-      }}
-    >
+    <div ref={panel}>
       {recovery}
       {staleEntry && <p role="status">{staleEntry}</p>}
       {conflict && current && (
@@ -590,7 +573,7 @@ function AdjustmentEditor({
             help={amount === 0 ? "Enter a nonzero change." : undefined}
             validateStatus={amount === 0 ? "error" : undefined}
           >
-            <InputNumber min={-10000} max={10000} precision={0} placeholder="+ or −" />
+            <InputNumber min={-10000} max={10000} precision={0} />
           </Form.Item>
           <Form.Item label="Name" name="name">
             <Input placeholder="GM adjustment" maxLength={120} />
@@ -598,7 +581,7 @@ function AdjustmentEditor({
           <Form.Item label="Modifier type" name="modifierType">
             <Select
               options={[
-                { label: "Stacks", value: "stacks" },
+                { label: "Untyped", value: "stacks" },
                 { label: "Status", value: "status" },
                 { label: "Circumstance", value: "circumstance" },
               ]}
@@ -641,9 +624,6 @@ function AdjustmentEditor({
           )}
         </Form>
       )}
-      {request && !removed && !conflict && !matchingPreview && !preview.isError && (
-        <p role="status">Calculating preview…</p>
-      )}
       {preview.isError && readyBody === body && (
         <ErrorNotice
           error={preview.error}
@@ -652,20 +632,28 @@ function AdjustmentEditor({
           action={<Button onClick={() => void preview.refetch()}>Retry</Button>}
         />
       )}
-      {matchingPreview && (
-        <div className="encounter-condition-list" aria-live="polite">
-          {matchingPreview.rows.map((row, index) => (
-            <div key={`${row.label}:${index}`}>
-              {row.label} {row.before ?? "—"} → {row.after ?? "—"}
-              {row.suppressed
-                ? " · Suppressed"
-                : row.after == null
-                  ? " · Stat unavailable"
-                  : ""}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="encounter-adjustment-preview" aria-busy={previewLoading}>
+        {previewLoading && (
+          <LoadingStatus
+            label="Calculating preview…"
+            className="encounter-adjustment-preview__loading"
+          />
+        )}
+        {displayedPreview && (
+          <div className="encounter-condition-list" aria-live="polite">
+            {displayedPreview.rows.map((row, index) => (
+              <div key={`${row.label}:${index}`}>
+                {row.label} {row.before ?? "—"} → {row.after ?? "—"}
+                {row.suppressed
+                  ? " · Suppressed"
+                  : row.after == null
+                    ? " · Stat unavailable"
+                    : ""}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <Space>
         <Button data-adjustment-cancel disabled={pending} onClick={onClose}>
           Cancel

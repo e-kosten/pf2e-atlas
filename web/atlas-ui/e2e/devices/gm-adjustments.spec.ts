@@ -41,6 +41,37 @@ test("GM adjustments preview and change multiple stats through the participant i
     await editor.getByRole("spinbutton", { name: "Change" }).fill("-2");
     await editor.getByRole("textbox", { name: "Name" }).fill("Sacrifice Armor");
     await expect(editor.getByText("AC 22 → 20")).toBeVisible();
+    await expect(editor.getByText("Untyped", { exact: true })).toBeVisible();
+    await expect(
+      editor.getByRole("spinbutton", { name: "Change" }),
+    ).not.toHaveAttribute("placeholder");
+    let releasePreview: (() => void) | undefined;
+    const heldPreview = new Promise<void>((resolve) => {
+      releasePreview = resolve;
+    });
+    const previewUrl = (url: URL) => url.pathname.endsWith("/adjustments/preview");
+    await page.route(previewUrl, async (route) => {
+      await heldPreview;
+      await route.continue();
+    });
+    try {
+      const apply = editor.getByRole("button", { name: "Apply", exact: true });
+      const originalLayout = await apply.boundingBox();
+      await editor.getByRole("spinbutton", { name: "Change" }).fill("-3");
+      await expect(apply).toBeDisabled();
+      await expect(editor.getByText("AC 22 → 20")).toBeVisible();
+      await expect(editor.getByText("Calculating preview…")).toBeHidden();
+      await expect(
+        editor.getByRole("status", { name: "Calculating preview…" }),
+      ).toBeVisible();
+      expect(await apply.boundingBox()).toEqual(originalLayout);
+    } finally {
+      releasePreview?.();
+    }
+    await expect(editor.getByText("AC 22 → 19")).toBeVisible();
+    await page.unroute(previewUrl);
+    await editor.getByRole("spinbutton", { name: "Change" }).fill("-2");
+    await expect(editor.getByText("AC 22 → 20")).toBeVisible();
     await noPageOverflow(page);
     await expect
       .poll(() =>
@@ -65,7 +96,20 @@ test("GM adjustments preview and change multiple stats through the participant i
     });
     await activate(ac, info);
     await expect(page.getByRole("dialog").getByText("Sacrifice Armor")).toBeVisible();
+    const explanation = page.getByRole("dialog", { name: "Show value explanation" });
+    const table = explanation.getByRole("region", { name: "Value calculation" });
+    const header = explanation.locator(".value-explanation__header");
+    const tableBounds = await table.boundingBox();
+    const headerBounds = await header.boundingBox();
+    expect(tableBounds).not.toBeNull();
+    expect(headerBounds).not.toBeNull();
+    expect(tableBounds!.width).toBeCloseTo(headerBounds!.width, 0);
     await activate(page.getByRole("button", { name: "Close explanation" }), info);
+    await activate(ac, info);
+    await page
+      .getByRole("heading", { name: "Statistics", exact: true })
+      .evaluate((element) => element.scrollIntoView({ block: "start" }));
+    await expect(explanation).toHaveCount(0);
 
     await activate(
       adjustments.getByRole("button", { name: "Edit Sacrifice Armor" }),
