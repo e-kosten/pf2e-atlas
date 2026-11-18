@@ -147,9 +147,13 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
     wait_for(deadline, "Stable compatibility review", || {
         click_product_button(&window, "Check Stable compatibility", true)
     })?;
-    wait_for(deadline, "signed Stable install confirmation", || {
+    if let Err(error) = wait_for(deadline, "signed Stable install confirmation", || {
         click_product_button(&window, "Install Stable and restart", true)
-    })?;
+    }) {
+        let _ = window.eval("window.__TAURI__.core.invoke('desktop_startup_trace', {entry: {channel_error: document.body.innerText}})");
+        thread::sleep(Duration::from_millis(200));
+        return Err(error);
+    }
     wait_for(deadline, "installer restart", || false)
 }
 
