@@ -301,7 +301,9 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
             })
         }
     };
-    atlas_cli_support::write_json_data(state)?;
+    // This private duplex protocol has one response line while reservation
+    // helpers keep stdin open. The ordinary pretty CLI envelope is multiline.
+    println!("{}", serde_json::json!({ "status": "ok", "data": state }));
     if args.reserve_transition {
         io::stdout().flush().map_err(|err| err.to_string())?;
         io::copy(&mut input, &mut io::sink()).map_err(|err| err.to_string())?;

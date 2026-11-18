@@ -119,6 +119,50 @@ fn probe_missing_workspace_is_read_only() {
     assert!(!index.parent().unwrap().exists());
 }
 
+#[cfg(any(target_os = "macos", feature = "web"))]
+#[test]
+fn transition_reservation_answers_one_json_line_before_stdin_closes() {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        process::Stdio,
+    };
+    let home = tempfile::tempdir().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "desktop-probe",
+            "--transition-workspace",
+            "original",
+            "--reserve-transition",
+        ])
+        .env("HOME", home.path())
+        .env("LOCALAPPDATA", home.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut pipe = child.stdin.take().unwrap();
+    serde_json::to_writer(
+        &mut pipe,
+        &serde_json::json!({"ledger": atlas_runtime::desktop_migration_ledger()}),
+    )
+    .unwrap();
+    pipe.write_all(b"\n").unwrap();
+    pipe.flush().unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut line)
+        .unwrap();
+    let response: serde_json::Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(response["status"], "ok");
+    assert_eq!(response["data"]["role"], "original");
+    assert!(
+        child.try_wait().unwrap().is_none(),
+        "reservation must remain alive until the host releases its pipe"
+    );
+    drop(pipe);
+    assert!(child.wait().unwrap().success());
+}
+
 #[cfg(target_os = "macos")]
 #[test]
 fn open_rejects_a_non_atlas_url_before_asking_macos_to_open_it() {
