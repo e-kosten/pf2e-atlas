@@ -36,6 +36,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { useDesktopTab } from "../../app/DesktopTabContext";
 import { buildSearchRequest, DEFAULT_SEARCH_STATE } from "../filters/searchState";
 import { SearchPickerModal } from "../ui/pickers/SearchPickerModal";
 import { MarkdownDocument, markdownRecordLink } from "./MarkdownDocument";
@@ -161,6 +162,9 @@ export function MarkdownEditor({
   editorRef?: RefObject<MarkdownEditorHandle | null>;
 }) {
   const [mode, setMode] = useState<"Write" | "Preview">("Write");
+  const tabActive = useDesktopTab()?.active ?? true;
+  const [headingOpen, setHeadingOpen] = useState(false);
+  if (!tabActive && headingOpen) setHeadingOpen(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [form] = Form.useForm();
@@ -403,12 +407,16 @@ export function MarkdownEditor({
           >
             <div className="markdown-editor__group">
               <Dropdown
+                open={tabActive && headingOpen}
+                onOpenChange={setHeadingOpen}
                 trigger={["click"]}
                 disabled={locked}
                 menu={{
                   items: headingItems,
-                  onClick: ({ key }) =>
-                    run((editor) => setHeading(editor, Number(key))),
+                  onClick: ({ key }) => {
+                    setHeadingOpen(false);
+                    run((editor) => setHeading(editor, Number(key)));
+                  },
                 }}
               >
                 <Button

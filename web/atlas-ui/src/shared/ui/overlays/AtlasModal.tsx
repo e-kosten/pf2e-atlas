@@ -1,10 +1,11 @@
 import { useDesktopTab, useTabCloseGuard } from "../../../app/DesktopTabContext";
 import { Button, Flex, Modal, Space, type ModalProps } from "antd";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   FeedbackModalFrame,
   FeedbackOverlayActive,
 } from "../../feedback/GlobalFeedback";
+import { useTabOverlayLifecycle } from "./useTabOverlayLifecycle";
 import { useModalLayout, type ModalLayout, type ModalWorkArea } from "./useModalLayout";
 
 export type AtlasModalProps = Omit<ModalProps, "centered"> & {
@@ -21,6 +22,7 @@ export function AtlasModal({
   onCancel,
   confirmDiscard,
   afterClose,
+  afterOpenChange,
   className,
   styles,
   style,
@@ -30,7 +32,6 @@ export function AtlasModal({
 }: AtlasModalProps) {
   const tab = useDesktopTab();
   const tabHidden = tab?.active === false;
-  const visible = !!open && !tabHidden;
   useTabCloseGuard(() =>
     open
       ? props.confirmLoading
@@ -77,9 +78,30 @@ export function AtlasModal({
     }
   };
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
-  const placement = useModalLayout({ open: !!open, layout, workArea, frame });
+  const placement = useModalLayout({
+    open: !!open && !tabHidden,
+    layout,
+    workArea,
+    frame,
+  });
+  const resetPlacement = placement.reset;
+  const focusable = props.focusable;
+  const resetAndNotifyClose = useCallback(() => {
+    previousFocus.current = null;
+    setConfirmingDiscard(false);
+    resetPlacement();
+    afterClose?.();
+  }, [afterClose, resetPlacement]);
+  const overlay = useTabOverlayLifecycle({
+    tab,
+    open: !!open,
+    restoreFocus: focusable?.focusTriggerAfterClose !== false && props.mask !== false,
+    panel: frame,
+    afterClose: resetAndNotifyClose,
+    afterOpenChange,
+  });
   return (
-    <FeedbackOverlayActive value={visible}>
+    <FeedbackOverlayActive value={overlay.visible}>
       <Modal
         transitionName=""
         maskTransitionName=""
@@ -94,9 +116,20 @@ export function AtlasModal({
         getContainer={props.getContainer ?? tab?.panel}
         keyboard={tabHidden ? false : props.keyboard}
         focusable={
-          tabHidden ? { trap: false, focusTriggerAfterClose: false } : props.focusable
+          tab
+            ? {
+                trap: !tabHidden && focusable?.trap !== false,
+                focusTriggerAfterClose: false,
+              }
+            : focusable
         }
-        open={open}
+        open={overlay.visible}
+        forceRender={tabHidden ? false : props.forceRender}
+        destroyOnHidden={tab && open ? false : props.destroyOnHidden}
+        afterOpenChange={(shown) => {
+          if (!tab) afterOpenChange?.(shown);
+          else if (shown) overlay.notifyShown();
+        }}
         onCancel={confirmDiscard ? requestCancel : onCancel}
         footer={
           confirmingDiscard ? (
@@ -120,10 +153,8 @@ export function AtlasModal({
           )
         }
         afterClose={() => {
-          previousFocus.current = null;
-          setConfirmingDiscard(false);
-          placement.reset();
-          afterClose?.();
+          if (!tab) resetAndNotifyClose();
+          else overlay.notifyHidden();
         }}
         style={{ ...style, ...placement.style }}
         styles={(info) => {
