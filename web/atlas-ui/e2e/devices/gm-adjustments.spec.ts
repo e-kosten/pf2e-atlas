@@ -40,6 +40,30 @@ test("GM adjustments preview and change multiple stats through the participant i
     );
     await editor.getByRole("spinbutton", { name: "Change" }).fill("-2");
     await editor.getByRole("textbox", { name: "Name" }).fill("Sacrifice Armor");
+    await activate(editor.getByRole("combobox", { name: "Lifetime" }), info);
+    await activate(
+      page.locator(".ant-select-dropdown:visible").getByText("Timed", { exact: true }),
+      info,
+    );
+    await activate(editor.getByRole("combobox", { name: "Duration unit" }), info);
+    await activate(
+      page.locator(".ant-select-dropdown:visible").getByText("hours", { exact: true }),
+      info,
+    );
+    await editor.getByRole("spinbutton", { name: "Duration amount" }).fill("24");
+    await expect
+      .poll(async () => {
+        const statisticTop = await addStatistic.evaluate(
+          (element) => element.closest(".ant-form-item")!.getBoundingClientRect().top,
+        );
+        const changeTop = await editor
+          .getByRole("spinbutton", { name: "Change" })
+          .evaluate(
+            (element) => element.closest(".ant-form-item")!.getBoundingClientRect().top,
+          );
+        return Math.abs(statisticTop - changeTop) < 1;
+      })
+      .toBe(true);
     await expect(editor.getByText("AC 22 → 20")).toBeVisible();
     await expect(editor.getByText("Untyped", { exact: true })).toBeVisible();
     await activate(editor.getByRole("combobox", { name: "Modifier type" }), info);
@@ -136,6 +160,27 @@ test("GM adjustments preview and change multiple stats through the participant i
     );
     const edit = page.getByRole("dialog", { name: "Edit adjustment" });
     await expect(edit.getByRole("spinbutton", { name: "Change" })).toBeFocused();
+    const remaining = edit.getByRole("spinbutton", { name: "Remaining seconds" });
+    await expect(remaining).toHaveAttribute("placeholder", "86400");
+    await noPageOverflow(page);
+    if (
+      info.project.name === "desktop-chromium" ||
+      info.project.name === "tablet-webkit"
+    ) {
+      await expect
+        .poll(async () => {
+          const duration = await edit
+            .getByRole("spinbutton", { name: "Duration amount" })
+            .boundingBox();
+          const timeLeft = await remaining.boundingBox();
+          return !!duration && !!timeLeft && Math.abs(duration.y - timeLeft.y) < 2;
+        })
+        .toBe(true);
+    }
+    await page.screenshot({
+      path: info.outputPath("gm-adjustment-duration.png"),
+      animations: "disabled",
+    });
     const editStatistic = edit.getByRole("combobox", { name: "Statistic" });
     await activate(editStatistic, info);
     await editStatistic.fill("Fortitude");

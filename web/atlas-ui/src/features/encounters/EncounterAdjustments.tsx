@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, InputNumber, Select, Space, Tooltip } from "antd";
+import { Button, Flex, Form, Input, InputNumber, Select, Space, Tooltip } from "antd";
 import { Copy, Pencil, Plus, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { previewEncounterAdjustment } from "../../api/atlasApi";
@@ -575,24 +575,36 @@ function AdjustmentEditor({
             layout="vertical"
             disabled={disabled || removed}
           >
-            <Form.Item label="Statistic" name="stat">
-              <Select
-                showSearch={{ optionFilterProp: "label" }}
-                placeholder="Choose a statistic"
-                options={Array.from(groupedChoices, ([label, options]) => ({
-                  label,
-                  options,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item
-              label="Change"
-              name="amount"
-              help={amount === 0 ? "Enter a nonzero change." : undefined}
-              validateStatus={amount === 0 ? "error" : undefined}
-            >
-              <InputNumber min={-10000} max={10000} precision={0} />
-            </Form.Item>
+            <Flex align="start" gap="middle" wrap style={{ rowGap: 0 }}>
+              <Form.Item
+                label="Statistic"
+                name="stat"
+                style={{ flex: "1 1 12rem", minWidth: 0 }}
+              >
+                <Select
+                  showSearch={{ optionFilterProp: "label" }}
+                  placeholder="Choose a statistic"
+                  options={Array.from(groupedChoices, ([label, options]) => ({
+                    label,
+                    options,
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item
+                label="Change"
+                style={{ flex: "0 0 6rem" }}
+                name="amount"
+                help={amount === 0 ? "Enter a nonzero change." : undefined}
+                validateStatus={amount === 0 ? "error" : undefined}
+              >
+                <InputNumber
+                  min={-10000}
+                  max={10000}
+                  precision={0}
+                  style={{ width: "100%" }}
+                />
+              </Form.Item>
+            </Flex>
             <Form.Item label="Name" name="name">
               <Input placeholder="GM adjustment" maxLength={120} />
             </Form.Item>
@@ -613,31 +625,32 @@ function AdjustmentEditor({
               />
             </Form.Item>
             {timed && (
-              <>
-                <EncounterDurationFields
-                  participants={roster}
-                  amountRules={[{ required: true }]}
-                  timingRules={[{ required: true }]}
-                  maximumAmount={Number.MAX_SAFE_INTEGER}
-                />
-                {editing && current?.timing && (
-                  <Form.Item
-                    label={
-                      values.durationUnit === "rounds"
-                        ? "Remaining rounds"
-                        : "Remaining seconds"
-                    }
-                    name="remaining"
-                  >
-                    <InputNumber
-                      placeholder={String(current.timing.remaining)}
-                      min={1}
-                      max={Number.MAX_SAFE_INTEGER}
-                      precision={0}
-                    />
-                  </Form.Item>
-                )}
-              </>
+              <EncounterDurationFields
+                participants={roster}
+                amountRules={[{ required: true }]}
+                timingRules={[{ required: true }]}
+                maximumAmount={Number.MAX_SAFE_INTEGER}
+                remaining={
+                  editing &&
+                  current?.timing && (
+                    <Form.Item
+                      label={
+                        values.durationUnit === "rounds"
+                          ? "Remaining rounds"
+                          : "Remaining seconds"
+                      }
+                      name="remaining"
+                    >
+                      <InputNumber
+                        placeholder={String(current.timing.remaining)}
+                        min={1}
+                        max={Number.MAX_SAFE_INTEGER}
+                        precision={0}
+                      />
+                    </Form.Item>
+                  )
+                }
+              />
             )}
           </Form>
         )}
