@@ -181,8 +181,8 @@ EOF_CURL
   chmod +x "$fake_bin/curl"
 
   quick_start="$tmp/quick-start.sh"
-  awk '/^```bash$/ { code = 1; next } code && /^```$/ { exit } code { print }' \
-    "$repo_root/README.md" > "$quick_start"
+  awk '/^## Standalone CLI$/ { section = 1; next } section && /^```bash$/ { code = 1; next } code && /^```$/ { exit } code { print }' \
+    "$repo_root/docs/installation.md" > "$quick_start"
   [ -s "$quick_start" ]
   for bootstrap_failure in failed empty; do
     if PATH="$fake_bin:$PATH" ATLAS_TEST_BOOTSTRAP="$bootstrap_failure" sh "$quick_start"; then
