@@ -121,21 +121,35 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
         .get_webview_window(PRIMARY)
         .ok_or("primary window unavailable")?;
     let deadline = Instant::now() + Duration::from_secs(30);
+    wait_for(deadline, "desktop settings", || open_setup_panel(&window))?;
     wait_for(deadline, "release channel controls", || {
-        click_product_button(&window, "Release channel", false)
+        click_product_button(&window, "Change release channel", true)
     })?;
     if installed.tag.starts_with("release/") {
         wait_for(deadline, "Stable channel after restart", || {
-            text_visible(
-                &window,
-                &format!(
-                    "Running Stable {} with the original workspace.",
-                    installed.version
-                ),
-            )
+            text_visible(&window, &format!("Version {}", installed.version))
         })?;
-        if crate::workspace_switch::load(app)?.pending.is_some() {
+        let config = crate::workspace_switch::load(app)?;
+        if config.pending.is_some() {
             return Err("Stable still has a pending switch after opening.".into());
+        }
+        let expected =
+            std::env::var("ATLAS_PILOT_EXPECTED_WORKSPACE").unwrap_or_else(|_| "original".into());
+        if config.active.as_arg() != expected {
+            return Err("Stable did not retain the expected workspace selection.".into());
+        }
+        let cli = Command::new(process::bundled_cli()?)
+            .env("HOME", process::home()?)
+            .arg("desktop-probe")
+            .output()
+            .map_err(display)?;
+        let default: serde_json::Value = serde_json::from_slice(&cli.stdout).map_err(display)?;
+        if !cli.status.success()
+            || default["data"]["workspace"] != serde_json::json!(process::probe(app)?.workspace)
+        {
+            return Err(
+                "The standalone command default differs from the running Stable workspace.".into(),
+            );
         }
         std::fs::write(
             process::home()?.join("channel-switch-complete"),

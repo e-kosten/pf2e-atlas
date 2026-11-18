@@ -18,8 +18,9 @@ to approve that download. See [Apple's first-open instructions](https://support.
 
 Open the app and choose **Set up Atlas** on a new workspace. For upgrades,
 quit Atlas, replace the app in Applications, reopen it, and use **Setup and
-Updates** if Atlas asks to prepare the workspace. Stable and Nightly use the same selected workspace by default. Use Release channel
-in Atlas Desktop to review a switch and select the workspace to open.
+Updates** if Atlas asks to prepare the workspace. Stable and Nightly use the same
+selected workspace by default. Use **Setup and Updates → Change release channel**
+to review a switch and select its workspace.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
 Access** to link it at `~/.local/bin/atlas`. If you already installed a
@@ -42,7 +43,7 @@ first updater-enabled release the same way you installed Atlas originally.
 
 ### Switch between Stable and Nightly
 
-Open **Release channel** in Atlas Desktop. Choose the workspace you want to open
+Open **Setup and Updates → Change release channel** in Atlas Desktop. Choose the workspace you want to open
 after switching and check the other channel's compatibility. When the verified
 build can open or upgrade that workspace, Atlas shows the version and any setup
 requirements before installing.
@@ -67,11 +68,11 @@ explicit `--index` path; Terminal and agent access shows the app's current path.
 If Stable cannot open the selected workspace, choose **Stay on this build and
 wait for Stable** to pause Nightly offers, or **Keep receiving Nightly updates
 while waiting**. Atlas saves the choice across restarts and asks before
-installing a compatible Stable. Change or cancel the request in Release channel.
+installing a compatible Stable. Change or cancel the request in Setup and Updates.
 
 Guided switching requires release builds with signed workspace compatibility.
 If an installer was interrupted, close it before resuming the previous workspace.
-Use **Retry pending install** in Release channel to retry the same build and
+Use **Retry pending install** in the release-channel settings to retry the same build and
 workspace selection. When a supported workspace needs an upgrade, Atlas uses its normal
 [workspace backup and upgrade procedure](setup-and-maintenance.md#upgrade-an-older-prerelease-workspace).
 Older apps installed manually may reopen the original workspace.

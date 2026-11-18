@@ -17,6 +17,7 @@ import { Settings } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { restoreOverlayFocus } from "../shared/ui/overlays/restoreOverlayFocus";
 import { AtlasDrawer } from "../shared/ui/overlays/AtlasDrawer";
+import { DesktopReleaseChannel } from "./DesktopUpdate";
 
 type SetupStatus = "idle" | "available" | "running" | "cancelling" | "failed";
 type SetupAction =
@@ -360,6 +361,7 @@ export function DesktopSetupPanel() {
               onApply={(selection) => void act("apply_models", selection)}
             />
           )}
+          <DesktopReleaseChannel />
           {open && attachment.terminalLinking !== false && (
             <div
               ref={terminalSection}

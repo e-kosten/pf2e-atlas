@@ -183,7 +183,11 @@ function workspaceName(role: Role) {
   return role === "original" ? "original workspace" : "separate workspace";
 }
 
-export function DesktopReleaseChannel() {
+export function DesktopStableUpdate() {
+  return <DesktopReleaseChannel offerOnly />;
+}
+
+export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boolean }) {
   const attachment = useSyncExternalStore(subscribe, readAttachment);
   const host = (window as DesktopWindow).__TAURI__?.core;
   const [open, setOpen] = useState(false);
@@ -198,6 +202,8 @@ export function DesktopReleaseChannel() {
   const workspace = selection ?? channel.returning?.workspace ?? channel.active;
   const disabled = busy || channel.busy;
   const other: Role = channel.active === "original" ? "separate" : "original";
+  const channelName = installedNightly ? "Nightly" : "Stable";
+  if (offerOnly && !channel.ready && !open) return null;
 
   async function request(action: ChannelAction) {
     setBusy(true);
@@ -228,20 +234,38 @@ export function DesktopReleaseChannel() {
 
   return (
     <>
-      <Button size="small" onClick={show}>
-        {channel.ready ? "Stable available" : "Release channel"}
-      </Button>
+      {offerOnly ? (
+        <Button size="small" onClick={show}>
+          Stable available
+        </Button>
+      ) : (
+        <section
+          className="desktop-setup__section"
+          aria-labelledby="desktop-app-updates"
+        >
+          <h2 id="desktop-app-updates">App updates</h2>
+          <Flex vertical gap="small" align="start">
+            <Typography.Text strong>{channelName}</Typography.Text>
+            <Typography.Text type="secondary">
+              Version {channel.installed.version}
+            </Typography.Text>
+            <Button onClick={show}>
+              {channel.ready ? "Stable available" : "Change release channel"}
+            </Button>
+          </Flex>
+        </section>
+      )}
       <AtlasModal
         open={open}
         layout="confirmation"
-        title="Atlas release channel"
+        title="Change release channel"
         onCancel={() => setOpen(false)}
         footer={<Button onClick={() => setOpen(false)}>Close</Button>}
       >
         <Flex vertical gap="middle">
-          <Typography.Text>
-            Running {installedNightly ? "Nightly" : "Stable"}{" "}
-            {channel.installed.version} with the {workspaceName(channel.active)}.
+          <Typography.Text strong>{channelName}</Typography.Text>
+          <Typography.Text type="secondary">
+            Version {channel.installed.version}
           </Typography.Text>
           {channel.returning && (
             <Alert

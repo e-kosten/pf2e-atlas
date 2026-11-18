@@ -1,6 +1,10 @@
 import { ConfigProvider } from "antd";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { DesktopReleaseChannel, DesktopUpdate } from "./DesktopUpdate";
+import {
+  DesktopReleaseChannel,
+  DesktopStableUpdate,
+  DesktopUpdate,
+} from "./DesktopUpdate";
 
 const desktopWindow = window as Window & {
   __ATLAS_DESKTOP_SETUP__?: object;
@@ -12,6 +16,31 @@ afterEach(() => {
   delete desktopWindow.__ATLAS_DESKTOP_SETUP__;
   delete desktopWindow.__TAURI__;
   invoke.mockReset();
+});
+
+it("keeps channel controls out of ordinary browser sessions and the quiet top bar", () => {
+  const view = render(
+    <>
+      <DesktopReleaseChannel />
+      <DesktopStableUpdate />
+    </>,
+  );
+  expect(screen.queryByRole("button")).toBeNull();
+  desktopWindow.__TAURI__ = { core: { invoke } };
+  desktopWindow.__ATLAS_DESKTOP_SETUP__ = {
+    token: "current-document",
+    channel: {
+      installed: { tag: "release/v0.1.0", version: "0.1.0" },
+      active: "original",
+      workspace_path: "/Atlas/workspace.sqlite",
+      other_exists: false,
+      returning: null,
+      ready: false,
+      busy: false,
+    },
+  };
+  view.rerender(<DesktopStableUpdate />);
+  expect(screen.queryByRole("button")).toBeNull();
 });
 
 it("offers an update only when the desktop host reports one and installs only after confirmation", async () => {
@@ -74,8 +103,8 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
       <DesktopUpdate />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Release channel" }));
-  const dialog = await screen.findByRole("dialog", { name: "Atlas release channel" });
+  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
+  const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   fireEvent.click(
     within(dialog).getByRole("button", { name: "Return to my original workspace" }),
   );
@@ -122,8 +151,8 @@ it("explains creating a separate copy and keeps the reviewed destination through
     },
   };
   render(<DesktopReleaseChannel />);
-  fireEvent.click(screen.getByRole("button", { name: "Release channel" }));
-  const dialog = await screen.findByRole("dialog", { name: "Atlas release channel" });
+  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
+  const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   expect(
     within(dialog).getByRole("button", { name: "Continue with my current workspace" }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -177,8 +206,8 @@ it("reopens the retained other workspace after the separate workspace became the
     },
   };
   render(<DesktopReleaseChannel />);
-  fireEvent.click(screen.getByRole("button", { name: "Release channel" }));
-  const dialog = await screen.findByRole("dialog", { name: "Atlas release channel" });
+  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
+  const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   expect(
     within(dialog).queryByRole("button", { name: "Use a separate copy" }),
   ).toBeNull();
