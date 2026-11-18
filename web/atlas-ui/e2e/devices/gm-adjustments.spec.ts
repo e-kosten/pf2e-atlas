@@ -106,6 +106,9 @@ test("GM adjustments preview and change multiple stats through the participant i
     await activate(ac, info);
     await expect(page.getByRole("dialog").getByText("Sacrifice Armor")).toBeVisible();
     const explanation = page.getByRole("dialog", { name: "Show value explanation" });
+    await expect(page.locator(".ant-popover:visible")).not.toHaveClass(
+      /ant-zoom-big-(appear|enter)/,
+    );
     const table = explanation.getByRole("region", { name: "Value calculation" });
     const header = explanation.locator(".value-explanation__header");
     await expect
