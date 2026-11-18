@@ -153,9 +153,7 @@ it("explains creating a separate copy and keeps the reviewed destination through
   render(<DesktopReleaseChannel />);
   fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
   const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
-  expect(
-    within(dialog).getAllByRole("button", { name: "Close", exact: true }),
-  ).toHaveLength(1);
+  expect(within(dialog).getAllByRole("button", { name: "Close" })).toHaveLength(1);
   expect(
     within(dialog).getByRole("button", { name: "Continue with my current workspace" }),
   ).toHaveAttribute("aria-pressed", "true");
