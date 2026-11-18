@@ -77,7 +77,7 @@ export function validateDesktopUpdater(tag: string, dist: string): string[] {
     const entries = Array.isArray(ledger.entries) ? ledger.entries.map(object) : [];
     const first = entries[0]?.version;
     const channel = ref.startsWith('nightly/') ? 'nightly' : 'stable';
-    if (descriptor.protocol !== 1 || descriptor.channel !== channel
+    if (descriptor.protocol !== 2 || descriptor.channel !== channel
       || descriptor.version !== info.version || descriptor.tag !== ref
       || typeof descriptor.commit !== 'string' || !/^[0-9a-f]{40}$/.test(descriptor.commit)
       || (channel === 'nightly' && !ref.endsWith('.g' + descriptor.commit.slice(0, 12)))

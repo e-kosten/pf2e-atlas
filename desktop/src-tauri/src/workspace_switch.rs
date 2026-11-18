@@ -1,118 +1,38 @@
 use std::{
-    fs::{self, File, OpenOptions},
-    io::{self, Write},
     path::{Path, PathBuf},
     sync::Mutex,
 };
 
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
 use crate::{Desktop, display, lock, process};
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum Role {
-    #[default]
-    Primary,
-    Trial,
-}
+pub(crate) use atlas_desktop_protocol::workspace_selection::{
+    Admission, Build, Config, ReturnChoice, Role, Transition, Waiting,
+};
 
-impl Role {
-    pub(crate) fn as_arg(self) -> &'static str {
-        match self {
-            Self::Primary => "primary",
-            Self::Trial => "trial",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum Waiting {
-    Hold,
-    Continue,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) struct ReturnChoice {
-    pub(crate) workspace: Role,
-    pub(crate) updates: Waiting,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) struct Build {
-    pub(crate) version: String,
-    pub(crate) tag: String,
-    pub(crate) commit: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) struct Admission {
-    pub(crate) role: Role,
-    pub(crate) workspace: PathBuf,
-    pub(crate) key: Option<String>,
-    pub(crate) schema: Option<u32>,
-    pub(crate) file_id: Option<(u64, u64)>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) struct Transition {
-    pub(crate) before: Build,
-    pub(crate) target: Build,
-    pub(crate) admission: Admission,
-    pub(crate) returning_to_stable: bool,
-    pub(crate) initialization_key: Option<String>,
-    #[serde(default)]
-    pub(crate) previous_resumed: bool,
-}
-
-impl Transition {
-    pub(crate) fn new(
-        before: Build,
-        target: Build,
-        admission: Admission,
-        returning_to_stable: bool,
-    ) -> Result<Self, String> {
-        let initialization_key = if admission.key.is_none() {
-            let mut id = [0u8; 16];
-            getrandom::fill(&mut id).map_err(display)?;
-            Some(format!("{:032x}", u128::from_be_bytes(id)))
-        } else {
-            None
-        };
-        Ok(Self {
-            before,
-            target,
-            admission,
-            returning_to_stable,
-            initialization_key,
-            previous_resumed: false,
-        })
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct Config {
-    format: u8,
-    revision: u64,
-    pub(crate) active: Role,
-    pub(crate) returning: Option<ReturnChoice>,
-    pub(crate) pending: Option<Transition>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            format: 1,
-            revision: 0,
-            active: Role::Primary,
-            returning: None,
-            pending: None,
-        }
-    }
+pub(crate) fn new_transition(
+    before: Build,
+    target: Build,
+    admission: Admission,
+    returning_to_stable: bool,
+) -> Result<Transition, String> {
+    let initialization_key = if admission.key.is_none() {
+        let mut id = [0u8; 16];
+        getrandom::fill(&mut id).map_err(display)?;
+        Some(format!("{:032x}", u128::from_be_bytes(id)))
+    } else {
+        None
+    };
+    Ok(Transition {
+        before,
+        target,
+        admission,
+        returning_to_stable,
+        initialization_key,
+        previous_resumed: false,
+    })
 }
 
 pub(crate) struct Route(Mutex<Result<Option<PathBuf>, String>>);
@@ -129,76 +49,44 @@ impl Route {
     }
 }
 
-fn path(app: &AppHandle) -> Result<PathBuf, String> {
-    #[cfg(debug_assertions)]
-    if let Some(home) = std::env::var_os("ATLAS_PILOT_HOME") {
-        return Ok(PathBuf::from(home).join("desktop-workspace.json"));
+pub(crate) fn load(_app: &AppHandle) -> Result<Config, String> {
+    process::load_workspace_selection()
+}
+pub(crate) fn save(_app: &AppHandle, config: &mut Config) -> Result<(), String> {
+    process::save_workspace_selection(config)
+}
+
+pub(crate) const CHANGED_WORKSPACE: &str = "The default workspace changed in another Atlas app. Close and reopen this app before changing channels or installing updates.";
+
+pub(crate) fn running_role(
+    pinned: &Path,
+    selection: &atlas_desktop_protocol::workspace_selection::SelectionSnapshot,
+) -> Result<Role, String> {
+    let mut matching = selection
+        .workspaces
+        .iter()
+        .filter(|workspace| workspace.path == pinned);
+    let role = matching
+        .next()
+        .ok_or("The running Atlas workspace is not a managed workspace.")?
+        .role;
+    if matching.next().is_some() {
+        return Err("The two managed workspaces point to the same file.".into());
     }
-    Ok(app
-        .path()
-        .app_config_dir()
-        .map_err(display)?
-        .join("desktop-workspace.json"))
+    Ok(role)
 }
 
-fn read(path: &Path) -> Result<Config, String> {
-    let config: Config = match fs::read(path) {
-        Ok(bytes) => serde_json::from_slice(&bytes).map_err(display)?,
-        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(Config::default()),
-        Err(err) => return Err(display(err)),
-    };
-    if config.format != 1 {
-        return Err("This Atlas build cannot read the workspace selection.".into());
+pub(crate) fn load_current(app: &AppHandle) -> Result<Config, String> {
+    let selection = process::workspace_selection_snapshot()?;
+    let pinned = app
+        .state::<Desktop>()
+        .workspace_route
+        .index()?
+        .ok_or("Atlas has no running workspace.")?;
+    if running_role(&pinned, &selection)? != selection.config.active {
+        return Err(CHANGED_WORKSPACE.into());
     }
-    Ok(config)
-}
-
-pub(crate) fn load(app: &AppHandle) -> Result<Config, String> {
-    read(&path(app)?)
-}
-
-fn lock_file(path: &Path) -> Result<File, String> {
-    let parent = path.parent().ok_or("Atlas config has no directory.")?;
-    fs::create_dir_all(parent).map_err(display)?;
-    let file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(path.with_extension("lock"))
-        .map_err(display)?;
-    file.try_lock()
-        .map_err(|_| "Another Atlas process is changing the workspace selection.")?;
-    Ok(file)
-}
-
-fn persist(path: &Path, config: &Config) -> Result<(), String> {
-    let parent = path.parent().ok_or("Atlas config has no directory.")?;
-    let mut staged = tempfile::NamedTempFile::new_in(parent).map_err(display)?;
-    serde_json::to_writer(&mut staged, config).map_err(display)?;
-    staged.flush().map_err(display)?;
-    staged.as_file().sync_all().map_err(display)?;
-    staged.persist(path).map_err(display)?;
-    #[cfg(unix)]
-    File::open(parent)
-        .and_then(|file| file.sync_all())
-        .map_err(display)?;
-    Ok(())
-}
-
-pub(crate) fn save(app: &AppHandle, config: &mut Config) -> Result<(), String> {
-    save_at(&path(app)?, config)
-}
-
-fn save_at(path: &Path, config: &mut Config) -> Result<(), String> {
-    let _guard = lock_file(path)?;
-    if read(path)?.revision != config.revision {
-        return Err("The workspace selection changed. Open Updates and try again.".into());
-    }
-    config.revision = config
-        .revision
-        .checked_add(1)
-        .ok_or("Atlas config revision exhausted.")?;
-    persist(path, config)
+    Ok(selection.config)
 }
 
 fn startup(app: &AppHandle, installed: Option<&Build>) -> Result<Option<PathBuf>, String> {
@@ -209,9 +97,6 @@ fn startup(app: &AppHandle, installed: Option<&Build>) -> Result<Option<PathBuf>
     {
         config.returning = None;
         save(app, &mut config)?;
-    }
-    if config.pending.is_none() && config.active == Role::Primary {
-        return Ok(None);
     }
     let ledger: Value = process::migration_ledger()?;
     if let Some(mut pending) = config.pending.clone() {
@@ -243,7 +128,7 @@ fn startup(app: &AppHandle, installed: Option<&Build>) -> Result<Option<PathBuf>
         }
     }
     let admission = process::inspect_transition(config.active, &ledger, None)?;
-    Ok((config.active == Role::Trial).then_some(admission.workspace))
+    Ok(Some(admission.workspace))
 }
 
 pub(crate) struct PendingLaunch {
@@ -306,9 +191,8 @@ pub(crate) fn initialize(app: &AppHandle, installed: Option<&Build>) {
 }
 
 pub(crate) fn recover(app: &AppHandle, previous: bool) -> Result<(), String> {
-    let path = path(app)?;
     if previous {
-        let mut config = read(&path)?;
+        let mut config = load(app)?;
         let installed = crate::updates::installed_build();
         if !config
             .pending
@@ -322,9 +206,9 @@ pub(crate) fn recover(app: &AppHandle, previous: bool) -> Result<(), String> {
         if let Some(pending) = &mut config.pending {
             pending.previous_resumed = true;
         }
-        save_at(&path, &mut config)?;
+        save(app, &mut config)?;
         *lock(&app.state::<Desktop>().workspace_route.0) =
-            Ok((config.active == Role::Trial).then(|| reservation.admission.workspace.clone()));
+            Ok(Some(reservation.admission.workspace.clone()));
         crate::updates::refresh(app);
         return Ok(());
     }
@@ -332,18 +216,10 @@ pub(crate) fn recover(app: &AppHandle, previous: bool) -> Result<(), String> {
         return Err("Resume the previous selection after closing the installer. The pending selection is kept for the target build.".into());
     }
     let ledger = process::migration_ledger()?;
-    let _reservation = process::reserve_transition(Role::Primary, &ledger)?;
-    let _guard = lock_file(&path)?;
-    let mut config = read(&path).unwrap_or_default();
-    config.active = Role::Primary;
-    config.pending = None;
-    config.returning = None;
-    config.revision = config
-        .revision
-        .checked_add(1)
-        .ok_or("Atlas config revision exhausted.")?;
-    persist(&path, &config)?;
-    *lock(&app.state::<Desktop>().workspace_route.0) = Ok(None);
+    let reservation = process::reserve_transition(Role::Original, &ledger)?;
+    process::recover_original_workspace_selection()?;
+    *lock(&app.state::<Desktop>().workspace_route.0) =
+        Ok(Some(reservation.admission.workspace.clone()));
     crate::updates::refresh(app);
     Ok(())
 }
@@ -360,32 +236,35 @@ pub(crate) fn can_resume_previous(app: &AppHandle) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use atlas_desktop_protocol::workspace_selection::{ManagedWorkspaceInfo, SelectionSnapshot};
 
     #[test]
-    fn waiting_on_stable_preserves_independent_workspace_choices_and_rejects_stale_writes() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("selection.json");
-        let mut config = read(&path).unwrap();
-        let mut stale = config.clone();
-        config.active = Role::Trial;
-        config.returning = Some(ReturnChoice {
-            workspace: Role::Primary,
-            updates: Waiting::Hold,
-        });
-        save_at(&path, &mut config).unwrap();
-        assert_eq!(read(&path).unwrap(), config);
-        assert!(save_at(&path, &mut stale).is_err());
-
-        config.returning.as_mut().unwrap().updates = Waiting::Continue;
-        save_at(&path, &mut config).unwrap();
-        let restored = read(&path).unwrap();
-        assert_eq!(restored.active, Role::Trial);
-        assert_eq!(
-            restored.returning,
-            Some(ReturnChoice {
-                workspace: Role::Primary,
-                updates: Waiting::Continue
-            })
+    fn running_workspace_is_pinned_when_another_app_changes_the_default() {
+        let original = PathBuf::from("/Atlas/workspace.sqlite");
+        let separate = PathBuf::from("/Atlas/separate-workspace.sqlite");
+        let selection = SelectionSnapshot {
+            config: Config {
+                active: Role::Separate,
+                ..Config::default()
+            },
+            workspaces: vec![
+                ManagedWorkspaceInfo {
+                    role: Role::Original,
+                    path: original.clone(),
+                    exists: true,
+                },
+                ManagedWorkspaceInfo {
+                    role: Role::Separate,
+                    path: separate,
+                    exists: true,
+                },
+            ],
+        };
+        assert_eq!(running_role(&original, &selection).unwrap(), Role::Original);
+        assert_ne!(
+            running_role(&original, &selection).unwrap(),
+            selection.config.active
         );
+        assert!(running_role(Path::new("/Atlas/unknown.sqlite"), &selection).is_err());
     }
 }

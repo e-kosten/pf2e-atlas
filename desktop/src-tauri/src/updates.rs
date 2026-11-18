@@ -177,7 +177,7 @@ fn verify_descriptor(
         .trusted_comment()
         .split('\t')
         .any(|part| part == signed_version)
-        || descriptor.protocol != 1
+        || descriptor.protocol != 2
         || descriptor.version != version.to_string()
         || descriptor.tag != tag
         || descriptor.asset != PACKAGE
@@ -284,7 +284,7 @@ pub(crate) struct Snapshot {
 
 impl Updates {
     pub(crate) fn snapshot(&self, app: &AppHandle) -> Option<Snapshot> {
-        let config = workspace_switch::load(app).ok()?;
+        let config = workspace_switch::load_current(app).ok()?;
         if config
             .returning
             .as_ref()
@@ -305,7 +305,8 @@ impl Updates {
 pub(crate) struct ChannelSnapshot {
     installed: Build,
     active: Role,
-    trial_path: Option<std::path::PathBuf>,
+    workspace_path: Option<std::path::PathBuf>,
+    other_exists: bool,
     returning: Option<workspace_switch::ReturnChoice>,
     ready: bool,
     pending_version: Option<String>,
@@ -315,23 +316,33 @@ pub(crate) struct ChannelSnapshot {
 
 pub(crate) fn channel_snapshot(app: &AppHandle) -> Option<ChannelSnapshot> {
     let installed = installed_build()?;
-    let config = workspace_switch::load(app).ok()?;
+    let selection = process::workspace_selection_snapshot().ok()?;
     let desktop = app.state::<Desktop>();
+    let pinned = desktop.workspace_route.index().ok().flatten()?;
+    let active = workspace_switch::running_role(&pinned, &selection).ok()?;
+    let changed = active != selection.config.active;
+    let config = selection.config;
     let state = lock(&desktop.updates.state);
     Some(ChannelSnapshot {
         installed: installed.clone(),
-        active: config.active,
-        trial_path: (config.active == Role::Trial)
-            .then(|| desktop.workspace_route.index().ok().flatten())
-            .flatten(),
+        active,
+        workspace_path: Some(pinned),
+        other_exists: selection
+            .workspaces
+            .iter()
+            .any(|workspace| workspace.role == active.other() && workspace.exists),
         returning: config.returning,
         ready: state.return_version.is_some(),
         pending_version: config
             .pending
             .filter(|pending| pending.previous_resumed && pending.before == installed)
             .map(|pending| pending.target.version),
-        busy: state.phase != Phase::Available,
-        error: state.error.clone(),
+        busy: changed || state.phase != Phase::Available,
+        error: if changed {
+            Some(workspace_switch::CHANGED_WORKSPACE.into())
+        } else {
+            state.error.clone()
+        },
     })
 }
 
@@ -446,7 +457,7 @@ async fn poll(
     key: &str,
     source: &ReleaseSource,
 ) -> Result<(Option<Offer>, Option<Offer>), String> {
-    let config = workspace_switch::load(app)?;
+    let config = workspace_switch::load_current(app)?;
     if config.pending.is_some() {
         return Ok((None, None));
     }
@@ -457,7 +468,7 @@ async fn poll(
     {
         None
     } else {
-        let prove = config.active != Role::Primary || config.returning.is_some();
+        let prove = config.active != Role::Original || config.returning.is_some();
         match check(app, installed, channel, key, source, false, prove).await {
             Ok(Some(offer)) if offer.descriptor.is_some() => {
                 match authorize(offer, config.clone(), config.active, false, false).await {
@@ -488,7 +499,7 @@ async fn poll(
         None
     };
     // A choice can change while the feed is being fetched.
-    if workspace_switch::load(app)? != config {
+    if workspace_switch::load_current(app)? != config {
         return Err("The update preference changed.".into());
     }
     Ok((normal, returning))
@@ -786,13 +797,13 @@ fn begin_install(
         if desktop.staged_setup.active() || lock(&desktop.ordinary_setup).is_some() {
             return Err("Wait for Atlas setup to finish and try again.".into());
         }
-        let config = workspace_switch::load(app)?;
+        let config = workspace_switch::load_current(app)?;
         if config
             .pending
             .as_ref()
             .is_some_and(|pending| !retries_pending(&offer, pending))
             || (offer.switch.is_none()
-                && (config.active != Role::Primary || config.returning.is_some()))
+                && (config.active != Role::Original || config.returning.is_some()))
         {
             return Err(
                 "The workspace or update preference changed. Review the update again.".into(),
@@ -829,13 +840,13 @@ async fn authorize(
         .ok_or("This build has no signed workspace compatibility information.")?;
     let transition = tauri::async_runtime::spawn_blocking(move || {
         let admission = process::inspect_transition(role, &descriptor.migration_ledger, None)?;
-        let seed_source = if seed_if_missing && role == Role::Trial && admission.key.is_none() {
-            let primary =
-                process::inspect_transition(Role::Primary, &descriptor.migration_ledger, None)?;
-            if primary.key.is_none() {
-                return Err("Set up the primary workspace before making a trial copy.".into());
+        let seed_source = if seed_if_missing && role != config.active && admission.key.is_none() {
+            let source =
+                process::inspect_transition(config.active, &descriptor.migration_ledger, None)?;
+            if source.key.is_none() {
+                return Err("Set up your current workspace before making a separate copy.".into());
             }
-            Some(primary)
+            Some(source)
         } else {
             None
         };
@@ -912,7 +923,7 @@ pub(crate) async fn desktop_channel_action(
     let installed = installed_build().ok_or("This build does not support channel switching.")?;
     let installed_version = Version::parse(&installed.version).map_err(display)?;
     let nightly = installed.tag.starts_with("nightly/");
-    let mut config = workspace_switch::load(&app)?;
+    let mut config = workspace_switch::load_current(&app)?;
     if lock(&desktop.updates.state).phase != Phase::Available {
         return Err("Atlas is already installing an update.".into());
     }
@@ -951,7 +962,7 @@ pub(crate) async fn desktop_channel_action(
             false,
         )
         .await?;
-        if workspace_switch::load(&app)? != config
+        if workspace_switch::load_current(&app)? != config
             || !retries_pending(&offer, pending)
             || current_product(&app)?.1 != instance
         {
@@ -990,7 +1001,9 @@ pub(crate) async fn desktop_channel_action(
                 seed_if_missing && !nightly,
             )
             .await?;
-            if workspace_switch::load(&app)? != config || current_product(&app)?.1 != instance {
+            if workspace_switch::load_current(&app)? != config
+                || current_product(&app)?.1 != instance
+            {
                 return Err(
                     "The workspace or update preference changed. Review the switch again.".into(),
                 );
@@ -1155,7 +1168,7 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
     if instance != current_instance {
         return Err("The workspace connection changed. Try the update again.".into());
     }
-    let mut config = workspace_switch::load(app)?;
+    let mut config = workspace_switch::load_current(app)?;
     let retry = config.pending.is_some();
     if config
         .pending
@@ -1174,7 +1187,7 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
         let ledger = &transition.descriptor.migration_ledger;
         let expected = if let Some(seed) = &transition.seed_source {
             if process::inspect_transition(role, ledger, None)? != transition.admission {
-                return Err("The trial workspace appeared. Review the switch again.".into());
+                return Err("The separate workspace appeared. Review the switch again.".into());
             }
             process::inspect_transition(role, ledger, Some(seed))?
         } else {
@@ -1185,7 +1198,7 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
             return Err("The destination workspace changed. Review the update again.".into());
         }
         if !retry {
-            config.pending = Some(Transition::new(
+            config.pending = Some(workspace_switch::new_transition(
                 installed_build().ok_or("Cannot identify this Atlas build.")?,
                 transition.descriptor.build(),
                 expected,
@@ -1195,7 +1208,7 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
         }
         Some(reservation)
     } else {
-        if config.active != Role::Primary || config.returning.is_some() {
+        if config.active != Role::Original || config.returning.is_some() {
             return Err(
                 "The workspace or update preference changed. Review the update again.".into(),
             );
@@ -1375,7 +1388,7 @@ mod tests {
         let descriptor_path = root.join("proof.json");
         let tag = "nightly/20261116092300.gabcdef123456";
         let proof = serde_json::to_vec(&serde_json::json!({
-            "protocol": 1,
+            "protocol": 2,
             "channel": "nightly",
             "tag": tag,
             "commit": format!("abcdef123456{}", "0".repeat(28)),

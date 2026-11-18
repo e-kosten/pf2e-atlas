@@ -136,7 +136,11 @@ For channel switching, pass a second release ref and assembled directory to serv
 both feeds. Sign both releases with the same disposable publisher key. Reuse
 the same loopback address and TLS certificate when replacing the served Stable
 fixture to test a pending return. Repeat in disposable macOS and Windows profiles
-with a primary campaign and a trial copy.
+with an original campaign and a separate copy. Verify subsequent bundled CLI
+commands follow the committed selection on both Nightly and Stable, while explicit
+paths and repository mode keep their own workspaces. Repeat a cycle after the
+copy has become the default and confirm reopening the other workspace preserves
+its earlier work.
 
 Use the dated release ref, such as `release/v0.2.3` or
 `nightly/20261116092300.gabcdef123456`. The test app trusts only the

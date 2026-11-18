@@ -281,7 +281,7 @@ function show(inspection, auto) {
     if (inspection.resume_previous_workspace) {
       action(ui.primary, "Resume my previous workspace", () => recoverWorkspace(true));
     } else {
-      action(ui.primary, "Open my primary workspace", () => recoverWorkspace(false));
+      action(ui.primary, "Open my original workspace", () => recoverWorkspace(false));
     }
     return;
   }
@@ -354,7 +354,7 @@ function show(inspection, auto) {
           "Your saved work will be available when Atlas reopens.",
         ),
       );
-      if (inspection.recovery_release) action(ui.secondary, "Open my primary workspace", () => recoverWorkspace(false));
+      if (inspection.recovery_release) action(ui.secondary, "Open my original workspace", () => recoverWorkspace(false));
       break;
     case "recovery_required":
       status(

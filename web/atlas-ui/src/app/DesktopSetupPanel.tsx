@@ -42,7 +42,7 @@ type ReferenceStatus = {
 };
 type DesktopAttachment = {
   token: string;
-  channel?: { trial_path: string | null } | null;
+  channel?: { workspace_path: string | null } | null;
   openRequest?: number | null;
   openTerminal?: boolean;
   terminalLinking?: boolean;
@@ -439,20 +439,19 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
     }
   }
 
-  const trial = readAttachment()?.channel?.trial_path;
+  const workspace = readAttachment()?.channel?.workspace_path;
   return (
     <section
       className="desktop-setup__section"
       aria-labelledby="desktop-setup-terminal"
     >
       <h2 id="desktop-setup-terminal">Terminal and agent access</h2>
-      {trial && (
+      {workspace && (
         <Alert
           type="info"
           title={
             <>
-              Terminal commands use the primary workspace. To access the trial, pass{" "}
-              <code>--index</code> and <code>{trial}</code>.
+              The app and its bundled terminal command use <code>{workspace}</code>.
             </>
           }
         />

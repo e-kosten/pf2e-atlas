@@ -8,10 +8,29 @@ intended workspace and whether Nightly update offers should continue. Desktop
 preferences and pending switch recovery live in one versioned, atomically
 updated configuration file outside SQLite.
 
-The existing primary workspace remains the default. A separate managed trial
-is an opt-in snapshot with a new workspace identity. The desktop host passes the
-selected workspace path to its bundled CLI. Standalone and linked terminal
-commands retain the primary default and accept the trial path explicitly.
+The existing workspace is the initial default. A separate managed workspace is
+an opt-in snapshot with a new identity. Runtime owns the two fixed managed paths
+and one versioned, atomically replaced selection/journal in application-data
+storage beside the workspaces. The lightweight desktop protocol owns its closed
+messages; the host reads and saves them through the bundled CLI with revision
+comparison and a short configuration lock. There is no mirrored desktop-only
+selection.
+
+Desktop and current-version global CLI commands follow the same committed
+selection. Explicit paths and repository mode take precedence. The host pins
+its selected path for all subprocesses, including setup, so an already running
+app cannot silently move to a different workspace. A switch commits the shared
+selection only after the expected target build has opened the reviewed workspace
+service successfully. Pending installation, setup refusal or resuming the previous
+build leaves the prior default intact. Existing CLI processes retain their paths.
+A missing selected workspace or invalid configuration fails closed; explicit
+paths and protected native recovery remain available.
+
+The copy is durable and can remain selected on Stable. The original workspace is
+preserved. Repeated switches can reopen the other retained workspace, with clear
+reuse wording rather than promising to make a fresh copy. The selection is
+independent of the release channel. Older standalone binaries cannot honor this
+new setting and require an explicit path or upgrade.
 
 The existing publisher key authenticates both the updater package and a
 detached descriptor that binds its digest and release identity to the
@@ -31,8 +50,8 @@ service starts.
 
 ## Consequences
 
-A compatible channel switch can continue the same active campaign. A trial
-remains available across installs. Workspaces may diverge through independent
+A compatible channel switch can continue the same active campaign. A separate
+workspace remains available across installs. Workspaces may diverge through independent
 edits. The recovery archive remains available for explicit saved-data transfer
 into an empty workspace. Installing a different binary manually uses that
 build's startup checks and configuration capabilities.

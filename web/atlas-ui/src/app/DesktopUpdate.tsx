@@ -8,7 +8,7 @@ type Phase =
   | { kind: "downloading"; percent: number | null }
   | { kind: "installing" };
 
-type Role = "primary" | "trial";
+type Role = "original" | "separate";
 type Waiting = "hold" | "continue";
 type ChannelReview = {
   id: string;
@@ -30,7 +30,8 @@ type UpdateAttachment = {
   channel?: {
     installed: { tag: string; version: string };
     active: Role;
-    trial_path: string | null;
+    workspace_path: string | null;
+    other_exists: boolean;
     returning: { workspace: Role; updates: Waiting } | null;
     ready: boolean;
     pending_version?: string | null;
@@ -179,7 +180,7 @@ export function DesktopUpdate() {
 }
 
 function workspaceName(role: Role) {
-  return role === "primary" ? "primary workspace" : "trial workspace";
+  return role === "original" ? "original workspace" : "separate workspace";
 }
 
 export function DesktopReleaseChannel() {
@@ -196,6 +197,7 @@ export function DesktopReleaseChannel() {
   const target = installedNightly ? "Stable" : "Nightly";
   const workspace = selection ?? channel.returning?.workspace ?? channel.active;
   const disabled = busy || channel.busy;
+  const other: Role = channel.active === "original" ? "separate" : "original";
 
   async function request(action: ChannelAction) {
     setBusy(true);
@@ -241,12 +243,6 @@ export function DesktopReleaseChannel() {
             Running {installedNightly ? "Nightly" : "Stable"}{" "}
             {channel.installed.version} with the {workspaceName(channel.active)}.
           </Typography.Text>
-          {channel.trial_path && (
-            <Typography.Text type="secondary">
-              Terminal commands open the primary workspace by default. To use the trial,
-              pass <code>--index</code> and the path <code>{channel.trial_path}</code>.
-            </Typography.Text>
-          )}
           {channel.returning && (
             <Alert
               type="info"
@@ -277,7 +273,10 @@ export function DesktopReleaseChannel() {
                 Choose the workspace to open after switching to {target}.
               </Typography.Text>
               <Flex wrap gap="small">
-                {(["primary", "trial"] as const).map((role) => (
+                {[
+                  channel.active,
+                  ...(!installedNightly || channel.other_exists ? [other] : []),
+                ].map((role) => (
                   <Button
                     key={role}
                     aria-pressed={workspace === role}
@@ -290,14 +289,25 @@ export function DesktopReleaseChannel() {
                       setError(null);
                     }}
                   >
-                    {role === "primary" ? "Primary workspace" : "Trial workspace"}
+                    {role === channel.active
+                      ? installedNightly
+                        ? "Continue with this workspace"
+                        : "Continue with my current workspace"
+                      : installedNightly
+                        ? role === "original"
+                          ? "Return to my original workspace"
+                          : "Return to my separate workspace"
+                        : channel.other_exists
+                          ? "Use my other workspace"
+                          : "Use a separate copy"}
                   </Button>
                 ))}
               </Flex>
-              {!installedNightly && workspace === "trial" && (
+              {!installedNightly && workspace !== channel.active && (
                 <Typography.Text type="secondary">
-                  If you haven’t used the trial workspace yet, Atlas will start it with
-                  a copy of your primary workspace.
+                  {channel.other_exists
+                    ? "Reopens your other workspace with its earlier changes. Neither workspace is overwritten."
+                    : "Starts with a copy of your current workspace. Changes stay separate from the original."}
                 </Typography.Text>
               )}
               {review ? (
@@ -306,10 +316,14 @@ export function DesktopReleaseChannel() {
                     Atlas will install {target} {review.version} and open the{" "}
                     {workspaceName(review.workspace)}.
                   </Typography.Text>
+                  <Typography.Text type="secondary">
+                    After switching, the app and its bundled CLI will use this
+                    workspace.
+                  </Typography.Text>
                   {review.will_seed && (
                     <Alert
                       type="info"
-                      title="Atlas will copy your primary workspace to start the trial."
+                      title="Atlas will start a separate copy of your current workspace."
                     />
                   )}
                   {(review.needs_setup || review.will_upgrade) && (

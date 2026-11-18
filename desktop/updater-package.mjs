@@ -77,7 +77,7 @@ if (action === "prepare") {
     }
     const descriptor = input + ".transition.json";
     writeFileSync(descriptor, JSON.stringify({
-      protocol: 1,
+      protocol: 2,
       channel: nightly ? "nightly" : "stable",
       tag: nightly ? "nightly/" + nightly : "release/" + tag,
       ...info,

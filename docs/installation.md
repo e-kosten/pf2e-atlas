@@ -18,7 +18,7 @@ to approve that download. See [Apple's first-open instructions](https://support.
 
 Open the app and choose **Set up Atlas** on a new workspace. For upgrades,
 quit Atlas, replace the app in Applications, reopen it, and use **Setup and
-Updates** if Atlas asks to prepare the workspace. Stable and Nightly open the primary workspace by default. Use Release channel
+Updates** if Atlas asks to prepare the workspace. Stable and Nightly use the same selected workspace by default. Use Release channel
 in Atlas Desktop to review a switch and select the workspace to open.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
@@ -47,12 +47,22 @@ after switching and check the other channel's compatibility. When the verified
 build can open or upgrade that workspace, Atlas shows the version and any setup
 requirements before installing.
 
-Take the primary workspace along to continue a campaign between compatible
-releases. To try Nightly in isolation, choose **Trial workspace**. Atlas starts
-it from a copy of the primary workspace and preserves both copies when you
-switch back. The linked terminal command and standalone CLI still use the primary
-workspace. To access the trial explicitly, pass the trial path shown in Release
-channel with `--index`.
+Choose **Continue with my current workspace** to keep the same campaign on
+Nightly, or **Use a separate copy** to try it with an independent copy of your
+saved work. Changes stay separate from the original. If another workspace
+already exists, **Use my other workspace** reopens its earlier work instead of
+overwriting it.
+
+When returning to compatible Stable, choose **Continue with this workspace** to
+keep your current campaign or **Return to my original workspace** to go back.
+Atlas preserves both workspaces. The selected workspace becomes the default for
+the app and its bundled terminal command after the switch opens successfully.
+This also applies while using Nightly. Already running CLI processes keep their
+workspace; new commands follow the saved selection. Explicit `--index` paths and
+repository-mode commands keep their own selection.
+
+An older standalone CLI does not read this selection. Upgrade it or pass an
+explicit `--index` path; Terminal and agent access shows the app's current path.
 
 If Stable cannot open the selected workspace, choose **Stay on this build and
 wait for Stable** to pause Nightly offers, or **Keep receiving Nightly updates
@@ -64,7 +74,7 @@ If an installer was interrupted, close it before resuming the previous workspace
 Use **Retry pending install** in Release channel to retry the same build and
 workspace selection. When a supported workspace needs an upgrade, Atlas uses its normal
 [workspace backup and upgrade procedure](setup-and-maintenance.md#upgrade-an-older-prerelease-workspace).
-Older apps installed manually may reopen the primary workspace.
+Older apps installed manually may reopen the original workspace.
 
 ## Windows desktop app
 

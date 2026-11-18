@@ -16,17 +16,17 @@ pub fn desktop_migration_ledger() -> atlas_storage::MigrationLedger {
     RELEASE_HISTORY.ledger()
 }
 
-/// Seed an isolated trial using the source workspace's authenticated history.
-pub fn seed_desktop_trial(
-    primary: &Path,
-    trial: &Path,
+/// Seed an separate copy using the source workspace's authenticated history.
+pub fn seed_desktop_copy(
+    source: &Path,
+    destination: &Path,
     expected_key: &str,
     expected_schema: u32,
     verify_source: impl FnOnce() -> StorageResult<()>,
 ) -> StorageResult<()> {
     register_extensions()?;
-    Workspace::existing(primary)?.seed_trial(
-        &Workspace::at(trial)?,
+    Workspace::existing(source)?.seed_copy(
+        &Workspace::at(destination)?,
         RELEASE_HISTORY,
         expected_key,
         expected_schema,

@@ -129,7 +129,7 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
             text_visible(
                 &window,
                 &format!(
-                    "Running Stable {} with the primary workspace.",
+                    "Running Stable {} with the original workspace.",
                     installed.version
                 ),
             )
@@ -150,9 +150,19 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
     if let Err(error) = wait_for(deadline, "signed Stable install confirmation", || {
         click_product_button(&window, "Install Stable and restart", true)
     }) {
-        let _ = window.eval("window.__TAURI__.core.invoke('desktop_startup_trace', {entry: {channel_error: document.body.innerText}})");
+        let _ = window.eval("location.hash = 'smoke_error=' + encodeURIComponent(document.querySelector('[role=dialog]')?.innerText || document.body.innerText)");
         thread::sleep(Duration::from_millis(200));
-        return Err(error);
+        let detail = window
+            .url()
+            .ok()
+            .and_then(|url| url.fragment().map(str::to_owned))
+            .and_then(|fragment| {
+                url::form_urlencoded::parse(fragment.as_bytes())
+                    .find(|(key, _)| key == "smoke_error")
+                    .map(|(_, value)| value.into_owned())
+            })
+            .unwrap_or_default();
+        return Err(format!("{error}: {detail}"));
     }
     wait_for(deadline, "installer restart", || false)
 }

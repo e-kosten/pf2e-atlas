@@ -77,14 +77,11 @@ pub fn show_cli_path(app: &AppHandle) -> Result<(), String> {
         .to_string()
         .replace('\'', "''");
     let mut details = format!("Run the bundled Atlas command in PowerShell.\n\n& '{path}'");
-    if let Some(trial) = app.state::<crate::Desktop>().workspace_route.index()?
-        && crate::workspace_switch::load(app)?.active == crate::workspace_switch::Role::Trial
-    {
-        let trial = trial.display().to_string().replace('\'', "''");
-        details.push_str(&format!(" web --index '{trial}'"));
-        details.push_str(
-            "\n\nWithout an explicit workspace path, the command opens the primary workspace.",
-        );
+    if let Some(workspace) = app.state::<crate::Desktop>().workspace_route.index()? {
+        details.push_str(&format!(
+            "\n\nThe app and this command use {}.",
+            workspace.display()
+        ));
     }
     message(
         "Terminal and Agent Access",

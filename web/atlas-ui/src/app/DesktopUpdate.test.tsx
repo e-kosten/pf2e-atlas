@@ -60,8 +60,9 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
         tag: "nightly/20261116092300.gabcdef123456",
         version: "0.1.0-nightly.20261116092300.gabcdef123456",
       },
-      active: "trial",
-      trial_path: "/Atlas/Trial/nightly-trial.sqlite",
+      active: "separate",
+      workspace_path: "/Atlas/separate-workspace.sqlite",
+      other_exists: true,
       returning: null,
       ready: false,
       busy: false,
@@ -75,7 +76,9 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
   );
   fireEvent.click(screen.getByRole("button", { name: "Release channel" }));
   const dialog = await screen.findByRole("dialog", { name: "Atlas release channel" });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Primary workspace" }));
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Return to my original workspace" }),
+  );
   invoke.mockRejectedValueOnce("Stable cannot open this workspace yet.");
   fireEvent.click(
     within(dialog).getByRole("button", { name: "Check Stable compatibility" }),
@@ -99,7 +102,101 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
   await waitFor(() =>
     expect(invoke).toHaveBeenLastCalledWith("desktop_channel_action", {
       token: "current-document",
-      action: { kind: "wait", workspace: "primary", updates: "hold" },
+      action: { kind: "wait", workspace: "original", updates: "hold" },
     }),
   );
+});
+
+it("explains creating a separate copy and keeps the reviewed destination through confirmation", async () => {
+  desktopWindow.__TAURI__ = { core: { invoke } };
+  desktopWindow.__ATLAS_DESKTOP_SETUP__ = {
+    token: "current-document",
+    channel: {
+      installed: { tag: "release/v0.1.0", version: "0.1.0" },
+      active: "original",
+      workspace_path: "/Atlas/workspace.sqlite",
+      other_exists: false,
+      returning: null,
+      ready: false,
+      busy: false,
+    },
+  };
+  render(<DesktopReleaseChannel />);
+  fireEvent.click(screen.getByRole("button", { name: "Release channel" }));
+  const dialog = await screen.findByRole("dialog", { name: "Atlas release channel" });
+  expect(
+    within(dialog).getByRole("button", { name: "Continue with my current workspace" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Use a separate copy" }));
+  expect(
+    within(dialog).getByText(
+      "Starts with a copy of your current workspace. Changes stay separate from the original.",
+    ),
+  ).toBeVisible();
+  invoke.mockResolvedValueOnce({
+    id: "reviewed-copy",
+    version: "0.2.0-nightly",
+    workspace: "separate",
+    will_seed: true,
+    needs_setup: false,
+    will_upgrade: false,
+  });
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Check Nightly compatibility" }),
+  );
+  const install = await within(dialog).findByRole("button", {
+    name: "Install Nightly and restart",
+  });
+  expect(
+    within(dialog).getByText(
+      "After switching, the app and its bundled CLI will use this workspace.",
+    ),
+  ).toBeVisible();
+  invoke.mockResolvedValueOnce(null);
+  fireEvent.click(install);
+  await waitFor(() =>
+    expect(invoke).toHaveBeenLastCalledWith("desktop_channel_action", {
+      token: "current-document",
+      action: { kind: "install", token: "reviewed-copy" },
+    }),
+  );
+});
+
+it("reopens the retained other workspace after the separate workspace became the default", async () => {
+  desktopWindow.__TAURI__ = { core: { invoke } };
+  desktopWindow.__ATLAS_DESKTOP_SETUP__ = {
+    token: "current-document",
+    channel: {
+      installed: { tag: "release/v0.1.0", version: "0.1.0" },
+      active: "separate",
+      workspace_path: "/Atlas/separate-workspace.sqlite",
+      other_exists: true,
+      returning: null,
+      ready: false,
+      busy: false,
+    },
+  };
+  render(<DesktopReleaseChannel />);
+  fireEvent.click(screen.getByRole("button", { name: "Release channel" }));
+  const dialog = await screen.findByRole("dialog", { name: "Atlas release channel" });
+  expect(
+    within(dialog).queryByRole("button", { name: "Use a separate copy" }),
+  ).toBeNull();
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Use my other workspace" }),
+  );
+  expect(
+    within(dialog).getByText(
+      "Reopens your other workspace with its earlier changes. Neither workspace is overwritten.",
+    ),
+  ).toBeVisible();
+  invoke.mockRejectedValueOnce("Try again later.");
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Check Nightly compatibility" }),
+  );
+  await within(dialog).findByText("Try again later.");
+  expect(invoke).toHaveBeenLastCalledWith("desktop_channel_action", {
+    token: "current-document",
+    action: { kind: "review", workspace: "original", seed_if_missing: true },
+  });
 });

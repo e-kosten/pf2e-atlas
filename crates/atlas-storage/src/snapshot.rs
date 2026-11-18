@@ -28,9 +28,9 @@ impl Workspace {
         backup::write(&source, destination, Destination::CreateNew)
     }
 
-    /// Publish an independent trial of committed workspace data. An existing
+    /// Publish an independent copy of committed workspace data. An existing
     /// destination always wins, even if it appeared during snapshot capture.
-    pub fn seed_trial(
+    pub fn seed_copy(
         &self,
         destination: &Self,
         history: MigrationHistory<'_>,
@@ -40,7 +40,7 @@ impl Workspace {
     ) -> StorageResult<()> {
         if self.path == destination.path {
             return Err(StorageError::Unsupported(
-                "trial resolves to the primary workspace".into(),
+                "copy resolves to its source workspace".into(),
             ));
         }
         history.validate()?;
@@ -50,9 +50,9 @@ impl Workspace {
         self.snapshot_to(&snapshot)?;
         verify_source()?;
 
-        let initialization = destination
-            .begin_initialization()?
-            .ok_or_else(|| StorageError::Unsupported("trial workspace already exists".into()))?;
+        let initialization = destination.begin_initialization()?.ok_or_else(|| {
+            StorageError::Unsupported("destination workspace already exists".into())
+        })?;
         initialization.install(&snapshot, |staged| {
             let mut connection = rusqlite::Connection::open(staged)?;
             connection.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;")?;
@@ -60,7 +60,7 @@ impl Workspace {
             let (fresh, schema) = crate::migration::inspect_history(&transaction, history)?;
             if fresh {
                 return Err(StorageError::Unsupported(
-                    "primary workspace is uninitialized".into(),
+                    "source workspace is uninitialized".into(),
                 ));
             }
             validate(&transaction, schema, false)?;
@@ -71,7 +71,7 @@ impl Workspace {
             )?;
             if schema != expected_schema || actual != expected_key {
                 return Err(StorageError::Migration(
-                    "primary workspace changed before copying".into(),
+                    "source workspace changed before copying".into(),
                 ));
             }
             transaction.execute(

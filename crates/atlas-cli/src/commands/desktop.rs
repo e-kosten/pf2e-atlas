@@ -8,6 +8,7 @@ use std::{
 
 use atlas_app_model::{AppErrorCode, AppReadinessStatus};
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
+use atlas_desktop_protocol::workspace_selection::{Config, Role as TransitionWorkspace};
 #[cfg(target_os = "macos")]
 use atlas_desktop_protocol::{BUNDLE_ID, EntityLink};
 use atlas_desktop_protocol::{ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus};
@@ -56,17 +57,75 @@ pub(crate) struct ProbeArgs {
     reference_status: bool,
     #[arg(long, hide = true, conflicts_with_all = ["wait_for_service", "reference_status"])]
     update_compatibility: bool,
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, value_parser = parse_managed_role)]
     transition_workspace: Option<TransitionWorkspace>,
     #[arg(long, hide = true, requires = "transition_workspace")]
     reserve_transition: bool,
+    #[arg(long, hide = true, conflicts_with_all = ["transition_workspace", "update_compatibility", "reference_status", "wait_for_service", "index"])]
+    workspace_selection: Option<SelectionAction>,
 }
 
-#[derive(Debug, Clone, Copy, clap::ValueEnum, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-enum TransitionWorkspace {
-    Primary,
-    Trial,
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum SelectionAction {
+    Get,
+    Save,
+    RecoverOriginal,
+}
+
+fn parse_managed_role(value: &str) -> Result<TransitionWorkspace, &'static str> {
+    match value {
+        "original" => Ok(TransitionWorkspace::Original),
+        "separate" => Ok(TransitionWorkspace::Separate),
+        _ => Err("Expected original or separate workspace."),
+    }
+}
+
+fn selection(action: SelectionAction) -> Result<ExitCode, String> {
+    let config = match action {
+        SelectionAction::Get => {
+            use atlas_desktop_protocol::workspace_selection::{
+                ManagedWorkspaceInfo, SelectionSnapshot,
+            };
+            let config = atlas_runtime::load_workspace_selection()?;
+            let workspaces = [TransitionWorkspace::Original, TransitionWorkspace::Separate]
+                .into_iter()
+                .map(|role| {
+                    let path = atlas_runtime::managed_workspace_path(role)
+                        .map_err(|error| error.to_string())?;
+                    let path = Workspace::at(&path)
+                        .map_err(|error| error.to_string())?
+                        .path()
+                        .to_path_buf();
+                    let exists = match std::fs::symlink_metadata(&path) {
+                        Ok(_) => true,
+                        Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+                        Err(error) => return Err(error.to_string()),
+                    };
+                    Ok(ManagedWorkspaceInfo { role, path, exists })
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            atlas_cli_support::write_json_data(SelectionSnapshot { config, workspaces })?;
+            return Ok(ExitCode::SUCCESS);
+        }
+        SelectionAction::RecoverOriginal => atlas_runtime::recover_original_workspace_selection()?,
+        SelectionAction::Save => {
+            let mut line = String::new();
+            io::stdin()
+                .lock()
+                .take(65_537)
+                .read_line(&mut line)
+                .map_err(|error| error.to_string())?;
+            if line.len() > 65_536 || !line.ends_with('\n') {
+                return Err("Invalid workspace selection.".into());
+            }
+            let mut config: Config =
+                serde_json::from_str(&line).map_err(|error| error.to_string())?;
+            atlas_runtime::save_workspace_selection(&mut config)?;
+            config
+        }
+    };
+    atlas_cli_support::write_json_data(config)?;
+    Ok(ExitCode::SUCCESS)
 }
 
 #[cfg(unix)]
@@ -123,27 +182,19 @@ pub(crate) fn verify_expected_workspace(workspace: &Workspace) -> Result<(), Str
 }
 
 pub(crate) fn is_managed_index(index: &std::path::Path) -> bool {
-    let Ok(runtime) = AtlasRuntime::resolve(AtlasRuntimeOptions::default()) else {
-        return false;
-    };
-    let primary = runtime.index_path();
-    [
-        primary.to_path_buf(),
-        primary.with_file_name("nightly-trial.sqlite"),
-    ]
-    .iter()
-    .any(|expected| expected == index || expected.canonicalize().is_ok_and(|path| path == index))
+    [TransitionWorkspace::Original, TransitionWorkspace::Separate]
+        .iter()
+        .filter_map(|role| atlas_runtime::managed_workspace_path(*role).ok())
+        .any(|expected| {
+            expected == index || expected.canonicalize().is_ok_and(|path| path == index)
+        })
 }
 
 fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitCode, String> {
-    let runtime =
-        AtlasRuntime::resolve(AtlasRuntimeOptions::default()).map_err(|err| err.to_string())?;
-    let primary = runtime.index_path();
-    let trial = primary.with_file_name("nightly-trial.sqlite");
-    let path = match role {
-        TransitionWorkspace::Primary => primary,
-        TransitionWorkspace::Trial => &trial,
-    };
+    let selected = atlas_runtime::managed_workspace_path(role).map_err(|err| err.to_string())?;
+    let other =
+        atlas_runtime::managed_workspace_path(role.other()).map_err(|err| err.to_string())?;
+    let path = &selected;
     let mut input = io::stdin().lock();
     let mut line = String::new();
     (&mut input)
@@ -191,20 +242,19 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
             .map_err(|err| err.to_string())?;
     }
     if let Some(seed) = seed {
-        if !matches!(role, TransitionWorkspace::Trial) || args.reserve_transition {
-            return Err("Only the trial workspace can be seeded.".into());
+        if args.reserve_transition {
+            return Err("Cannot create a copy while reserving a workspace.".into());
         }
         let verify_source = || {
-            if primary.canonicalize()? != seed.workspace || file_identity(primary)? != seed.file_id
-            {
+            if other.canonicalize()? != seed.workspace || file_identity(&other)? != seed.file_id {
                 return Err(atlas_runtime::StorageError::Migration(
-                    "The primary workspace changed. Review the switch again.".into(),
+                    "The source workspace changed. Review the switch again.".into(),
                 ));
             }
             Ok(())
         };
         verify_source().map_err(|err| err.to_string())?;
-        atlas_runtime::seed_desktop_trial(primary, &trial, &seed.key, seed.schema, verify_source)
+        atlas_runtime::seed_desktop_copy(&other, path, &seed.key, seed.schema, verify_source)
             .map_err(|err| err.to_string())?;
     }
     let workspace = Workspace::at(path).map_err(|err| err.to_string())?;
@@ -230,16 +280,14 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
                 update = Some(workspace.update_owner().map_err(|err| err.to_string())?);
             }
             let identity = file_identity(path).map_err(|err| err.to_string())?;
-            if matches!(role, TransitionWorkspace::Trial) {
-                match file_identity(primary) {
-                    Ok(primary) if primary == identity => {
-                        return Err("The trial workspace points to the primary workspace.".into());
-                    }
-                    Err(err) if err.kind() != io::ErrorKind::NotFound => {
-                        return Err(err.to_string());
-                    }
-                    _ => {}
+            match file_identity(&other) {
+                Ok(other) if other == identity => {
+                    return Err("The two workspaces point to the same file.".into());
                 }
+                Err(err) if err.kind() != io::ErrorKind::NotFound => {
+                    return Err(err.to_string());
+                }
+                _ => {}
             }
             let (key, schema) = workspace
                 .check_update_history(&ledger)
@@ -263,6 +311,9 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
 }
 
 pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
+    if let Some(action) = args.workspace_selection {
+        return selection(action);
+    }
     if let Some(role) = args.transition_workspace {
         return check_transition(&args, role);
     }

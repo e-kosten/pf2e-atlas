@@ -92,6 +92,52 @@ pub(crate) fn migration_ledger() -> Result<Value, String> {
         .ok_or("Missing Atlas migration ledger.".into())
 }
 
+pub(crate) fn load_workspace_selection() -> Result<crate::workspace_switch::Config, String> {
+    Ok(workspace_selection_snapshot()?.config)
+}
+
+pub(crate) fn workspace_selection_snapshot()
+-> Result<atlas_desktop_protocol::workspace_selection::SelectionSnapshot, String> {
+    selection("get", None)
+}
+
+pub(crate) fn save_workspace_selection(
+    config: &mut crate::workspace_switch::Config,
+) -> Result<(), String> {
+    *config = selection("save", Some(config))?;
+    Ok(())
+}
+
+pub(crate) fn recover_original_workspace_selection()
+-> Result<crate::workspace_switch::Config, String> {
+    selection("recover-original", None)
+}
+
+fn selection<T: DeserializeOwned>(
+    action: &str,
+    config: Option<&crate::workspace_switch::Config>,
+) -> Result<T, String> {
+    let mut child = command()?
+        .args(["desktop-probe", "--workspace-selection", action])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(display)?;
+    if let Some(config) = config {
+        let mut pipe = child
+            .stdin
+            .take()
+            .ok_or("Atlas selection pipe is missing.")?;
+        serde_json::to_writer(&mut pipe, config).map_err(display)?;
+        pipe.write_all(b"\n").map_err(display)?;
+    } else {
+        child.stdin.take();
+    }
+    let output = child.wait_with_output().map_err(display)?;
+    decode(&output.stdout)
+}
+
 pub(crate) struct TransitionReservation {
     pub(crate) admission: Admission,
     child: Child,

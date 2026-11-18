@@ -24,6 +24,11 @@ mod source_configuration;
 #[cfg(test)]
 mod tests;
 mod workspace;
+mod workspace_selection;
+pub use workspace_selection::{
+    load_workspace_selection, managed_workspace_path, recover_original_workspace_selection,
+    save_workspace_selection,
+};
 mod workspace_archive;
 pub use workspace_archive::{RestorePreflight, ValidatedArchive, WorkspaceArchive};
 
@@ -43,7 +48,7 @@ pub use setup_model::{
 };
 pub use workspace::{
     WORKSPACE_SCHEMA_VERSION, claim_desktop_workspace, desktop_migration_ledger,
-    initialize_workspace, seed_desktop_trial,
+    initialize_workspace, seed_desktop_copy,
 };
 
 pub use operations::{ExactRecordRead, StateRead, WorkspaceRead, WorkspaceWrite};

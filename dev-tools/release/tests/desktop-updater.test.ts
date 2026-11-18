@@ -22,7 +22,7 @@ test('desktop update feeds bind both packages to the dated release before public
       writeFileSync(path.join(directory, name + '.sig'), metadata.toString('base64'));
       const descriptor = name + '.transition.json';
       writeFileSync(path.join(directory, descriptor), JSON.stringify({
-        protocol: 1, channel: 'nightly', tag: 'nightly/20261116092300.gabcdef123456',
+        protocol: 2, channel: 'nightly', tag: 'nightly/20261116092300.gabcdef123456',
         version, commit: 'abcdef123456' + '1'.repeat(28), asset: name,
         sha256: createHash('sha256').update('package fixture').digest('hex'),
         workspaceSchema: 12, foundryCommit: '1'.repeat(40), foundryVersion: '8.7.0',
