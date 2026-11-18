@@ -1122,6 +1122,7 @@ fn modifier_views(modifiers: &[crate::encounters::mechanics::Modifier]) -> Vec<S
             source: modifier.source.clone(),
             label: modifier.label.clone(),
             modifier_type: match modifier.modifier_type {
+                ModifierType::Item => StatModifierTypeView::Item,
                 ModifierType::Status => StatModifierTypeView::Status,
                 ModifierType::Circumstance => StatModifierTypeView::Circumstance,
                 ModifierType::Adjustment => StatModifierTypeView::Adjustment,

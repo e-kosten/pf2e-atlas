@@ -44,6 +44,13 @@ type Values = {
   remaining?: number;
 };
 
+const modifierLabels: Record<AdjustmentModifierType, string> = {
+  stacks: "Untyped",
+  item: "Item",
+  status: "Status",
+  circumstance: "Circumstance",
+};
+
 const targetKey = (value: AdjustmentTarget) => JSON.stringify(value);
 const signed = (value: number) => (value > 0 ? `+${value}` : `−${-value}`);
 
@@ -139,6 +146,12 @@ export function EncounterAdjustments({
     <AdjustmentEditor
       key={draft.id}
       draft={draft}
+      open={!closingModal}
+      afterClose={() => {
+        returnFocus();
+        setDraft(undefined);
+        setClosingModal(false);
+      }}
       encounterRef={encounterRef}
       encounterRevision={encounterRevision}
       referenceGeneration={referenceGeneration}
@@ -156,12 +169,6 @@ export function EncounterAdjustments({
       }}
     />
   );
-  const title =
-    draft?.mode === "end"
-      ? "End adjustment"
-      : draft?.mode === "edit"
-        ? "Edit adjustment"
-        : "Add adjustment";
   return (
     <section className="encounter-conditions" aria-labelledby={heading}>
       <div className="encounter-conditions__header">
@@ -227,24 +234,7 @@ export function EncounterAdjustments({
           </div>
         ))}
       </div>
-      {draft && (
-        <EncounterModal
-          open={!closingModal}
-          title={title}
-          footer={null}
-          onCancel={close}
-          afterClose={() => {
-            returnFocus();
-            setDraft(undefined);
-            setClosingModal(false);
-          }}
-          closable={!pending}
-          keyboard={!pending}
-          mask={{ closable: !pending }}
-        >
-          {editor}
-        </EncounterModal>
-      )}
+      {editor}
     </section>
   );
 }
@@ -286,6 +276,8 @@ function adjustmentSettings(
 
 function AdjustmentEditor({
   draft,
+  open,
+  afterClose,
   encounterRef,
   encounterRevision,
   referenceGeneration,
@@ -300,6 +292,8 @@ function AdjustmentEditor({
   onSave,
 }: {
   draft: Draft;
+  open: boolean;
+  afterClose: () => void;
   encounterRef: string;
   encounterRevision: number;
   referenceGeneration: string | null;
@@ -314,6 +308,7 @@ function AdjustmentEditor({
   onSave: (request: Request) => Promise<void>;
 }) {
   const [form] = Form.useForm<Values>();
+  const cancel = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
   const participantKey = participant.participant_key;
   const [baseline, setBaseline] = useState(draft.entry);
@@ -493,181 +488,190 @@ function AdjustmentEditor({
       applying.current = false;
     }
   };
-  const focusSelector = ending
-    ? "button[data-adjustment-cancel]"
-    : draft.mode === "add"
-      ? 'input[role="combobox"]'
-      : 'input[role="spinbutton"]';
+  const focusSelector =
+    draft.mode === "add" ? 'input[role="combobox"]' : 'input[role="spinbutton"]';
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      panel.current
-        ?.querySelector<HTMLElement>(focusSelector)
-        ?.focus({ preventScroll: true });
+      const target = ending
+        ? cancel.current
+        : panel.current?.querySelector<HTMLElement>(focusSelector);
+      target?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [focusSelector, panel]);
+  }, [ending, focusSelector, panel]);
 
   return (
-    <div ref={panel}>
-      {recovery}
-      {staleEntry && <p role="status">{staleEntry}</p>}
-      {conflict && current && (
-        <ErrorNotice
-          compact
-          type="warning"
-          title="This adjustment changed"
-          error={undefined}
-          description={`Saved: ${current.name}, ${current.label} ${signed(current.amount)}, ${current.modifier_type}, ${remainingText(current)}.`}
-          action={
-            <Space wrap>
-              {editing && (
-                <Button
-                  onClick={() => {
-                    const next = initialValues(current, participant.participant_key);
-                    form.setFieldsValue(next);
-                    setValues(next);
-                    setBaseline(current);
-                  }}
-                >
-                  Load saved values
-                </Button>
-              )}
-              <Button onClick={() => setBaseline(current)}>
-                {editing ? "Keep my edits" : "Review current adjustment"}
-              </Button>
-            </Space>
-          }
-        />
-      )}
-      {error && (
-        <ErrorNotice
-          error={error}
-          compact
-          title="Adjustment update could not be confirmed"
-        />
-      )}
-      {ending ? (
-        <p>End {current?.name ?? draft.entry?.name}?</p>
-      ) : (
-        <Form<Values>
-          form={form}
-          initialValues={values}
-          onValuesChange={() => setValues(form.getFieldsValue(true))}
-          onFinish={() => void submit()}
-          layout="vertical"
-          disabled={disabled || removed}
-        >
-          <Form.Item label="Statistic" name="stat">
-            <Select
-              showSearch={{ optionFilterProp: "label" }}
-              placeholder="Choose a statistic"
-              options={Array.from(groupedChoices, ([label, options]) => ({
-                label,
-                options,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item
-            label="Change"
-            name="amount"
-            help={amount === 0 ? "Enter a nonzero change." : undefined}
-            validateStatus={amount === 0 ? "error" : undefined}
+    <EncounterModal
+      open={open}
+      title={ending ? "End adjustment" : editing ? "Edit adjustment" : "Add adjustment"}
+      onCancel={onClose}
+      afterClose={afterClose}
+      closable={!pending}
+      keyboard={!pending}
+      mask={{ closable: !pending }}
+      footer={
+        <Space>
+          <Button ref={cancel} disabled={pending} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="primary"
+            danger={ending}
+            disabled={disabled || removed || !!conflict || !matchingPreview}
+            loading={pending}
+            onClick={() => void submit()}
           >
-            <InputNumber min={-10000} max={10000} precision={0} />
-          </Form.Item>
-          <Form.Item label="Name" name="name">
-            <Input placeholder="GM adjustment" maxLength={120} />
-          </Form.Item>
-          <Form.Item label="Modifier type" name="modifierType">
-            <Select
-              options={[
-                { label: "Untyped", value: "stacks" },
-                { label: "Status", value: "status" },
-                { label: "Circumstance", value: "circumstance" },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="Lifetime" name="lifetime">
-            <Select
-              options={[
-                { label: "Until removed", value: "manual" },
-                { label: "Timed", value: "timed" },
-              ]}
-            />
-          </Form.Item>
-          {timed && (
-            <>
-              <EncounterDurationFields
-                participants={roster}
-                amountRules={[{ required: true }]}
-                timingRules={[{ required: true }]}
-                maximumAmount={Number.MAX_SAFE_INTEGER}
-              />
-              {editing && current?.timing && (
-                <Form.Item
-                  label={
-                    values.durationUnit === "rounds"
-                      ? "Remaining rounds"
-                      : "Remaining seconds"
-                  }
-                  name="remaining"
-                >
-                  <InputNumber
-                    placeholder={String(current.timing.remaining)}
-                    min={1}
-                    max={Number.MAX_SAFE_INTEGER}
-                    precision={0}
-                  />
-                </Form.Item>
-              )}
-            </>
-          )}
-        </Form>
-      )}
-      {preview.isError && readyBody === body && (
-        <ErrorNotice
-          error={preview.error}
-          compact
-          title="Preview unavailable"
-          action={<Button onClick={() => void preview.refetch()}>Retry</Button>}
-        />
-      )}
-      <div className="encounter-adjustment-preview" aria-busy={previewLoading}>
-        {previewLoading && (
-          <LoadingStatus
-            label="Calculating preview…"
-            className="encounter-adjustment-preview__loading"
+            {ending ? "End now" : editing ? "Save changes" : "Apply"}
+          </Button>
+        </Space>
+      }
+    >
+      <div ref={panel}>
+        {recovery}
+        {staleEntry && <p role="status">{staleEntry}</p>}
+        {conflict && current && (
+          <ErrorNotice
+            compact
+            type="warning"
+            title="This adjustment changed"
+            error={undefined}
+            description={`Saved: ${current.name}, ${current.label} ${signed(current.amount)}, ${modifierLabels[current.modifier_type]}, ${remainingText(current)}.`}
+            action={
+              <Space wrap>
+                {editing && (
+                  <Button
+                    onClick={() => {
+                      const next = initialValues(current, participant.participant_key);
+                      form.setFieldsValue(next);
+                      setValues(next);
+                      setBaseline(current);
+                    }}
+                  >
+                    Load saved values
+                  </Button>
+                )}
+                <Button onClick={() => setBaseline(current)}>
+                  {editing ? "Keep my edits" : "Review current adjustment"}
+                </Button>
+              </Space>
+            }
           />
         )}
-        {displayedPreview && (
-          <div className="encounter-condition-list" aria-live="polite">
-            {displayedPreview.rows.map((row, index) => (
-              <div key={`${row.label}:${index}`}>
-                {row.label} {row.before ?? "—"} → {row.after ?? "—"}
-                {row.suppressed
-                  ? " · Suppressed"
-                  : row.after == null
-                    ? " · Stat unavailable"
-                    : ""}
-              </div>
-            ))}
-          </div>
+        {error && (
+          <ErrorNotice
+            error={error}
+            compact
+            title="Adjustment update could not be confirmed"
+          />
         )}
+        {ending ? (
+          <p>End {current?.name ?? draft.entry?.name}?</p>
+        ) : (
+          <Form<Values>
+            form={form}
+            initialValues={values}
+            onValuesChange={() => setValues(form.getFieldsValue(true))}
+            onFinish={() => void submit()}
+            layout="vertical"
+            disabled={disabled || removed}
+          >
+            <Form.Item label="Statistic" name="stat">
+              <Select
+                showSearch={{ optionFilterProp: "label" }}
+                placeholder="Choose a statistic"
+                options={Array.from(groupedChoices, ([label, options]) => ({
+                  label,
+                  options,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item
+              label="Change"
+              name="amount"
+              help={amount === 0 ? "Enter a nonzero change." : undefined}
+              validateStatus={amount === 0 ? "error" : undefined}
+            >
+              <InputNumber min={-10000} max={10000} precision={0} />
+            </Form.Item>
+            <Form.Item label="Name" name="name">
+              <Input placeholder="GM adjustment" maxLength={120} />
+            </Form.Item>
+            <Form.Item label="Modifier type" name="modifierType">
+              <Select
+                options={Object.entries(modifierLabels).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item label="Lifetime" name="lifetime">
+              <Select
+                options={[
+                  { label: "Until removed", value: "manual" },
+                  { label: "Timed", value: "timed" },
+                ]}
+              />
+            </Form.Item>
+            {timed && (
+              <>
+                <EncounterDurationFields
+                  participants={roster}
+                  amountRules={[{ required: true }]}
+                  timingRules={[{ required: true }]}
+                  maximumAmount={Number.MAX_SAFE_INTEGER}
+                />
+                {editing && current?.timing && (
+                  <Form.Item
+                    label={
+                      values.durationUnit === "rounds"
+                        ? "Remaining rounds"
+                        : "Remaining seconds"
+                    }
+                    name="remaining"
+                  >
+                    <InputNumber
+                      placeholder={String(current.timing.remaining)}
+                      min={1}
+                      max={Number.MAX_SAFE_INTEGER}
+                      precision={0}
+                    />
+                  </Form.Item>
+                )}
+              </>
+            )}
+          </Form>
+        )}
+        {preview.isError && readyBody === body && (
+          <ErrorNotice
+            error={preview.error}
+            compact
+            title="Preview unavailable"
+            action={<Button onClick={() => void preview.refetch()}>Retry</Button>}
+          />
+        )}
+        <div className="encounter-adjustment-preview" aria-busy={previewLoading}>
+          {previewLoading && (
+            <LoadingStatus
+              label="Calculating preview…"
+              className="encounter-adjustment-preview__loading"
+            />
+          )}
+          {displayedPreview && (
+            <div className="encounter-condition-list" aria-live="polite">
+              {displayedPreview.rows.map((row, index) => (
+                <div key={`${row.label}:${index}`}>
+                  {row.label} {row.before ?? "—"} → {row.after ?? "—"}
+                  {row.suppressed
+                    ? " · Suppressed"
+                    : row.after == null
+                      ? " · Stat unavailable"
+                      : ""}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <Space>
-        <Button data-adjustment-cancel disabled={pending} onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          type="primary"
-          danger={ending}
-          disabled={disabled || removed || !!conflict || !matchingPreview}
-          loading={pending}
-          onClick={() => void submit()}
-        >
-          {ending ? "End now" : editing ? "Save changes" : "Apply"}
-        </Button>
-      </Space>
-    </div>
+    </EncounterModal>
   );
 }

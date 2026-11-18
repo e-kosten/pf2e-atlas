@@ -51,6 +51,7 @@ impl AdjustmentTarget {
 #[serde(rename_all = "snake_case")]
 pub enum AdjustmentModifierType {
     Stacks,
+    Item,
     Status,
     Circumstance,
 }

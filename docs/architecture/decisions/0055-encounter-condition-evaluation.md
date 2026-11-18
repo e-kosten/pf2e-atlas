@@ -183,8 +183,10 @@ Participant-owned GM adjustments store a named signed contribution and typed
 target. The encounter modifier evaluator applies them beside supported condition
 modifiers for general and contextual defenses, checks, existing movement speeds,
 Strike and spell attacks, and spell DCs. Initiative and Strike consumers reuse the
-same projected modifiers. Status and circumstance modifiers compete by type
-and sign. Stacking adjustments accumulate. Existing condition replacements keep
+same projected modifiers. Item, status and circumstance modifiers compete by type
+and sign. Untyped adjustments accumulate. NPC authored statistics retain their
+aggregate baseline, matching Foundry's NPC model. Equipment changes already
+included in that total use a GM-entered net change. Existing condition replacements keep
 their precedence. Movement restrictions apply to the GM-adjusted subtotal and
 preserve zero. Unsupported or unavailable statistics do not get invented bases.
 

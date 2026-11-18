@@ -709,6 +709,7 @@
       "AdjustmentModifierType": {
         "enum": [
           "stacks",
+          "item",
           "status",
           "circumstance"
         ],
@@ -19137,6 +19138,7 @@
       "StatModifierTypeView": {
         "enum": [
           "adjustment",
+          "item",
           "status",
           "circumstance"
         ],

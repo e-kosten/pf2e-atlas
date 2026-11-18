@@ -71,8 +71,11 @@ the signed change. Preview the result before applying it. For example, record
 Sacrifice Armor as AC −2 for 24 hours, then enter the damage from the triggering
 hit after resistance using the HP controls.
 
-Adjustments stack by default. Choose **Status** or **Circumstance** to use that
-modifier type. Click an adjusted value to inspect its calculation. Use **Edit**
+**Untyped** adjustments stack by default. Choose **Item**, **Status** or
+**Circumstance** to use that modifier type. Bonuses and penalties of the same type
+compete separately. For equipment changes already included in the creature's
+original statistic, enter the net change. Click an adjusted value to inspect its
+calculation. Use **Edit**
 to correct the entry, **Apply again** to create a new entry with its own duration,
 or **End now** to remove it. Adjustments set to **Until removed** stay active
 until ended. Timed adjustments expire on the encounter clock, and overnight

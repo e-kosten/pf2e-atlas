@@ -156,6 +156,7 @@ export type StatModifierTypeView = typeof StatModifierTypeView[keyof typeof Stat
 
 export const StatModifierTypeView = {
   adjustment: 'adjustment',
+  item: 'item',
   status: 'status',
   circumstance: 'circumstance',
 } as const;
@@ -931,6 +932,7 @@ export type AdjustmentModifierType = typeof AdjustmentModifierType[keyof typeof 
 
 export const AdjustmentModifierType = {
   stacks: 'stacks',
+  item: 'item',
   status: 'status',
   circumstance: 'circumstance',
 } as const;

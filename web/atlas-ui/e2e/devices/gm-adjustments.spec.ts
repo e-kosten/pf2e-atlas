@@ -42,9 +42,18 @@ test("GM adjustments preview and change multiple stats through the participant i
     await editor.getByRole("textbox", { name: "Name" }).fill("Sacrifice Armor");
     await expect(editor.getByText("AC 22 → 20")).toBeVisible();
     await expect(editor.getByText("Untyped", { exact: true })).toBeVisible();
+    await activate(editor.getByRole("combobox", { name: "Modifier type" }), info);
+    await activate(
+      page.locator(".ant-select-dropdown:visible").getByText("Item", { exact: true }),
+      info,
+    );
+    await expect(editor.getByText("AC 22 → 20")).toBeVisible();
     await expect(
       editor.getByRole("spinbutton", { name: "Change" }),
     ).not.toHaveAttribute("placeholder");
+    await expect(
+      editor.getByRole("button", { name: "Apply", exact: true }),
+    ).toBeEnabled();
     let releasePreview: (() => void) | undefined;
     const heldPreview = new Promise<void>((resolve) => {
       releasePreview = resolve;
@@ -99,11 +108,18 @@ test("GM adjustments preview and change multiple stats through the participant i
     const explanation = page.getByRole("dialog", { name: "Show value explanation" });
     const table = explanation.getByRole("region", { name: "Value calculation" });
     const header = explanation.locator(".value-explanation__header");
-    const tableBounds = await table.boundingBox();
-    const headerBounds = await header.boundingBox();
-    expect(tableBounds).not.toBeNull();
-    expect(headerBounds).not.toBeNull();
-    expect(tableBounds!.width).toBeCloseTo(headerBounds!.width, 0);
+    await expect
+      .poll(async () => {
+        const tableBounds = await table.boundingBox();
+        const headerBounds = await header.boundingBox();
+        return (
+          !!tableBounds &&
+          !!headerBounds &&
+          headerBounds.width > 0 &&
+          Math.abs(tableBounds.width - headerBounds.width) < 1
+        );
+      })
+      .toBe(true);
     await activate(page.getByRole("button", { name: "Close explanation" }), info);
     await activate(ac, info);
     await page
@@ -137,6 +153,9 @@ test("GM adjustments preview and change multiple stats through the participant i
       info,
     );
     const end = page.getByRole("dialog", { name: "End adjustment" });
+    await expect(
+      end.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeFocused();
     await expect(end.getByText("Fortitude 13 → 15")).toBeVisible();
     await activate(end.getByRole("button", { name: "End now" }), info);
     await expect(end).toHaveCount(0);

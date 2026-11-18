@@ -328,3 +328,101 @@ fn overnight_gm_adjustment_advances_exact_seconds_and_keeps_manual_changes() {
         );
     }
 }
+
+#[test]
+fn gm_item_adjustments_compete_by_sign_and_restore_suppressed_contributions() {
+    let (f, encounter, actor) = fixture();
+    let mut before = 22;
+    for (id, modifier_type, amount, after) in [
+        ("item-bonus", AdjustmentModifierType::Item, 2, 24),
+        ("smaller-item-bonus", AdjustmentModifierType::Item, 1, 24),
+        ("item-penalty", AdjustmentModifierType::Item, -1, 23),
+        (
+            "stronger-item-penalty",
+            AdjustmentModifierType::Item,
+            -3,
+            21,
+        ),
+        ("status-bonus", AdjustmentModifierType::Status, 2, 23),
+    ] {
+        let mut value = adjustment(AdjustmentTarget::ArmorClass, amount);
+        value.modifier_type = modifier_type;
+        let (preview, _) = apply(
+            &f,
+            &encounter,
+            &actor,
+            request(&f, &encounter, id, EncounterAdjustmentAction::Add { value }),
+        );
+        assert_eq!(
+            preview.rows[0]
+                .before
+                .as_ref()
+                .and_then(serde_json::Number::as_i64),
+            Some(before)
+        );
+        assert_eq!(
+            preview.rows[0]
+                .after
+                .as_ref()
+                .and_then(serde_json::Number::as_i64),
+            Some(after)
+        );
+        before = after;
+    }
+    let detail = f.worker.encounter(&encounter).unwrap();
+    let participant = &detail.participants[0];
+    let RecordBodyView::Creature(creature) = &participant.presentation.as_ref().unwrap().body
+    else {
+        panic!("expected creature");
+    };
+    let calculation = creature.armor_class.adjustment.as_ref().unwrap();
+    assert_eq!(calculation.authored.as_i64(), Some(22));
+    assert_eq!(
+        calculation
+            .applied
+            .iter()
+            .filter(|modifier| modifier.modifier_type == StatModifierTypeView::Item)
+            .count(),
+        2
+    );
+    assert_eq!(
+        calculation
+            .suppressed
+            .iter()
+            .filter(|modifier| modifier.modifier_type == StatModifierTypeView::Item)
+            .count(),
+        2
+    );
+    let entries = &participant.gm_adjustments.as_ref().unwrap().entries;
+    assert_eq!(
+        serde_json::to_value(&entries[0]).unwrap()["modifier_type"],
+        "item"
+    );
+    let (preview, _) = apply(
+        &f,
+        &encounter,
+        &actor,
+        request(
+            &f,
+            &encounter,
+            "end-item-penalty",
+            EncounterAdjustmentAction::End {
+                adjustment_key: entries[3].adjustment_key.clone(),
+            },
+        ),
+    );
+    assert_eq!(
+        preview.rows[0]
+            .before
+            .as_ref()
+            .and_then(serde_json::Number::as_i64),
+        Some(23)
+    );
+    assert_eq!(
+        preview.rows[0]
+            .after
+            .as_ref()
+            .and_then(serde_json::Number::as_i64),
+        Some(25)
+    );
+}

@@ -12,6 +12,7 @@ pub(super) fn apply_all(block: &mut StatBlockView, adjustments: &[EncounterAdjus
             label: adjustment.name.clone(),
             modifier_type: match adjustment.modifier_type {
                 AdjustmentModifierType::Stacks => ModifierType::Adjustment,
+                AdjustmentModifierType::Item => ModifierType::Item,
                 AdjustmentModifierType::Status => ModifierType::Status,
                 AdjustmentModifierType::Circumstance => ModifierType::Circumstance,
             },

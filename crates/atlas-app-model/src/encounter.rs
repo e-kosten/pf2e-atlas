@@ -330,6 +330,7 @@ pub enum EncounterParticipantVariantView {
 #[serde(rename_all = "snake_case")]
 pub enum StatModifierTypeView {
     Adjustment,
+    Item,
     Status,
     Circumstance,
 }
