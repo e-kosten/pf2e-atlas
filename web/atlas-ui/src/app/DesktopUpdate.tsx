@@ -257,10 +257,10 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
       )}
       <AtlasModal
         open={open}
-        layout="confirmation"
+        layout="form"
         title="Change release channel"
         onCancel={() => setOpen(false)}
-        footer={<Button onClick={() => setOpen(false)}>Close</Button>}
+        footer={null}
       >
         <Flex vertical gap="middle">
           <Typography.Text strong>{channelName}</Typography.Text>
@@ -329,7 +329,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
               </Flex>
               {!installedNightly && workspace !== channel.active && (
                 <Typography.Text type="secondary">
-                  {channel.other_exists
+                  {(review ? !review.will_seed : channel.other_exists)
                     ? "Reopens your other workspace with its earlier changes. Neither workspace is overwritten."
                     : "Starts with a copy of your current workspace. Changes stay separate from the original."}
                 </Typography.Text>
@@ -344,12 +344,6 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                     After switching, the app and its bundled CLI will use this
                     workspace.
                   </Typography.Text>
-                  {review.will_seed && (
-                    <Alert
-                      type="info"
-                      title="Atlas will start a separate copy of your current workspace."
-                    />
-                  )}
                   {(review.needs_setup || review.will_upgrade) && (
                     <Alert
                       type="info"

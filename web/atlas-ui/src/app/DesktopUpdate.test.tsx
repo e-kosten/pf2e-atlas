@@ -154,6 +154,9 @@ it("explains creating a separate copy and keeps the reviewed destination through
   fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
   const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   expect(
+    within(dialog).getAllByRole("button", { name: "Close", exact: true }),
+  ).toHaveLength(1);
+  expect(
     within(dialog).getByRole("button", { name: "Continue with my current workspace" }),
   ).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(within(dialog).getByRole("button", { name: "Use a separate copy" }));
