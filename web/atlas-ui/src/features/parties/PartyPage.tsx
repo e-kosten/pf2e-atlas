@@ -1,14 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Button, Checkbox, Dropdown, Form, Input, InputNumber, Popover } from "antd";
+import { Button, Dropdown, Popover } from "antd";
 import { Ellipsis } from "lucide-react";
-import { useId, useState } from "react";
-import {
-  AtlasApiError,
-  deleteParty,
-  getParties,
-  updateParty,
-} from "../../api/atlasApi";
+import { useRef, useState } from "react";
+import { deleteParty, updateParty } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
 import { characterDestination, partiesDestination } from "../../app/destinations";
 import type { PartyView } from "../../generated/atlas";
@@ -17,12 +12,12 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
-import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { AddCharacter } from "./AddCharacter";
 import { CharacterEditor } from "./CharacterEditor";
-import { refreshCharacters, useCharacters } from "./characterQueries";
+import { refreshCharacters } from "./characterQueries";
 import { memberCount, PartyDirectory } from "./PartiesPage";
 import { PartyNavigation } from "./PartyNavigation";
+import { RenameParty, SetPartyLevels } from "./PartyEditors";
 import { useParties } from "./useParties";
 
 function membershipInputs(members: PartyView["members"]) {
@@ -30,201 +25,6 @@ function membershipInputs(members: PartyView["members"]) {
     character_key,
     expected_character_revision: character_revision,
   }));
-}
-
-function PartySettings({
-  party: initialParty,
-  onClose,
-}: {
-  party: PartyView;
-  onClose: () => void;
-}) {
-  const [party, setParty] = useState(initialParty);
-  const [form] = Form.useForm<{ name: string; level?: number }>();
-  const id = useId();
-  const [closing, setClosing] = useState(false);
-  const [bulk, setBulk] = useState(false);
-  const [selected, setSelected] = useState(party.members.map((m) => m.character_key));
-  const affected = party.members.filter((m) => selected.includes(m.character_key));
-  const characters = useCharacters(bulk);
-  const paused = useSavedWritesPaused();
-  const client = useQueryClient();
-  const save = useMutation({
-    retry: false,
-    mutationFn: ({ name, level }: { name: string; level?: number }) =>
-      updateParty(party.party_key, {
-        expected_revision: party.revision,
-        name,
-        members: membershipInputs(party.members),
-        level_updates: bulk
-          ? affected.map((m) => ({
-              character_key: m.character_key,
-              expected_character_revision: m.character_revision,
-              level,
-            }))
-          : [],
-      }),
-    onSuccess: async () => {
-      await refreshCharacters(client);
-      setClosing(true);
-    },
-  });
-  const stale = save.error instanceof AtlasApiError && save.error.status === 409;
-  const review = useMutation({
-    retry: false,
-    mutationFn: async () => {
-      const [index] = await Promise.all([
-        getParties(),
-        bulk ? characters.refetch({ throwOnError: true }) : Promise.resolve(),
-      ]);
-      const latest = index.parties.find((item) => item.party_key === party.party_key);
-      if (!latest) throw new Error("This party was deleted.");
-      return latest;
-    },
-    onSuccess: (latest) => {
-      if (!form.isFieldTouched("name")) form.setFieldValue("name", latest.name);
-      setSelected((keys) =>
-        keys.filter((key) => latest.members.some((m) => m.character_key === key)),
-      );
-      setParty(latest);
-      save.reset();
-    },
-  });
-  const close = () => setClosing(true);
-  const busy = paused || save.isPending || review.isPending;
-  const canSave =
-    !busy && !stale && (!bulk || (characters.data && affected.length > 0));
-  return (
-    <AtlasModal
-      open={!closing}
-      afterClose={onClose}
-      onCancel={close}
-      title="Party settings"
-      okText="Save changes"
-      onOk={() => form.submit()}
-      confirmLoading={save.isPending}
-      closable={!save.isPending}
-      keyboard={!save.isPending}
-      mask={{ closable: !save.isPending }}
-      okButtonProps={{
-        disabled: !canSave,
-      }}
-      cancelButtonProps={{ disabled: save.isPending }}
-      confirmDiscard={{ when: () => form.isFieldsTouched() || bulk, onDiscard: close }}
-    >
-      {save.error && (
-        <ErrorNotice
-          title="Party could not be saved"
-          error={save.error}
-          action={
-            stale && (
-              <Button loading={review.isPending} onClick={() => review.mutate()}>
-                Review latest changes
-              </Button>
-            )
-          }
-        />
-      )}
-      {review.error && (
-        <ErrorNotice title="Latest party changes could not load" error={review.error} />
-      )}
-      {review.data && !stale && (
-        <section aria-label="Latest saved party">
-          <h3>Latest saved party</h3>
-          <p>{review.data.name}</p>
-          {review.data.members.length ? (
-            <ul>
-              {review.data.members.map((member) => (
-                <li key={member.character_key}>
-                  {member.name} ·{" "}
-                  {member.level == null ? "No level" : `Level ${member.level}`}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No characters in this party.</p>
-          )}
-        </section>
-      )}
-      <Form
-        form={form}
-        name={id}
-        layout="vertical"
-        initialValues={{ name: party.name }}
-        disabled={busy}
-        onFinish={(v) => {
-          if (canSave) save.mutate(v);
-        }}
-      >
-        <Form.Item
-          label="Party name"
-          name="name"
-          rules={[{ required: true, whitespace: true, message: "Enter a party name." }]}
-        >
-          <Input maxLength={255} />
-        </Form.Item>
-        {(party.members.length > 0 || bulk) && (
-          <Checkbox checked={bulk} onChange={(e) => setBulk(e.target.checked)}>
-            Set character levels
-          </Checkbox>
-        )}
-        {bulk && (
-          <>
-            <Form.Item
-              name="level"
-              label="Level"
-              rules={[
-                {
-                  required: true,
-                  type: "integer",
-                  min: 1,
-                  max: 20,
-                  message: "Use a level from 1 to 20.",
-                },
-              ]}
-            >
-              <InputNumber min={1} max={20} />
-            </Form.Item>
-            <fieldset className="party-level-choices">
-              <legend>Update these characters</legend>
-              {characters.error && (
-                <ErrorNotice
-                  title="Memberships could not load"
-                  error={characters.error}
-                  action={
-                    <Button onClick={() => void characters.refetch()}>Retry</Button>
-                  }
-                />
-              )}
-              {party.members.map((m) => {
-                const others = characters.data?.characters
-                  .find((c) => c.character_key === m.character_key)
-                  ?.parties.filter((p) => p.party_key !== party.party_key);
-                return (
-                  <Checkbox
-                    key={m.character_key}
-                    checked={selected.includes(m.character_key)}
-                    onChange={(e) =>
-                      setSelected(
-                        e.target.checked
-                          ? [...selected, m.character_key]
-                          : selected.filter((k) => k !== m.character_key),
-                      )
-                    }
-                  >
-                    {m.name}
-                    {others?.length
-                      ? ` · Also updates ${others.map((p) => p.name).join(", ")}`
-                      : ""}
-                  </Checkbox>
-                );
-              })}
-            </fieldset>
-          </>
-        )}
-      </Form>
-    </AtlasModal>
-  );
 }
 
 export function PartyPage({ partyKey }: { partyKey: string }) {
@@ -260,7 +60,11 @@ function PartyRoster({ party }: { party: PartyView }) {
   const navigate = useNavigate();
   const client = useQueryClient();
   const paused = useSavedWritesPaused();
-  const [settings, setSettings] = useState<PartyView>();
+  const [editing, setEditing] = useState<{
+    kind: "rename" | "levels";
+    party: PartyView;
+  }>();
+  const actions = useRef<HTMLButtonElement>(null);
   const [manual, setManual] = useState<PartyView>();
   const [open, setOpen] = useState(false);
   const { confirm, dialog } = useConfirmDangerAction();
@@ -303,10 +107,22 @@ function PartyRoster({ party }: { party: PartyView }) {
                   disabled={busy}
                   onClick={() => {
                     setOpen(false);
-                    setSettings(party);
+                    actions.current?.focus({ preventScroll: true });
+                    setEditing({ kind: "rename", party });
                   }}
                 >
-                  Party settings
+                  Rename party
+                </Button>
+                <Button
+                  type="text"
+                  disabled={busy || party.members.length === 0}
+                  onClick={() => {
+                    setOpen(false);
+                    actions.current?.focus({ preventScroll: true });
+                    setEditing({ kind: "levels", party });
+                  }}
+                >
+                  Set character levels…
                 </Button>
                 <DangerActionButton
                   type="text"
@@ -327,6 +143,7 @@ function PartyRoster({ party }: { party: PartyView }) {
           >
             <Button
               icon={<Ellipsis size={16} />}
+              ref={actions}
               aria-label="Party actions"
               aria-expanded={open}
             />
@@ -423,8 +240,11 @@ function PartyRoster({ party }: { party: PartyView }) {
       ) : (
         <p>No characters in this party yet.</p>
       )}
-      {settings && (
-        <PartySettings party={settings} onClose={() => setSettings(undefined)} />
+      {editing?.kind === "rename" && (
+        <RenameParty party={editing.party} onClose={() => setEditing(undefined)} />
+      )}
+      {editing?.kind === "levels" && (
+        <SetPartyLevels party={editing.party} onClose={() => setEditing(undefined)} />
       )}
       {dialog}
     </section>

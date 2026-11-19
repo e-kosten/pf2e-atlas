@@ -176,19 +176,18 @@ it("shows shared memberships during level review and updates only selected chara
   );
   expect(screen.queryByText(/Second table/)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Party actions" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Party settings" }));
-  const dialog = await screen.findByRole("dialog", { name: "Party settings" });
-  fireEvent.click(
-    within(dialog).getByRole("checkbox", { name: "Set character levels" }),
-  );
-  expect(
-    await within(dialog).findByRole("checkbox", { name: /Aster.*Second table/ }),
-  ).toBeChecked();
+  fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
+  const dialog = await screen.findByRole("dialog", { name: "Set character levels" });
+  expect(await within(dialog).findByRole("checkbox", { name: "Aster" })).toBeChecked();
+  expect(within(dialog).getByText("Also updates Second table")).toBeVisible();
+  expect(within(dialog).getByText("Level 5")).toBeVisible();
   fireEvent.click(within(dialog).getByRole("checkbox", { name: "Bram" }));
-  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Level" }), {
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "New level" }), {
     target: { value: "7" },
   });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Set 1 character to level 7" }),
+  );
   await waitFor(() =>
     expect(api.updateParty).toHaveBeenCalledWith("party", {
       expected_revision: 4,
@@ -204,24 +203,29 @@ it("shows shared memberships during level review and updates only selected chara
   );
 });
 
-it("reviews a concurrent roster change before retrying the retained level and name drafts", async () => {
-  api.getCharacters.mockResolvedValue({ characters: [] });
+it("reviews a concurrent roster change before retrying retained level and character choices", async () => {
+  const asCharacters = (members: typeof party.members) => ({
+    characters: members.map((m) => ({
+      ...m,
+      revision: m.character_revision,
+      parties: [],
+    })),
+  });
+  api.getCharacters.mockResolvedValue(asCharacters(party.members));
   api.updateParty
     .mockRejectedValueOnce(new AtlasApiError(409, "The party changed."))
     .mockResolvedValue({ party_key: "party" });
   render(<PartyPage partyKey="party" />, { wrapper });
   fireEvent.click(await screen.findByRole("button", { name: "Party actions" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Party settings" }));
-  const dialog = within(await screen.findByRole("dialog", { name: "Party settings" }));
-  fireEvent.change(dialog.getByLabelText("Party name"), {
-    target: { value: "My draft" },
-  });
-  fireEvent.click(dialog.getByRole("checkbox", { name: "Set character levels" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
+  const dialog = within(
+    await screen.findByRole("dialog", { name: "Set character levels" }),
+  );
   fireEvent.click(dialog.getByRole("checkbox", { name: "Bram" }));
-  fireEvent.change(dialog.getByRole("spinbutton", { name: "Level" }), {
+  fireEvent.change(dialog.getByRole("spinbutton", { name: "New level" }), {
     target: { value: "7" },
   });
-  const save = dialog.getByRole("button", { name: "Save changes" });
+  const save = dialog.getByRole("button", { name: "Set 1 character to level 7" });
   await waitFor(() => expect(save).toBeEnabled());
   fireEvent.click(save);
   const review = await dialog.findByRole("button", { name: "Review latest changes" });
@@ -233,32 +237,26 @@ it("reviews a concurrent roster change before retrying the retained level and na
     level: 3,
     imported: false,
   };
+  const members = [newMember, { ...party.members[0], character_revision: 6, level: 4 }];
   api.getParties.mockResolvedValue({
-    parties: [
-      {
-        ...party,
-        name: "Saved elsewhere",
-        revision: 9,
-        members: [newMember, { ...party.members[0], character_revision: 6, level: 4 }],
-      },
-    ],
+    parties: [{ ...party, name: "Saved elsewhere", revision: 9, members }],
   });
+  api.getCharacters.mockResolvedValue(asCharacters(members));
   fireEvent.click(review);
-  const latest = within(
-    await dialog.findByRole("region", { name: "Latest saved party" }),
+  expect(await dialog.findByRole("status")).toHaveTextContent(
+    "Latest changes reviewed",
   );
-  expect(latest.getByText("Saved elsewhere")).toBeVisible();
-  expect(latest.getByText("Aster · Level 4")).toBeVisible();
-  expect(dialog.getByLabelText("Party name")).toHaveValue("My draft");
-  expect(dialog.getByRole("spinbutton", { name: "Level" })).toHaveValue("7");
+  expect(dialog.getByRole("spinbutton", { name: "New level" })).toHaveValue("7");
   expect(dialog.getByRole("checkbox", { name: "Aster" })).toBeChecked();
+  expect(dialog.getByText("Level 4")).toBeVisible();
   expect(dialog.getByRole("checkbox", { name: "Cale" })).not.toBeChecked();
   expect(dialog.queryByRole("checkbox", { name: "Bram" })).toBeNull();
   expect(api.updateParty).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(save).toBeEnabled());
   fireEvent.click(save);
   await waitFor(() =>
     expect(api.updateParty).toHaveBeenLastCalledWith("party", {
-      name: "My draft",
+      name: "Saved elsewhere",
       expected_revision: 9,
       members: [
         { character_key: "pc-c", expected_character_revision: 8 },
@@ -267,6 +265,41 @@ it("reviews a concurrent roster change before retrying the retained level and na
       level_updates: [
         { character_key: "pc-a", expected_character_revision: 6, level: 7 },
       ],
+    }),
+  );
+});
+
+it("reviews the saved name and current roster while retaining a separate rename draft", async () => {
+  api.updateParty.mockRejectedValueOnce(new AtlasApiError(409, "The party changed."));
+  render(<PartyPage partyKey="party" />, { wrapper });
+  fireEvent.click(await screen.findByRole("button", { name: "Party actions" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Rename party" }));
+  const dialog = within(await screen.findByRole("dialog", { name: "Rename party" }));
+  const input = dialog.getByRole("textbox", { name: "Party name" });
+  expect(dialog.queryByRole("spinbutton")).toBeNull();
+  const save = dialog.getByRole("button", { name: "Rename" });
+  expect(save).toBeDisabled();
+  fireEvent.change(input, { target: { value: "My draft" } });
+  await waitFor(() => expect(save).toBeEnabled());
+  fireEvent.click(save);
+  const review = await dialog.findByRole("button", { name: "Review latest changes" });
+  api.getParties.mockResolvedValue({
+    parties: [
+      { ...party, name: "Saved elsewhere", revision: 9, members: [party.members[0]] },
+    ],
+  });
+  fireEvent.click(review);
+  expect(await dialog.findByText("Saved name: Saved elsewhere")).toBeVisible();
+  expect(input).toHaveValue("My draft");
+  expect(api.updateParty).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(save).toBeEnabled());
+  fireEvent.click(save);
+  await waitFor(() =>
+    expect(api.updateParty).toHaveBeenLastCalledWith("party", {
+      name: "My draft",
+      expected_revision: 9,
+      members: [{ character_key: "pc-a", expected_character_revision: 2 }],
+      level_updates: [],
     }),
   );
 });

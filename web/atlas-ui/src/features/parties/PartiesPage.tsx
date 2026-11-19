@@ -1,7 +1,8 @@
 import { Button, Form, Input } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
+import scrollIntoView from "scroll-into-view-if-needed";
 import { createParty } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
 import { partyDestination } from "../../app/destinations";
@@ -10,6 +11,8 @@ import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
+import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
+import { IndexTable } from "../../shared/ui/tables/IndexTable";
 import { refreshCharacters } from "./characterQueries";
 import { PartyNavigation } from "./PartyNavigation";
 import { useParties } from "./useParties";
@@ -69,50 +72,72 @@ function NewParty({ onClose }: { onClose: () => void }) {
   );
 }
 
+function NewPartyAction({ primary = false }: { primary?: boolean }) {
+  const [creating, setCreating] = useState(false);
+  const paused = useSavedWritesPaused();
+  return (
+    <>
+      <Button
+        type={primary ? "primary" : "default"}
+        disabled={paused}
+        onClick={(event) => {
+          event.currentTarget.focus({ preventScroll: true });
+          setCreating(true);
+        }}
+      >
+        New party
+      </Button>
+      {creating && <NewParty onClose={() => setCreating(false)} />}
+    </>
+  );
+}
+
 export function PartyDirectory({
   parties,
   selected,
 }: {
   parties: PartyView[];
-  selected?: string;
+  selected: string;
 }) {
-  const [creating, setCreating] = useState(false);
-  const paused = useSavedWritesPaused();
-  const Heading = selected ? "h2" : "h1";
-  return (
-    <section
-      className={
-        selected ? "party-directory party-directory--aside" : "party-directory"
+  const current = useRef<HTMLLIElement>(null);
+  useLayoutEffect(() => {
+    const row = current.current;
+    const directory = row?.parentElement;
+    if (!row || !directory) return;
+    const reveal = () => {
+      if (directory.scrollWidth > directory.clientWidth) {
+        scrollIntoView(row, {
+          boundary: directory,
+          block: "nearest",
+          inline: "nearest",
+          scrollMode: "if-needed",
+        });
       }
-    >
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(directory);
+    return () => observer.disconnect();
+  }, [selected, parties]);
+  return (
+    <section className="party-directory">
       <div className="party-page-heading">
-        <Heading>Parties</Heading>
-        <Button
-          type={selected ? "default" : "primary"}
-          disabled={paused}
-          onClick={(event) => {
-            event.currentTarget.focus({ preventScroll: true });
-            setCreating(true);
-          }}
-        >
-          New party
-        </Button>
+        <h2>Parties</h2>
+        <NewPartyAction />
       </div>
       {parties.length ? (
         <ul>
           {parties.map((party) => (
-            <li key={party.party_key}>
+            <li
+              key={party.party_key}
+              ref={party.party_key === selected ? current : undefined}
+            >
               <AtlasLink
                 {...partyDestination(party.party_key)}
                 aria-current={party.party_key === selected ? "page" : undefined}
               >
                 <strong>{party.name}</strong>
-                <span>
-                  {selected
-                    ? memberCount(party.members.length)
-                    : party.members.map((member) => member.name).join(", ") ||
-                      "No characters"}
-                </span>
+                <span>{memberCount(party.members.length)}</span>
               </AtlasLink>
             </li>
           ))}
@@ -120,7 +145,6 @@ export function PartyDirectory({
       ) : (
         <p>No parties yet.</p>
       )}
-      {creating && <NewParty onClose={() => setCreating(false)} />}
     </section>
   );
 }
@@ -132,9 +156,14 @@ export function memberCount(count: number) {
 export function PartiesPage() {
   usePageTitle("Parties");
   const query = useParties();
+  const navigate = useNavigate();
   return (
-    <div className="party-page">
-      <PartyNavigation active="parties" />
+    <EntityIndexPage
+      className="parties-index"
+      title="Parties"
+      actions={<NewPartyAction primary />}
+      toolbar={<PartyNavigation active="parties" />}
+    >
       {query.error && (
         <ErrorNotice
           title="Parties could not load"
@@ -143,7 +172,35 @@ export function PartiesPage() {
         />
       )}
       {query.isPending && <p role="status">Loading parties…</p>}
-      {query.data && <PartyDirectory parties={query.data.parties} />}
-    </div>
+      {query.data && (
+        <IndexTable<PartyView>
+          dataSource={query.data.parties}
+          rowKey={(party) => party.party_key}
+          onActivateRow={(party) => void navigate(partyDestination(party.party_key))}
+          locale={{ emptyText: "No parties yet." }}
+          columns={[
+            {
+              title: "Party",
+              width: "36%",
+              render: (_, party) => (
+                <AtlasLink {...partyDestination(party.party_key)}>
+                  {party.name}
+                </AtlasLink>
+              ),
+            },
+            {
+              title: "PCs",
+              width: 72,
+              render: (_, party) => party.members.length,
+            },
+            {
+              title: "Characters",
+              render: (_, party) =>
+                party.members.map((member) => member.name).join(", ") || "—",
+            },
+          ]}
+        />
+      )}
+    </EntityIndexPage>
   );
 }

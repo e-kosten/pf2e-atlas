@@ -2,10 +2,12 @@ import {
   Button,
   ConfigProvider,
   Dropdown,
+  Empty,
   Form,
   Input,
   List,
   Select,
+  Skeleton,
   Space,
   Typography,
 } from "antd";
@@ -19,8 +21,6 @@ import {
   searchPage,
   setEncounterPcReference,
 } from "../../api/atlasApi";
-import { searchDestination } from "../../app/destinations";
-import { destinationHref } from "../../app/navigation";
 import type {
   EncounterPcAssociation,
   PcAbilitySelection,
@@ -39,6 +39,8 @@ import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import { searchExecution } from "../../shared/search/searchExecution";
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
+import { RecordEditionBadge } from "../../shared/records/RecordEditionBadge";
 import { refreshCharacters, useCharacters } from "./characterQueries";
 
 type CharacterLocation = { kind: "character"; characterKey: string };
@@ -77,6 +79,8 @@ export function CharacterReference({
   const [closing, setClosing] = useState(false);
   const [filter, setFilter] = useState("");
   const [selectedAbility, setSelectedAbility] = useState<string>();
+  const abilityRows = useRef(new Map<string, HTMLElement>());
+  const restoreAbility = useRef<string | null>(null);
   const [search, setSearch] = useState<{
     ability: PcAbilityView;
     query: string;
@@ -85,6 +89,7 @@ export function CharacterReference({
   const [editingAssociation, setEditingAssociation] = useState(false);
   const [memberKey, setMemberKey] = useState<string>();
   const searchInput = useRef<React.ComponentRef<typeof Input>>(null);
+  const abilityFilter = useRef<React.ComponentRef<typeof Input>>(null);
   const ruleHeading = useRef<HTMLHeadingElement>(null);
   const preview = useRecordPreview();
   const selectedRecord = preview.detail?.selected.record_key;
@@ -164,6 +169,7 @@ export function CharacterReference({
       client.setQueryData(resultReferenceKey(location), saved);
       await refreshCharacters(client);
       if (search) {
+        restoreAbility.current = search.ability.ability_key;
         preview.closeForNavigation();
         setSearch(null);
       }
@@ -209,8 +215,18 @@ export function CharacterReference({
   const resultAnchor = useRef<HTMLElement>(null);
   const restoreOnBack = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
-    if (!previewOpen && restoreOnBack.current) {
-      restoreOnBack.current.focus({ preventScroll: true });
+    if (!previewOpen && !searching && restoreAbility.current) {
+      const target = abilityRows.current
+        .get(restoreAbility.current)
+        ?.querySelector<HTMLElement>("button, a");
+      if (target) target.focus({ preventScroll: true });
+      else abilityFilter.current?.focus({ preventScroll: true });
+      restoreAbility.current = null;
+    } else if (!previewOpen && restoreOnBack.current) {
+      if (restoreOnBack.current.isConnected)
+        restoreOnBack.current.focus({ preventScroll: true });
+      else if (searching) searchInput.current?.focus({ preventScroll: true });
+      else abilityFilter.current?.focus({ preventScroll: true });
       restoreOnBack.current = null;
     }
   }, [previewOpen, searching]);
@@ -243,11 +259,18 @@ export function CharacterReference({
     label: character.name,
   }));
   const busy = save.isPending || attach.isPending;
+  const backLabel = preview.readingHistory.canGoBack
+    ? "Back"
+    : previewOpen && search
+      ? "Back to results"
+      : search
+        ? "Back to abilities"
+        : "Back";
   const content = (
     <>
       {mode === "page" && (search || previewOpen) && (
         <Button className="character-reference__back" onClick={back}>
-          Back
+          {backLabel}
         </Button>
       )}
       {reference.error && (
@@ -358,6 +381,7 @@ export function CharacterReference({
                 <>
                   <Input
                     aria-label="Find an ability"
+                    ref={abilityFilter}
                     placeholder="Find an ability"
                     value={filter}
                     onChange={(event) => setFilter(event.target.value)}
@@ -407,7 +431,18 @@ export function CharacterReference({
                             const label = abilityLabel(ability);
                             return (
                               <List.Item key={ability.ability_key}>
-                                <div className="character-ability-row">
+                                <div
+                                  className="character-ability-row"
+                                  ref={(node) => {
+                                    if (node)
+                                      abilityRows.current.set(
+                                        ability.ability_key,
+                                        node,
+                                      );
+                                    else
+                                      abilityRows.current.delete(ability.ability_key);
+                                  }}
+                                >
                                   <div>
                                     {ability.record_key && ability.record_title ? (
                                       <Button
@@ -550,86 +585,127 @@ export function CharacterReference({
         </Space>
       </section>
       {search && (
-        <section
-          className="character-reference__index"
-          style={{ minHeight: 0, overflow: "auto" }}
-          aria-label="Ability search"
-        >
-          <Form
-            onFinish={() => {
-              const next = draftQuery?.trim();
-              if (next) setSearch({ ...search, query: next });
-            }}
-          >
-            <Space.Compact style={{ width: "100%" }}>
-              <Input
-                aria-label="Search Atlas rules"
-                ref={searchInput}
-                value={draftQuery}
-                onChange={(event) =>
-                  setSearch({ ...search, draft: event.target.value })
-                }
+        <section className="pc-rule-search" aria-label="Ability search">
+          <header className="pc-rule-search__header">
+            <h2>Find rule for {abilityLabel(search.ability)}</h2>
+            <Form
+              onFinish={() => {
+                const next = draftQuery?.trim();
+                if (next) setSearch({ ...search, query: next });
+              }}
+            >
+              <Space.Compact style={{ width: "100%" }}>
+                <Input
+                  aria-label="Search Atlas rules"
+                  ref={searchInput}
+                  value={draftQuery}
+                  onChange={(event) =>
+                    setSearch({ ...search, draft: event.target.value })
+                  }
+                />
+                <Button type="primary" htmlType="submit" disabled={!draftQuery?.trim()}>
+                  Search
+                </Button>
+              </Space.Compact>
+            </Form>
+          </header>
+          <div className="pc-rule-search__status">
+            {!execution.ready ? (
+              <LoadingStatus label="Preparing rule search…" />
+            ) : result.isFetching || result.isPending ? (
+              <LoadingStatus
+                label={result.data ? "Updating rules…" : "Searching Atlas…"}
               />
-              <Button type="primary" htmlType="submit" disabled={!draftQuery?.trim()}>
-                Search
-              </Button>
-            </Space.Compact>
-          </Form>
-          {!execution.ready && <p>Search is getting ready.</p>}
-          {result.error && (
-            <ErrorNotice
-              error={result.error}
-              title="Could not search Atlas"
-              action={<Button onClick={() => void result.refetch()}>Retry</Button>}
-            />
-          )}
-          <List
-            size="small"
-            dataSource={result.data?.rows}
-            loading={result.isPending && execution.ready}
-            locale={{ emptyText: "No rules found." }}
-            renderItem={({ record }) => (
-              <List.Item key={record.record_key}>
-                <Space orientation="vertical" size={0} style={{ maxWidth: "100%" }}>
-                  <Button
-                    type="link"
-                    style={{
-                      paddingInline: 0,
-                      whiteSpace: "normal",
-                      height: "auto",
-                      textAlign: "start",
-                    }}
-                    onClick={(event) => {
-                      resultAnchor.current = event.currentTarget;
-                      preview.open(
-                        record.record_key,
-                        event.currentTarget,
-                        rootNavigation(record.record_key),
-                      );
-                    }}
-                  >
-                    {record.title}
-                  </Button>
-                  <Typography.Text type="secondary">
-                    {[
-                      record.kind_label,
-                      record.publication ?? record.pack,
-                      record.edition,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </Typography.Text>
-                </Space>
-              </List.Item>
-            )}
-          />
-          <a
-            href={destinationHref(
-              searchDestination({ query: `?${new URLSearchParams({ q: query })}` }),
-            )}
+            ) : result.data ? (
+              <span>
+                {result.data.rows.length}{" "}
+                {result.data.rows.length === 1 ? "result" : "results"}
+              </span>
+            ) : null}
+          </div>
+          <div
+            className="pc-rule-search__results"
+            aria-busy={!execution.ready || result.isFetching}
           >
-            Open full search
-          </a>
+            {result.error && (
+              <ErrorNotice
+                error={result.error}
+                title="Could not search Atlas"
+                action={<Button onClick={() => void result.refetch()}>Retry</Button>}
+              />
+            )}
+            {!execution.ready ||
+            (result.isPending && !result.data) ||
+            (result.isFetching && !result.data?.rows.length) ? (
+              <div className="pc-rule-search__placeholder" aria-hidden="true">
+                {[0, 1, 2].map((key) => (
+                  <Skeleton
+                    key={key}
+                    active
+                    title={{ width: "60%" }}
+                    paragraph={{ rows: 1, width: "85%" }}
+                  />
+                ))}
+              </div>
+            ) : result.data?.rows.length ? (
+              <ul className="pc-rule-search__list">
+                {result.data.rows.map(({ record }) => (
+                  <li key={record.record_key}>
+                    <Button
+                      type="text"
+                      block
+                      className="pc-rule-result"
+                      aria-label={record.title}
+                      aria-describedby={`${titleId}-${record.record_key}-kind ${titleId}-${record.record_key}-source`}
+                      aria-current={
+                        selectedRecord === record.record_key ? "true" : undefined
+                      }
+                      styles={{
+                        root: {
+                          height: "auto",
+                          whiteSpace: "normal",
+                          textAlign: "start",
+                          padding: "var(--space-group)",
+                          borderRadius: 0,
+                        },
+                      }}
+                      onClick={(event) => {
+                        resultAnchor.current = event.currentTarget;
+                        preview.open(
+                          record.record_key,
+                          event.currentTarget,
+                          rootNavigation(record.record_key),
+                        );
+                      }}
+                    >
+                      <span className="pc-rule-result__content">
+                        <span className="pc-rule-result__identity">
+                          <strong>{record.title}</strong>
+                          <span id={`${titleId}-${record.record_key}-kind`}>
+                            {[record.kind_label, record.level_label]
+                              .filter(Boolean)
+                              .join(" ")}
+                          </span>
+                        </span>
+                        <span
+                          className="pc-rule-result__source"
+                          id={`${titleId}-${record.record_key}-source`}
+                        >
+                          <span>{record.publication ?? record.pack}</span>
+                          <RecordEditionBadge edition={record.edition} />
+                        </span>
+                      </span>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : result.isSuccess && !result.isFetching ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="No rules found. Try a different name."
+              />
+            ) : null}
+          </div>
         </section>
       )}
       {previewOpen && (
@@ -648,26 +724,28 @@ export function CharacterReference({
               search &&
               selectedRecord &&
               preview.detail?.selected.embedded_path.length === 0 && (
-                <Button
-                  type="primary"
-                  disabled={paused || busy}
-                  loading={save.isPending}
-                  onClick={() => {
-                    if (!preview.detail) return;
-                    save.mutate({
-                      target: doc,
-                      ability: search.ability,
-                      selection: {
-                        kind: "manual",
-                        record_key: selectedRecord,
-                        expected_artifact_generation:
-                          preview.detail.artifact_generation,
-                      },
-                    });
-                  }}
-                >
-                  Link this rule
-                </Button>
+                <div className="pc-rule-link-action">
+                  <Button
+                    type="primary"
+                    disabled={paused || busy || preview.loading}
+                    loading={save.isPending}
+                    onClick={() => {
+                      if (!preview.detail) return;
+                      save.mutate({
+                        target: doc,
+                        ability: search.ability,
+                        selection: {
+                          kind: "manual",
+                          record_key: selectedRecord,
+                          expected_artifact_generation:
+                            preview.detail.artifact_generation,
+                        },
+                      });
+                    }}
+                  >
+                    Link this rule
+                  </Button>
+                </div>
               )}
             <ReferenceHelpProvider
               onHelp={preview.openHelp}
@@ -707,7 +785,7 @@ export function CharacterReference({
   );
   return mode === "page" ? (
     <div
-      className={`character-reference character-reference--page${previewOpen ? " character-reference--reading" : ""}`}
+      className={`character-reference character-reference--page${search ? " character-reference--searching" : ""}${previewOpen ? " character-reference--reading" : ""}`}
     >
       {content}
     </div>
@@ -730,7 +808,7 @@ export function CharacterReference({
         <Space wrap>
           {(search || previewOpen) && (
             <Button type="text" size="small" onClick={back}>
-              Back
+              {backLabel}
             </Button>
           )}
           <span id={titleId}>{doc?.name ?? name}</span>
@@ -747,7 +825,7 @@ export function CharacterReference({
       )}
     >
       <div
-        className={`character-reference${previewOpen ? " character-reference--reading" : ""}`}
+        className={`character-reference${search ? " character-reference--searching" : ""}${previewOpen ? " character-reference--reading" : ""}`}
       >
         {content}
       </div>

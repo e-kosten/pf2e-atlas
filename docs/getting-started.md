@@ -136,9 +136,13 @@ it. Use **Change link** to correct a match or **Use automatic match** to clear
 your choice. **Actions → Refresh from Pathbuilder** updates the saved import
 and its live rules in linked encounters.
 
-Use the roster’s row actions to reorder or remove a character. **Party settings**
-can rename a party or set levels for selected characters, including those shared
-with other parties. Removing a character from a party or deleting a party
-preserves the characters. **Actions → Delete character** removes its memberships
+Use the roster’s row actions to reorder or remove a character. Open **Party
+actions → Rename party** to change its name. **Set character levels…** shows
+current levels and lets you choose which characters to update. For example,
+select two level-7 PCs, enter level 8, then choose **Set 2 characters to level 8**.
+Shared characters receive the new level in every party they belong to.
+
+Removing a character from a party or deleting a party preserves the characters.
+**Actions → Delete character** removes its memberships
 and detaches its live rules. PCs already in encounters keep their names, levels,
 HP and initiative.

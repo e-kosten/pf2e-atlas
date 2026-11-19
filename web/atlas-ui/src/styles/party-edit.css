@@ -1,0 +1,54 @@
+.party-level-target {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-control);
+  margin-block-end: var(--space-section);
+}
+.party-level-target > label {
+  font-weight: 550;
+}
+.party-level-target > [role="alert"] {
+  color: var(--danger);
+}
+.party-level-roster {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.party-level-roster > legend {
+  margin: 0 0 var(--space-control);
+  padding: 0;
+  border: 0;
+  font-size: inherit;
+  font-weight: 550;
+}
+.party-level-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-micro) var(--space-group);
+  align-items: start;
+  padding-block: var(--space-control);
+}
+.party-level-row + .party-level-row {
+  border-block-start: 1px solid var(--line);
+}
+.party-level-row > .ant-checkbox-wrapper {
+  min-inline-size: 0;
+}
+.party-level-current,
+.party-level-shared,
+.party-edit-hint,
+.party-edit-saved,
+.party-edit-review {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.party-level-shared {
+  grid-column: 1 / -1;
+  padding-inline-start: var(--space-section);
+}
+.party-edit-hint {
+  margin-block: var(--space-group) 0;
+}

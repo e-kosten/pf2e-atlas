@@ -31,6 +31,7 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await page.request.post("/api/encounters", { data: { name } })
   ).json();
   let characterKey: string | undefined;
+  let releaseSearch: (() => void) | undefined;
   try {
     await page.goto("/encounters");
     await activate(page.getByRole("link", { name: "Parties", exact: true }), info);
@@ -66,10 +67,39 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     ).toBeVisible();
     await activate(reference.getByRole("button", { name: "Back", exact: true }), info);
     if (!info.project.use.hasTouch) await expect(darkvision).toBeFocused();
+    let started!: () => void;
+    const requestStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const holdSearch = new Promise<void>((resolve) => {
+      releaseSearch = resolve;
+    });
+    let held = false;
+    await page.route("**/api/search/page", async (route) => {
+      if (!held && route.request().postDataJSON()?.criteria?.query === "Night sight") {
+        held = true;
+        started();
+        await holdSearch;
+      }
+      await route.continue();
+    });
     await activate(
       reference.getByRole("button", { name: "Search for Night sight" }),
       info,
     );
+    await requestStarted;
+    const task = reference.getByRole("region", { name: "Ability search" });
+    await expect(
+      task.getByRole("heading", { name: "Find rule for Night sight" }),
+    ).toBeVisible();
+    await expect(task.getByText("Searching Atlas…", { exact: true })).toBeVisible();
+    await expect(task.getByText(/No rules found/)).toHaveCount(0);
+    await expect(task.getByRole("link", { name: "Open full search" })).toHaveCount(0);
+    const pendingBounds = (await task.boundingBox())!;
+    releaseSearch!();
+    await expect(task.locator("[aria-busy]")).toHaveAttribute("aria-busy", "false");
+    const loadedBounds = (await task.boundingBox())!;
+    expect(Math.abs(pendingBounds.height - loadedBounds.height)).toBeLessThan(1);
     const search = reference.getByRole("textbox", { name: "Search Atlas rules" });
     await search.fill("Darkvision");
     await activate(
@@ -80,7 +110,10 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
-    await activate(reference.getByRole("button", { name: "Back", exact: true }), info);
+    await activate(
+      reference.getByRole("button", { name: "Back to results", exact: true }),
+      info,
+    );
     await expect(search).toHaveValue("Darkvision");
     await activate(darkvision, info);
     await activate(reference.getByRole("button", { name: "Link this rule" }), info);
@@ -153,6 +186,7 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(page).toHaveURL(new RegExp(`/encounters/${encounter.slug}`));
     await noPageOverflow(page);
   } finally {
+    releaseSearch?.();
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
     if (characterKey) {
       const result = await page.request.get(`/api/characters/${characterKey}`);
@@ -256,6 +290,167 @@ test("encounter imports and manual PCs create reusable characters", async ({
       if (result.ok())
         await page.request.delete(`/api/characters/${key}`, {
           data: { expected_revision: (await result.json()).character_revision },
+        });
+    }
+  }
+});
+
+test("party edit tasks preserve keyboard drafts and update shared characters explicitly", async ({
+  page,
+}, info) => {
+  const name = `Party edits ${info.project.name} ${Date.now()}`;
+  const first = (await (
+    await page.request.post("/api/parties", { data: { name, members: [] } })
+  ).json()) as PartyView;
+  const second = (await (
+    await page.request.post("/api/parties", {
+      data: { name: `${name} other`, members: [] },
+    })
+  ).json()) as PartyView;
+  const keys: string[] = [];
+  try {
+    for (const pc of ["Aster", "Bram"]) {
+      const response = await page.request.post("/api/characters", {
+        data: { request_id: crypto.randomUUID(), name: pc, level: 7 },
+      });
+      expect(response.ok()).toBe(true);
+      keys.push((await response.json()).character_key);
+    }
+    const members = keys.map((character_key) => ({
+      character_key,
+      expected_character_revision: 0,
+    }));
+    expect(
+      (
+        await page.request.patch(`/api/parties/${first.party_key}`, {
+          data: { name, expected_revision: first.revision, members, level_updates: [] },
+        })
+      ).ok(),
+    ).toBe(true);
+    expect(
+      (
+        await page.request.patch(`/api/parties/${second.party_key}`, {
+          data: {
+            name: second.name,
+            expected_revision: second.revision,
+            members: [members[0]],
+            level_updates: [],
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    await page.goto(`/parties/${first.party_key}`);
+    const actions = page.getByRole("button", { name: "Party actions", exact: true });
+    await activate(actions, info);
+    await activate(
+      page.getByRole("button", { name: "Rename party", exact: true }),
+      info,
+    );
+    const rename = page.getByRole("dialog", { name: "Rename party", exact: true });
+    const partyName = rename.getByLabel("Party name", { exact: true });
+    await expect(partyName).toBeFocused();
+    await partyName.fill("A temporary rename");
+    await partyName.fill(name);
+    await page.keyboard.press("Escape");
+    await expect(rename).toBeHidden();
+    await expect(actions).toBeFocused();
+    await activate(actions, info);
+    await activate(
+      page.getByRole("button", { name: "Set character levels…", exact: true }),
+      info,
+    );
+    const levels = page.getByRole("dialog", {
+      name: "Set character levels",
+      exact: true,
+    });
+    const target = levels.getByRole("spinbutton", { name: "New level", exact: true });
+    await expect(target).toBeFocused();
+    await target.fill("-");
+    await target.press("Enter");
+    await expect(target).toHaveValue("-");
+    await page.keyboard.press("Escape");
+    await expect(
+      levels.getByRole("button", { name: "Keep editing", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(target).toBeFocused();
+    await expect(target).toHaveValue("-");
+    await target.fill("");
+    await target.pressSequentially("1.");
+    await target.press("Enter");
+    await expect(target).toHaveValue("1.");
+    await page.keyboard.press("Escape");
+    await expect(
+      levels.getByRole("button", { name: "Keep editing", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Enter");
+    await expect(levels).toBeHidden();
+    await expect(actions).toBeFocused();
+    await activate(actions, info);
+    await activate(
+      page.getByRole("button", { name: "Set character levels…", exact: true }),
+      info,
+    );
+    await target.fill("7");
+    await expect(
+      levels.getByRole("button", { name: "Set character levels", exact: true }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(levels).toBeHidden();
+    await activate(actions, info);
+    await activate(
+      page.getByRole("button", { name: "Set character levels…", exact: true }),
+      info,
+    );
+    await target.fill("8");
+    await activate(levels.getByRole("checkbox", { name: "Bram", exact: true }), info);
+    await expect(
+      levels.getByText(`Also updates ${second.name}`, { exact: true }),
+    ).toBeVisible();
+    await noPageOverflow(page);
+    await activate(
+      levels.getByRole("button", { name: "Set 1 character to level 8", exact: true }),
+      info,
+    );
+    await expect(levels).toBeHidden();
+    const index = await (await page.request.get("/api/parties")).json();
+    const saved = (index.parties as PartyView[]).find(
+      (p) => p.party_key === first.party_key,
+    )!;
+    expect(saved.members.map((m) => [m.name, m.level])).toEqual([
+      ["Aster", 8],
+      ["Bram", 7],
+    ]);
+    const shared = (index.parties as PartyView[]).find(
+      (p) => p.party_key === second.party_key,
+    )!;
+    expect(shared.members[0].level).toBe(8);
+    await activate(actions, info);
+    await activate(
+      page.getByRole("button", { name: "Rename party", exact: true }),
+      info,
+    );
+    await partyName.fill(`${name} renamed`);
+    await activate(rename.getByRole("button", { name: "Rename", exact: true }), info);
+    await expect(rename).toBeHidden();
+    await expect(
+      page.getByRole("heading", { name: `${name} renamed`, exact: true }),
+    ).toBeVisible();
+  } finally {
+    for (const key of keys) {
+      const response = await page.request.get(`/api/characters/${key}`);
+      if (response.ok())
+        await page.request.delete(`/api/characters/${key}`, {
+          data: { expected_revision: (await response.json()).character_revision },
+        });
+    }
+    const index = await (await page.request.get("/api/parties")).json();
+    for (const key of [first.party_key, second.party_key]) {
+      const current = (index.parties as PartyView[]).find((p) => p.party_key === key);
+      if (current)
+        await page.request.delete(`/api/parties/${key}`, {
+          data: { expected_revision: current.revision },
         });
     }
   }

@@ -76,19 +76,36 @@
 .character-memberships li + li::before {
   content: ", ";
 }
+.parties-index .party-navigation {
+  margin-block-end: 0;
+}
+.parties-index .ant-table-cell {
+  overflow-wrap: anywhere;
+}
+.party-directory,
+.party-roster-pane {
+  min-inline-size: 0;
+}
+.party-roster-pane > .party-page-heading {
+  flex-wrap: wrap;
+}
 .party-directory ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-.party-directory li + li {
-  border-block-start: 1px solid var(--line);
+@media (min-width: 768px) {
+  .party-directory li + li {
+    border-block-start: 1px solid var(--line);
+  }
 }
-.party-directory li > a {
+.party-directory li > a.ant-typography {
   display: block;
+  height: 100%;
+  overflow-wrap: anywhere;
   padding: var(--space-group);
 }
-.party-directory li > a[aria-current="page"] {
+.party-directory li > a.ant-typography[aria-current="page"] {
   background: var(--selection-bg);
   color: var(--selection-text);
   border-radius: var(--radius-md);
@@ -99,7 +116,7 @@
   font-size: 0.875rem;
   color: var(--muted);
 }
-.party-directory--aside {
+.party-directory {
   padding-inline-end: var(--space-group);
   border-inline-end: 1px solid var(--line);
 }
@@ -122,6 +139,13 @@
 .party-roster td:first-child {
   padding-inline-start: 0;
 }
+.party-roster-pane .party-roster th:not(:first-child) {
+  width: 1%;
+  white-space: nowrap;
+}
+.party-roster-pane .party-roster td:not(:first-child) {
+  white-space: nowrap;
+}
 .party-roster-pane .party-roster td:last-child {
   text-align: end;
   width: 2.5rem;
@@ -130,22 +154,12 @@
 .party-roster td:first-child a {
   font-size: 1rem;
 }
-.party-context-actions,
-.party-level-choices {
+.party-context-actions {
   display: grid;
   gap: var(--space-micro);
 }
 .party-context-actions button {
   justify-content: start;
-}
-.party-level-choices {
-  border: 0;
-  margin: 0;
-  padding: 0;
-}
-.party-level-choices legend {
-  font-size: inherit;
-  margin-block-end: var(--space-control);
 }
 .character-inline-editor {
   margin-block: var(--space-group);
@@ -252,25 +266,24 @@
   .party-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
-  .party-directory--aside {
+  .party-directory {
     padding: 0 0 var(--space-group);
     border-inline-end: 0;
     border-block-end: 1px solid var(--line);
   }
-  .party-directory--aside .party-page-heading {
+  .party-directory .party-page-heading {
     margin-block-end: var(--space-control);
   }
-  .party-directory--aside ul {
+  .party-directory ul {
     display: flex;
     overflow-x: auto;
     gap: var(--space-control);
   }
-  .party-directory--aside li {
+  .party-directory li {
     flex: 0 0 auto;
-    border: 0;
     max-width: 85%;
   }
-  .party-directory--aside li > a {
+  .party-directory li > a.ant-typography {
     padding: var(--space-control);
   }
   .party-page-heading {

@@ -1,6 +1,6 @@
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
-import { AtlasLink } from "../../app/AtlasLink";
+import { AtlasButtonLink, AtlasLink } from "../../app/AtlasLink";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import {
@@ -68,8 +68,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     <EntityIndexPage
       actions={
         <>
-          <AtlasLink {...partiesDestination()}>Parties</AtlasLink>
-          <AtlasLink {...charactersDestination()}>Characters</AtlasLink>
+          <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
+          <AtlasButtonLink {...charactersDestination()}>Characters</AtlasButtonLink>
           <Button
             disabled={paused}
             ref={newEncounter}
