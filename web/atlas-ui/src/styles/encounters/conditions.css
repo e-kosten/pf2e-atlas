@@ -396,12 +396,13 @@
 }
 
 .encounter-adjustment-preview {
-  position: relative;
-  min-block-size: 3.5rem;
-  padding-block-end: 1.5rem;
-  margin-block: var(--space-control);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1rem;
+  align-items: start;
+  gap: var(--space-control);
+  min-block-size: 1.5rem;
 }
 .encounter-adjustment-preview__loading {
-  position: absolute;
-  inset-block-end: 0;
+  grid-column: 2;
+  grid-row: 1;
 }

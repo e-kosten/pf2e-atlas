@@ -32,3 +32,14 @@ it("does not carry a previous operation's delay into a new request", () => {
   expect(screen.getByRole("status", { name: "Second request" })).toBeVisible();
   view.unmount();
 });
+
+it("keeps the compact indicator's accessible announcement delayed", () => {
+  vi.useFakeTimers();
+  const view = render(<LoadingStatus label="Calculating preview…" showLabel={false} />);
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(499));
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(1));
+  expect(screen.getByRole("status", { name: "Calculating preview…" })).toBeVisible();
+  view.unmount();
+});

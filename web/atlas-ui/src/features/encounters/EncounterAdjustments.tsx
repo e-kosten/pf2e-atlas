@@ -662,28 +662,31 @@ function AdjustmentEditor({
             action={<Button onClick={() => void preview.refetch()}>Retry</Button>}
           />
         )}
-        <div className="encounter-adjustment-preview" aria-busy={previewLoading}>
-          {previewLoading && (
-            <LoadingStatus
-              label="Calculating preview…"
-              className="encounter-adjustment-preview__loading"
-            />
-          )}
-          {displayedPreview && (
-            <div className="encounter-condition-list" aria-live="polite">
-              {displayedPreview.rows.map((row, index) => (
-                <div key={`${row.label}:${index}`}>
-                  {row.label} {row.before ?? "—"} → {row.after ?? "—"}
-                  {row.suppressed
-                    ? " · Suppressed"
-                    : row.after == null
-                      ? " · Stat unavailable"
-                      : ""}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {(displayedPreview || previewLoading) && (
+          <div className="encounter-adjustment-preview" aria-busy={previewLoading}>
+            {displayedPreview && (
+              <div className="encounter-condition-list" aria-live="polite">
+                {displayedPreview.rows.map((row, index) => (
+                  <div key={`${row.label}:${index}`}>
+                    {row.label} {row.before ?? "—"} → {row.after ?? "—"}
+                    {row.suppressed
+                      ? " · Suppressed"
+                      : row.after == null
+                        ? " · Stat unavailable"
+                        : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+            {previewLoading && (
+              <LoadingStatus
+                label="Calculating preview…"
+                className="encounter-adjustment-preview__loading"
+                showLabel={false}
+              />
+            )}
+          </div>
+        )}
       </div>
     </EncounterModal>
   );

@@ -33,6 +33,21 @@ test("GM adjustments preview and change multiple stats through the participant i
     const editor = page.getByRole("dialog", { name: "Add adjustment" });
     const addStatistic = editor.getByRole("combobox", { name: "Statistic" });
     await expect(addStatistic).toBeFocused();
+    await expect
+      .poll(async () => {
+        const fieldBottom = await editor
+          .getByRole("combobox", { name: "Lifetime" })
+          .evaluate(
+            (element) =>
+              element.closest(".ant-form-item")!.getBoundingClientRect().bottom,
+          );
+        const cancel = await editor
+          .getByRole("button", { name: "Cancel", exact: true })
+          .boundingBox();
+        const gap = cancel!.y - fieldBottom;
+        return gap >= 0 && gap <= 48;
+      })
+      .toBe(true);
     await addStatistic.fill("AC");
     await activate(
       page.locator(".ant-select-dropdown:visible").getByText("AC", { exact: true }),
