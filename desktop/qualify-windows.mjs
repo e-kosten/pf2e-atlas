@@ -221,7 +221,7 @@ async function runCase(mode) {
       assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--index", original, "--json"], env)), /Windows handoff saved work/);
       cli(["lists", "create", "Nightly independent change", "--slug", "nightly-only", "--json"], env);
       assert(!JSON.stringify(cli(["lists", "ls", "--index", original, "--json"], env)).includes("nightly-only"), "The separate copy wrote back into the original");
-      const key = (path) => run("python", ["-c", "import sqlite3,sys; db=sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True); print(db.execute('select workspace_key from workspace where id=1').fetchone()[0]); db.close()", path]).trim();
+      const key = (path) => run("python", ["-c", "from pathlib import Path; import sqlite3,sys; db=sqlite3.connect(Path(sys.argv[1]).as_uri()+'?mode=ro',uri=True); print(db.execute('select workspace_key from workspace where id=1').fetchone()[0]); db.close()", windowsPath(path)]).trim();
       assert.notEqual(key(original), key(selected.workspace));
       await target.screenshot({ path: join(caseRoot, "target.png") });
       log("normal-complete", { selected: selected.workspace, config });
