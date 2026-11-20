@@ -3969,18 +3969,13 @@ export interface PcAbilitySectionView {
 }
 
 export interface PcReferenceView {
-  abilities: PcAbilityView[];
   character_key: string;
   character_revision: number;
   imported: boolean;
   level?: number;
   name: string;
   parties: CharacterPartyView[];
-  /** @minimum 0 */
-  resolved_count: number;
   sections: PcAbilitySectionView[];
-  /** @minimum 0 */
-  unresolved_count: number;
 }
 
 export interface EncounterPcReferenceView {
@@ -4769,20 +4764,13 @@ export interface PathbuilderPreviewRequest {
 }
 
 export interface PathbuilderPreviewView {
-  abilities: PcAbilityView[];
   artifact_generation: string;
   character_revision?: number;
   level: number;
   name: string;
   previous_level?: number;
   previous_name?: string;
-  /** @minimum 0 */
-  resolved_count: number;
-  /** @minimum 0 */
-  retained_manual_count: number;
   sections: PcAbilitySectionView[];
-  /** @minimum 0 */
-  unresolved_count: number;
 }
 
 export type PcAbilitySelection = {

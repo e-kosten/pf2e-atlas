@@ -1,24 +1,57 @@
 use atlas_app_model::*;
+use atlas_runtime::{
+    AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, WorkspaceArchive,
+};
+use std::path::Path;
 
 fn service() -> (tempfile::TempDir, crate::AtlasAppService) {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("workspace.sqlite");
     atlas_runtime::initialize_workspace(&path).unwrap();
-    let service = crate::AtlasAppService::new(
+    let service = service_at(&path);
+    (directory, service)
+}
+
+fn runtime_options(path: &Path) -> AtlasRuntimeOptions {
+    AtlasRuntimeOptions {
+        path_mode: AtlasPathMode::Global,
+        overrides: AtlasPathOverrides {
+            index_path: Some(path.into()),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+fn service_at(path: &Path) -> crate::AtlasAppService {
+    crate::AtlasAppService::new(
         crate::service::RetrievalBackend::command(
             crate::service::CommandRetrievalMode::NoQueryInference,
         ),
-        atlas_runtime::AtlasRuntimeOptions {
-            path_mode: atlas_runtime::AtlasPathMode::Global,
-            overrides: atlas_runtime::AtlasPathOverrides {
-                index_path: Some(path),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
+        runtime_options(path),
     )
-    .unwrap();
-    (directory, service)
+    .unwrap()
+}
+
+fn capture_archive(path: &Path) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    AtlasRuntime::resolve(runtime_options(path))
+        .unwrap()
+        .capture_workspace_archive()
+        .unwrap()
+        .write(&mut bytes)
+        .unwrap();
+    bytes
+}
+
+fn restore_archive(path: &Path, bytes: &[u8]) -> AtlasRuntime {
+    atlas_runtime::initialize_workspace(path).unwrap();
+    let runtime = AtlasRuntime::resolve(runtime_options(path)).unwrap();
+    let preflight = runtime.preflight_workspace_restore().unwrap();
+    runtime
+        .restore_workspace_archive(&WorkspaceArchive::read(bytes).unwrap(), &preflight, false)
+        .unwrap();
+    runtime
 }
 
 fn next_id() -> u64 {
@@ -406,7 +439,12 @@ fn pathbuilder_export(level: i64) -> String {
     serde_json::json!({
         "success": true,
         "build": {
-            "name": "Wizard", "level": level, "feats": [["Counterspell", null, "Class Feat", 2]],
+            "name": "Wizard", "level": level,
+            "feats": [
+                ["Counterspell", null, "Class Feat", 2],
+                ["Assurance", "Stealth", "Skill Feat", 2],
+                ["Assurance", "Athletics", "Skill Feat", 4]
+            ],
             "specials": [], "spellCasters": [],
             "focus": {"arcane": {"int": {"focusSpells": ["Test Focus Spell"]}}}
         }
@@ -414,12 +452,22 @@ fn pathbuilder_export(level: i64) -> String {
     .to_string()
 }
 
+fn ability_by_label<'a>(sections: &'a [PcAbilitySectionView], label: &str) -> &'a PcAbilityView {
+    sections
+        .iter()
+        .flat_map(|section| &section.abilities)
+        .find(|ability| ability.label == label)
+        .unwrap()
+}
+
 #[test]
 fn imports_reviewed_rule_links_with_party_membership_and_overrides_them_on_refresh() {
     let (_directory, service) = pathbuilder_service();
     let json = pathbuilder_export(7);
     let draft = service.preview_pathbuilder_pc(&json, None).unwrap();
-    let ability_key = draft.abilities[0].ability_key.clone();
+    let ability_key = ability_by_label(&draft.sections, "Counterspell")
+        .ability_key
+        .clone();
     let prepared_rule: atlas_domain::RecordKey = "feats:testfeat00000001".parse().unwrap();
     let practiced_rule = "feats:testfeat00000002".parse().unwrap();
     let roster = party(&service, "Party", &[]);
@@ -444,9 +492,10 @@ fn imports_reviewed_rule_links_with_party_membership_and_overrides_them_on_refre
     let replay = service.save_pathbuilder_pc(request.clone()).unwrap();
     assert_eq!(replay.character_key, saved.character_key);
     let character = service.character(&saved.character_key).unwrap();
-    assert!(character.abilities[0].manual);
+    let counterspell = ability_by_label(&character.sections, "Counterspell");
+    assert!(counterspell.manual);
     assert_eq!(
-        character.abilities[0].record_title.as_deref(),
+        counterspell.record_title.as_deref(),
         Some("Prepared Counterspell")
     );
     let party = &service.parties().unwrap().parties[0];
@@ -458,7 +507,7 @@ fn imports_reviewed_rule_links_with_party_membership_and_overrides_them_on_refre
     let review = service
         .preview_pathbuilder_pc(&pathbuilder_export(8), Some(&saved.character_key))
         .unwrap();
-    assert_eq!(review.retained_manual_count, 1);
+    assert!(ability_by_label(&review.sections, "Counterspell").manual);
     let refreshed = service
         .save_pathbuilder_pc(SavePathbuilderPcRequest {
             request_id: "refresh-with-links".into(),
@@ -473,12 +522,13 @@ fn imports_reviewed_rule_links_with_party_membership_and_overrides_them_on_refre
     assert_eq!(refreshed.character_key, saved.character_key);
     let refreshed = service.character(&refreshed.character_key).unwrap();
     assert_eq!(refreshed.level, Some(8));
-    assert!(refreshed.abilities[0].manual);
+    let counterspell = ability_by_label(&refreshed.sections, "Counterspell");
+    assert!(counterspell.manual);
     assert_eq!(
-        refreshed.abilities[0].record_title.as_deref(),
+        counterspell.record_title.as_deref(),
         Some("Practiced Counterspell")
     );
-    assert!(!refreshed.abilities[0].automatic_match_available);
+    assert!(!counterspell.automatic_match_available);
     let restore = |ability: &PcAbilityView, character_revision| {
         service.save_pc_ability_link(
             &saved.character_key,
@@ -489,35 +539,33 @@ fn imports_reviewed_rule_links_with_party_membership_and_overrides_them_on_refre
             },
         )
     };
-    assert!(restore(&refreshed.abilities[0], refreshed.character_revision).is_err());
+    assert!(restore(counterspell, refreshed.character_revision).is_err());
     let retained = service.character(&saved.character_key).unwrap();
     assert_eq!(retained.character_revision, refreshed.character_revision);
-    assert_eq!(
-        retained.abilities[0].record_key,
-        refreshed.abilities[0].record_key
-    );
+    let retained_rule = &ability_by_label(&retained.sections, "Counterspell").record_key;
+    assert_eq!(retained_rule, &counterspell.record_key);
 
+    let automatic_spell = ability_by_label(&retained.sections, "Test Focus Spell");
     let linked_spell = service
         .save_pc_ability_link(
             &saved.character_key,
-            &retained.abilities[1].ability_key,
+            &automatic_spell.ability_key,
             SavePcAbilityLinkRequest {
                 expected_character_revision: retained.character_revision,
                 selection: PcAbilitySelection::Manual {
-                    record_key: retained.abilities[0].record_key.clone().unwrap(),
+                    record_key: retained_rule.clone().unwrap(),
                     expected_artifact_generation: draft.artifact_generation,
                 },
             },
         )
         .unwrap();
-    assert!(linked_spell.abilities[1].manual);
-    assert!(linked_spell.abilities[1].automatic_match_available);
-    let restored = restore(&linked_spell.abilities[1], linked_spell.character_revision).unwrap();
-    assert!(!restored.abilities[1].manual);
-    assert_eq!(
-        restored.abilities[1].record_key,
-        retained.abilities[1].record_key
-    );
+    let spell = ability_by_label(&linked_spell.sections, "Test Focus Spell");
+    assert!(spell.manual);
+    assert!(spell.automatic_match_available);
+    let restored = restore(spell, linked_spell.character_revision).unwrap();
+    let spell = ability_by_label(&restored.sections, "Test Focus Spell");
+    assert!(!spell.manual);
+    assert_eq!(spell.record_key, automatic_spell.record_key);
 }
 
 #[test]
@@ -526,7 +574,9 @@ fn encounter_import_rejects_unavailable_links_and_commits_valid_choices_once() {
     let key = encounter(&service);
     let json = pathbuilder_export(7);
     let draft = service.preview_pathbuilder_pc(&json, None).unwrap();
-    let ability_key = draft.abilities[0].ability_key.clone();
+    let ability_key = ability_by_label(&draft.sections, "Counterspell")
+        .ability_key
+        .clone();
     let mut request = AddEncounterCharacterRequest {
         request_id: "encounter-import-with-links".into(),
         expected_encounter_revision: service.encounter(&key).unwrap().revision,
@@ -564,9 +614,11 @@ fn encounter_import_rejects_unavailable_links_and_commits_valid_choices_once() {
         .unwrap()
         .reference
         .unwrap();
-    assert!(reference.abilities[0].manual);
+    assert!(ability_by_label(&reference.sections, "Counterspell").manual);
     assert_eq!(
-        reference.abilities[0].record_title.as_deref(),
+        ability_by_label(&reference.sections, "Counterspell")
+            .record_title
+            .as_deref(),
         Some("Prepared Counterspell")
     );
 }
@@ -575,16 +627,33 @@ fn encounter_import_rejects_unavailable_links_and_commits_valid_choices_once() {
 fn imported_references_refresh_once_across_shared_parties_encounters_and_recovery() {
     use serde_json::json;
     let (directory, service) = pathbuilder_service();
-    let path = directory.path().join("workspace.sqlite");
     let export = pathbuilder_export;
     let draft = service.preview_pathbuilder_pc(&export(7), None).unwrap();
-    assert!(draft.abilities[0].record_key.is_none());
+    assert!(
+        ability_by_label(&draft.sections, "Counterspell")
+            .record_key
+            .is_none()
+    );
     assert_eq!(
-        draft.abilities[1].record_key.as_ref().unwrap().to_string(),
+        ability_by_label(&draft.sections, "Test Focus Spell")
+            .record_key
+            .as_ref()
+            .unwrap()
+            .to_string(),
         "spells:testspell0000001"
     );
-    assert_eq!(draft.sections.len(), 2);
-    assert_eq!((draft.resolved_count, draft.unresolved_count), (1, 1));
+    assert_eq!(
+        draft
+            .sections
+            .iter()
+            .map(|section| (section.kind.as_str(), section.abilities.len()))
+            .collect::<Vec<_>>(),
+        [("feat", 3), ("focus_spell", 1)]
+    );
+    let feats = &draft.sections[0].abilities;
+    assert_eq!(feats[1].choice.as_deref(), Some("Stealth"));
+    assert_eq!(feats[2].choice.as_deref(), Some("Athletics"));
+    assert_ne!(feats[1].ability_key, feats[2].ability_key);
     let request = SavePathbuilderPcRequest {
         request_id: "import".into(),
         json: export(7),
@@ -659,7 +728,7 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
     let linked = service
         .save_pc_ability_link(
             &view.character_key,
-            &view.abilities[0].ability_key,
+            &ability_by_label(&view.sections, "Counterspell").ability_key,
             SavePcAbilityLinkRequest {
                 expected_character_revision: view.character_revision,
                 selection: PcAbilitySelection::Manual {
@@ -672,16 +741,17 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
     let refresh_preview = service
         .preview_pathbuilder_pc(&export(8), Some(&linked.character_key))
         .unwrap();
-    assert_eq!(refresh_preview.retained_manual_count, 1);
     assert_eq!(
         refresh_preview.character_revision,
         Some(linked.character_revision)
     );
     assert_eq!(refresh_preview.previous_name.as_deref(), Some("Wizard"));
     assert_eq!(refresh_preview.previous_level, Some(7));
-    assert!(refresh_preview.abilities[0].manual);
+    assert!(ability_by_label(&refresh_preview.sections, "Counterspell").manual);
     assert_eq!(
-        refresh_preview.abilities[0].record_title.as_deref(),
+        ability_by_label(&refresh_preview.sections, "Counterspell")
+            .record_title
+            .as_deref(),
         Some("Prepared Counterspell")
     );
     service
@@ -701,9 +771,11 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
         .reference
         .unwrap();
     assert_eq!(table.level, Some(8));
-    assert!(table.abilities[0].manual);
+    assert!(ability_by_label(&table.sections, "Counterspell").manual);
     assert_eq!(
-        table.abilities[0].record_title.as_deref(),
+        ability_by_label(&table.sections, "Counterspell")
+            .record_title
+            .as_deref(),
         Some("Prepared Counterspell")
     );
     assert_eq!(
@@ -763,39 +835,17 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
             },
         )
         .unwrap();
-    let runtime = |path| {
-        atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
-            overrides: atlas_runtime::AtlasPathOverrides {
-                index_path: Some(path),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .unwrap()
-    };
-    let archive = runtime(path).capture_workspace_archive().unwrap();
-    let mut bytes = Vec::new();
-    archive.write(&mut bytes).unwrap();
+    let bytes = capture_archive(service.workspace_path());
     let raw: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(raw["version"], "4.0");
     let mut invalid = raw.clone();
     invalid["version"] = json!("3.0");
-    assert!(atlas_runtime::WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
     let mut invalid = raw.clone();
     invalid["saved"]["owners"][0]["pc"]["character_associations"][0]["character_key"] =
         json!("foreign");
-    assert!(atlas_runtime::WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
-    let restored = directory.path().join("restored.sqlite");
-    atlas_runtime::initialize_workspace(&restored).unwrap();
-    let other = runtime(restored);
-    let preflight = other.preflight_workspace_restore().unwrap();
-    other
-        .restore_workspace_archive(
-            &atlas_runtime::WorkspaceArchive::read(bytes.as_slice()).unwrap(),
-            &preflight,
-            false,
-        )
-        .unwrap();
+    assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    let other = restore_archive(&directory.path().join("restored.sqlite"), &bytes);
     let state = other.read_state().unwrap();
     let characters = state.local_state().unwrap().characters();
     assert_eq!(
@@ -862,52 +912,14 @@ fn deleted_character_creation_history_round_trips_without_recreating_it() {
             },
         )
         .unwrap();
-    let runtime = atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
-        overrides: atlas_runtime::AtlasPathOverrides {
-            index_path: Some(service.workspace_path().into()),
-            ..Default::default()
-        },
-        ..Default::default()
-    })
-    .unwrap();
-    let archive = runtime.capture_workspace_archive().unwrap();
-    let mut bytes = Vec::new();
-    archive.write(&mut bytes).unwrap();
+    let bytes = capture_archive(service.workspace_path());
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()["version"],
         "4.0"
     );
     let target_path = directory.path().join("deleted-restored.sqlite");
-    atlas_runtime::initialize_workspace(&target_path).unwrap();
-    let target = atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
-        overrides: atlas_runtime::AtlasPathOverrides {
-            index_path: Some(target_path.clone()),
-            ..Default::default()
-        },
-        ..Default::default()
-    })
-    .unwrap();
-    let preflight = target.preflight_workspace_restore().unwrap();
-    target
-        .restore_workspace_archive(
-            &atlas_runtime::WorkspaceArchive::read(bytes.as_slice()).unwrap(),
-            &preflight,
-            false,
-        )
-        .unwrap();
-    let restored = crate::AtlasAppService::new(
-        crate::service::RetrievalBackend::command(
-            crate::service::CommandRetrievalMode::NoQueryInference,
-        ),
-        atlas_runtime::AtlasRuntimeOptions {
-            overrides: atlas_runtime::AtlasPathOverrides {
-                index_path: Some(target_path),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    restore_archive(&target_path, &bytes);
+    let restored = service_at(&target_path);
     let replay = restored.create_character(request).unwrap();
     assert_eq!(replay.character_key, created.character_key);
     assert!(!replay.available);
@@ -940,20 +952,7 @@ fn historical_encounter_addition_alone_requires_v4_and_replays_without_recreatio
             },
         )
         .unwrap();
-    let source = atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
-        overrides: atlas_runtime::AtlasPathOverrides {
-            index_path: Some(service.workspace_path().into()),
-            ..Default::default()
-        },
-        ..Default::default()
-    })
-    .unwrap();
-    let mut bytes = Vec::new();
-    source
-        .capture_workspace_archive()
-        .unwrap()
-        .write(&mut bytes)
-        .unwrap();
+    let bytes = capture_archive(service.workspace_path());
     let archive: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(archive["version"], "4.0");
     let pc_history = &archive["saved"]["owners"][0]["pc"];
@@ -967,32 +966,10 @@ fn historical_encounter_addition_alone_requires_v4_and_replays_without_recreatio
         serde_json::from_str(receipt_json.as_str().unwrap()).unwrap();
     envelope["unknown"] = serde_json::json!(true);
     *receipt_json = serde_json::json!(envelope.to_string());
-    assert!(atlas_runtime::WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
     let target_path = directory.path().join("addition-restored.sqlite");
-    atlas_runtime::initialize_workspace(&target_path).unwrap();
-    let options = atlas_runtime::AtlasRuntimeOptions {
-        overrides: atlas_runtime::AtlasPathOverrides {
-            index_path: Some(target_path),
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let target = atlas_runtime::AtlasRuntime::resolve(options.clone()).unwrap();
-    let preflight = target.preflight_workspace_restore().unwrap();
-    target
-        .restore_workspace_archive(
-            &atlas_runtime::WorkspaceArchive::read(bytes.as_slice()).unwrap(),
-            &preflight,
-            false,
-        )
-        .unwrap();
-    let restored = crate::AtlasAppService::new(
-        crate::service::RetrievalBackend::command(
-            crate::service::CommandRetrievalMode::NoQueryInference,
-        ),
-        options,
-    )
-    .unwrap();
+    restore_archive(&target_path, &bytes);
+    let restored = service_at(&target_path);
     let replay = restored
         .add_encounter_character(&encounter_key, request)
         .unwrap();

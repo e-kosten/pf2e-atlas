@@ -1,6 +1,12 @@
+import type { APIRequestContext } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
-import type { PartyView, PcReferenceView } from "../../src/generated/atlas";
+import type {
+  EncounterCreateView,
+  PartyIndexView,
+  PartyView,
+  PcReferenceView,
+} from "../../src/generated/atlas";
 
 function exportedCharacter(name: string, level = 7) {
   return JSON.stringify({
@@ -15,21 +21,52 @@ function exportedCharacter(name: string, level = 7) {
   });
 }
 
+async function createParty(
+  request: APIRequestContext,
+  name: string,
+): Promise<PartyView> {
+  const response = await request.post("/api/parties", { data: { name, members: [] } });
+  expect(response.ok()).toBe(true);
+  return response.json();
+}
+
+async function createEncounter(request: APIRequestContext, name: string) {
+  const response = await request.post("/api/encounters", { data: { name } });
+  expect(response.ok()).toBe(true);
+  const { encounter } = (await response.json()) as EncounterCreateView;
+  return encounter;
+}
+
+async function deleteCharacters(request: APIRequestContext, keys: string[]) {
+  for (const key of keys) {
+    const path = `/api/characters/${key}`;
+    const response = await request.get(path);
+    if (response.ok()) {
+      const { character_revision } = (await response.json()) as PcReferenceView;
+      await request.delete(path, { data: { expected_revision: character_revision } });
+    }
+  }
+}
+
+async function deleteParties(request: APIRequestContext, ...keys: string[]) {
+  const { parties } = (await (
+    await request.get("/api/parties")
+  ).json()) as PartyIndexView;
+  for (const { party_key, revision } of parties) {
+    if (keys.includes(party_key))
+      await request.delete(`/api/parties/${party_key}`, {
+        data: { expected_revision: revision },
+      });
+  }
+}
+
 test("Pathbuilder character rules stay shared between parties and encounters", async ({
   page,
 }, info) => {
   const name = `Pathbuilder ${info.project.name} ${Date.now()}`;
-  const party = (await (
-    await page.request.post("/api/parties", { data: { name, members: [] } })
-  ).json()) as PartyView;
-  const second = (await (
-    await page.request.post("/api/parties", {
-      data: { name: `${name} current`, members: [] },
-    })
-  ).json()) as PartyView;
-  const { encounter } = await (
-    await page.request.post("/api/encounters", { data: { name } })
-  ).json();
+  const party = await createParty(page.request, name);
+  const second = await createParty(page.request, `${name} current`);
+  const encounter = await createEncounter(page.request, name);
   let characterKey: string | undefined;
   let releaseSearch: (() => void) | undefined;
   try {
@@ -107,8 +144,11 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     const imported = (await (
       await page.request.get(`/api/characters/${characterKey}`)
     ).json()) as PcReferenceView;
+    expect(imported).not.toHaveProperty("abilities");
     expect(
-      imported.abilities.find((ability) => ability.label === "Darkvision")?.manual,
+      imported.sections
+        .flatMap((section) => section.abilities)
+        .find((ability) => ability.label === "Darkvision")?.manual,
     ).toBe(true);
     const reference = page.locator(".pc-ability-browser");
     const darkvision = reference.getByRole("button", {
@@ -346,21 +386,8 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
   } finally {
     releaseSearch?.();
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
-    if (characterKey) {
-      const result = await page.request.get(`/api/characters/${characterKey}`);
-      if (result.ok())
-        await page.request.delete(`/api/characters/${characterKey}`, {
-          data: { expected_revision: (await result.json()).character_revision },
-        });
-    }
-    const index = await (await page.request.get("/api/parties")).json();
-    for (const key of [party.party_key, second.party_key]) {
-      const current = (index.parties as PartyView[]).find((p) => p.party_key === key);
-      if (current)
-        await page.request.delete(`/api/parties/${key}`, {
-          data: { expected_revision: current.revision },
-        });
-    }
+    if (characterKey) await deleteCharacters(page.request, [characterKey]);
+    await deleteParties(page.request, party.party_key, second.party_key);
   }
 });
 
@@ -370,9 +397,7 @@ test("encounter imports and manual PCs create reusable characters", async ({
   const stamp = `${info.project.name} ${Date.now()}`;
   const manualName = `Manual ${stamp}`;
   const importedName = `Imported ${stamp}`;
-  const { encounter } = await (
-    await page.request.post("/api/encounters", { data: { name: stamp } })
-  ).json();
+  const encounter = await createEncounter(page.request, stamp);
   const created: string[] = [];
   try {
     await page.goto(`/encounters/${encounter.slug}`);
@@ -443,13 +468,7 @@ test("encounter imports and manual PCs create reusable characters", async ({
     await noPageOverflow(page);
   } finally {
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
-    for (const key of created) {
-      const result = await page.request.get(`/api/characters/${key}`);
-      if (result.ok())
-        await page.request.delete(`/api/characters/${key}`, {
-          data: { expected_revision: (await result.json()).character_revision },
-        });
-    }
+    await deleteCharacters(page.request, created);
   }
 });
 
@@ -458,14 +477,8 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
   browserName,
 }, info) => {
   const name = `Party edits ${info.project.name} ${Date.now()}`;
-  const first = (await (
-    await page.request.post("/api/parties", { data: { name, members: [] } })
-  ).json()) as PartyView;
-  const second = (await (
-    await page.request.post("/api/parties", {
-      data: { name: `${name} other`, members: [] },
-    })
-  ).json()) as PartyView;
+  const first = await createParty(page.request, name);
+  const second = await createParty(page.request, `${name} other`);
   const keys: string[] = [];
   try {
     for (const pc of ["Aster", "Bram"]) {
@@ -601,20 +614,7 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
       page.getByRole("heading", { name: `${name} renamed`, exact: true }),
     ).toBeVisible();
   } finally {
-    for (const key of keys) {
-      const response = await page.request.get(`/api/characters/${key}`);
-      if (response.ok())
-        await page.request.delete(`/api/characters/${key}`, {
-          data: { expected_revision: (await response.json()).character_revision },
-        });
-    }
-    const index = await (await page.request.get("/api/parties")).json();
-    for (const key of [first.party_key, second.party_key]) {
-      const current = (index.parties as PartyView[]).find((p) => p.party_key === key);
-      if (current)
-        await page.request.delete(`/api/parties/${key}`, {
-          data: { expected_revision: current.revision },
-        });
-    }
+    await deleteCharacters(page.request, keys);
+    await deleteParties(page.request, first.party_key, second.party_key);
   }
 });

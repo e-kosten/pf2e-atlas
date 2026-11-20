@@ -1,7 +1,7 @@
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { Button, Input, Space, Typography } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useId, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import {
   addEncounterCharacter,
   getEncounter,
@@ -10,11 +10,11 @@ import {
   savePathbuilderPc,
 } from "../../api/atlasApi";
 import type {
+  AddEncounterCharacterRequest,
   CharacterMutationView,
   EncounterCharacterMutationView,
+  SavePathbuilderPcRequest,
   PcReferenceView,
-  PcAbilityView,
-  PcAbilitySelection,
   PathbuilderPreviewView,
   PartyView,
 } from "../../generated/atlas";
@@ -22,13 +22,17 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters } from "./characterQueries";
-import { PcAbilityBrowser } from "./PcAbilityBrowser";
+import { PcAbilityBrowser, type AbilityLinkChange } from "./PcAbilityBrowser";
 
 type ImportReview = {
   view: PathbuilderPreviewView;
   party?: PartyView;
   encounterRevision?: number;
 };
+
+type ImportWrite =
+  | { encounterKey: string; request: AddEncounterCharacterRequest }
+  | { encounterKey?: never; request: SavePathbuilderPcRequest };
 
 export function PathbuilderImport({
   party,
@@ -57,15 +61,7 @@ export function PathbuilderImport({
   const [linksExpired, setLinksExpired] = useState(false);
   const reviewedGeneration = useRef<string>(undefined);
   const chooseLink = useMutation({
-    mutationFn: async ({
-      ability,
-      selection,
-      recordTitle,
-    }: {
-      ability: PcAbilityView;
-      selection: PcAbilitySelection;
-      recordTitle?: string;
-    }) => {
+    mutationFn: async ({ abilityKey, selection, recordTitle }: AbilityLinkChange) => {
       if (selection.kind !== "manual" || !recordTitle) return;
       if (selection.expected_artifact_generation !== reviewedGeneration.current) {
         throw new Error(
@@ -74,7 +70,7 @@ export function PathbuilderImport({
       }
       setRuleLinks((links) => ({
         ...links,
-        [ability.ability_key]: { key: selection.record_key, title: recordTitle },
+        [abilityKey]: { key: selection.record_key, title: recordTitle },
       }));
     },
   });
@@ -113,52 +109,15 @@ export function PathbuilderImport({
     onError: (error) => setReview((current) => ({ ...current, error })),
     retry: false,
   });
-  type ImportIntent = {
-    review: ImportReview;
-    json: string;
-    ruleLinks: Record<string, string>;
-  };
-  const submitted = useRef<ImportIntent | null>(null);
   const save = useMutation({
     retry: false,
-    mutationFn: async (
-      latest: ImportIntent,
-    ): Promise<CharacterMutationView | EncounterCharacterMutationView> => {
-      submitted.current ??= latest;
-      const { review: reviewed, json, ruleLinks } = submitted.current;
-      const submittedLinks = Object.keys(ruleLinks).length ? ruleLinks : undefined;
-      if (encounter) {
-        const added = await addEncounterCharacter(encounter.encounterKey, {
-          request_id: requestId,
-          expected_encounter_revision: reviewed.encounterRevision!,
-          source: {
-            kind: "pathbuilder",
-            json,
-            rule_links: submittedLinks,
-            expected_artifact_generation: reviewed.view.artifact_generation,
-          },
-        });
-        return added;
-      }
-      return savePathbuilderPc({
-        request_id: requestId,
-        json,
-        rule_links: submittedLinks,
-        character_key: character?.character_key,
-        expected_character_revision: reviewed.view.character_revision,
-        party: reviewed.party
-          ? {
-              party_key: reviewed.party.party_key,
-              expected_revision: reviewed.party.revision,
-            }
-          : undefined,
-        expected_artifact_generation: reviewed.view.artifact_generation,
-      });
-    },
-    onError: (error) => {
-      if (!isUnconfirmedMutation(error)) submitted.current = null;
-      void refreshCharacters(client);
-    },
+    mutationFn: (
+      write: ImportWrite,
+    ): Promise<CharacterMutationView | EncounterCharacterMutationView> =>
+      write.encounterKey !== undefined
+        ? addEncounterCharacter(write.encounterKey, write.request)
+        : savePathbuilderPc(write.request),
+    onError: () => void refreshCharacters(client),
     onSuccess: async (saved) => {
       await refreshCharacters(client);
       if (!saved.available) return;
@@ -174,21 +133,72 @@ export function PathbuilderImport({
   const uncertain = Boolean(save.error && isUnconfirmedMutation(save.error));
   const canReview = Boolean(save.error && !isUnconfirmedMutation(save.error));
   const busy = preview.isPending || save.isPending || chooseLink.isPending;
+  const canReviewLink = !busy && !uncertain;
+  function commit() {
+    if (uncertain && save.variables) {
+      save.mutate(save.variables);
+      return;
+    }
+    const reviewed = review.data;
+    if (!reviewed) return;
+    const links = Object.entries(ruleLinks);
+    const fields = {
+      json: text,
+      expected_artifact_generation: reviewed.view.artifact_generation,
+      rule_links: links.length
+        ? Object.fromEntries(links.map(([key, link]) => [key, link.key]))
+        : undefined,
+    };
+    if (encounter) {
+      save.mutate({
+        encounterKey: encounter.encounterKey,
+        request: {
+          request_id: requestId,
+          expected_encounter_revision: reviewed.encounterRevision!,
+          source: { ...fields, kind: "pathbuilder" },
+        },
+      });
+    } else {
+      save.mutate({
+        request: {
+          ...fields,
+          request_id: requestId,
+          character_key: character?.character_key,
+          expected_character_revision: reviewed.view.character_revision,
+          party: reviewed.party && {
+            party_key: reviewed.party.party_key,
+            expected_revision: reviewed.party.revision,
+          },
+        },
+      });
+    }
+  }
   const draft = review.data?.view;
-  const stageAbility = (ability: PcAbilityView): PcAbilityView => {
-    const chosen = ruleLinks[ability.ability_key];
-    return chosen
-      ? { ...ability, record_key: chosen.key, record_title: chosen.title, manual: true }
-      : ability;
-  };
-  const abilities = draft?.abilities.map(stageAbility) ?? [];
+  const sections = useMemo(
+    () =>
+      draft?.sections.map((section) => ({
+        ...section,
+        abilities: section.abilities.map((ability) => {
+          const chosen = ruleLinks[ability.ability_key];
+          return chosen
+            ? {
+                ...ability,
+                record_key: chosen.key,
+                record_title: chosen.title,
+                manual: true,
+              }
+            : ability;
+        }),
+      })) ?? [],
+    [draft, ruleLinks],
+  );
+  const abilities = sections.flatMap((section) => section.abilities);
   const linked = abilities.filter(
     (ability) => ability.record_key && ability.record_title,
   ).length;
-  const retainedManualCount =
-    draft?.abilities.filter(
-      (ability) => ability.manual && !ruleLinks[ability.ability_key],
-    ).length ?? 0;
+  const retainedManualCount = abilities.filter(
+    (ability) => ability.manual && !ruleLinks[ability.ability_key],
+  ).length;
   const commitLabel = character
     ? "Refresh character"
     : encounter
@@ -230,18 +240,7 @@ export function PathbuilderImport({
               type="primary"
               loading={save.isPending}
               disabled={paused || busy || canReview || Boolean(review.error)}
-              onClick={() => {
-                if (!review.data) return;
-                save.mutate(
-                  submitted.current ?? {
-                    review: review.data,
-                    json: text,
-                    ruleLinks: Object.fromEntries(
-                      Object.entries(ruleLinks).map(([key, link]) => [key, link.key]),
-                    ),
-                  },
-                );
-              }}
+              onClick={commit}
             >
               {uncertain ? "Retry to confirm" : commitLabel}
             </Button>
@@ -318,10 +317,7 @@ export function PathbuilderImport({
                   <Button
                     loading={preview.isPending ? { delay: 500 } : false}
                     disabled={preview.isPending}
-                    onClick={() => {
-                      submitted.current = null;
-                      preview.mutate(text);
-                    }}
+                    onClick={() => preview.mutate(text)}
                   >
                     Review latest changes
                   </Button>
@@ -366,22 +362,13 @@ export function PathbuilderImport({
               key={draft.artifact_generation}
               generation={draft.artifact_generation}
               active={!closing}
-              onReviewImport={
-                !busy && !uncertain ? () => preview.mutate(text) : undefined
-              }
-              doc={{
-                imported: true,
-                abilities,
-                sections: draft.sections.map((section) => ({
-                  ...section,
-                  abilities: section.abilities.map(stageAbility),
-                })),
-              }}
+              onReviewImport={canReviewLink ? () => preview.mutate(text) : undefined}
+              doc={{ imported: true, sections }}
               link={chooseLink}
               linkErrorAction={
                 <Button
                   loading={preview.isPending ? { delay: 500 } : false}
-                  disabled={preview.isPending}
+                  disabled={!canReviewLink}
                   onClick={() => preview.mutate(text)}
                 >
                   Review latest changes

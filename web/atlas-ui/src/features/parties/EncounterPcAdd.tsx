@@ -1,7 +1,7 @@
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { Button, Form, Input, InputNumber, Space } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { addEncounterCharacter, getEncounter } from "../../api/atlasApi";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -39,36 +39,19 @@ export function EncounterPcAdd({
   const client = useQueryClient();
   const paused = useSavedWritesPaused();
   const [revision, setRevision] = useState(encounter.revision);
-  const submitted = useRef<Parameters<typeof addEncounterCharacter>[1] | null>(null);
   const review = useMutation({
     retry: false,
     mutationFn: () => getEncounter(encounter.encounterKey),
     onSuccess: (latest) => {
       setRevision(latest.revision);
-      submitted.current = null;
       save.reset();
     },
   });
   const save = useMutation({
     retry: false,
-    mutationFn: (values: Fields) => {
-      submitted.current ??= {
-        request_id: requestId,
-        expected_encounter_revision: revision,
-        source: {
-          kind: "manual",
-          name: values.name,
-          level: values.level ?? undefined,
-          max_hp: values.maxHp ?? undefined,
-          initiative: values.initiative ?? undefined,
-        },
-      };
-      return addEncounterCharacter(encounter.encounterKey, submitted.current);
-    },
-    onError: (error) => {
-      if (!isUnconfirmedMutation(error)) submitted.current = null;
-      void refreshCharacters(client);
-    },
+    mutationFn: (args: Parameters<typeof addEncounterCharacter>) =>
+      addEncounterCharacter(...args),
+    onError: () => void refreshCharacters(client),
     onSuccess: async (saved) => {
       await refreshCharacters(client);
       if (!saved.available) return;
@@ -94,7 +77,6 @@ export function EncounterPcAdd({
     return (
       <PcCharacterDrawer
         location={{
-          kind: "encounter",
           encounterKey: encounter.encounterKey,
           participantKey: created.participantKey,
           revision: encounter.revision,
@@ -114,7 +96,14 @@ export function EncounterPcAdd({
         onDiscard: () => setClosing(true),
       }}
       afterClose={onClose}
-      onOk={mode === "manual" ? () => form.submit() : undefined}
+      onOk={
+        mode === "manual"
+          ? () => {
+              if (uncertain && save.variables) save.mutate(save.variables);
+              else form.submit();
+            }
+          : undefined
+      }
       okText={uncertain ? "Retry to confirm" : "Add to encounter"}
       okButtonProps={{ disabled: paused || canReview || review.isPending }}
       cancelButtonProps={{ disabled: save.isPending }}
@@ -142,7 +131,22 @@ export function EncounterPcAdd({
           layout="vertical"
           form={form}
           disabled={paused || save.isPending || uncertain || review.isPending}
-          onFinish={(values) => save.mutate(values)}
+          onFinish={(values: Fields) =>
+            save.mutate([
+              encounter.encounterKey,
+              {
+                request_id: requestId,
+                expected_encounter_revision: revision,
+                source: {
+                  kind: "manual",
+                  name: values.name,
+                  level: values.level ?? undefined,
+                  max_hp: values.maxHp ?? undefined,
+                  initiative: values.initiative ?? undefined,
+                },
+              },
+            ])
+          }
         >
           {save.error && (
             <ErrorNotice

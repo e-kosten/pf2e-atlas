@@ -8,7 +8,12 @@ import {
   getParties,
   updateCharacter,
 } from "../../api/atlasApi";
-import type { PcReferenceView, PartyView } from "../../generated/atlas";
+import type {
+  CreateCharacterRequest,
+  PcReferenceView,
+  PartyView,
+  UpdateCharacterRequest,
+} from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
@@ -16,6 +21,9 @@ import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters } from "./characterQueries";
 
 type Fields = { name: string; level?: number | null };
+type CharacterWrite =
+  | { characterKey: string; request: UpdateCharacterRequest }
+  | { characterKey?: never; request: CreateCharacterRequest };
 
 export function CharacterEditor({
   character,
@@ -40,11 +48,6 @@ export function CharacterEditor({
     character?.character_revision,
   );
   const [partyRevision, setPartyRevision] = useState(party?.revision);
-  const submitted = useRef<{
-    values: Fields;
-    characterRevision?: number;
-    partyRevision?: number;
-  } | null>(null);
   const nameInput = useRef<React.ComponentRef<typeof Input>>(null);
   const discard = useConfirmDangerAction();
   useLayoutEffect(() => {
@@ -63,37 +66,16 @@ export function CharacterEditor({
     onSuccess: (latest) => {
       setCharacterRevision(latest.character?.character_revision);
       setPartyRevision(latest.party?.revision);
-      submitted.current = null;
       save.reset();
     },
   });
   const save = useMutation({
     retry: false,
-    mutationFn: (values: Fields) => {
-      submitted.current ??= { values, characterRevision, partyRevision };
-      const checked = submitted.current;
-      return character
-        ? updateCharacter(character.character_key, {
-            expected_revision: checked.characterRevision!,
-            name: checked.values.name,
-            level: checked.values.level ?? undefined,
-          })
-        : createCharacter({
-            request_id: requestId,
-            name: checked.values.name,
-            level: checked.values.level ?? undefined,
-            party: party
-              ? {
-                  party_key: party.party_key,
-                  expected_revision: checked.partyRevision!,
-                }
-              : undefined,
-          });
-    },
-    onError: (error) => {
-      if (!isUnconfirmedMutation(error)) submitted.current = null;
-      void refreshCharacters(client);
-    },
+    mutationFn: (write: CharacterWrite) =>
+      write.characterKey !== undefined
+        ? updateCharacter(write.characterKey, write.request)
+        : createCharacter(write.request),
+    onError: () => void refreshCharacters(client),
     onSuccess: async (saved) => {
       await refreshCharacters(client);
       if (!saved.available) return;
@@ -104,6 +86,30 @@ export function CharacterEditor({
   const uncertain = Boolean(save.error && isUnconfirmedMutation(save.error));
   const blocked = save.isPending || review.isPending || paused;
   const canReview = Boolean(save.error && !isUnconfirmedMutation(save.error));
+  function saveDraft({ name, level }: Fields) {
+    const fields = { name, level: level ?? undefined };
+    if (character) {
+      save.mutate({
+        characterKey: character.character_key,
+        request: { ...fields, expected_revision: characterRevision! },
+      });
+    } else {
+      save.mutate({
+        request: {
+          ...fields,
+          request_id: requestId,
+          party: party && {
+            party_key: party.party_key,
+            expected_revision: partyRevision!,
+          },
+        },
+      });
+    }
+  }
+  function submit() {
+    if (uncertain && save.variables) save.mutate(save.variables);
+    else form.submit();
+  }
   const close = () => setClosing(true);
   const content = (
     <Form
@@ -112,7 +118,7 @@ export function CharacterEditor({
       layout="vertical"
       initialValues={{ name: character?.name ?? "", level: character?.level }}
       disabled={blocked || uncertain}
-      onFinish={(values) => save.mutate(values)}
+      onFinish={saveDraft}
     >
       {save.error && (
         <ErrorNotice
@@ -200,7 +206,7 @@ export function CharacterEditor({
             type="primary"
             disabled={blocked || canReview}
             loading={save.isPending}
-            onClick={() => form.submit()}
+            onClick={submit}
           >
             {uncertain ? "Retry to confirm" : "Add to party"}
           </Button>
@@ -218,7 +224,7 @@ export function CharacterEditor({
       closable={!save.isPending}
       keyboard={!save.isPending}
       mask={{ closable: !save.isPending }}
-      onOk={() => form.submit()}
+      onOk={submit}
       okText={
         uncertain
           ? "Retry to confirm"

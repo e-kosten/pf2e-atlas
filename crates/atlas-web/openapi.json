@@ -11999,12 +11999,6 @@
       },
       "PathbuilderPreviewView": {
         "properties": {
-          "abilities": {
-            "items": {
-              "$ref": "#/components/schemas/PcAbilityView"
-            },
-            "type": "array"
-          },
           "artifact_generation": {
             "type": "string"
           },
@@ -12026,34 +12020,18 @@
           "previous_name": {
             "type": "string"
           },
-          "resolved_count": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "retained_manual_count": {
-            "minimum": 0,
-            "type": "integer"
-          },
           "sections": {
             "items": {
               "$ref": "#/components/schemas/PcAbilitySectionView"
             },
             "type": "array"
-          },
-          "unresolved_count": {
-            "minimum": 0,
-            "type": "integer"
           }
         },
         "required": [
-          "retained_manual_count",
           "name",
           "level",
           "artifact_generation",
-          "abilities",
-          "sections",
-          "resolved_count",
-          "unresolved_count"
+          "sections"
         ],
         "type": "object"
       },
@@ -12161,12 +12139,6 @@
       },
       "PcReferenceView": {
         "properties": {
-          "abilities": {
-            "items": {
-              "$ref": "#/components/schemas/PcAbilityView"
-            },
-            "type": "array"
-          },
           "character_key": {
             "type": "string"
           },
@@ -12190,19 +12162,11 @@
             },
             "type": "array"
           },
-          "resolved_count": {
-            "minimum": 0,
-            "type": "integer"
-          },
           "sections": {
             "items": {
               "$ref": "#/components/schemas/PcAbilitySectionView"
             },
             "type": "array"
-          },
-          "unresolved_count": {
-            "minimum": 0,
-            "type": "integer"
           }
         },
         "required": [
@@ -12211,10 +12175,7 @@
           "parties",
           "name",
           "imported",
-          "abilities",
-          "sections",
-          "resolved_count",
-          "unresolved_count"
+          "sections"
         ],
         "type": "object"
       },

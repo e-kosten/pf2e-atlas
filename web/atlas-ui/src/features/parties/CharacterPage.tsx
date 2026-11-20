@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Ellipsis } from "lucide-react";
 import { useRef, useState } from "react";
 import { deleteCharacter } from "../../api/atlasApi";
-import type { AbilityNavigation } from "./PcAbilityBrowser";
+import { PcAbilityBrowser, type AbilityNavigation } from "./PcAbilityBrowser";
 import { charactersDestination, partiesDestination } from "../../app/destinations";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
@@ -14,9 +14,13 @@ import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { CharacterEditor } from "./CharacterEditor";
 import { CharacterMemberships } from "./CharactersPage";
-import { refreshCharacters, useCharacter } from "./characterQueries";
+import {
+  characterQueryKey,
+  refreshCharacters,
+  useCharacter,
+  useSavedAbilityLink,
+} from "./characterQueries";
 import { AtlasButtonLink } from "../../app/AtlasLink";
-import { CharacterReference } from "./PcCharacterDrawer";
 import { PathbuilderImport } from "./PathbuilderImport";
 import type { PcReferenceView } from "../../generated/atlas";
 
@@ -64,6 +68,10 @@ function CharacterDocument({
 }) {
   const actions = useRef<HTMLButtonElement>(null);
   const paused = useSavedWritesPaused();
+  const link = useSavedAbilityLink(
+    character,
+    characterQueryKey(character.character_key),
+  );
   const navigate = useNavigate();
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -135,11 +143,12 @@ function CharacterDocument({
           />
         </Popover>
       </header>
-      <CharacterReference
-        mode="page"
+      <PcAbilityBrowser
         navigation={navigation}
-        location={{ kind: "character", characterKey: character.character_key }}
-        name={character.name}
+        doc={character}
+        revision={character.character_revision}
+        link={link}
+        blocked={paused}
       />
       {edit?.mode === "edit" && (
         <CharacterEditor

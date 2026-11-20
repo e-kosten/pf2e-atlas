@@ -1,7 +1,7 @@
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { Button, Input, List, Select, Space } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   addEncounterCharacter,
   getCharacters,
@@ -9,13 +9,23 @@ import {
   getParties,
   updateParty,
 } from "../../api/atlasApi";
-import type { CharacterSummaryView, PartyView } from "../../generated/atlas";
+import type {
+  AddEncounterCharacterRequest,
+  CharacterSummaryView,
+  PartyView,
+  UpdatePartyRequest,
+} from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters, useCharacters } from "./characterQueries";
 import { useParties } from "./useParties";
+
+type CharacterAddition = { characterKey: string } & (
+  | { encounterKey: string; request: AddEncounterCharacterRequest }
+  | { partyKey: string; request: UpdatePartyRequest }
+);
 
 export function CharacterPicker({
   party,
@@ -38,11 +48,6 @@ export function CharacterPicker({
   const paused = useSavedWritesPaused();
   const [reviewedParty, setReviewedParty] = useState(party);
   const [revision, setRevision] = useState(encounter?.revision);
-  const submitted = useRef<{
-    character: CharacterSummaryView;
-    party?: PartyView;
-    revision?: number;
-  } | null>(null);
   const review = useMutation({
     retry: false,
     mutationFn: async () => {
@@ -62,7 +67,7 @@ export function CharacterPicker({
     onSuccess: (latest) => {
       if (
         latest.party?.members.some(
-          (member) => member.character_key === save.variables?.character_key,
+          (member) => member.character_key === save.variables?.characterKey,
         )
       ) {
         setClosing(true);
@@ -70,46 +75,16 @@ export function CharacterPicker({
       }
       setReviewedParty(latest.party);
       setRevision(latest.revision);
-      submitted.current = null;
       save.reset();
     },
   });
   const save = useMutation({
     retry: false,
-    mutationFn: async (character: CharacterSummaryView) => {
-      submitted.current ??= { character, party: reviewedParty, revision };
-      const checked = submitted.current;
-      character = checked.character;
-      if (encounter)
-        return addEncounterCharacter(encounter.encounterKey, {
-          request_id: requestId,
-          expected_encounter_revision: checked.revision!,
-          source: {
-            kind: "existing",
-            character_key: character.character_key,
-            expected_character_revision: character.revision,
-          },
-        });
-      if (checked.party)
-        return updateParty(checked.party.party_key, {
-          name: checked.party.name,
-          expected_revision: checked.party.revision,
-          members: [
-            ...checked.party.members.map((member) => ({
-              character_key: member.character_key,
-              expected_character_revision: member.character_revision,
-            })),
-            {
-              character_key: character.character_key,
-              expected_character_revision: character.revision,
-            },
-          ],
-        });
-    },
-    onError: (error) => {
-      if (!isUnconfirmedMutation(error)) submitted.current = null;
-      void refreshCharacters(client);
-    },
+    mutationFn: async (addition: CharacterAddition) =>
+      "encounterKey" in addition
+        ? addEncounterCharacter(addition.encounterKey, addition.request)
+        : updateParty(addition.partyKey, addition.request),
+    onError: () => void refreshCharacters(client),
     onSuccess: async (saved) => {
       await refreshCharacters(client);
       if (saved && "available" in saved && !saved.available) return;
@@ -119,6 +94,47 @@ export function CharacterPicker({
   });
   const uncertain = Boolean(save.error && isUnconfirmedMutation(save.error));
   const canReview = Boolean(save.error && !isUnconfirmedMutation(save.error));
+  function add(character: CharacterSummaryView) {
+    if (uncertain && save.variables) {
+      save.mutate(save.variables);
+      return;
+    }
+    const characterKey = character.character_key;
+    if (encounter) {
+      save.mutate({
+        characterKey,
+        encounterKey: encounter.encounterKey,
+        request: {
+          request_id: requestId,
+          expected_encounter_revision: revision!,
+          source: {
+            kind: "existing",
+            character_key: characterKey,
+            expected_character_revision: character.revision,
+          },
+        },
+      });
+    } else if (reviewedParty) {
+      save.mutate({
+        characterKey,
+        partyKey: reviewedParty.party_key,
+        request: {
+          name: reviewedParty.name,
+          expected_revision: reviewedParty.revision,
+          members: [
+            ...reviewedParty.members.map((member) => ({
+              character_key: member.character_key,
+              expected_character_revision: member.character_revision,
+            })),
+            {
+              character_key: characterKey,
+              expected_character_revision: character.revision,
+            },
+          ],
+        },
+      });
+    }
+  }
   const visible = characters.data?.characters.filter(
     (character) =>
       character.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) &&
@@ -215,13 +231,13 @@ export function CharacterPicker({
                     canReview ||
                     review.isPending ||
                     (uncertain &&
-                      save.variables?.character_key !== character.character_key)
+                      save.variables?.characterKey !== character.character_key)
                   }
                   loading={
                     save.isPending &&
-                    save.variables?.character_key === character.character_key
+                    save.variables?.characterKey === character.character_key
                   }
-                  onClick={() => save.mutate(character)}
+                  onClick={() => add(character)}
                 >
                   {uncertain ? "Retry to confirm" : "Add"}
                 </Button>

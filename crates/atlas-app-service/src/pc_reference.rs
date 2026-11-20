@@ -35,29 +35,17 @@ impl AtlasAppService {
                 preserve_choices(previous.reference, &mut character.reference);
             }
             resolve(session.retrieval(), &mut character.reference)?;
-            let retained_manual_count = character
-                .reference
-                .abilities
-                .iter()
-                .filter(|a| a.manual.is_some())
-                .count();
             let records = session.retrieval().get_records(GetRecordsRequest {
                 record_keys: &keys(&character.reference),
             })?;
-            let abilities = abilities_view(character.reference, records.records);
-            let (sections, resolved_count, unresolved_count) = sections(&abilities);
             Ok(PathbuilderPreviewView {
                 character_revision,
                 previous_name,
                 previous_level,
-                retained_manual_count,
                 name: character.name,
                 level: character.level,
                 artifact_generation: session.generation()?,
-                abilities,
-                sections,
-                resolved_count,
-                unresolved_count,
+                sections: ability_sections(character.reference, records.records),
             })
         })
     }
@@ -336,28 +324,24 @@ pub(super) fn character_view(
     titles: impl FnOnce(&[RecordKey]) -> AppServiceResult<Vec<SourceRecordSummary>>,
 ) -> AppServiceResult<PcReferenceView> {
     let imported = character.reference.is_some();
-    let abilities = if let Some(reference) = character.reference {
+    let sections = if let Some(reference) = character.reference {
         let keys = keys(&reference);
         let records = if keys.is_empty() {
             Vec::new()
         } else {
             titles(&keys)?
         };
-        abilities_view(reference, records)
+        ability_sections(reference, records)
     } else {
         Vec::new()
     };
-    let (sections, resolved_count, unresolved_count) = sections(&abilities);
     Ok(PcReferenceView {
         character_key: character.character_key,
         character_revision: character.revision,
         name: character.name,
         level: character.level,
         imported,
-        abilities,
         sections,
-        resolved_count,
-        unresolved_count,
         parties: character
             .parties
             .into_iter()
@@ -368,35 +352,6 @@ pub(super) fn character_view(
             .collect(),
     })
 }
-fn sections(abilities: &[PcAbilityView]) -> (Vec<PcAbilitySectionView>, usize, usize) {
-    let sections = [
-        ("heritage", "Heritage"),
-        ("special", "Features"),
-        ("feat", "Feats"),
-        ("focus_spell", "Focus spells"),
-        ("spell", "Spells"),
-    ]
-    .into_iter()
-    .filter_map(|(kind, label)| {
-        let items: Vec<_> = abilities
-            .iter()
-            .filter(|a| a.kind == kind)
-            .cloned()
-            .collect();
-        (!items.is_empty()).then_some(PcAbilitySectionView {
-            kind: kind.into(),
-            label: label.into(),
-            abilities: items,
-        })
-    })
-    .collect();
-    let resolved = abilities
-        .iter()
-        .filter(|a| a.record_key.is_some() && a.record_title.is_some())
-        .count();
-    (sections, resolved, abilities.len() - resolved)
-}
-
 pub(super) fn require_generation(session: &WorkspaceRead, expected: &str) -> AppServiceResult<()> {
     let actual = session.generation()?;
     if actual != expected {
@@ -471,24 +426,25 @@ pub(super) fn keys(reference: &PcReference) -> Vec<RecordKey> {
         .collect()
 }
 
-pub(super) fn abilities_view(
+fn ability_sections(
     reference: PcReference,
     records: Vec<SourceRecordSummary>,
-) -> Vec<PcAbilityView> {
+) -> Vec<PcAbilitySectionView> {
     let titles: HashMap<_, _> = records
         .into_iter()
         .map(|record| (record.key, record.name.value))
         .collect();
-    reference
-        .abilities
-        .into_iter()
-        .map(|ability| {
-            let record_key = ability.record_key().cloned();
-            let record_title = record_key
-                .as_ref()
-                .and_then(|key| titles.get(key))
-                .and_then(Clone::clone);
-            PcAbilityView {
+    let mut sections: HashMap<_, Vec<_>> = HashMap::new();
+    for ability in reference.abilities {
+        let record_key = ability.record_key().cloned();
+        let record_title = record_key
+            .as_ref()
+            .and_then(|key| titles.get(key))
+            .and_then(Clone::clone);
+        sections
+            .entry(ability.kind)
+            .or_default()
+            .push(PcAbilityView {
                 ability_key: ability.key,
                 label: ability.label,
                 choice: ability.choice,
@@ -501,7 +457,24 @@ pub(super) fn abilities_view(
                 ambiguous: ability.ambiguous,
                 record_key,
                 record_title,
-            }
-        })
-        .collect()
+            });
+    }
+    [
+        (PcAbilityKind::Heritage, "Heritage"),
+        (PcAbilityKind::Special, "Features"),
+        (PcAbilityKind::Feat, "Feats"),
+        (PcAbilityKind::FocusSpell, "Focus spells"),
+        (PcAbilityKind::Spell, "Spells"),
+    ]
+    .into_iter()
+    .filter_map(|(kind, label)| {
+        sections
+            .remove(&kind)
+            .map(|abilities| PcAbilitySectionView {
+                kind: kind.as_str().into(),
+                label: label.into(),
+                abilities,
+            })
+    })
+    .collect()
 }

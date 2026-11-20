@@ -167,10 +167,6 @@ it("reviews retained rule corrections and refreshes a stale revision without los
     character_revision: 2,
     previous_name: "Aster",
     previous_level: 7,
-    retained_manual_count: 1,
-    resolved_count: 1,
-    unresolved_count: 0,
-    abilities: [ability],
     sections,
   };
   api.previewPathbuilderPc
@@ -189,10 +185,7 @@ it("reviews retained rule corrections and refreshes a stale revision without los
         level: 7,
         parties: [],
         imported: true,
-        abilities: [ability],
         sections,
-        resolved_count: 1,
-        unresolved_count: 0,
       }}
       onClose={vi.fn()}
       onSaved={saved}
@@ -228,11 +221,7 @@ it("keeps importer cancellation disabled until the submitted save finishes", asy
     name: "Aster",
     level: 7,
     artifact_generation: "g",
-    abilities: [],
     sections: [],
-    resolved_count: 0,
-    unresolved_count: 0,
-    retained_manual_count: 0,
   });
   let finish!: (value: { character_key: string; available: boolean }) => void;
   api.savePathbuilderPc.mockReturnValue(

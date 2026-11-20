@@ -887,7 +887,6 @@ function EncounterPcReferenceButton({
       {opener && (
         <PcCharacterDrawer
           location={{
-            kind: "encounter",
             encounterKey,
             participantKey: participant.participant_key,
             revision,

@@ -22,14 +22,10 @@ pub struct PathbuilderPreviewView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub previous_level: Option<i64>,
-    pub retained_manual_count: usize,
     pub name: String,
     pub level: i64,
     pub artifact_generation: String,
-    pub abilities: Vec<PcAbilityView>,
     pub sections: Vec<PcAbilitySectionView>,
-    pub resolved_count: usize,
-    pub unresolved_count: usize,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -79,10 +75,7 @@ pub struct PcReferenceView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub level: Option<i64>,
-    pub abilities: Vec<PcAbilityView>,
     pub sections: Vec<PcAbilitySectionView>,
-    pub resolved_count: usize,
-    pub unresolved_count: usize,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

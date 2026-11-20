@@ -21,11 +21,14 @@ import type {
 import { SearchProfileContext } from "../../shared/search/SearchProfileContext";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
-import { CharacterReference } from "./PcCharacterDrawer";
+import { CharacterPage } from "./CharacterPage";
+import type { AbilityView } from "./PcAbilityBrowser";
+import { PcCharacterDrawer } from "./PcCharacterDrawer";
 import { PathbuilderImport } from "./PathbuilderImport";
 
 const api = vi.hoisted(() => ({
   getCharacter: vi.fn(),
+  getEncounterPcReference: vi.fn(),
   searchPage: vi.fn(),
   getRecordDetail: vi.fn(),
   savePcAbilityLink: vi.fn(),
@@ -50,11 +53,8 @@ const character: PcReferenceView = {
   name: "Simon",
   level: 7,
   imported: true,
-  abilities: [ability],
   sections: [{ kind: "feat", label: "Feats", abilities: [ability] }],
   parties: [],
-  resolved_count: 0,
-  unresolved_count: 1,
 };
 const recordKey = "feats:companion0000001";
 const recordTitle = "Mature Animal Companion (Ranger)";
@@ -103,6 +103,7 @@ function Harness({
   children?: ReactNode;
 }) {
   const context = useContext(SearchProfileContext);
+  const [view, setView] = useState<AbilityView | null>(null);
   const [client] = useState(
     () =>
       new QueryClient({
@@ -118,10 +119,9 @@ function Harness({
           >
             <App>
               {children ?? (
-                <CharacterReference
-                  location={{ kind: "character", characterKey: "pc" }}
-                  name="Simon"
-                  mode="page"
+                <CharacterPage
+                  characterKey="pc"
+                  navigation={{ view, open: setView, close: () => setView(null) }}
                 />
               )}
             </App>
@@ -134,6 +134,7 @@ function Harness({
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getCharacter.mockResolvedValue(character);
+  api.getEncounterPcReference.mockResolvedValue({ reference: character });
   api.getRecordDetail.mockResolvedValue(detailFixture(recordKey, recordTitle));
 });
 afterEach(() => {
@@ -245,58 +246,73 @@ it("keeps the current rule and footer mounted until the next result is prepared"
   await waitFor(() => expect(link).toBeEnabled());
 });
 
-it("returns from a candidate to the same query and result, then saves the guarded rule link", async () => {
-  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: false });
-  api.searchPage.mockResolvedValue(page());
-  const linkedAbility = {
-    ...ability,
-    manual: true,
-    record_key: recordKey,
-    record_title: recordTitle,
-  };
-  const linkedCharacter = {
-    ...character,
-    character_revision: 5,
-    abilities: [linkedAbility],
-    sections: [{ kind: "feat", label: "Feats", abilities: [linkedAbility] }],
-    resolved_count: 1,
-    unresolved_count: 0,
-  };
-  api.savePcAbilityLink.mockResolvedValue(linkedCharacter);
-  render(<Harness />);
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
-  );
-  const result = await screen.findByRole("link", { name: resultName });
-  fireEvent.keyDown(result, { key: "Enter" });
-  expect(await screen.findByRole("button", { name: "Link this rule" })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Results" }));
-  expect(screen.getByRole("searchbox", { name: "Search Atlas rules" })).toHaveValue(
-    ability.label,
-  );
-  await waitFor(() => expect(result).toHaveFocus());
-  fireEvent.click(result);
-  const link = await screen.findByRole("button", { name: "Link this rule" });
-  await waitFor(() => expect(link).toBeEnabled());
-  api.getCharacter.mockResolvedValue(linkedCharacter);
-  fireEvent.click(link);
-  await waitFor(() =>
-    expect(api.savePcAbilityLink).toHaveBeenCalledWith("pc", "companion", {
-      expected_character_revision: 4,
-      selection: {
-        kind: "manual",
-        record_key: recordKey,
-        expected_artifact_generation: "test-generation",
-      },
-    }),
-  );
-  await waitFor(() =>
-    expect(screen.queryByRole("region", { name: "Ability search" })).toBeNull(),
-  );
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: ability.label })).toHaveFocus(),
-  );
-});
+it.each(["character page", "encounter drawer"])(
+  "returns to the same result, then saves a guarded rule link in the %s",
+  async (host) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: false });
+    api.searchPage.mockResolvedValue(page());
+    const linkedAbility = {
+      ...ability,
+      manual: true,
+      record_key: recordKey,
+      record_title: recordTitle,
+    };
+    const linkedCharacter = {
+      ...character,
+      character_revision: 5,
+      sections: [{ kind: "feat", label: "Feats", abilities: [linkedAbility] }],
+    };
+    api.savePcAbilityLink.mockResolvedValue(linkedCharacter);
+    render(
+      <Harness>
+        {host === "encounter drawer" ? (
+          <PcCharacterDrawer
+            location={{
+              encounterKey: "encounter",
+              participantKey: "participant",
+              revision: 2,
+            }}
+            name="Simon"
+          />
+        ) : undefined}
+      </Harness>,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
+    );
+    const result = await screen.findByRole("link", { name: resultName });
+    fireEvent.keyDown(result, { key: "Enter" });
+    expect(await screen.findByRole("button", { name: "Link this rule" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Results" }));
+    expect(screen.getByRole("searchbox", { name: "Search Atlas rules" })).toHaveValue(
+      ability.label,
+    );
+    await waitFor(() => expect(result).toHaveFocus());
+    fireEvent.click(result);
+    const link = await screen.findByRole("button", { name: "Link this rule" });
+    await waitFor(() => expect(link).toBeEnabled());
+    api.getCharacter.mockResolvedValue(linkedCharacter);
+    api.getEncounterPcReference.mockResolvedValue({ reference: linkedCharacter });
+    fireEvent.click(link);
+    await waitFor(() =>
+      expect(api.savePcAbilityLink).toHaveBeenCalledWith("pc", "companion", {
+        expected_character_revision: 4,
+        selection: {
+          kind: "manual",
+          record_key: recordKey,
+          expected_artifact_generation: "test-generation",
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Ability search" })).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: ability.label })).toHaveFocus(),
+    );
+    if (host === "encounter drawer") expect(api.getCharacter).not.toHaveBeenCalled();
+  },
+);
 
 it("does not announce a cached empty result as final while its refresh is pending", async () => {
   api.searchPage.mockResolvedValueOnce(page(0));
@@ -331,9 +347,7 @@ it.each(["cancel", "retry", "new generation"] as const)(
     const draft: PathbuilderPreviewView = {
       ...character,
       level: 7,
-      abilities: [ambiguous],
       sections: [{ kind: "feat", label: "Feats", abilities: [ambiguous] }],
-      retained_manual_count: 0,
       artifact_generation: "test-generation",
     };
     let failReview!: (error: Error) => void;
@@ -425,3 +439,45 @@ it.each(["cancel", "retry", "new generation"] as const)(
     }
   },
 );
+
+it("keeps rule review from replacing an unconfirmed import request", async () => {
+  api.previewPathbuilderPc.mockResolvedValue({
+    name: character.name,
+    level: 7,
+    sections: character.sections,
+    artifact_generation: "older-generation",
+  });
+  api.searchPage.mockResolvedValue(page());
+  api.savePathbuilderPc
+    .mockRejectedValueOnce(new Error("Response lost"))
+    .mockResolvedValueOnce({ character_key: "pc", available: true });
+  render(
+    <Harness>
+      <PathbuilderImport onClose={vi.fn()} />
+    </Harness>,
+  );
+  fireEvent.change(screen.getByLabelText("Pathbuilder JSON"), {
+    target: { value: "{}" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "Link rule for Mature Animal Companion",
+    }),
+  );
+  fireEvent.click(await screen.findByRole("link", { name: resultName }));
+  const link = await screen.findByRole("button", { name: "Link this rule" });
+  await waitFor(() => expect(link).toBeEnabled());
+  fireEvent.click(link);
+  const review = await screen.findByRole("button", { name: "Review latest changes" });
+  expect(review).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Add character" }));
+  const retry = await screen.findByRole("button", { name: "Retry to confirm" });
+  expect(review).toBeDisabled();
+  fireEvent.click(retry);
+  await waitFor(() => expect(api.savePathbuilderPc).toHaveBeenCalledTimes(2));
+  expect(api.savePathbuilderPc.mock.calls[1]).toEqual(
+    api.savePathbuilderPc.mock.calls[0],
+  );
+  expect(api.previewPathbuilderPc).toHaveBeenCalledOnce();
+});
