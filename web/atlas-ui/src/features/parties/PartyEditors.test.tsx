@@ -14,7 +14,6 @@ import { RouterTestContext } from "../../test/router";
 import { RenameParty, SetPartyLevels } from "./PartyEditors";
 
 const api = vi.hoisted(() => ({
-  getCharacters: vi.fn(),
   getParties: vi.fn(),
   updateParty: vi.fn(),
 }));
@@ -59,13 +58,6 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  api.getCharacters.mockResolvedValue({
-    characters: party.members.map((member) => ({
-      ...member,
-      revision: member.character_revision,
-      parties: [],
-    })),
-  });
   api.getParties.mockResolvedValue({ parties: [party] });
   api.updateParty.mockResolvedValue(party);
 });

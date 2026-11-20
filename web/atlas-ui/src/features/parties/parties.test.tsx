@@ -18,7 +18,6 @@ import { PartyPage } from "./PartyPage";
 import { PartiesPage, PartiesWorkspace } from "./PartiesPage";
 const api = vi.hoisted(() => ({
   getParties: vi.fn(),
-  getCharacters: vi.fn(),
   createParty: vi.fn(),
   updateParty: vi.fn(),
   deleteParty: vi.fn(),
@@ -164,30 +163,16 @@ it("retains the new party name after a failed save and retries the empty roster"
   expect(api.createParty).toHaveBeenLastCalledWith({ name: "My group", members: [] });
 });
 
-it("shows shared memberships during level review and updates only selected characters", async () => {
-  api.getCharacters.mockResolvedValue({
-    characters: party.members.map((member) => ({
-      ...member,
-      revision: member.character_revision,
-      parties:
-        member.character_key === "pc-a"
-          ? [{ party_key: "other", name: "Second table" }]
-          : [],
-    })),
-  });
+it("updates only selected characters during level review", async () => {
   render(<PartyPage partyKey="party" />, { wrapper });
   expect(await screen.findByRole("link", { name: "Aster" })).toHaveAttribute(
     "href",
     "/characters/pc-a",
   );
-  expect(screen.queryByText(/Second table/)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Party actions" }));
   fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
   const dialog = await screen.findByRole("dialog", { name: "Set character levels" });
   expect(await within(dialog).findByRole("checkbox", { name: "Aster" })).toBeChecked();
-  expect(
-    within(dialog).getByText("Shared with the party “Second table”"),
-  ).toBeVisible();
   expect(within(dialog).getByText("Level 5")).toBeVisible();
   fireEvent.click(within(dialog).getByRole("checkbox", { name: "Bram" }));
   fireEvent.change(within(dialog).getByRole("spinbutton", { name: "New level" }), {
@@ -212,14 +197,6 @@ it("shows shared memberships during level review and updates only selected chara
 });
 
 it("reviews a concurrent roster change before retrying retained level and character choices", async () => {
-  const asCharacters = (members: typeof party.members) => ({
-    characters: members.map((m) => ({
-      ...m,
-      revision: m.character_revision,
-      parties: [],
-    })),
-  });
-  api.getCharacters.mockResolvedValue(asCharacters(party.members));
   api.updateParty
     .mockRejectedValueOnce(new AtlasApiError(409, "The party changed."))
     .mockResolvedValue({ party_key: "party" });
@@ -249,7 +226,6 @@ it("reviews a concurrent roster change before retrying retained level and charac
   api.getParties.mockResolvedValue({
     parties: [{ ...party, name: "Saved elsewhere", revision: 9, members }],
   });
-  api.getCharacters.mockResolvedValue(asCharacters(members));
   fireEvent.click(review);
   expect(await dialog.findByRole("status")).toHaveTextContent(
     "Latest changes reviewed",

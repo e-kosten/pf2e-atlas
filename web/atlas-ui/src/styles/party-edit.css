@@ -39,16 +39,11 @@
   min-inline-size: 0;
 }
 .party-level-current,
-.party-level-shared,
 .party-edit-hint,
 .party-edit-saved,
 .party-edit-review {
   color: var(--muted);
   font-size: 0.875rem;
-}
-.party-level-shared {
-  grid-column: 1 / -1;
-  padding-inline-start: var(--space-section);
 }
 .party-edit-hint {
   margin-block: var(--space-group) 0;

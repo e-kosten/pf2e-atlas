@@ -6,9 +6,8 @@ import { AtlasApiError, getParties, updateParty } from "../../api/atlasApi";
 import type { PartyView, UpdatePartyRequest } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
-import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
-import { refreshCharacters, useCharacters } from "./characterQueries";
+import { refreshCharacters } from "./characterQueries";
 
 function partyMemberships(party: PartyView) {
   return party.members.map(({ character_key, character_revision }) => ({
@@ -19,14 +18,12 @@ function partyMemberships(party: PartyView) {
 
 function usePartyEdit(
   initialParty: PartyView,
-  reviewMemberships: boolean,
   onReviewed: (latest: PartyView, previous: PartyView) => void,
 ) {
   const [party, setParty] = useState(initialParty);
   const [closing, setClosing] = useState(false);
   const client = useQueryClient();
   const paused = useSavedWritesPaused();
-  const characters = useCharacters(reviewMemberships);
   const save = useMutation({
     retry: false,
     mutationFn: (request: UpdatePartyRequest) => updateParty(party.party_key, request),
@@ -38,12 +35,7 @@ function usePartyEdit(
   const review = useMutation({
     retry: false,
     mutationFn: async () => {
-      const [index] = await Promise.all([
-        getParties(),
-        reviewMemberships
-          ? characters.refetch({ throwOnError: true })
-          : Promise.resolve(),
-      ]);
+      const index = await getParties();
       const latest = index.parties.find((item) => item.party_key === party.party_key);
       if (!latest) throw new Error("This party was deleted. You can close this form.");
       return latest;
@@ -56,7 +48,6 @@ function usePartyEdit(
   });
   return {
     party,
-    characters,
     save,
     review,
     closing,
@@ -148,7 +139,7 @@ export function RenameParty({
   const [form] = Form.useForm<{ name: string }>();
   const id = useId();
   const input = useRef<InputRef>(null);
-  const edit = usePartyEdit(party, false, (latest, previous) => {
+  const edit = usePartyEdit(party, (latest, previous) => {
     if (String(form.getFieldValue("name") ?? "").trim() === previous.name.trim())
       form.setFieldValue("name", latest.name);
   });
@@ -214,7 +205,7 @@ export function SetPartyLevels({
   });
   const input = useRef<React.ComponentRef<typeof InputNumber>>(null);
   const id = useId();
-  const edit = usePartyEdit(party, true, (latest) => {
+  const edit = usePartyEdit(party, (latest) => {
     setSelected((keys) =>
       keys.filter((key) =>
         latest.members.some((member) => member.character_key === key),
@@ -231,23 +222,7 @@ export function SetPartyLevels({
       )
     : [];
   const dirty = raw !== "" && (!valid || changes.length > 0);
-  const currentCharacters = edit.characters.data?.characters;
-  const membershipReady =
-    currentCharacters &&
-    !edit.characters.isPending &&
-    !edit.characters.isFetching &&
-    !edit.characters.error &&
-    edit.party.members.every((member) =>
-      currentCharacters.some(
-        (character) => character.character_key === member.character_key,
-      ),
-    );
-  const canSave =
-    valid &&
-    changes.length > 0 &&
-    Boolean(membershipReady) &&
-    !edit.busy &&
-    !edit.stale;
+  const canSave = valid && changes.length > 0 && !edit.busy && !edit.stale;
   const action =
     valid && changes.length > 0
       ? `Set ${changes.length} ${changes.length === 1 ? "character" : "characters"} to level ${level}`
@@ -315,51 +290,28 @@ export function SetPartyLevels({
             </span>
           )}
         </div>
-        {edit.characters.isPending && (
-          <LoadingStatus label="Loading shared memberships…" />
-        )}
-        {edit.characters.error && (
-          <ErrorNotice
-            title="Memberships could not load"
-            error={edit.characters.error}
-            action={
-              <Button onClick={() => void edit.characters.refetch()}>Retry</Button>
-            }
-          />
-        )}
         <fieldset className="party-level-roster" disabled={edit.busy}>
           <legend>Characters</legend>
-          {edit.party.members.map((member) => {
-            const others = edit.characters.data?.characters
-              .find((character) => character.character_key === member.character_key)
-              ?.parties.filter((p) => p.party_key !== edit.party.party_key);
-            return (
-              <div className="party-level-row" key={member.character_key}>
-                <Checkbox
-                  disabled={edit.busy}
-                  checked={selected.includes(member.character_key)}
-                  onChange={(event) =>
-                    setSelected((keys) =>
-                      event.target.checked
-                        ? [...keys, member.character_key]
-                        : keys.filter((key) => key !== member.character_key),
-                    )
-                  }
-                >
-                  {member.name}
-                </Checkbox>
-                <span className="party-level-current">
-                  {member.level === undefined ? "No level" : `Level ${member.level}`}
-                </span>
-                {selected.includes(member.character_key) && others?.length ? (
-                  <span className="party-level-shared">
-                    Shared with {others.length === 1 ? "the party" : "the parties"}{" "}
-                    {others.map((p) => `“${p.name}”`).join(", ")}
-                  </span>
-                ) : null}
-              </div>
-            );
-          })}
+          {edit.party.members.map((member) => (
+            <div className="party-level-row" key={member.character_key}>
+              <Checkbox
+                disabled={edit.busy}
+                checked={selected.includes(member.character_key)}
+                onChange={(event) =>
+                  setSelected((keys) =>
+                    event.target.checked
+                      ? [...keys, member.character_key]
+                      : keys.filter((key) => key !== member.character_key),
+                  )
+                }
+              >
+                {member.name}
+              </Checkbox>
+              <span className="party-level-current">
+                {member.level === undefined ? "No level" : `Level ${member.level}`}
+              </span>
+            </div>
+          ))}
         </fieldset>
         {valid && changes.length === 0 && (
           <p className="party-edit-hint" role="status">
