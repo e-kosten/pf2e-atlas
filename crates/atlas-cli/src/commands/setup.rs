@@ -36,9 +36,9 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
             return invalid_setup_input(json, "invalid desktop workspace upgrade options".into());
         }
         let runtime = setup_runtime(args.paths)?;
-        if let Err(message) =
-            runtime.upgrade_desktop_workspace(crate::commands::desktop::verify_expected_workspace)
-        {
+        if let Err(message) = runtime.upgrade_desktop_workspace(
+            crate::commands::desktop_workspace::verify_expected_workspace,
+        ) {
             write_json_error("workspace_upgrade_failed", message)?;
             return Ok(ExitCode::FAILURE);
         }
@@ -54,7 +54,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
                 .paths
                 .index
                 .as_deref()
-                .is_some_and(|path| !crate::commands::desktop::is_managed_index(path))
+                .is_some_and(|path| !crate::commands::desktop_workspace::is_managed_index(path))
             || args.paths.embedding_cache_path.is_some()
             || args.run.check
             || args.run.no_embeddings
@@ -240,7 +240,7 @@ fn run_setup_install(
         embedding_batch_size: options.embedding_batch_size,
         locale: options.locale,
         desktop_workspace_check: std::env::var_os("ATLAS_DESKTOP_EXPECTED_WORKSPACE")
-            .map(|_| crate::commands::desktop::verify_expected_workspace as _),
+            .map(|_| crate::commands::desktop_workspace::verify_expected_workspace as _),
     };
     let report = if let Some(stage) = desktop_stage {
         let stage = match stage {

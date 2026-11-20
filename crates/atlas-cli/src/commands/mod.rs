@@ -20,5 +20,6 @@ pub(crate) mod web;
 
 #[cfg(any(target_os = "macos", all(windows, feature = "web")))]
 pub(crate) mod desktop;
+mod desktop_workspace;
 
 pub(crate) mod workspace;
