@@ -571,7 +571,7 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
     await target.fill("8");
     await activate(levels.getByRole("checkbox", { name: "Bram", exact: true }), info);
     await expect(
-      levels.getByText(`Also updates ${second.name}`, { exact: true }),
+      levels.getByText(`Shared with the party “${second.name}”`, { exact: true }),
     ).toBeVisible();
     await noPageOverflow(page);
     await activate(

@@ -353,7 +353,8 @@ export function SetPartyLevels({
                 </span>
                 {selected.includes(member.character_key) && others?.length ? (
                   <span className="party-level-shared">
-                    Also updates {others.map((p) => p.name).join(", ")}
+                    Shared with {others.length === 1 ? "the party" : "the parties"}{" "}
+                    {others.map((p) => `“${p.name}”`).join(", ")}
                   </span>
                 ) : null}
               </div>

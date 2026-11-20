@@ -185,7 +185,9 @@ it("shows shared memberships during level review and updates only selected chara
   fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
   const dialog = await screen.findByRole("dialog", { name: "Set character levels" });
   expect(await within(dialog).findByRole("checkbox", { name: "Aster" })).toBeChecked();
-  expect(within(dialog).getByText("Also updates Second table")).toBeVisible();
+  expect(
+    within(dialog).getByText("Shared with the party “Second table”"),
+  ).toBeVisible();
   expect(within(dialog).getByText("Level 5")).toBeVisible();
   fireEvent.click(within(dialog).getByRole("checkbox", { name: "Bram" }));
   fireEvent.change(within(dialog).getByRole("spinbutton", { name: "New level" }), {
