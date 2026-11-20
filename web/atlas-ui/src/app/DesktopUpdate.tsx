@@ -140,7 +140,7 @@ export function DesktopUpdate() {
         title="Update Atlas Desktop"
         onCancel={() => select(null)}
         cancelText={active ? "Close" : "Later"}
-        okText={actionError ? "Try again" : "Install update"}
+        okText="Install update"
         okButtonProps={{
           disabled: !current || active || loadingDetails,
           loading: sending,
@@ -178,10 +178,6 @@ export function DesktopUpdate() {
       </AtlasModal>
     </>
   );
-}
-
-function dataName(role: Role) {
-  return role === "original" ? "original data" : "separate copy";
 }
 
 export function DesktopStableUpdate() {
@@ -280,8 +276,8 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
               type="info"
               title={
                 channel.returning.updates === "hold"
-                  ? `Nightly update offers are paused while Atlas waits for Stable that can open your ${dataName(channel.returning.workspace)}.`
-                  : `Atlas is still offering Nightly updates and checking whether Stable can open your ${dataName(channel.returning.workspace)}.`
+                  ? "Waiting for a compatible Stable release. Not checking for Nightly updates."
+                  : "Waiting for a compatible Stable release. Still checking for Nightly updates."
               }
             />
           )}
@@ -322,31 +318,39 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                     }}
                   >
                     {role === channel.active
-                      ? installedNightly
-                        ? "Keep using this data"
-                        : "Use my existing data"
+                      ? "Use my current data"
                       : installedNightly
-                        ? role === "original"
-                          ? "Return to my original data"
-                          : "Return to my separate copy"
+                        ? "Use an earlier copy"
                         : channel.other_exists
                           ? "Use the other copy"
                           : "Use a separate copy"}
                   </Button>
                 ))}
               </Flex>
+              {installedNightly && (
+                <Typography.Text type="secondary">
+                  {workspace === channel.active
+                    ? "Keep the data you’ve been using in Nightly, including your latest changes."
+                    : "Use an earlier, separate copy of your data. Changes made in Nightly won’t be copied over. Your current Nightly data will remain available."}
+                </Typography.Text>
+              )}
               {!installedNightly && workspace !== channel.active && (
                 <Typography.Text type="secondary">
                   {(review ? !review.will_seed : channel.other_exists)
                     ? "Reopens your other copy with its earlier changes. Neither copy is overwritten."
-                    : "Creates a copy of your current data. Changes stay separate from the original."}
+                    : "Creates a copy of your current data. Changes made to either copy stay separate."}
                 </Typography.Text>
               )}
               {review ? (
                 <>
                   <Typography.Text>
-                    Atlas will install {target} {review.version} and use your{" "}
-                    {dataName(review.workspace)}.
+                    Atlas will install {target} {review.version} and use{" "}
+                    {review.workspace === channel.active
+                      ? "your current data"
+                      : review.will_seed
+                        ? "your separate copy"
+                        : "an earlier copy of your data"}
+                    .
                   </Typography.Text>
                   <Typography.Text type="secondary">
                     After switching, the app and its bundled CLI will use your existing
@@ -388,14 +392,19 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
             <Alert type="error" title={error ?? channel.error} />
           )}
           {installedNightly && !review && !channel.pending_version && (
-            <Flex vertical align="start" gap="small">
+            <Flex
+              vertical
+              align="start"
+              gap="small"
+              className="desktop-channel__waiting"
+            >
               <Button
                 disabled={disabled}
                 onClick={() =>
                   void request({ kind: "wait", workspace, updates: "hold" })
                 }
               >
-                Stay on this build and wait for Stable
+                Stay on this build and wait for the next Stable release
               </Button>
               <Button
                 disabled={disabled}
@@ -403,7 +412,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                   void request({ kind: "wait", workspace, updates: "continue" })
                 }
               >
-                Keep receiving Nightly updates while waiting
+                Keep checking for Nightly updates while waiting
               </Button>
               {channel.returning && (
                 <Button

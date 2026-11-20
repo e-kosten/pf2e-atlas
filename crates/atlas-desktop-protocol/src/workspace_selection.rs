@@ -55,6 +55,44 @@ pub struct Admission {
     pub file_id: Option<(u64, u64)>,
 }
 
+/// Failure facts from the private workspace admission helper, not display text.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TransitionFailureKind {
+    NewerSchema,
+    Busy,
+    Unknown,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TransitionFailure {
+    pub kind: TransitionFailureKind,
+    pub diagnostic: String,
+}
+
+impl From<String> for TransitionFailure {
+    fn from(diagnostic: String) -> Self {
+        Self {
+            kind: TransitionFailureKind::Unknown,
+            diagnostic,
+        }
+    }
+}
+
+impl From<&str> for TransitionFailure {
+    fn from(diagnostic: &str) -> Self {
+        diagnostic.to_owned().into()
+    }
+}
+
+/// One compact line; a successful reservation stays alive until stdin closes.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum TransitionResponse {
+    Ok { data: Admission },
+    Error { error: TransitionFailure },
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Transition {
     pub before: Build,

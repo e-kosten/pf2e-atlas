@@ -6,6 +6,9 @@ use std::{
     time::Duration,
 };
 
+use atlas_desktop_protocol::workspace_selection::{
+    TransitionFailure, TransitionFailureKind, TransitionResponse,
+};
 use atlas_desktop_protocol::{
     LauncherReady, ReferenceRefreshResult, ReferenceStatus, SetupPublication, SetupStage, VERSION,
     WorkspaceProbe,
@@ -154,7 +157,7 @@ pub(crate) fn inspect_transition(
     role: Role,
     ledger: &Value,
     seed: Option<&Admission>,
-) -> Result<Admission, String> {
+) -> Result<Admission, TransitionFailure> {
     Ok(transition(role, ledger, seed, None, false)?
         .admission
         .clone())
@@ -165,6 +168,7 @@ pub(crate) fn reserve_transition(
     ledger: &Value,
 ) -> Result<TransitionReservation, String> {
     transition(role, ledger, None, None, true)
+        .map_err(|error| transition_error(error, "Atlas", "the selected data"))
 }
 
 pub(crate) fn claim_transition(
@@ -178,7 +182,8 @@ pub(crate) fn claim_transition(
         None,
         Some((&admission.workspace, key)),
         false,
-    )?
+    )
+    .map_err(|error| transition_error(error, "Atlas", "the selected data"))?
     .admission
     .clone())
 }
@@ -189,7 +194,7 @@ fn transition(
     seed: Option<&Admission>,
     initialize: Option<(&PathBuf, &str)>,
     reserve: bool,
-) -> Result<TransitionReservation, String> {
+) -> Result<TransitionReservation, TransitionFailure> {
     let mut command = command()?;
     command.args(["desktop-probe", "--transition-workspace", role.as_arg()]);
     if reserve {
@@ -227,20 +232,32 @@ fn transition(
         BufReader::new(stdout)
             .read_line(&mut line)
             .map_err(display)?;
-        decode(line.as_bytes())
+        match serde_json::from_str::<TransitionResponse>(&line).map_err(display)? {
+            TransitionResponse::Ok { data } => Ok(data),
+            TransitionResponse::Error { error } => Err(error),
+        }
     })();
     match result {
         Ok(admission) => Ok(TransitionReservation { admission, child }),
         Err(error) => {
             child.stdin.take();
-            if let Ok(output) = child.wait_with_output()
-                && let Ok(message) = String::from_utf8(output.stderr)
-                && !message.trim().is_empty()
-            {
-                return Err(message.trim().to_owned());
+            if let Ok(output) = child.wait_with_output() {
+                eprint!("{}", String::from_utf8_lossy(&output.stderr));
             }
             Err(error)
         }
+    }
+}
+
+pub(crate) fn transition_error(error: TransitionFailure, release: &str, data: &str) -> String {
+    eprintln!(
+        "Atlas workspace admission failed ({:?}): {}",
+        error.kind, error.diagnostic
+    );
+    match error.kind {
+        TransitionFailureKind::NewerSchema => format!("This {release} release can’t open {data} yet."),
+        TransitionFailureKind::Busy => "Atlas is using this data for another operation. Wait for it to finish before checking again.".into(),
+        TransitionFailureKind::Unknown => format!("Atlas couldn’t determine whether {release} can use this data."),
     }
 }
 

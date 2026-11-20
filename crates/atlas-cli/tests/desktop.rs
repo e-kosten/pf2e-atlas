@@ -163,6 +163,98 @@ fn transition_reservation_answers_one_json_line_before_stdin_closes() {
     assert!(child.wait().unwrap().success());
 }
 
+#[cfg(any(target_os = "macos", feature = "web"))]
+#[test]
+fn transition_failures_are_one_line_and_preserve_the_failure_kind() {
+    use atlas_desktop_protocol::workspace_selection::{TransitionFailureKind, TransitionResponse};
+    use std::{
+        io::{BufRead, BufReader, Write},
+        process::Stdio,
+    };
+    let home = tempfile::tempdir().unwrap();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+    command
+        .env("HOME", home.path())
+        .env("LOCALAPPDATA", home.path());
+    let snapshot = command
+        .args(["desktop-probe", "--workspace-selection", "get"])
+        .output()
+        .unwrap();
+    let state: serde_json::Value = serde_json::from_slice(&snapshot.stdout).unwrap();
+    let path = std::path::PathBuf::from(state["data"]["workspaces"][0]["path"].as_str().unwrap());
+    atlas_runtime::initialize_workspace(&path).unwrap();
+    let workspace = atlas_runtime::Workspace::at(&path).unwrap();
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let ledger = atlas_runtime::desktop_migration_ledger();
+    let check = |expected| {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args([
+                "desktop-probe",
+                "--transition-workspace",
+                "original",
+                "--reserve-transition",
+            ])
+            .env("HOME", home.path())
+            .env("LOCALAPPDATA", home.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut pipe = child.stdin.take().unwrap();
+        writeln!(pipe, "{}", serde_json::json!({"ledger": ledger})).unwrap();
+        pipe.flush().unwrap();
+        let mut reader = BufReader::new(child.stdout.take().unwrap());
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        let TransitionResponse::Error { error } = serde_json::from_str(&line).unwrap() else {
+            panic!("expected refusal, got {line}")
+        };
+        assert_eq!(error.kind, expected, "{}", error.diagnostic);
+        // A refusal must exit even though the host has not closed its input.
+        assert_eq!(child.wait().unwrap().code(), Some(2));
+        line.clear();
+        assert_eq!(reader.read_line(&mut line).unwrap(), 0);
+        drop(pipe);
+    };
+    connection
+        .pragma_update(
+            None,
+            "user_version",
+            atlas_runtime::WORKSPACE_SCHEMA_VERSION + 1,
+        )
+        .unwrap();
+    check(TransitionFailureKind::NewerSchema);
+    connection
+        .pragma_update(
+            None,
+            "user_version",
+            atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
+    // Failed reservations must have released their admission locks.
+    let guard = workspace.setup_guard().unwrap();
+    check(TransitionFailureKind::Busy);
+    drop(guard);
+    connection
+        .execute(
+            "UPDATE workspace SET maintenance='interrupted' WHERE id=1",
+            [],
+        )
+        .unwrap();
+    check(TransitionFailureKind::Unknown);
+    connection
+        .execute("UPDATE workspace SET maintenance=NULL WHERE id=1", [])
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE schema_migrations SET checksum='unknown-history' WHERE version=?",
+            [atlas_runtime::WORKSPACE_SCHEMA_VERSION],
+        )
+        .unwrap();
+    check(TransitionFailureKind::Unknown);
+    drop(workspace.setup_guard().unwrap());
+}
+
 #[cfg(target_os = "macos")]
 #[test]
 fn open_rejects_a_non_atlas_url_before_asking_macos_to_open_it() {

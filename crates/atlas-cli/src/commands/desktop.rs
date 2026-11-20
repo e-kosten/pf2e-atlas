@@ -8,7 +8,10 @@ use std::{
 
 use atlas_app_model::{AppErrorCode, AppReadinessStatus};
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
-use atlas_desktop_protocol::workspace_selection::{Config, Role as TransitionWorkspace};
+use atlas_desktop_protocol::workspace_selection::{
+    Config, Role as TransitionWorkspace, TransitionFailure, TransitionFailureKind,
+    TransitionResponse,
+};
 #[cfg(target_os = "macos")]
 use atlas_desktop_protocol::{BUNDLE_ID, EntityLink};
 use atlas_desktop_protocol::{ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus};
@@ -190,7 +193,25 @@ pub(crate) fn is_managed_index(index: &std::path::Path) -> bool {
         })
 }
 
-fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitCode, String> {
+fn transition_storage_error(error: atlas_runtime::StorageError) -> TransitionFailure {
+    let kind = if error.is_contention() {
+        TransitionFailureKind::Busy
+    } else if matches!(error, atlas_runtime::StorageError::Schema { actual, expected } if actual > expected)
+    {
+        TransitionFailureKind::NewerSchema
+    } else {
+        TransitionFailureKind::Unknown
+    };
+    TransitionFailure {
+        kind,
+        diagnostic: error.to_string(),
+    }
+}
+
+fn check_transition(
+    args: &ProbeArgs,
+    role: TransitionWorkspace,
+) -> Result<ExitCode, TransitionFailure> {
     let selected = atlas_runtime::managed_workspace_path(role).map_err(|err| err.to_string())?;
     let other =
         atlas_runtime::managed_workspace_path(role.other()).map_err(|err| err.to_string())?;
@@ -239,7 +260,7 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
             return Err("The selected workspace moved before initialization.".into());
         }
         atlas_runtime::claim_desktop_workspace(destination.path(), &initialization.key)
-            .map_err(|err| err.to_string())?;
+            .map_err(transition_storage_error)?;
     }
     if let Some(seed) = seed {
         if args.reserve_transition {
@@ -255,7 +276,7 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
         };
         verify_source().map_err(|err| err.to_string())?;
         atlas_runtime::seed_desktop_copy(&other, path, &seed.key, seed.schema, verify_source)
-            .map_err(|err| err.to_string())?;
+            .map_err(transition_storage_error)?;
     }
     let workspace = Workspace::at(path).map_err(|err| err.to_string())?;
     let mut setup = None;
@@ -267,17 +288,17 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
                 initialization = Some(
                     workspace
                         .begin_initialization()
-                        .map_err(|err| err.to_string())?
+                        .map_err(transition_storage_error)?
                         .ok_or("Workspace appeared before the switch. Try again.")?,
                 );
             }
             serde_json::json!({"workspace": workspace.path(), "role": role})
         }
-        Err(err) => return Err(err.to_string()),
+        Err(err) => return Err(err.to_string().into()),
         Ok(_) => {
             if args.reserve_transition {
-                setup = Some(workspace.setup_guard().map_err(|err| err.to_string())?);
-                update = Some(workspace.update_owner().map_err(|err| err.to_string())?);
+                setup = Some(workspace.setup_guard().map_err(transition_storage_error)?);
+                update = Some(workspace.update_owner().map_err(transition_storage_error)?);
             }
             let identity = file_identity(path).map_err(|err| err.to_string())?;
             match file_identity(&other) {
@@ -285,13 +306,13 @@ fn check_transition(args: &ProbeArgs, role: TransitionWorkspace) -> Result<ExitC
                     return Err("The two workspaces point to the same file.".into());
                 }
                 Err(err) if err.kind() != io::ErrorKind::NotFound => {
-                    return Err(err.to_string());
+                    return Err(err.to_string().into());
                 }
                 _ => {}
             }
             let (key, schema) = workspace
                 .check_update_history(&ledger)
-                .map_err(|err| err.to_string())?;
+                .map_err(transition_storage_error)?;
             if file_identity(path).map_err(|err| err.to_string())? != identity {
                 return Err("The workspace file changed during the check.".into());
             }
@@ -317,7 +338,17 @@ pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
         return selection(action);
     }
     if let Some(role) = args.transition_workspace {
-        return check_transition(&args, role);
+        return Ok(match check_transition(&args, role) {
+            Ok(code) => code,
+            Err(error) => {
+                println!(
+                    "{}",
+                    serde_json::to_string(&TransitionResponse::Error { error })
+                        .map_err(|err| err.to_string())?
+                );
+                ExitCode::from(2)
+            }
+        });
     }
     if args.update_compatibility {
         let (commit, version) = atlas_runtime::desktop_reference_baseline();

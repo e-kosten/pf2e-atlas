@@ -4,7 +4,7 @@
 
 Atlas Desktop follows the channel of the installed build. A user may explicitly
 review and install a different channel. A pending return to Stable records the
-intended workspace and whether Nightly update offers should continue. Desktop
+intended workspace and whether checking for Nightly updates should continue. Desktop
 preferences and pending switch recovery live in one versioned, atomically
 updated configuration file outside SQLite.
 

@@ -19,6 +19,52 @@ use crate::{Desktop, current_product, display, lock, opening, process, run_on_ma
 
 const RELEASES: &str = "https://github.com/e-kosten/pf2e-atlas/releases";
 const MANIFEST: &str = "atlas-desktop-update.json";
+
+fn release_request_error(error: reqwest::Error) -> String {
+    eprintln!("Atlas release request failed: {error}");
+    if error.is_connect() || error.is_timeout() || error.is_body() {
+        "Atlas couldn’t reach the update service. Check your connection before checking again."
+            .into()
+    } else {
+        "Atlas couldn’t retrieve this release’s update information.".into()
+    }
+}
+
+fn release_metadata_error(error: impl std::fmt::Display) -> String {
+    eprintln!("Atlas release verification failed: {error}");
+    "Atlas couldn’t verify this release’s update information. This release can’t be installed through Atlas.".into()
+}
+
+fn updater_check_error(error: tauri_plugin_updater::Error) -> String {
+    match error {
+        tauri_plugin_updater::Error::Reqwest(error) if error.is_decode() => {
+            release_metadata_error(error)
+        }
+        tauri_plugin_updater::Error::Reqwest(error) => release_request_error(error),
+        tauri_plugin_updater::Error::ReleaseNotFound => {
+            "Atlas couldn’t retrieve this release’s update information.".into()
+        }
+        error => release_metadata_error(error),
+    }
+}
+
+fn download_error(error: tauri_plugin_updater::Error) -> String {
+    use tauri_plugin_updater::Error;
+    eprintln!("Atlas update download failed: {error}");
+    match error {
+        Error::Reqwest(_) | Error::Network(_) => {
+            "Atlas couldn’t download the update. Check your connection before trying again.".into()
+        }
+        Error::Minisign(_)
+        | Error::Base64(_)
+        | Error::SignatureUtf8(_)
+        | Error::SignedVersionMismatch { .. }
+        | Error::MissingSignedVersion => {
+            "Atlas couldn’t verify the downloaded update. It won’t be installed.".into()
+        }
+        _ => "Atlas couldn’t prepare the downloaded update for installation.".into(),
+    }
+}
 #[cfg(target_os = "macos")]
 const PACKAGE: &str = "atlas-desktop-aarch64-apple-darwin.app.tar.gz";
 #[cfg(windows)]
@@ -128,6 +174,22 @@ struct Descriptor {
 }
 
 impl Descriptor {
+    fn admission_error(
+        &self,
+        error: atlas_desktop_protocol::workspace_selection::TransitionFailure,
+        data: &str,
+    ) -> String {
+        process::transition_error(
+            error,
+            if self.channel == "stable" {
+                "Stable"
+            } else {
+                "Nightly"
+            },
+            data,
+        )
+    }
+
     fn build(&self) -> Build {
         Build {
             version: self.version.clone(),
@@ -208,15 +270,21 @@ async fn bounded_download(
     url: &str,
     maximum: usize,
 ) -> Result<Option<Vec<u8>>, String> {
-    let response = client.get(url).send().await.map_err(display)?;
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(release_request_error)?;
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Ok(None);
     }
-    let mut response = response.error_for_status().map_err(display)?;
+    let mut response = response.error_for_status().map_err(release_request_error)?;
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(display)? {
+    while let Some(chunk) = response.chunk().await.map_err(release_request_error)? {
         if bytes.len() + chunk.len() > maximum {
-            return Err("Atlas update compatibility exceeded the size limit.".into());
+            return Err(release_metadata_error(
+                "Atlas update compatibility exceeded the size limit.",
+            ));
         }
         bytes.extend_from_slice(&chunk);
     }
@@ -243,10 +311,12 @@ async fn read_descriptor(
     let signature = bounded_download(&client, &format!("{url}.sig"), 4096).await?;
     match (descriptor, signature) {
         (None, None) => Ok(None),
-        (Some(bytes), Some(signature)) => {
-            verify_descriptor(&bytes, &signature, key, version, tag).map(Some)
-        }
-        _ => Err("Atlas found an incomplete workspace compatibility signature.".into()),
+        (Some(bytes), Some(signature)) => verify_descriptor(&bytes, &signature, key, version, tag)
+            .map(Some)
+            .map_err(release_metadata_error),
+        _ => Err(release_metadata_error(
+            "Atlas found an incomplete workspace compatibility signature.",
+        )),
     }
 }
 
@@ -531,64 +601,74 @@ async fn release_tag(channel: &Channel, source: &ReleaseSource) -> Result<Option
             let response = builder
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
-                .map_err(display)?
+                .map_err(release_metadata_error)?
                 .head(format!("{root}/latest"))
                 .send()
                 .await
-                .map_err(display)?;
+                .map_err(release_request_error)?;
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 return Ok(None);
             }
+            let response = response.error_for_status().map_err(release_request_error)?;
             let location = response
                 .headers()
                 .get(reqwest::header::LOCATION)
                 .and_then(|value| value.to_str().ok())
-                .ok_or("Stable release did not resolve to an Atlas tag.")?;
+                .ok_or_else(|| {
+                    release_metadata_error("Stable release did not resolve to an Atlas tag.")
+                })?;
             if location == root {
                 return Ok(None);
             }
             let tag = location
                 .strip_prefix(&format!("{root}/tag/"))
-                .ok_or("Stable release resolved outside Atlas releases.")?;
-            let version =
-                Version::parse(tag.strip_prefix("release/v").ok_or("Invalid stable tag.")?)
-                    .map_err(display)?;
+                .ok_or_else(|| {
+                    release_metadata_error("Stable release resolved outside Atlas releases.")
+                })?;
+            let version = Version::parse(
+                tag.strip_prefix("release/v")
+                    .ok_or_else(|| release_metadata_error("Invalid stable tag."))?,
+            )
+            .map_err(release_metadata_error)?;
             if Channel::from_version(&version) != Some(Channel::Stable)
                 || Channel::Stable.tag(&version) != tag
             {
-                return Err("Invalid stable tag.".into());
+                return Err(release_metadata_error("Invalid stable tag."));
             }
             Ok(Some(tag.into()))
         }
         Channel::Nightly { .. } => {
             let response = builder
                 .build()
-                .map_err(display)?
+                .map_err(release_metadata_error)?
                 .get(format!(
                     "{root}/download/nightly/latest/nightly-version.txt"
                 ))
                 .send()
                 .await
-                .map_err(display)?;
+                .map_err(release_request_error)?;
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 return Ok(None);
             }
-            let mut response = response.error_for_status().map_err(display)?;
+            let mut response = response.error_for_status().map_err(release_request_error)?;
             let mut pointer = Vec::new();
-            while let Some(chunk) = response.chunk().await.map_err(display)? {
+            while let Some(chunk) = response.chunk().await.map_err(release_request_error)? {
                 if pointer.len() + chunk.len() > 64 {
-                    return Err("Invalid nightly release pointer.".into());
+                    return Err(release_metadata_error("Invalid nightly release pointer."));
                 }
                 pointer.extend_from_slice(&chunk);
             }
-            let tag = std::str::from_utf8(&pointer).map_err(display)?.trim();
+            let tag = std::str::from_utf8(&pointer)
+                .map_err(release_metadata_error)?
+                .trim();
             let identity = tag
                 .strip_prefix("nightly/")
-                .ok_or("Invalid nightly release pointer.")?;
-            let version = Version::parse(&format!("0.0.0-nightly.{identity}")).map_err(display)?;
+                .ok_or_else(|| release_metadata_error("Invalid nightly release pointer."))?;
+            let version = Version::parse(&format!("0.0.0-nightly.{identity}"))
+                .map_err(release_metadata_error)?;
             if !matches!(Channel::from_version(&version), Some(channel @ Channel::Nightly { .. }) if channel.tag(&version) == tag)
             {
-                return Err("Invalid nightly release pointer.".into());
+                return Err(release_metadata_error("Invalid nightly release pointer."));
             }
             Ok(Some(tag.into()))
         }
@@ -656,28 +736,29 @@ async fn check_tag(
         .map_err(display)?;
     let found = match updater.check().await {
         Ok(found) => found,
-        Err(tauri_plugin_updater::Error::ReleaseNotFound) => return Ok(None),
-        Err(error) => return Err(display(error)),
+        Err(error) => return Err(updater_check_error(error)),
     };
     let Some(found) = found else { return Ok(None) };
     let version = Version::parse(&found.version).map_err(display)?;
     if Channel::from_version(&version).is_none_or(|channel| channel.tag(&version) != tag)
         || found.download_url.as_str() != format!("{base}/{PACKAGE}")
     {
-        return Err("Update metadata does not match the Atlas release.".into());
+        return Err(release_metadata_error(
+            "Update metadata does not match the Atlas release.",
+        ));
     }
-    let compatibility =
-        serde_json::from_value(found.raw_json["atlasCompatibility"].clone()).map_err(display)?;
+    let compatibility = serde_json::from_value(found.raw_json["atlasCompatibility"].clone())
+        .map_err(release_metadata_error)?;
     // Restoration guarantees that install and download require a signature bound to
     // the full Atlas version, including the nightly timestamp and commit.
     let mut update = updater
         .restore_update(found.raw_json)
-        .map_err(display)?
+        .map_err(updater_check_error)?
         .ok_or("The Atlas update version changed.")?;
     update.timeout = Some(Duration::from_secs(15 * 60));
     let descriptor = read_descriptor(source, &base, key, &version, &tag).await?;
     if require_descriptor && descriptor.is_none() {
-        return Err("This release does not provide verified workspace compatibility.".into());
+        return Err("This release doesn’t support compatibility checks. Atlas can’t switch to it automatically.".into());
     }
     Ok(Some(Offer {
         update,
@@ -839,10 +920,17 @@ async fn authorize(
         .clone()
         .ok_or("This build has no signed workspace compatibility information.")?;
     let transition = tauri::async_runtime::spawn_blocking(move || {
-        let admission = process::inspect_transition(role, &descriptor.migration_ledger, None)?;
+        let data = if role == config.active {
+            "your current data"
+        } else {
+            "this earlier copy of your data"
+        };
+        let admission = process::inspect_transition(role, &descriptor.migration_ledger, None)
+            .map_err(|error| descriptor.admission_error(error, data))?;
         let seed_source = if seed_if_missing && role != config.active && admission.key.is_none() {
             let source =
-                process::inspect_transition(config.active, &descriptor.migration_ledger, None)?;
+                process::inspect_transition(config.active, &descriptor.migration_ledger, None)
+                    .map_err(|error| descriptor.admission_error(error, "your current data"))?;
             if source.key.is_none() {
                 return Err("Set up your current workspace before making a separate copy.".into());
             }
@@ -992,7 +1080,12 @@ pub(crate) async fn desktop_channel_action(
             };
             let offer = check(&app, &installed_version, &target, key, &source, true, true)
                 .await?
-                .ok_or("There is no compatible release available to review.")?;
+                .ok_or_else(|| {
+                    format!(
+                        "There is no {} release available to review.",
+                        if nightly { "Stable" } else { "Nightly" }
+                    )
+                })?;
             let offer = authorize(
                 offer,
                 config.clone(),
@@ -1142,10 +1235,7 @@ async fn download_and_install(
             || {},
         )
         .await
-        .map_err(|error| {
-            eprintln!("Could not verify or download Atlas update: {error}");
-            "Atlas couldn’t download or verify the update. Try again.".to_owned()
-        })?;
+        .map_err(download_error)?;
     if let Some(transition) = &offer.switch {
         transition.descriptor.verify_bytes(&bytes)?;
     }
@@ -1186,10 +1276,14 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
         let role = transition.admission.role;
         let ledger = &transition.descriptor.migration_ledger;
         let expected = if let Some(seed) = &transition.seed_source {
-            if process::inspect_transition(role, ledger, None)? != transition.admission {
+            if process::inspect_transition(role, ledger, None)
+                .map_err(|error| process::transition_error(error, "Atlas", "the selected data"))?
+                != transition.admission
+            {
                 return Err("The separate workspace appeared. Review the switch again.".into());
             }
-            process::inspect_transition(role, ledger, Some(seed))?
+            process::inspect_transition(role, ledger, Some(seed))
+                .map_err(|error| process::transition_error(error, "Atlas", "the selected data"))?
         } else {
             transition.admission.clone()
         };
@@ -1306,6 +1400,66 @@ fn recover(app: &AppHandle, old_base: Url) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn admission_failure_uses_the_target_release_even_for_same_channel_updates() {
+        use atlas_desktop_protocol::workspace_selection::{
+            TransitionFailure, TransitionFailureKind,
+        };
+        let mut descriptor = Descriptor {
+            protocol: 2,
+            channel: "stable".into(),
+            version: "0.2.0".into(),
+            tag: "release/v0.2.0".into(),
+            commit: "a".repeat(40),
+            asset: PACKAGE.into(),
+            sha256: "b".repeat(64),
+            migration_ledger: serde_json::Value::Null,
+            compatibility: Compatibility {
+                workspace_schema: 45,
+                foundry_commit: "c".repeat(40),
+                foundry_version: "8.6.1".into(),
+            },
+        };
+        let failure = || TransitionFailure {
+            kind: TransitionFailureKind::NewerSchema,
+            diagnostic: "schema 46, target 45".into(),
+        };
+        assert_eq!(
+            descriptor.admission_error(failure(), "your current data"),
+            "This Stable release can’t open your current data yet."
+        );
+        descriptor.channel = "nightly".into();
+        assert_eq!(
+            descriptor.admission_error(failure(), "your current data"),
+            "This Nightly release can’t open your current data yet."
+        );
+        assert_eq!(
+            updater_check_error(tauri_plugin_updater::Error::ReleaseNotFound),
+            "Atlas couldn’t retrieve this release’s update information."
+        );
+    }
+
+    #[test]
+    fn download_failure_copy_distinguishes_connection_from_verification() {
+        let network = download_error(tauri_plugin_updater::Error::Network(
+            "private diagnostic".into(),
+        ));
+        assert!(network.contains("couldn’t download"));
+        assert!(!network.contains("private diagnostic"));
+        let verification = download_error(tauri_plugin_updater::Error::MissingSignedVersion);
+        assert_eq!(
+            verification,
+            "Atlas couldn’t verify the downloaded update. It won’t be installed."
+        );
+        let metadata = updater_check_error(tauri_plugin_updater::Error::SignatureUtf8(
+            "private signature".into(),
+        ));
+        assert_eq!(
+            metadata,
+            "Atlas couldn’t verify this release’s update information. This release can’t be installed through Atlas."
+        );
+    }
 
     #[test]
     fn isolates_channels_and_orders_same_core_nightlies() {

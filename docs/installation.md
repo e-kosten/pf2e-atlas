@@ -47,14 +47,16 @@ and choose **Try Nightly…**. On Nightly, choose **Change release channel** to 
 to Stable. Choose which data to use and check the other channel's compatibility.
 Atlas shows the version and any setup requirements before installing.
 
-Choose **Use my existing data** to keep the same campaign on
+Choose **Use my current data** to keep the same campaign on
 Nightly, or **Use a separate copy** to try it with an independent copy of your
-saved work. Changes stay separate from the original. If another workspace
+saved work. Changes made to either copy stay separate. If another workspace
 already exists, **Use the other copy** reopens its earlier work instead of
 overwriting it.
 
-When returning to compatible Stable, choose **Keep using this data** to
-keep your current campaign or **Return to my original data** to go back.
+When returning to compatible Stable, choose **Use my current data** to
+keep your latest changes from Nightly, or **Use an earlier copy** to reopen
+the retained copy. Changes made in Nightly won't be copied over to that earlier
+copy. Your current Nightly data remains available.
 Atlas preserves both workspaces. The selected workspace becomes the default for
 the app and its bundled terminal command after the switch opens successfully.
 This also applies while using Nightly. Already running CLI processes keep their
@@ -65,7 +67,7 @@ An older standalone CLI does not read this selection. Upgrade it or pass an
 explicit `--index` path; Terminal and agent access shows the app's current path.
 
 If Stable cannot open the selected workspace, choose **Stay on this build and
-wait for Stable** to pause Nightly offers, or **Keep receiving Nightly updates
+wait for the next Stable release** to stop checking for Nightly updates, or **Keep checking for Nightly updates
 while waiting**. Atlas saves the choice across restarts and asks before
 installing a compatible Stable. Change or cancel the request in Setup and Updates.
 

@@ -127,7 +127,8 @@ fn startup(app: &AppHandle, installed: Option<&Build>) -> Result<Option<PathBuf>
             return Err("A channel switch is still pending. Close the installer before resuming your previous workspace.".into());
         }
     }
-    let admission = process::inspect_transition(config.active, &ledger, None)?;
+    let admission = process::inspect_transition(config.active, &ledger, None)
+        .map_err(|error| process::transition_error(error, "Atlas", "the selected data"))?;
     Ok(Some(admission.workspace))
 }
 
