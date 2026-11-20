@@ -53,6 +53,7 @@ function Get-DesktopCrt {
 }
 
 $previousDesktopRelease = $env:ATLAS_DESKTOP_RELEASE
+$previousDesktopSourceCommit = $env:ATLAS_DESKTOP_SOURCE_COMMIT
 $previousWorkspaceSchema = $env:ATLAS_WORKSPACE_SCHEMA
 $previousTargetDir = $env:CARGO_TARGET_DIR
 $previousRustFlags = $env:CARGO_ENCODED_RUSTFLAGS
@@ -96,6 +97,8 @@ try {
         $arguments += @('--config', $config)
         if ($env:ATLAS_UPDATER_PUBLIC_KEY) {
             $env:ATLAS_DESKTOP_RELEASE = $Version
+            $env:ATLAS_DESKTOP_SOURCE_COMMIT = git rev-parse HEAD
+            if ($LASTEXITCODE -ne 0) { throw 'Could not identify the desktop build source.' }
             $env:ATLAS_WORKSPACE_SCHEMA = node ./updater-package.mjs compatibility "v$Version" $PackagedCli "$OutputInstaller.compatibility.json"
             if ($LASTEXITCODE -ne 0) { throw 'Could not read the bundled Atlas update compatibility.' }
         }
@@ -110,6 +113,7 @@ finally {
     $env:CARGO_ENCODED_RUSTFLAGS = $previousRustFlags
     $env:CARGO_TARGET_DIR = $previousTargetDir
     $env:ATLAS_DESKTOP_RELEASE = $previousDesktopRelease
+    $env:ATLAS_DESKTOP_SOURCE_COMMIT = $previousDesktopSourceCommit
     $env:ATLAS_WORKSPACE_SCHEMA = $previousWorkspaceSchema
     Pop-Location
 }

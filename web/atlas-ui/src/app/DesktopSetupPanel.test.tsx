@@ -64,6 +64,42 @@ it("exposes workspace setup only for an attached desktop document", () => {
   expect(screen.queryByRole("button", { name: "Setup and Updates" })).toBeNull();
 });
 
+it("keeps release-channel settings inside the desktop setup panel", async () => {
+  attach();
+  host.__ATLAS_DESKTOP_SETUP__ = {
+    ...host.__ATLAS_DESKTOP_SETUP__,
+    channel: {
+      installed: {
+        tag: "nightly/20261118023500.gabcdef123456",
+        version: "0.1.0-nightly",
+      },
+      active: "separate",
+      workspace_path: "/Atlas/separate-workspace.sqlite",
+      other_exists: true,
+      returning: null,
+      ready: false,
+      busy: false,
+    },
+  };
+  renderPanel();
+  expect(screen.queryByRole("button", { name: "Change release channel" })).toBeNull();
+  const trigger = screen.getByRole("button", { name: "Setup and Updates" });
+  fireEvent.click(trigger);
+  const panel = await screen.findByRole("dialog", { name: "Setup and Updates" });
+  fireEvent.click(
+    within(panel).getByRole("button", { name: "Change release channel" }),
+  );
+  const channel = await screen.findByRole("dialog", { name: "Change release channel" });
+  expect(within(channel).getByText("Nightly")).toBeVisible();
+  expect(within(channel).getByText("Version 0.1.0-nightly")).toBeVisible();
+  expect(within(channel).queryByText(/with the separate workspace/)).toBeNull();
+  fireEvent.keyDown(channel, { key: "Escape", code: "Escape", keyCode: 27 });
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Change release channel" })).toBeNull(),
+  );
+  expect(screen.getByRole("dialog", { name: "Setup and Updates" })).toBeVisible();
+});
+
 it("keeps the setup warning on the trigger until desktop reports completion", () => {
   attach();
   const updateSetup = (status: string, sequence: number) => {

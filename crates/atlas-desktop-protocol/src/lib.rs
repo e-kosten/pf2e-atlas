@@ -1,6 +1,8 @@
 //! Versioned subprocess messages and exact record links shared by Atlas and its desktop host.
 #![deny(unsafe_code)]
 
+pub mod workspace_selection;
+
 pub use atlas_domain::SearchProfileId;
 use atlas_domain::{DefinitionKey, RecordKey, TraitKey};
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};

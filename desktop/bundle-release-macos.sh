@@ -34,7 +34,8 @@ node "$root/dev-tools/release/dist/src/cli/smoke-packaged-cli.js" "$sidecar" "${
 if [ -n "${ATLAS_UPDATER_PUBLIC_KEY:-}" ]; then
     ATLAS_DESKTOP_RELEASE=${tag#v}
     ATLAS_WORKSPACE_SCHEMA=$(node "$desktop/updater-package.mjs" compatibility "$tag" "$sidecar" "$work/update.json")
-    export ATLAS_DESKTOP_RELEASE ATLAS_WORKSPACE_SCHEMA
+    ATLAS_DESKTOP_SOURCE_COMMIT=$commit
+    export ATLAS_DESKTOP_RELEASE ATLAS_DESKTOP_SOURCE_COMMIT ATLAS_WORKSPACE_SCHEMA
 fi
 
 # Generate notices for the independent desktop workspace as well as the CLI.

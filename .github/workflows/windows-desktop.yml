@@ -15,12 +15,17 @@ on:
         description: Bypass the Cargo cache for an uncached timing
         type: boolean
         default: false
+      qualify-updater:
+        description: Rehearse signed NSIS replacement and startup races with disposable data
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   bundle:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.qualify-updater }}
     name: Windows x64 installer
     runs-on: windows-2022
     timeout-minutes: 75
@@ -91,3 +96,74 @@ jobs:
           path: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
           overwrite: true
           if-no-files-found: error
+
+  qualify-updater:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify-updater }}
+    name: Disposable Windows updater qualification
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        if: ${{ !inputs.cold }}
+        with:
+          shared-key: windows-updater-qualification-${{ hashFiles('desktop/bundle-windows.ps1') }}
+          workspaces: |
+            . -> target
+            desktop/src-tauri -> target
+          cache-on-failure: true
+          cache-workspace-crates: false
+          cache-bin: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: |
+            web/atlas-ui/package-lock.json
+            desktop/package-lock.json
+            dev-tools/release/package-lock.json
+      - name: Prepare existing desktop tooling and CLI
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm --prefix web/atlas-ui ci
+          npm --prefix desktop ci
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix web/atlas-ui run build
+          cargo build --locked --release --target x86_64-pc-windows-msvc -p atlas-cli
+      - name: Rehearse signed update and target-startup refusal
+        id: qualification
+        run: ./desktop/qualify-windows.ps1 -PackagedCli target/x86_64-pc-windows-msvc/release/atlas.exe -ScratchDirectory $env:RUNNER_TEMP
+      - name: Retain qualification screenshots and admission evidence
+        if: ${{ always() && steps.qualification.outputs.evidence != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-updater-qualification-${{ github.run_attempt }}
+          path: |
+            ${{ steps.qualification.outputs.evidence }}/events.jsonl
+            ${{ steps.qualification.outputs.evidence }}/result.json
+            ${{ steps.qualification.outputs.evidence }}/normal/*.png
+            ${{ steps.qualification.outputs.evidence }}/normal/*.json
+            ${{ steps.qualification.outputs.evidence }}/normal/*.log
+            ${{ steps.qualification.outputs.evidence }}/normal/failure-*.txt
+            ${{ steps.qualification.outputs.evidence }}/normal/hook-error.txt
+            ${{ steps.qualification.outputs.evidence }}/identity/*.png
+            ${{ steps.qualification.outputs.evidence }}/identity/*.json
+            ${{ steps.qualification.outputs.evidence }}/identity/*.log
+            ${{ steps.qualification.outputs.evidence }}/identity/failure-*.txt
+            ${{ steps.qualification.outputs.evidence }}/identity/hook-error.txt
+            ${{ steps.qualification.outputs.evidence }}/ledger/*.png
+            ${{ steps.qualification.outputs.evidence }}/ledger/*.json
+            ${{ steps.qualification.outputs.evidence }}/ledger/*.log
+            ${{ steps.qualification.outputs.evidence }}/ledger/failure-*.txt
+            ${{ steps.qualification.outputs.evidence }}/ledger/hook-error.txt
+          if-no-files-found: warn
+          retention-days: 3

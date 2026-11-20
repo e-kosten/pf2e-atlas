@@ -24,6 +24,11 @@ mod source_configuration;
 #[cfg(test)]
 mod tests;
 mod workspace;
+mod workspace_selection;
+pub use workspace_selection::{
+    load_workspace_selection, managed_workspace_path, recover_original_workspace_selection,
+    save_workspace_selection,
+};
 mod workspace_archive;
 pub use workspace_archive::{RestorePreflight, ValidatedArchive, WorkspaceArchive};
 
@@ -41,14 +46,17 @@ pub use setup_model::{
     SetupExitClass, SetupPathsReport, SetupPublication, SetupReadiness, SetupReadinessItem,
     SetupReadinessStatus, SetupTarget,
 };
-pub use workspace::{WORKSPACE_SCHEMA_VERSION, initialize_workspace};
+pub use workspace::{
+    WORKSPACE_SCHEMA_VERSION, claim_desktop_workspace, desktop_migration_ledger,
+    initialize_workspace, seed_desktop_copy,
+};
 
 pub use operations::{ExactRecordRead, StateRead, WorkspaceRead, WorkspaceWrite};
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 
-pub use atlas_storage::{StorageError, Workspace};
+pub use atlas_storage::{MigrationLedger, StorageError, Workspace};
 
 /// The source bundled with this Atlas build for managed desktop setup.
 pub fn desktop_reference_baseline() -> (&'static str, &'static str) {

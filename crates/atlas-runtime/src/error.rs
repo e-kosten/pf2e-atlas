@@ -7,6 +7,12 @@ pub struct RuntimeError {
 }
 
 impl RuntimeError {
+    pub(crate) fn workspace_selection(error: impl fmt::Display) -> Self {
+        Self::new(
+            RuntimeErrorKind::WorkspaceAccess,
+            format!("Could not open the selected workspace: {error}"),
+        )
+    }
     pub(crate) fn unsupported_search_profile(error: impl fmt::Display) -> Self {
         Self::new(
             RuntimeErrorKind::UnsupportedSearchProfile,

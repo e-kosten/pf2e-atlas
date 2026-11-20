@@ -1,6 +1,7 @@
 fn main() {
     for name in [
         "ATLAS_DESKTOP_RELEASE",
+        "ATLAS_DESKTOP_SOURCE_COMMIT",
         "ATLAS_UPDATER_PUBLIC_KEY",
         "ATLAS_WORKSPACE_SCHEMA",
         "ATLAS_UPDATER_REHEARSAL_ROOT",
@@ -10,12 +11,14 @@ fn main() {
     }
     let commands = tauri_build::AppManifest::new().commands(&[
         "inspect",
+        "recover_workspace",
         "launch",
         "prepare",
         "cancel_setup",
         "enable_cli",
         "desktop_setup_action",
         "desktop_update_action",
+        "desktop_channel_action",
         "desktop_startup_trace",
         "desktop_tab_link",
         "desktop_native_tab_title",

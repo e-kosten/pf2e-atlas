@@ -17,6 +17,7 @@ import { Settings } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { restoreOverlayFocus } from "../shared/ui/overlays/restoreOverlayFocus";
 import { AtlasDrawer } from "../shared/ui/overlays/AtlasDrawer";
+import { DesktopReleaseChannel } from "./DesktopUpdate";
 
 type SetupStatus = "idle" | "available" | "running" | "cancelling" | "failed";
 type SetupAction =
@@ -42,6 +43,7 @@ type ReferenceStatus = {
 };
 type DesktopAttachment = {
   token: string;
+  channel?: { workspace_path: string | null } | null;
   openRequest?: number | null;
   openTerminal?: boolean;
   terminalLinking?: boolean;
@@ -359,6 +361,7 @@ export function DesktopSetupPanel() {
               onApply={(selection) => void act("apply_models", selection)}
             />
           )}
+          <DesktopReleaseChannel />
           {open && attachment.terminalLinking !== false && (
             <div
               ref={terminalSection}
@@ -438,12 +441,23 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
     }
   }
 
+  const workspace = readAttachment()?.channel?.workspace_path;
   return (
     <section
       className="desktop-setup__section"
       aria-labelledby="desktop-setup-terminal"
     >
       <h2 id="desktop-setup-terminal">Terminal and agent access</h2>
+      {workspace && (
+        <Alert
+          type="info"
+          title={
+            <>
+              The app and its bundled terminal command use <code>{workspace}</code>.
+            </>
+          }
+        />
+      )}
       {!status && busy && (
         <Typography.Text role="status">Checking terminal command…</Typography.Text>
       )}

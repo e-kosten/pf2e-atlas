@@ -164,3 +164,29 @@ publication observed in two windows. The link scenario sends real macOS URL
 events to an isolated app bundle. It checks a cold launch, a warm open with the
 same record in a Search preview, and reuse of the standalone record tab.
 Embedding generation is skipped.
+
+## Qualify Windows updater transitions
+
+After pushing a candidate branch, run the disposable native updater rehearsal
+with the GitHub CLI. Replace `BRANCH` with that branch:
+
+```sh
+gh workflow run windows-desktop.yml --ref BRANCH -f qualify-updater=true
+```
+
+This optional workflow builds test installers with disposable updater signatures
+and serves them over local HTTPS on a fresh Windows runner. It drives the installed
+app through WebView2, verifies that NSIS replaces both the host and CLI after
+the old processes exit, and checks separate-copy startup and refusal after
+database identity or migration-history changes during installation.
+
+The test installer uses a guarded restart worker to preserve its isolated data
+and browser-profile paths. It exercises target startup admission; it does not
+qualify NSIS's ordinary `RunAsUser` restart environment. The default installer
+workflow and published packages use their normal restart path.
+
+Inspect the run's `windows-updater-qualification-*` artifact for screenshots,
+process/digest checks and refusal evidence. A passing run includes `result.json`
+with all three cases completed. The artifact excludes signing keys and test
+databases. The scripts require a disposable GitHub Actions runner and refuse a
+runner with existing Atlas data or a running Atlas app.

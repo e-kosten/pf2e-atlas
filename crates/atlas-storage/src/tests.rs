@@ -14,6 +14,84 @@ pub(super) fn fixture() -> (tempfile::TempDir, Workspace) {
 }
 
 #[test]
+fn a_copy_preserves_saved_data_with_its_own_workspace_identity() {
+    let (dir, primary) = fixture();
+    let copy = Workspace::at(dir.path().join("copy.sqlite")).unwrap();
+    let history = MigrationHistory::new(&[FIRST]);
+    let key = primary.read(1).unwrap().workspace_key().unwrap();
+    assert!(
+        primary
+            .seed_copy(&copy, history, "different-workspace", 1, || Ok(()))
+            .is_err()
+    );
+    assert!(!copy.path().exists());
+    primary
+        .seed_copy(&copy, history, &key, 1, || Ok(()))
+        .unwrap();
+
+    let primary_read = primary.read(1).unwrap();
+    let copy_read = copy.read(1).unwrap();
+    assert_ne!(
+        primary_read.workspace_key().unwrap(),
+        copy_read.workspace_key().unwrap()
+    );
+    assert_eq!(
+        copy_read
+            .connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+    drop(copy_read);
+    assert!(
+        primary
+            .seed_copy(&copy, history, &key, 1, || Ok(()))
+            .is_err()
+    );
+    assert!(
+        primary
+            .seed_copy(&primary, history, &key, 1, || Ok(()))
+            .is_err()
+    );
+}
+
+#[test]
+fn update_preflight_requires_the_target_ledger_without_migrating_the_workspace() {
+    let (_dir, workspace) = fixture();
+    let second = Migration {
+        version: 2,
+        name: "later",
+        sql: "UPDATE saved SET title='upgraded';",
+        backfill: None,
+    };
+    let history = [FIRST, second];
+    let ledger = MigrationHistory::new(&history).ledger();
+    let read = workspace.read(1).unwrap();
+    assert_eq!(
+        workspace.check_update_history(&ledger).unwrap(),
+        (read.workspace_key().unwrap(), 1)
+    );
+    drop(read);
+
+    let mut divergent = ledger;
+    divergent.entries[0].checksum = "0".repeat(64);
+    assert!(matches!(
+        workspace.check_update_history(&divergent),
+        Err(StorageError::Migration(_))
+    ));
+    assert!(!workspace.upgrade_backup_path().exists());
+    assert_eq!(
+        workspace
+            .read(1)
+            .unwrap()
+            .connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+}
+
+#[test]
 fn read_session_allows_local_validation_tables_but_cannot_change_saved_data() {
     let (_dir, workspace) = fixture();
     let read = workspace.read(1).unwrap();

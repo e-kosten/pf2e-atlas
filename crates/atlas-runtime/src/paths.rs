@@ -96,11 +96,12 @@ pub(crate) fn resolve_atlas_paths(
                         .join(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT),
                 ),
                 embedding_cache_root: Some(cache_root.join("hf-models")),
-                index_path: Some(
-                    platform_data_root()?
-                        .join("pf2e-atlas")
-                        .join("workspace.sqlite"),
-                ),
+                index_path: Some(match &overrides.index_path {
+                    Some(index) => index.clone(),
+                    None => crate::workspace_selection::selected_workspace(
+                        &platform_data_root()?.join("pf2e-atlas"),
+                    )?,
+                }),
             }
         }
     };
@@ -188,7 +189,7 @@ fn home_dir() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-fn platform_data_root() -> Result<PathBuf, RuntimeError> {
+pub(crate) fn platform_data_root() -> Result<PathBuf, RuntimeError> {
     if cfg!(target_os = "macos") {
         return home_dir()
             .map(|home| home.join("Library").join("Application Support"))

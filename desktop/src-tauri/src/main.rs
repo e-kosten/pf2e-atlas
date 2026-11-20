@@ -19,6 +19,7 @@ mod updates;
 mod window_host;
 #[cfg(windows)]
 mod windows_tabs;
+mod workspace_switch;
 mod zoom;
 
 use std::{
@@ -46,6 +47,7 @@ use url::Url;
 
 #[derive(Default)]
 struct Desktop {
+    workspace_route: workspace_switch::Route,
     appearance: Mutex<appearance::Appearance>,
     bootstrap_jobs: Mutex<BootstrapJobs>,
     presented_bootstrap: Mutex<HashSet<String>>,
@@ -79,6 +81,9 @@ struct Inspection {
     running: bool,
     recovery: bool,
     opening_error: Option<String>,
+    selection_error: Option<String>,
+    recovery_release: Option<String>,
+    resume_previous_workspace: bool,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -194,6 +199,31 @@ fn show_error(app: &AppHandle, error: String) {
 }
 
 #[tauri::command]
+async fn recover_workspace(
+    window: WebviewWindow,
+    app: AppHandle,
+    previous: bool,
+) -> Result<(), String> {
+    guard(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let desktop = app.state::<Desktop>();
+        let _operation = desktop
+            .operation
+            .try_lock()
+            .map_err(|_| "Atlas is already working.")?;
+        if lock(&desktop.launcher).is_some()
+            || (desktop.workspace_route.index().is_ok()
+                && workspace_switch::recovery_release(&app).is_none())
+        {
+            return Err("This workspace does not require selection recovery.".into());
+        }
+        workspace_switch::recover(&app, previous)
+    })
+    .await
+    .map_err(display)?
+}
+
+#[tauri::command]
 async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, String> {
     let access = guard(&window);
     #[cfg(debug_assertions)]
@@ -211,7 +241,17 @@ async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, St
             std::thread::sleep(std::time::Duration::from_millis(1_200));
         }
         let desktop = app.state::<Desktop>();
-        let probe = process::probe()?;
+        let selection_error = desktop.workspace_route.index().err();
+        let probe = match &selection_error {
+            Some(message) => WorkspaceProbe {
+                version: atlas_desktop_protocol::VERSION,
+                workspace: Default::default(),
+                status: WorkspaceStatus::RecoveryRequired,
+                message: message.clone(),
+                stage: None,
+            },
+            None => process::probe(&app)?,
+        };
         if lock(&desktop.bootstrap_jobs).generation(&label) != Some(generation) {
             return Err("This inspection belongs to an earlier Atlas page.".into());
         }
@@ -220,6 +260,9 @@ async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, St
             probe,
             running: lock(&desktop.launcher).is_some(),
             recovery: desktop.recovery.load(Ordering::Acquire),
+            selection_error,
+            recovery_release: workspace_switch::recovery_release(&app),
+            resume_previous_workspace: workspace_switch::can_resume_previous(&app),
             opening_error: if initial {
                 lock(&desktop.primary).error().map(str::to_owned)
             } else {
@@ -325,15 +368,16 @@ fn launch_bootstrap(job: &BootstrapJob) -> Result<(), String> {
 fn start_launcher(app: &AppHandle) -> Result<(), String> {
     let desktop = app.state::<Desktop>();
     if lock(&desktop.launcher).is_none() {
-        let probe = process::probe()?;
+        let probe = process::probe(app)?;
         if !matches!(
             probe.status,
             WorkspaceStatus::Ready | WorkspaceStatus::Browsable
         ) {
             return Err(probe.message);
         }
+        let pending = workspace_switch::reserve_pending_launch(app, &probe.workspace)?;
         let handle = app.clone();
-        let launcher = process::start(move |pid| on_launcher_exit(&handle, pid))?;
+        let launcher = process::start(app, move |pid| on_launcher_exit(&handle, pid))?;
         if launcher.ready.workspace != probe.workspace
             || verified_url(&launcher.ready.endpoint).is_err()
         {
@@ -343,7 +387,19 @@ fn start_launcher(app: &AppHandle) -> Result<(), String> {
         if desktop.quitting.load(Ordering::Acquire) || launcher.has_stopped() {
             return Err("The Atlas launcher closed while opening the workspace.".into());
         }
+        let just_switched = pending.is_some();
+        if let Some(pending) = pending
+            && let Err(error) = pending.finish(app)
+        {
+            drop(current);
+            let _ = launcher.release();
+            return Err(error);
+        }
         *current = Some(launcher);
+        drop(current);
+        if just_switched {
+            updates::refresh(app);
+        }
         if probe.stage == Some(atlas_desktop_protocol::SetupStage::Resume) {
             desktop.staged_setup.offer_resume();
         }
@@ -399,7 +455,7 @@ fn prepare_bootstrap(
     job: &BootstrapJob,
     local: bool,
 ) -> Result<String, serde_json::Value> {
-    let staged = process::probe()?.stage;
+    let staged = process::probe(app)?.stage;
     if let Some(stage) = staged {
         return staged_setup::from_bootstrap(app.clone(), job.clone(), stage, local);
     }
@@ -411,7 +467,7 @@ fn prepare_bootstrap(
     if desktop.staged_setup.active() {
         return Err("Atlas setup is already running.".into());
     }
-    let probe = process::probe()?;
+    let probe = process::probe(app)?;
     let upgrade = probe.status == WorkspaceStatus::UpgradeRequired;
     let running = lock(&desktop.launcher).is_some();
     if upgrade {
@@ -419,7 +475,7 @@ fn prepare_bootstrap(
         if let Some(launcher) = launcher {
             launcher.release()?;
         }
-        process::wait_for_upgrade()?;
+        process::wait_for_upgrade(app)?;
     }
     {
         let mut owner = lock(&desktop.ordinary_setup);
@@ -428,6 +484,7 @@ fn prepare_bootstrap(
     }
     let progress_job = job.clone();
     let result = process::setup(
+        app,
         if upgrade {
             process::SetupMode::UpgradeWorkspace
         } else {
@@ -455,7 +512,7 @@ fn prepare_bootstrap(
     result?;
     if upgrade
         && !matches!(
-            process::probe()?.status,
+            process::probe(app)?.status,
             WorkspaceStatus::Ready | WorkspaceStatus::Browsable
         )
     {
@@ -946,6 +1003,7 @@ fn main() {
         .manage(Desktop::default())
         .invoke_handler(tauri::generate_handler![
             inspect,
+            recover_workspace,
             launch,
             prepare,
             cancel_setup,
@@ -953,6 +1011,7 @@ fn main() {
             enable_cli,
             staged_setup::desktop_setup_action,
             updates::desktop_update_action,
+            updates::desktop_channel_action,
             #[cfg(debug_assertions)]
             startup_trace::desktop_startup_trace,
             tab_links::desktop_tab_link,
@@ -1028,7 +1087,7 @@ fn main() {
                 #[cfg(target_os = "macos")]
                 "terminal-access" => show_workspace_setup(app, true),
                 #[cfg(windows)]
-                "terminal-access" => window_host::show_cli_path(),
+                "terminal-access" => window_host::show_cli_path(app),
                 #[cfg(windows)]
                 "exit" => windows_tabs::exit(app),
                 "new" => new_search(app, false),
@@ -1088,6 +1147,7 @@ fn main() {
                     }
                 }
             }
+            workspace_switch::initialize(app.handle(), updates::installed_build().as_ref());
             show_bootstrap(app.handle())?;
             updates::start(app.handle());
             #[cfg(all(debug_assertions, target_os = "macos"))]

@@ -29,6 +29,16 @@ flowchart TD
     browser[React and Ant UI] --> web
 ```
 
+## Managed workspace selection
+
+Runtime resolves the shared global workspace selection for current desktop and
+CLI builds. Explicit index overrides and repository mode bypass that setting.
+The desktop host uses the bundled CLI to read or atomically update the selection
+and pending switch journal; it pins one explicit workspace for its running service.
+[ADR0070](decisions/0070-desktop-release-channel-transitions.md) owns channel
+switching, commit timing and recovery. Source and model caches remain independent
+of which workspace is selected.
+
 ## Pinned reference acquisition
 
 Runtime acquires the exact PF2e commit emitted by model generation from the

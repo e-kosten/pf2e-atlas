@@ -2,6 +2,116 @@
 
 use std::process::Command;
 
+#[cfg(any(target_os = "macos", feature = "web"))]
+#[test]
+fn app_selection_is_the_cli_default_and_explicit_paths_bypass_it() {
+    use atlas_desktop_protocol::workspace_selection::{Config, Role, SelectionSnapshot};
+    use std::{io::Write, process::Stdio};
+    let home = tempfile::tempdir().unwrap();
+    let command = || {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        cmd.env("HOME", home.path())
+            .env("LOCALAPPDATA", home.path());
+        cmd
+    };
+    let output = command()
+        .args(["desktop-probe", "--workspace-selection", "get"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let envelope: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let state: SelectionSnapshot = serde_json::from_value(envelope["data"].clone()).unwrap();
+    let original = state
+        .workspaces
+        .iter()
+        .find(|w| w.role == Role::Original)
+        .unwrap()
+        .path
+        .clone();
+    let separate = state
+        .workspaces
+        .iter()
+        .find(|w| w.role == Role::Separate)
+        .unwrap()
+        .path
+        .clone();
+    atlas_runtime::initialize_workspace(&original).unwrap();
+    atlas_runtime::initialize_workspace(&separate).unwrap();
+    let save = |config: &Config| {
+        let mut child = command()
+            .args(["desktop-probe", "--workspace-selection", "save"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut pipe = child.stdin.take().unwrap();
+        serde_json::to_writer(&mut pipe, config).unwrap();
+        pipe.write_all(b"\n").unwrap();
+        drop(pipe);
+        child.wait_with_output().unwrap()
+    };
+    let mut selection = state.config;
+    selection.active = Role::Separate;
+    assert!(save(&selection).status.success());
+    // A stale desktop cannot redirect subsequent commands back to the original.
+    selection.active = Role::Original;
+    assert!(!save(&selection).status.success());
+    let probe = command().arg("desktop-probe").output().unwrap();
+    assert!(probe.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&probe.stdout).unwrap();
+    assert_eq!(
+        report["data"]["workspace"],
+        separate.canonicalize().unwrap().to_str().unwrap()
+    );
+    assert!(original.is_file());
+
+    std::fs::remove_file(&separate).unwrap();
+    let missing = command().arg("desktop-probe").output().unwrap();
+    assert!(!missing.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&missing.stdout).unwrap();
+    assert!(
+        report["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("selected workspace is missing")
+    );
+    assert!(!separate.exists());
+
+    let config_path = original.with_file_name("workspace-selection.json");
+    std::fs::write(&config_path, "invalid selection").unwrap();
+    assert!(
+        !command()
+            .arg("desktop-probe")
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    let explicit = command()
+        .args(["desktop-probe", "--index"])
+        .arg(&original)
+        .output()
+        .unwrap();
+    assert!(explicit.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&explicit.stdout).unwrap();
+    assert_eq!(
+        report["data"]["workspace"],
+        original.canonicalize().unwrap().to_str().unwrap()
+    );
+    // Repo mode also bypasses the corrupt global selection without changing it.
+    let repo = command()
+        .args(["setup", "--check", "--json", "--path-mode", "repo"])
+        .current_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
+        .output()
+        .unwrap();
+    let report: serde_json::Value = serde_json::from_slice(&repo.stdout).unwrap();
+    assert_eq!(report["status"], "ok", "{report}");
+    assert_eq!(
+        std::fs::read_to_string(&config_path).unwrap(),
+        "invalid selection"
+    );
+}
+
 #[cfg(any(target_os = "macos", all(windows, feature = "web")))]
 #[test]
 fn probe_missing_workspace_is_read_only() {
@@ -19,6 +129,142 @@ fn probe_missing_workspace_is_read_only() {
     assert_eq!(report["data"]["version"], 1);
     assert_eq!(report["data"]["status"], "needs_setup");
     assert!(!index.parent().unwrap().exists());
+}
+
+#[cfg(any(target_os = "macos", feature = "web"))]
+#[test]
+fn transition_reservation_answers_one_json_line_before_stdin_closes() {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        process::Stdio,
+    };
+    let home = tempfile::tempdir().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "desktop-probe",
+            "--transition-workspace",
+            "original",
+            "--reserve-transition",
+        ])
+        .env("HOME", home.path())
+        .env("LOCALAPPDATA", home.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut pipe = child.stdin.take().unwrap();
+    serde_json::to_writer(
+        &mut pipe,
+        &serde_json::json!({"ledger": atlas_runtime::desktop_migration_ledger()}),
+    )
+    .unwrap();
+    pipe.write_all(b"\n").unwrap();
+    pipe.flush().unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut line)
+        .unwrap();
+    let response: serde_json::Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(response["status"], "ok");
+    assert_eq!(response["data"]["role"], "original");
+    assert!(
+        child.try_wait().unwrap().is_none(),
+        "reservation must remain alive until the host releases its pipe"
+    );
+    drop(pipe);
+    assert!(child.wait().unwrap().success());
+}
+
+#[cfg(any(target_os = "macos", feature = "web"))]
+#[test]
+fn transition_failures_are_one_line_and_preserve_the_failure_kind() {
+    use atlas_desktop_protocol::workspace_selection::{TransitionFailureKind, TransitionResponse};
+    use std::{
+        io::{BufRead, BufReader, Write},
+        process::Stdio,
+    };
+    let home = tempfile::tempdir().unwrap();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+    command
+        .env("HOME", home.path())
+        .env("LOCALAPPDATA", home.path());
+    let snapshot = command
+        .args(["desktop-probe", "--workspace-selection", "get"])
+        .output()
+        .unwrap();
+    let state: serde_json::Value = serde_json::from_slice(&snapshot.stdout).unwrap();
+    let path = std::path::PathBuf::from(state["data"]["workspaces"][0]["path"].as_str().unwrap());
+    atlas_runtime::initialize_workspace(&path).unwrap();
+    let workspace = atlas_runtime::Workspace::at(&path).unwrap();
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let ledger = atlas_runtime::desktop_migration_ledger();
+    let check = |expected| {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args([
+                "desktop-probe",
+                "--transition-workspace",
+                "original",
+                "--reserve-transition",
+            ])
+            .env("HOME", home.path())
+            .env("LOCALAPPDATA", home.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut pipe = child.stdin.take().unwrap();
+        writeln!(pipe, "{}", serde_json::json!({"ledger": ledger})).unwrap();
+        pipe.flush().unwrap();
+        let mut reader = BufReader::new(child.stdout.take().unwrap());
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        let TransitionResponse::Error { error } = serde_json::from_str(&line).unwrap() else {
+            panic!("expected refusal, got {line}")
+        };
+        assert_eq!(error.kind, expected, "{}", error.diagnostic);
+        // A refusal must exit even though the host has not closed its input.
+        assert_eq!(child.wait().unwrap().code(), Some(2));
+        line.clear();
+        assert_eq!(reader.read_line(&mut line).unwrap(), 0);
+        drop(pipe);
+    };
+    connection
+        .pragma_update(
+            None,
+            "user_version",
+            atlas_runtime::WORKSPACE_SCHEMA_VERSION + 1,
+        )
+        .unwrap();
+    check(TransitionFailureKind::NewerSchema);
+    connection
+        .pragma_update(
+            None,
+            "user_version",
+            atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
+    // Failed reservations must have released their admission locks.
+    let guard = workspace.setup_guard().unwrap();
+    check(TransitionFailureKind::Busy);
+    drop(guard);
+    connection
+        .execute(
+            "UPDATE workspace SET maintenance='interrupted' WHERE id=1",
+            [],
+        )
+        .unwrap();
+    check(TransitionFailureKind::Unknown);
+    connection
+        .execute("UPDATE workspace SET maintenance=NULL WHERE id=1", [])
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE schema_migrations SET checksum='unknown-history' WHERE version=?",
+            [atlas_runtime::WORKSPACE_SCHEMA_VERSION],
+        )
+        .unwrap();
+    check(TransitionFailureKind::Unknown);
+    drop(workspace.setup_guard().unwrap());
 }
 
 #[cfg(target_os = "macos")]

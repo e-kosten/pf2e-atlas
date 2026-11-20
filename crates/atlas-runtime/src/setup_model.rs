@@ -15,6 +15,8 @@ pub struct SetupPublication {
     pub semantic: bool,
 }
 
+pub type DesktopWorkspaceCheck = fn(&atlas_storage::Workspace) -> Result<(), String>;
+
 #[derive(Debug, Clone)]
 pub struct RuntimeSetupOptions {
     pub target: SetupTarget,
@@ -27,6 +29,8 @@ pub struct RuntimeSetupOptions {
     pub embedding_batch_size: usize,
     /// None preserves the requested indexing locale, or uses English for a new workspace.
     pub locale: Option<String>,
+    /// Check the selected desktop workspace under setup admission before writes.
+    pub desktop_workspace_check: Option<DesktopWorkspaceCheck>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -47,6 +51,7 @@ impl Default for RuntimeSetupOptions {
             search_profiles: Vec::new(),
             embedding_batch_size: 32,
             locale: None,
+            desktop_workspace_check: None,
         }
     }
 }

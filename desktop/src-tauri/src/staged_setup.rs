@@ -108,6 +108,7 @@ impl StagedSetup {
             .webview(label)
             .permission("allow-desktop-setup-action")
             .permission("allow-desktop-update-action")
+            .permission("allow-desktop-channel-action")
             .permission("allow-desktop-tab-link")
             .permission("allow-desktop-appearance")
             .permission("allow-desktop-copy-link")
@@ -220,9 +221,13 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
             "preferred": reference.preferred,
         })
     });
-    let update = window.state::<Desktop>().updates.snapshot();
+    let update = window
+        .state::<Desktop>()
+        .updates
+        .snapshot(window.app_handle());
     let detail = serde_json::json!({
         "token": token, "setup": state, "reference": reference, "update": update,
+        "channel": crate::updates::channel_snapshot(window.app_handle()),
         "referenceLoading": state.reference_loading, "openRequest": document.open_request,
         "openTerminal": document.open_terminal,
         "terminalLinking": cfg!(target_os = "macos"),
@@ -306,7 +311,7 @@ fn load_reference(app: &AppHandle, force: bool) {
     };
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let status = process::reference_status().ok();
+        let status = process::reference_status(&app).ok();
         store_reference(&app, &launcher, request, status);
     });
 }
@@ -606,8 +611,10 @@ fn run(
     broadcast(&app);
     let (published, receipts) = mpsc::channel();
     let (completed, completion) = mpsc::channel();
+    let defer_launch = crate::workspace_switch::load(&app)?.pending.is_some();
     let opening_task = bootstrap
         .as_ref()
+        .filter(|_| !defer_launch)
         .filter(|job| job.window.label() == opening::PRIMARY)
         .map(|job| {
             let app = app.clone();
@@ -640,6 +647,7 @@ fn run(
         },
     };
     let result = process::setup(
+        &app,
         mode,
         local,
         move |event| {
@@ -690,7 +698,7 @@ fn run(
                 .map_err(|_| "Atlas could not open the workspace.".to_owned())?
         })
         .transpose();
-    let probe = process::probe().ok();
+    let probe = process::probe(&app).ok();
     let can_resume = probe
         .as_ref()
         .is_some_and(|probe| probe.stage == Some(SetupStage::Resume));
@@ -725,6 +733,13 @@ fn run(
     broadcast(&app);
     load_reference(&app, true);
     let _ = run_on_main(&app, |app| refresh_product(app, true));
+    if defer_launch
+        && result.is_ok()
+        && let Some(bootstrap) = bootstrap.as_ref()
+    {
+        let _operation = lock(&desktop.operation);
+        crate::launch_ready(&app, bootstrap)?;
+    }
     if opening_result.map_err(Value::from)? == Some(false) && result.is_ok() {
         return Err(Value::from(
             "Atlas could not verify the published workspace. Try opening Atlas again.",
@@ -740,7 +755,7 @@ fn finish_reference(
     receipt: Option<ReferenceRefreshResult>,
 ) {
     let ReferenceJob { before, models, .. } = job;
-    let current_status = process::reference_status().ok();
+    let current_status = process::reference_status(app).ok();
     let models_committed = models.as_ref().is_some_and(|(selection, _)| {
         current_status.as_ref().is_some_and(|current| {
             same_workspace(&before, current) && matches_selection(current, selection)
@@ -846,7 +861,7 @@ fn open_committed(
 ) -> Result<bool, String> {
     let desktop = app.state::<Desktop>();
     let _operation = lock(&desktop.operation);
-    let probe = process::probe()?;
+    let probe = process::probe(app)?;
     if receipt.workspace != probe.workspace || desktop.quitting.load(Ordering::Acquire) {
         return Ok(false);
     }

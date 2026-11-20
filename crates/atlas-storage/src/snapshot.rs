@@ -1,6 +1,8 @@
 //! Consistent whole-workspace snapshots and missing-only seed installation.
 use crate::backup::{self, Destination, sync_directory};
-use crate::{StorageError, StorageResult, Workspace, locking, workspace::validate};
+use crate::{
+    MigrationHistory, StorageError, StorageResult, Workspace, locking, workspace::validate,
+};
 use std::{
     fs::{self, File},
     path::{Path, PathBuf},
@@ -24,6 +26,62 @@ impl Workspace {
         let schema = source.query_row("PRAGMA user_version", [], |row| row.get(0))?;
         validate(&source, schema, false)?;
         backup::write(&source, destination, Destination::CreateNew)
+    }
+
+    /// Publish an independent copy of committed workspace data. An existing
+    /// destination always wins, even if it appeared during snapshot capture.
+    pub fn seed_copy(
+        &self,
+        destination: &Self,
+        history: MigrationHistory<'_>,
+        expected_key: &str,
+        expected_schema: u32,
+        verify_source: impl FnOnce() -> StorageResult<()>,
+    ) -> StorageResult<()> {
+        if self.path == destination.path {
+            return Err(StorageError::Unsupported(
+                "copy resolves to its source workspace".into(),
+            ));
+        }
+        history.validate()?;
+        let parent = destination.path.parent().unwrap_or_else(|| Path::new("."));
+        let scratch = tempfile::tempdir_in(parent)?;
+        let snapshot = scratch.path().join("workspace.sqlite");
+        self.snapshot_to(&snapshot)?;
+        verify_source()?;
+
+        let initialization = destination.begin_initialization()?.ok_or_else(|| {
+            StorageError::Unsupported("destination workspace already exists".into())
+        })?;
+        initialization.install(&snapshot, |staged| {
+            let mut connection = rusqlite::Connection::open(staged)?;
+            connection.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;")?;
+            let transaction = connection.transaction()?;
+            let (fresh, schema) = crate::migration::inspect_history(&transaction, history)?;
+            if fresh {
+                return Err(StorageError::Unsupported(
+                    "source workspace is uninitialized".into(),
+                ));
+            }
+            validate(&transaction, schema, false)?;
+            let actual: String = transaction.query_row(
+                "SELECT workspace_key FROM workspace WHERE id=1",
+                [],
+                |row| row.get(0),
+            )?;
+            if schema != expected_schema || actual != expected_key {
+                return Err(StorageError::Migration(
+                    "source workspace changed before copying".into(),
+                ));
+            }
+            transaction.execute(
+                "UPDATE workspace SET workspace_key=lower(hex(randomblob(16))) WHERE id=1",
+                [],
+            )?;
+            transaction.commit()?;
+            Ok(())
+        })?;
+        Ok(())
     }
 
     /// Reserve an absent destination. Existing files and dangling symlinks are
@@ -53,6 +111,28 @@ impl Workspace {
 }
 
 impl WorkspaceInitialization {
+    /// Stamp a newly built, private database with the identity recorded before
+    /// install. Publishing only to an absent path lets recovery distinguish the
+    /// initializer from an unrelated database created at the same location.
+    pub fn install_claimed(
+        &self,
+        source: &Path,
+        history: MigrationHistory<'_>,
+        key: &str,
+    ) -> StorageResult<()> {
+        self.install(source, |path| {
+            let mut connection = rusqlite::Connection::open(path)?;
+            connection.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;")?;
+            let transaction = connection.transaction()?;
+            crate::migration::inspect_history(&transaction, history)?;
+            validate(&transaction, history.target(), false)?;
+            transaction.execute("UPDATE workspace SET workspace_key=?1 WHERE id=1", [key])?;
+            transaction.commit()?;
+            Ok(())
+        })?;
+        Ok(())
+    }
+
     /// Clone a closed, immutable seed when available, otherwise copy it. The
     /// callback verifies the staged bytes before the missing-only installation.
     pub fn install(

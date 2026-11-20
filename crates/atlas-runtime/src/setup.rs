@@ -285,6 +285,12 @@ fn run_setup(
             Err(error) => return configuration_failure(paths, &options, error.to_string()),
         }
     };
+    if let Some(check) = options.desktop_workspace_check
+        && let Some((_, workspace)) = &_setup
+        && let Err(error) = check(workspace)
+    {
+        return configuration_failure(paths, &options, error);
+    }
     let refresh = if let (Some(request), Some((_, workspace))) = (&refresh_request, &_setup) {
         let admitted = match request.models {
             Some(selection) => Refresh::admit_models(
