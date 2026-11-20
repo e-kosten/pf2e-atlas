@@ -638,10 +638,29 @@ fn schema_47_promotes_characters_without_losing_choices_or_encounter_links() {
         modifier_type: atlas_domain::AdjustmentModifierType::Stacks,
         timing: None,
     };
-    write.connection().execute(
-        "INSERT INTO encounter_adjustments(participant_key,adjustment_key,payload_json,position) VALUES(?1,?2,?3,1)",
-        rusqlite::params![pc.participant_key, adjustment.adjustment_key, serde_json::to_string(&adjustment).unwrap()],
-    ).unwrap();
+    let adjustment_intent = serde_json::json!({"action": "gm_adjustment"});
+    let encounters = state.encounters();
+    let revision = encounters
+        .get(&encounter.encounter_key)
+        .unwrap()
+        .unwrap()
+        .revision;
+    encounters
+        .apply_condition_event(
+            &encounter.encounter_key,
+            "gm-adjustment",
+            &adjustment_intent,
+            revision,
+            atlas_local_state::PreparedConditionEvent {
+                adjustments: vec![atlas_local_state::AdjustmentChange {
+                    participant_key: pc.participant_key.clone(),
+                    adjustment_key: adjustment.adjustment_key.clone(),
+                    value: Some(adjustment.clone()),
+                }],
+                ..Default::default()
+            },
+        )
+        .unwrap();
     write.commit().unwrap();
     initialize_workspace(workspace.path()).unwrap();
     let backup = std::fs::read(archive_path(&workspace)).unwrap();
@@ -676,6 +695,17 @@ fn schema_47_promotes_characters_without_losing_choices_or_encounter_links() {
     assert_eq!(
         saved.participants[0].adjustments.as_slice(),
         std::slice::from_ref(&adjustment)
+    );
+    assert!(
+        state
+            .encounters()
+            .condition_event_receipt(
+                &encounter.encounter_key,
+                "gm-adjustment",
+                &adjustment_intent
+            )
+            .unwrap()
+            .is_some()
     );
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     let boundary_index: String = write
