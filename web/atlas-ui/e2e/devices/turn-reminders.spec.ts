@@ -769,6 +769,9 @@ test("real turn counts retain explanations and guard an explicit action", async 
     });
     await expect(explanation.getByRole("row", { name: /Slowed.*-1/ })).toBeVisible();
     await expect(explanation.getByRole("row", { name: /Total.*2/ })).toBeVisible();
+    await expect(page.locator(".ant-popover:visible")).not.toHaveClass(
+      /ant-zoom-big-(appear|enter)/,
+    );
     await activate(
       explanation.getByRole("button", { name: "Close explanation", exact: true }),
       info,

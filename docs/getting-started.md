@@ -66,6 +66,22 @@ You can remove it there or close the reminder and keep it. End reminders show th
 creature finishing its turn; start reminders show the creature beginning its turn.
 When both apply, **Continue** moves from end reminders to start reminders.
 
+For a table ruling that changes a statistic, choose **Add adjustment** under
+**Adjustments** in the participant inspector. Choose the statistic and enter
+the signed change. Preview the result before applying it. For example, record
+Sacrifice Armor as AC −2 for 24 hours, then enter the damage from the triggering
+hit after resistance using the HP controls.
+
+**Untyped** adjustments stack by default. Choose **Item**, **Status** or
+**Circumstance** to use that modifier type. Bonuses and penalties of the same type
+compete separately. For equipment changes already included in the creature's
+original statistic, enter the net change. Click an adjusted value to inspect its
+calculation. Use **Edit**
+to correct the entry, **Apply again** to create a new entry with its own duration,
+or **End now** to remove it. Adjustments set to **Until removed** stay active
+until ended. Timed adjustments expire on the encounter clock, and overnight
+recovery advances their duration.
+
 Timed conditions also accept rounds, minutes, hours or days. With turn timing
 configured, one minute counts down over ten normal rounds. For encounters using
 longer turns, change **Seconds per round** in encounter settings; the default is 6.

@@ -632,6 +632,14 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                 spellError={
                   mutations.errorKind === "spell" ? mutations.errorMessage : undefined
                 }
+                onAdjustment={async (participantKey, request) => {
+                  const result = await mutations.run({
+                    kind: "gm-adjustment",
+                    participantKey,
+                    request,
+                  });
+                  return { active: result.active, refreshed: result.refreshed };
+                }}
                 onManualTracker={async (participantKey, request) => {
                   const result = await mutations.run({
                     kind: "manual-tracker",

@@ -759,6 +759,35 @@ export async function getTraitRecords(
   return result;
 }
 
+export async function previewEncounterAdjustment(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").EncounterAdjustmentRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").EncounterAdjustmentPreviewView> {
+  return checkEncounterResponse(
+    await http.previewEncounterAdjustment(
+      encounterRef,
+      participantKey,
+      checkRequest(request),
+      { intent: "read", signal },
+    ),
+  );
+}
+
+export async function updateEncounterAdjustment(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").EncounterAdjustmentRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return http.updateEncounterAdjustment(
+    encounterRef,
+    participantKey,
+    checkRequest(request),
+    { intent: "action" },
+  );
+}
+
 export async function updateEncounterManualTracker(
   encounterRef: string,
   participantKey: string,

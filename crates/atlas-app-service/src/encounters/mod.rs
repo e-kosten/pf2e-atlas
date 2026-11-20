@@ -1,6 +1,9 @@
 mod ability_state;
 mod conditions;
 mod difficulty;
+#[cfg(test)]
+mod gm_adjustment_tests;
+mod gm_adjustments;
 mod hp;
 #[cfg(test)]
 mod hp_tests;

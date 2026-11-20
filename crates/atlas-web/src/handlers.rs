@@ -1135,6 +1135,38 @@ pub(crate) async fn update_encounter_manual_tracker(
     ))
 }
 
+#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/adjustments", operation_id = "updateEncounterAdjustment", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = atlas_app_model::EncounterAdjustmentRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn update_encounter_adjustment(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<atlas_app_model::EncounterAdjustmentRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.update_encounter_adjustment(&encounter_ref, &participant_key, request)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/adjustments/preview", operation_id = "previewEncounterAdjustment", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = atlas_app_model::EncounterAdjustmentRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterAdjustmentPreviewView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn preview_encounter_adjustment(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<atlas_app_model::EncounterAdjustmentRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.preview_encounter_adjustment(&encounter_ref, &participant_key, request)
+        })
+        .await?,
+    ))
+}
+
 #[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/ability-state", operation_id = "updateEncounterAbilityState", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = atlas_app_model::UpdateEncounterAbilityStateRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn update_encounter_ability_state(
     State(state): State<AtlasWebState>,

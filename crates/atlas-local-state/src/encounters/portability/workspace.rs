@@ -16,14 +16,23 @@ pub(crate) struct RecoveryEncounter {
 }
 
 impl RecoveryEncounter {
-    pub(crate) fn capture_all(db: &Connection, owner: i64) -> LocalStateResult<Vec<Self>> {
+    pub(crate) fn capture_all(
+        db: &Connection,
+        owner: i64,
+        has_adjustment_table: bool,
+    ) -> LocalStateResult<Vec<Self>> {
         storage::list(db, owner)?
             .into_iter()
-            .map(|encounter| Self::capture(db, owner, encounter))
+            .map(|encounter| Self::capture(db, owner, encounter, has_adjustment_table))
             .collect()
     }
 
-    fn capture(db: &Connection, owner: i64, encounter: Encounter) -> LocalStateResult<Self> {
+    fn capture(
+        db: &Connection,
+        owner: i64,
+        encounter: Encounter,
+        has_adjustment_table: bool,
+    ) -> LocalStateResult<Self> {
         let key = &encounter.encounter_key;
         let id = db
             .query_row(
@@ -33,7 +42,7 @@ impl RecoveryEncounter {
             )
             .optional()?
             .ok_or_else(|| LocalStateError::EncounterNotFound(key.clone()))?;
-        let participants = storage::participants(db, owner, key)?;
+        let participants = storage::participants_at_schema(db, owner, key, has_adjustment_table)?;
         let mut statement = db.prepare(
             "SELECT t.participant_key,t.position FROM encounter_manual_trackers t
              JOIN encounter_participants p USING(participant_key)
@@ -83,6 +92,22 @@ impl RecoveryEncounter {
         )
     }
 
+    pub(crate) fn requires_adjustment_support(&self) -> bool {
+        has_adjustments(&self.snapshot)
+            || self
+                .baselines
+                .iter()
+                .any(|row| !row.gameplay.adjustments.is_empty())
+            || self
+                .outgoing
+                .as_ref()
+                .is_some_and(|row| has_adjustments(&row.turn.snapshot))
+            || self
+                .receipts
+                .iter()
+                .any(|row| is_adjustment_intent(&row.intent))
+    }
+
     pub(crate) fn validate(self) -> LocalStateResult<ValidatedEncounter> {
         for participant in &self.snapshot.participants {
             let positions = self.tracker_positions.get(&participant.participant_key);
@@ -110,7 +135,11 @@ impl RecoveryEncounter {
             ));
         }
         let mut document = EncounterDocument {
-            version: VERSION,
+            version: if self.requires_adjustment_support() {
+                ADJUSTMENT_VERSION
+            } else {
+                VERSION
+            },
             snapshot: self.snapshot,
             baselines: self.baselines.into_iter().map(Into::into).collect(),
             pending: self.pending,

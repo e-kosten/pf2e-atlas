@@ -36,6 +36,7 @@ pub use encounters::{
     ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,
     UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
+pub use encounters::{AdjustmentChange, AdjustmentTiming, EncounterAdjustment};
 pub use encounters::{
     ApplyEncounterRecovery, EncounterDocument, EncounterRecordSource, ParticipantGameplay,
 };

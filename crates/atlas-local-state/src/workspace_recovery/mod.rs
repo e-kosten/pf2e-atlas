@@ -51,6 +51,11 @@ impl SavedWorkspace {
             [],
             |row| row.get::<_, bool>(0),
         )?;
+        let has_adjustment_table = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='encounter_adjustments')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )?;
         let owners = rows(
             db,
             "SELECT id,principal_key,name FROM principals ORDER BY principal_key",
@@ -63,7 +68,7 @@ impl SavedWorkspace {
             .into_iter()
             .map(|(id, key, name)| {
                 let lists = List::capture(db, id, has_archive_column)?;
-                let encounters = RecoveryEncounter::capture_all(db, id)?;
+                let encounters = RecoveryEncounter::capture_all(db, id, has_adjustment_table)?;
                 keys.extend(lists.iter().flat_map(List::record_keys).map(str::to_owned));
                 markdown_keys.extend(
                     lists
@@ -128,6 +133,15 @@ impl SavedWorkspace {
         self.owners
             .iter()
             .any(|owner| owner.lists.iter().any(List::is_archived))
+    }
+
+    pub fn has_encounter_adjustments(&self) -> bool {
+        self.owners.iter().any(|owner| {
+            owner
+                .encounters
+                .iter()
+                .any(RecoveryEncounter::requires_adjustment_support)
+        })
     }
 
     pub fn validate(self) -> LocalStateResult<ValidatedWorkspace> {

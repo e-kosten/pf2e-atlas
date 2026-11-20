@@ -394,3 +394,15 @@
     grid-template-columns: subgrid;
   }
 }
+
+.encounter-adjustment-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1rem;
+  align-items: start;
+  gap: var(--space-control);
+  min-block-size: 1.5rem;
+}
+.encounter-adjustment-preview__loading {
+  grid-column: 2;
+  grid-row: 1;
+}

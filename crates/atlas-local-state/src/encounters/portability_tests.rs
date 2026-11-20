@@ -135,6 +135,7 @@ fn portability_inventory_covers_current_encounter_tables() -> crate::LocalStateR
         names,
         [
             "encounter_ability_states",
+            "encounter_adjustments",
             "encounter_boundary_claims",
             "encounter_command_receipts",
             "encounter_condition_applications",

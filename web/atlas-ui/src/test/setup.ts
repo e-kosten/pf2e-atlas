@@ -31,6 +31,12 @@ class TestResizeObserver implements ResizeObserver {
   disconnect() {}
 }
 vi.stubGlobal("ResizeObserver", TestResizeObserver);
+class TestIntersectionObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
 
 // Ant's NODE_ENV=test constant IDs merge distinct portals in its Escape stack.
 // Exercise normal React IDs for cross-overlay and accessible-name behavior.

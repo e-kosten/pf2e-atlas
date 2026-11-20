@@ -276,6 +276,9 @@ fn reset_changes(
                 .join(", ")
         ));
     }
+    if p.adjustments != baseline.adjustments {
+        changes.push("Restore starting adjustments".into());
+    }
     if p.manual_trackers != baseline.manual_trackers {
         changes.push("Restore baseline trackers".into());
     }

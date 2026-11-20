@@ -76,3 +76,6 @@ pub enum ReorderPlacement {
     Before,
     After,
 }
+
+mod encounter_adjustment;
+pub use encounter_adjustment::{AdjustmentModifierType, AdjustmentTarget};

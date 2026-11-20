@@ -13,6 +13,7 @@ const touchSpecs = [
   "spell-effects.spec.ts",
   "conditions.spec.ts",
   "condition-refinement.spec.ts",
+  "gm-adjustments.spec.ts",
   "encounter-forms.spec.ts",
   "encounter-name-edit.spec.ts",
   "pc-reference.spec.ts",

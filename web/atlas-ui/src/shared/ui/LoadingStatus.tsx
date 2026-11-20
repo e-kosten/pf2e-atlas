@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 export function LoadingStatus({
   label,
   className,
+  showLabel = true,
 }: {
   label: string;
   className?: string;
+  showLabel?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -21,7 +23,9 @@ export function LoadingStatus({
       aria-label={visible ? label : undefined}
       style={{ visibility: visible ? undefined : "hidden" }}
     >
-      <Spin size="small" /> <span>{label}</span>
+      <Spin size="small" />
+      {showLabel && " "}
+      <span className={showLabel ? undefined : "sr-only"}>{label}</span>
     </div>
   );
 }

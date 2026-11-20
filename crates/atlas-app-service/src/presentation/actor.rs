@@ -793,11 +793,15 @@ pub(crate) fn compose_participant(
         };
         if let Some(f) = fact {
             f.value = Some(v.adjusted_value_feet.clone());
-            if v.adjusted_value_feet != v.base_value_feet || !v.notes.is_empty() {
+            if v.adjusted_value_feet != v.base_value_feet
+                || !v.notes.is_empty()
+                || !v.modifiers.is_empty()
+                || !v.suppressed_modifiers.is_empty()
+            {
                 f.adjustment = Some(NumberAdjustmentView {
                     authored: v.base_value_feet.clone(),
-                    applied: vec![],
-                    suppressed: vec![],
+                    applied: modifier_views(&v.modifiers),
+                    suppressed: modifier_views(&v.suppressed_modifiers),
                     notes: v.notes.clone(),
                 });
             }
@@ -1118,6 +1122,7 @@ fn modifier_views(modifiers: &[crate::encounters::mechanics::Modifier]) -> Vec<S
             source: modifier.source.clone(),
             label: modifier.label.clone(),
             modifier_type: match modifier.modifier_type {
+                ModifierType::Item => StatModifierTypeView::Item,
                 ModifierType::Status => StatModifierTypeView::Status,
                 ModifierType::Circumstance => StatModifierTypeView::Circumstance,
                 ModifierType::Adjustment => StatModifierTypeView::Adjustment,

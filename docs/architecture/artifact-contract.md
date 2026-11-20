@@ -179,7 +179,7 @@ The current reference DDL lives in
 [the index release schema](../../crates/atlas-index/src/release_schema.sql).
 The [local-state release schema](../../crates/atlas-local-state/src/release/schema.sql)
 and its three saved-owner table definitions own saved-domain DDL. The production
-paths are direct creation at schema 47 and the authenticated schema 42 through 46 upgrades
+paths are direct creation at schema 48 and the authenticated schema 42 through 47 upgrades
 described in [ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
 Migrations 1–41 are retained in Git history. Their descriptions here record
 the provenance of retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation
@@ -1033,3 +1033,17 @@ Workspace migration 41 saves manual tracker positions per participant. It assign
 existing positions in the prior tracker-key order. New trackers append, while
 updates retain position. Snapshots continue to carry tracker order through their
 existing arrays, which restore uses to assign positions.
+
+### Encounter GM adjustments
+
+Workspace migration 46 adds participant-owned GM adjustments. Current rows
+retain their stable IDs, order, original duration and exact remaining progress.
+Historical gameplay and turn snapshots decode absent adjustments as empty.
+Existing workspaces begin with no GM adjustments. Recovery from the previous
+schema captures the saved state before the adjustment table exists.
+
+Standalone encounter exports use version 2 and workspace archives use version
+3.0 when they carry adjustment state or history. Earlier supported versions
+remain readable. Encounter import remaps turn anchors with participant identity.
+See [ADR0051](decisions/0051-persistent-workspace.md) and
+[ADR0055](decisions/0055-encounter-condition-evaluation.md).

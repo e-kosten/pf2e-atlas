@@ -87,12 +87,20 @@ pub(super) fn tick_tracker(
     progress: &atlas_local_state::TrackerProgress,
     round_seconds: i64,
 ) -> atlas_local_state::TrackerProgress {
+    advance_progress(progress, 1, round_seconds)
+}
+
+pub(super) fn advance_progress(
+    progress: &atlas_local_state::TrackerProgress,
+    rounds: i64,
+    seconds: i64,
+) -> atlas_local_state::TrackerProgress {
     match progress {
         atlas_local_state::TrackerProgress::Rounds(v) => {
-            atlas_local_state::TrackerProgress::Rounds((v - 1).max(0))
+            atlas_local_state::TrackerProgress::Rounds(v.saturating_sub(rounds).max(0))
         }
         atlas_local_state::TrackerProgress::Seconds(v) => {
-            atlas_local_state::TrackerProgress::Seconds(v.saturating_sub(round_seconds).max(0))
+            atlas_local_state::TrackerProgress::Seconds(v.saturating_sub(seconds).max(0))
         }
     }
 }
@@ -235,7 +243,39 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
                 })
         })
         .collect();
+    let next_key = turn.participant_key.as_deref();
+    let adjustments = snapshot
+        .participants
+        .iter()
+        .flat_map(|participant| {
+            participant.adjustments.iter().filter_map(move |entry| {
+                let timing = entry.timing.as_ref()?;
+                let anchor = timing.duration.timing.as_ref()?;
+                if !matches_boundary(snapshot, next_key, anchor) {
+                    return None;
+                }
+                let progress =
+                    tick_tracker(&timing.progress, snapshot.encounter.round_duration_seconds);
+                let value = (tracker_rounds(&progress, snapshot.encounter.round_duration_seconds)
+                    > 0)
+                .then(|| {
+                    let mut next = entry.clone();
+                    next.timing = Some(atlas_local_state::AdjustmentTiming {
+                        duration: timing.duration.clone(),
+                        progress,
+                    });
+                    next
+                });
+                Some(atlas_local_state::AdjustmentChange {
+                    participant_key: participant.participant_key.clone(),
+                    adjustment_key: entry.adjustment_key.clone(),
+                    value,
+                })
+            })
+        })
+        .collect();
     EncounterTurnUpdate {
+        adjustments,
         manual_trackers,
         turn,
         durations,
@@ -269,6 +309,45 @@ pub(super) fn turn_boundary_reminders(
         end: vec![],
         start: vec![],
     };
+    for change in update
+        .adjustments
+        .iter()
+        .filter(|change| change.value.is_none())
+    {
+        let Some(owner) = snapshot
+            .participants
+            .iter()
+            .find(|p| p.participant_key == change.participant_key)
+        else {
+            continue;
+        };
+        let Some(adjustment) = owner
+            .adjustments
+            .iter()
+            .find(|entry| entry.adjustment_key == change.adjustment_key)
+        else {
+            continue;
+        };
+        let Some(timing) = adjustment
+            .timing
+            .as_ref()
+            .and_then(|timing| timing.duration.timing.as_ref())
+        else {
+            continue;
+        };
+        reminders.push(
+            match timing.event {
+                ConditionTurnEvent::Start => ViewEvent::Start,
+                ConditionTurnEvent::End => ViewEvent::End,
+            },
+            EncounterTurnReminderView::AdjustmentExpired {
+                participant_key: owner.participant_key.clone(),
+                participant_name: owner.display_name.clone(),
+                adjustment_key: adjustment.adjustment_key.clone(),
+                adjustment_name: adjustment.name.clone(),
+            },
+        );
+    }
     for change in &update.manual_trackers {
         let Some(tracker) = change.value.as_ref().filter(|tracker| {
             tracker_rounds(&tracker.progress, snapshot.encounter.round_duration_seconds) == 0

@@ -79,6 +79,8 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::apply_encounter_hp_action))
         .routes(routes!(crate::handlers::set_encounter_life_settings))
         .routes(routes!(crate::handlers::update_encounter_manual_tracker))
+        .routes(routes!(crate::handlers::update_encounter_adjustment))
+        .routes(routes!(crate::handlers::preview_encounter_adjustment))
         .routes(routes!(crate::handlers::encounter_reference))
         .routes(routes!(crate::handlers::apply_encounter_spell_action))
         .routes(routes!(crate::handlers::update_turn_resources))
@@ -163,6 +165,8 @@ pub(crate) const CLOSED_TAGGED_SCHEMAS: &[&str] = &[
     "EncounterAbilityStateAction",
     "EncounterHpAction",
     "EncounterManualTrackerAction",
+    "AdjustmentTarget",
+    "EncounterAdjustmentAction",
     "EncounterSpellAction",
     "FilterDiscoveryContext",
     "FilterVocabularyScope",

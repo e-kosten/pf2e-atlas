@@ -222,6 +222,23 @@ export function EncounterTurnReview({
               ),
           )
           .map((reminder) => {
+            if (reminder.kind === "adjustment_expired") {
+              return (
+                <section
+                  key={`adjustment:${reminder.participant_key}:${reminder.adjustment_key}`}
+                  className="encounter-turn-reminder encounter-turn-reminder--condition"
+                >
+                  <div className="encounter-turn-reminder__heading">
+                    <h3>
+                      {reminder.participant_key !== boundary?.participant_key &&
+                        `${reminder.participant_name}: `}
+                      {reminder.adjustment_name}
+                    </h3>
+                  </div>
+                  <p>Expired</p>
+                </section>
+              );
+            }
             if (reminder.kind === "tracker_elapsed") {
               const identity = `tracker:${reminder.participant_key}:${reminder.tracker_key}`;
               return (
@@ -382,6 +399,8 @@ function reminderText(
   participants: EncounterParticipantView[],
 ): string {
   switch (reminder.kind) {
+    case "adjustment_expired":
+      return "Expired";
     case "tracker_elapsed":
       return reminder.result ?? "Elapsed";
     case "resolved":

@@ -2686,6 +2686,9 @@ test("routine budgets and check trait disclosures retain keyboard and touch read
   await expect(trigger).toBeFocused();
   await trigger.press("Enter");
   await expect(popup).toBeVisible();
+  await expect(page.locator(".ant-popover:visible")).not.toHaveClass(
+    /ant-zoom-big-(appear|enter)/,
+  );
   await activate(popup.getByRole("button", { name: "Close explanation" }), info);
   await expect(popup).toBeHidden();
   await expect(trigger).toBeFocused();

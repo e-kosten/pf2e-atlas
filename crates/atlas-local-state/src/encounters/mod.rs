@@ -1,6 +1,8 @@
 mod command_receipts;
 pub(crate) mod portability;
 pub use portability::{EncounterDocument, EncounterRecordSource};
+mod adjustments;
+pub use adjustments::{AdjustmentChange, AdjustmentTiming, EncounterAdjustment};
 mod manual_trackers;
 pub use manual_trackers::{ManualTracker, ManualTrackerChange, TrackerProgress};
 mod recovery;

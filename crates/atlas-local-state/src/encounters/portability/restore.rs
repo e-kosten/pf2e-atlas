@@ -173,6 +173,9 @@ fn write_participant(
             ],
         )?;
     }
+    for adjustment in &p.adjustments {
+        crate::encounters::adjustments::insert(db, &p.participant_key, adjustment)?;
+    }
     for episode in &p.persistent_precedence {
         db.execute(
             "INSERT INTO encounter_persistent_precedence(participant_id,episode_id,source_order_json)

@@ -107,7 +107,7 @@ pub(super) fn capture_document(
             .optional()?.map(|(request_id, requires_review, payload)| {
                 Ok::<_, LocalStateError>(Outgoing { request_id, requires_review, turn: decode(&payload, "outgoing turn")? })
             }).transpose()?;
-    Ok(EncounterDocument {
+    let mut document = EncounterDocument {
         version: VERSION,
         snapshot,
         baselines,
@@ -118,7 +118,11 @@ pub(super) fn capture_document(
         outgoing,
         source_fingerprint: None,
         record_sources: Vec::new(),
-    })
+    };
+    if document.requires_adjustment_support() {
+        document.version = ADJUSTMENT_VERSION;
+    }
+    Ok(document)
 }
 
 fn rows<T>(

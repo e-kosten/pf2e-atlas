@@ -40,7 +40,7 @@ fn roster_statement_count_depends_on_collections_instead_of_participant_count()
             let (roster, statements) = measured_roster(&mut connection)?;
             assert_eq!(roster.participants.len(), count as usize);
             assert!(
-                statements <= 8,
+                statements <= 9,
                 "roster size {count}: {statements} statements"
             );
             assert_eq!(

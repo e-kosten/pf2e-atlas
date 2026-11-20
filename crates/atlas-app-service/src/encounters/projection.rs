@@ -307,6 +307,12 @@ fn participant_view(
     let inherent_conditions =
         inherent_condition_view(&participant, sources, stat_block.as_ref(), has_casting_hint);
     EncounterParticipantView {
+        gm_adjustments: super::gm_adjustments::view(
+            &participant,
+            stat_block.as_ref(),
+            participants,
+            round_seconds,
+        ),
         manual_trackers: super::manual_trackers::views(&participant, participants, round_seconds),
         ability_states: Some(super::ability_state::views(
             &participant,
