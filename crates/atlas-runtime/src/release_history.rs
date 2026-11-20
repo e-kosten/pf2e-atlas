@@ -36,6 +36,16 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
             sql: include_str!("../../atlas-local-state/src/release/encounter_adjustments.sql"),
             backfill: None,
         },
+        Migration {
+            version: 47,
+            name: "shared-characters",
+            sql: include_str!("../../atlas-local-state/src/release/characters.sql"),
+            backfill: Some(DataBackfill {
+                reconstruct_tables: true,
+                id: "shared-characters/v1",
+                apply: |_| Ok(()),
+            }),
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

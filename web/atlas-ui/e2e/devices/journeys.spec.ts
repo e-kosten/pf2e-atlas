@@ -871,10 +871,12 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     );
     const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
     const description = "A retained description draft with a useful purpose.";
-    await replaceMarkdown(
-      editor.getByRole("textbox", { name: "Description", exact: true }),
-      description,
-    );
+    const descriptionEditor = editor.getByRole("textbox", {
+      name: "Description",
+      exact: true,
+    });
+    await replaceMarkdown(descriptionEditor, description);
+    await expect.poll(() => markdownSource(descriptionEditor)).toBe(description);
     await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(editor).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
@@ -1332,6 +1334,10 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     );
     await activate(page.getByRole("menuitem", { name: "Add PC…", exact: true }), info);
     await activate(
+      page.getByRole("button", { name: "Enter manually", exact: true }),
+      info,
+    );
+    await activate(
       page
         .getByRole("dialog", { name: "Add PC", exact: true })
         .getByRole("button", { name: "Cancel", exact: true }),
@@ -1476,52 +1482,50 @@ test("named parties add everyone directly and archive views stay separate", asyn
   let partyKey: string | undefined;
   try {
     await page.goto("/encounters");
-    await activate(page.getByRole("button", { name: "Parties", exact: true }), info);
-    await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
-    let editor = page.getByRole("dialog", { name: "New Party", exact: true });
+    await activate(page.getByRole("link", { name: "Parties", exact: true }), info);
+    await activate(page.getByRole("button", { name: "New party", exact: true }), info);
+    let editor = page.getByRole("dialog", { name: "New party", exact: true });
     await activate(editor.getByRole("button", { name: "Cancel", exact: true }), info);
     await expect(
-      page.getByRole("button", { name: "New Party", exact: true }),
+      page.getByRole("button", { name: "New party", exact: true }),
     ).toBeFocused();
-    await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
-    editor = page.getByRole("dialog", { name: "New Party", exact: true });
+    await activate(page.getByRole("button", { name: "New party", exact: true }), info);
+    editor = page.getByRole("dialog", { name: "New party", exact: true });
     await editor.getByLabel("Party name", { exact: true }).fill(name);
-    await editor
-      .getByRole("spinbutton", { name: "Party level", exact: true })
-      .fill("5");
-    for (const [index, pc] of ["Aster", "Bram", "Cora", "Dain"].entries()) {
-      await activate(editor.getByRole("button", { name: "Add PC", exact: true }), info);
-      await editor.getByLabel(`PC ${index + 1} name`, { exact: true }).fill(pc);
+    await activate(
+      editor.getByRole("button", { name: "Create party", exact: true }),
+      info,
+    );
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    partyKey = new URL(page.url()).pathname.split("/").filter(Boolean).at(-1)!;
+    for (const pc of ["Aster", "Bram", "Cora", "Dain"]) {
+      await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+      await activate(
+        page.getByRole("menuitem", { name: "Enter manually", exact: true }),
+        info,
+      );
+      const entry = page.locator(".character-inline-editor");
+      await entry.getByLabel("Name", { exact: true }).fill(pc);
+      await entry.getByRole("spinbutton", { name: "Level", exact: true }).fill("5");
+      await activate(
+        entry.getByRole("button", { name: "Add to party", exact: true }),
+        info,
+      );
+      await expect(page.getByRole("link", { name: pc, exact: true })).toBeVisible();
     }
     await noPageOverflow(page);
-    await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
-    await expect(
-      page
-        .getByRole("dialog", { name: "Parties", exact: true })
-        .getByRole("button", { name, exact: true }),
-    ).toBeVisible();
-    const parties = await (await page.request.get("/api/parties")).json();
-    partyKey = parties.parties.find(
-      (party: { name: string }) => party.name === name,
-    ).party_key;
-    const manager = page.getByRole("dialog", { name: "Parties", exact: true });
-    if (!info.project.use.hasTouch) {
-      const initialSize = page.viewportSize()!;
-      await page.setViewportSize({ width: 320, height: 720 });
-      const deletion = manager.getByRole("button", {
-        name: `Delete ${name}`,
-        exact: true,
-      });
-      const bounds = await deletion.boundingBox();
-      expect(bounds).not.toBeNull();
-      expect(bounds!.x).toBeGreaterThanOrEqual(0);
-      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
-      await page.setViewportSize(initialSize);
-    }
-    await activate(page.getByRole("button", { name: "Done", exact: true }), info);
-    await expect(
-      page.getByRole("button", { name: "Parties", exact: true }),
-    ).toBeFocused();
+    await activate(
+      page.getByRole("button", { name: "Party actions", exact: true }),
+      info,
+    );
+    const deletion = page.getByRole("button", { name: "Delete party", exact: true });
+    await expect(deletion).toBeInViewport();
+    const deletionBounds = (await deletion.boundingBox())!;
+    expect(deletionBounds.x).toBeGreaterThanOrEqual(0);
+    expect(deletionBounds.x + deletionBounds.width).toBeLessThanOrEqual(
+      page.viewportSize()!.width + 1,
+    );
+    await page.keyboard.press("Escape");
     await page.goto(`/encounters/${encounter.slug}`);
     const add = page.getByRole("button", { name: "Add participants", exact: true });
     if (!info.project.use.hasTouch) {
@@ -1592,10 +1596,27 @@ test("named parties add everyone directly and archive views stay separate", asyn
     await noPageOverflow(page);
   } finally {
     await page.request.delete(path);
-    if (partyKey)
-      await page.request.delete(`/api/parties/${partyKey}`, {
-        data: { expected_revision: 0 },
-      });
+    if (partyKey) {
+      const index = await (await page.request.get("/api/parties")).json();
+      const party = index.parties.find(
+        (p: { party_key: string }) => p.party_key === partyKey,
+      );
+      if (party) {
+        for (const member of party.members) {
+          await page.request.delete(`/api/characters/${member.character_key}`, {
+            data: { expected_revision: member.character_revision },
+          });
+        }
+        const latest = await (await page.request.get("/api/parties")).json();
+        await page.request.delete(`/api/parties/${partyKey}`, {
+          data: {
+            expected_revision: latest.parties.find(
+              (p: { party_key: string }) => p.party_key === partyKey,
+            ).revision,
+          },
+        });
+      }
+    }
   }
 });
 

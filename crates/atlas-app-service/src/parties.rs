@@ -1,11 +1,7 @@
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
-    AddEncounterPartyRequest, CreatePartyRequest, DeletePartyRequest, EncounterMutationView,
-    PartyIndexView, PartyMemberView, PartyMutationView, PartyView, UpdatePartyRequest,
-};
-use atlas_local_state::{
-    AddEncounterParticipant, ParticipantHpOrigin, ParticipantKind, ParticipantSide,
-    ParticipantVariant, ParticipantVariantOrigin,
+    CreatePartyRequest, DeletePartyRequest, PartyIndexView, PartyMemberView, PartyMutationView,
+    PartyView, UpdatePartyRequest,
 };
 
 impl AtlasAppService {
@@ -23,13 +19,10 @@ impl AtlasAppService {
         })
     }
     pub fn create_party(&self, request: CreatePartyRequest) -> AppServiceResult<PartyView> {
-        self.with_write(move |session| {
-            Ok(party_view(
-                session
-                    .local_state()?
-                    .parties()
-                    .create(&request.name, &member_inputs(request.members))?,
-            ))
+        self.with_write(|session| {
+            let state = session.local_state()?;
+            let members = member_inputs(&state.characters(), request.members)?;
+            Ok(party_view(state.parties().create(&request.name, &members)?))
         })
     }
     pub fn update_party(
@@ -37,12 +30,43 @@ impl AtlasAppService {
         key: &str,
         request: UpdatePartyRequest,
     ) -> AppServiceResult<PartyView> {
-        self.with_write(move |session| {
-            Ok(party_view(session.local_state()?.parties().update(
+        self.with_write(|session| {
+            let state = session.local_state()?;
+            state
+                .parties()
+                .get_at_revision(key, request.expected_revision)?;
+            let members = member_inputs(&state.characters(), request.members)?;
+            let mut changed = std::collections::HashSet::new();
+            for update in request.level_updates {
+                if !changed.insert(update.character_key.clone()) {
+                    return Err(AppServiceError::invalid_request(
+                        "Character level was supplied twice.",
+                    ));
+                }
+                if !members
+                    .iter()
+                    .any(|m| m.character_key == update.character_key)
+                {
+                    return Err(AppServiceError::invalid_request(
+                        "The level update must belong to this party.",
+                    ));
+                }
+                let current = state
+                    .characters()
+                    .get_at_revision(&update.character_key, update.expected_character_revision)?;
+                state.characters().update(
+                    &update.character_key,
+                    update.expected_character_revision,
+                    &current.name,
+                    update.level,
+                    current.reference.as_ref(),
+                )?;
+            }
+            Ok(party_view(state.parties().update(
                 key,
                 request.expected_revision,
                 &request.name,
-                &member_inputs(request.members),
+                &members,
             )?))
         })
     }
@@ -51,7 +75,7 @@ impl AtlasAppService {
         key: &str,
         request: DeletePartyRequest,
     ) -> AppServiceResult<PartyMutationView> {
-        self.with_write(move |session| {
+        self.with_write(|session| {
             session
                 .local_state()?
                 .parties()
@@ -61,64 +85,19 @@ impl AtlasAppService {
             })
         })
     }
-    pub fn add_encounter_party(
-        &self,
-        encounter_ref: &str,
-        request: AddEncounterPartyRequest,
-    ) -> AppServiceResult<EncounterMutationView> {
-        self.with_write(move |session| {
-            let state = session.local_state()?;
-            let party = state
-                .parties()
-                .get_at_revision(&request.party_key, request.expected_revision)?;
-            if party.members.is_empty() {
-                return Err(AppServiceError::invalid_request(
-                    "Add a PC to this party before adding it to an encounter.",
-                ));
-            }
-            let encounter = state.encounters().get(encounter_ref)?.ok_or_else(|| {
-                atlas_local_state::LocalStateError::EncounterNotFound(encounter_ref.into())
-            })?;
-            let participants = party
-                .members
-                .into_iter()
-                .map(|member| AddEncounterParticipant {
-                    level_override: member.level,
-                    spell_resources: vec![],
-                    participant_variant: ParticipantVariant::Normal,
-                    hp_origin: ParticipantHpOrigin::Unknown,
-                    variant_origin: ParticipantVariantOrigin::Explicit,
-                    record_key: None,
-                    participant_kind: ParticipantKind::Pc,
-                    display_name: member.name,
-                    record_title_snapshot: None,
-                    record_kind_snapshot: None,
-                    side: ParticipantSide::Pc,
-                    initiative: None,
-                    max_hp: None,
-                    current_hp: None,
-                    temporary_hp: 0,
-                    note: None,
-                })
-                .collect();
-            state
-                .encounters()
-                .add_participants(&encounter.encounter_key, participants)?;
-            Ok(EncounterMutationView {
-                encounter_key: encounter.encounter_key,
-            })
-        })
-    }
 }
 fn member_inputs(
+    characters: &atlas_local_state::CharactersRead<'_>,
     members: Vec<atlas_app_model::PartyMemberInput>,
-) -> Vec<atlas_local_state::PartyMemberInput> {
+) -> AppServiceResult<Vec<atlas_local_state::PartyMemberInput>> {
     members
         .into_iter()
-        .map(|m| atlas_local_state::PartyMemberInput {
-            member_key: m.member_key,
-            name: m.name,
-            level: m.level,
+        .map(|m| {
+            let character =
+                characters.get_at_revision(&m.character_key, m.expected_character_revision)?;
+            Ok(atlas_local_state::PartyMemberInput {
+                character_key: character.character_key,
+            })
         })
         .collect()
 }
@@ -131,9 +110,11 @@ fn party_view(party: atlas_local_state::Party) -> PartyView {
             .members
             .into_iter()
             .map(|m| PartyMemberView {
-                member_key: m.member_key,
+                character_key: m.character_key,
                 name: m.name,
                 level: m.level,
+                character_revision: m.revision,
+                imported: m.imported,
             })
             .collect(),
     }

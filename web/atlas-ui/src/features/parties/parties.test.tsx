@@ -1,3 +1,5 @@
+import { AtlasApiError } from "../../api/apiError";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -10,7 +12,10 @@ import {
 import { App, ConfigProvider } from "antd";
 import type { ReactNode } from "react";
 import { EncounterAddMenu } from "../encounters/EncounterAddMenu";
-import { PartyManager } from "./PartyManager";
+import { RouterTestContext } from "../../test/router";
+import { DesktopTabContext, type DesktopTabRuntime } from "../../app/DesktopTabContext";
+import { PartyPage } from "./PartyPage";
+import { PartiesPage, PartiesWorkspace } from "./PartiesPage";
 const api = vi.hoisted(() => ({
   getParties: vi.fn(),
   createParty: vi.fn(),
@@ -26,8 +31,14 @@ const party = {
   name: "Campaign",
   revision: 4,
   members: [
-    { member_key: "pc-a", name: "Aster" },
-    { member_key: "pc-b", name: "Bram" },
+    {
+      character_key: "pc-a",
+      name: "Aster",
+      character_revision: 2,
+      imported: true,
+      level: 5,
+    },
+    { character_key: "pc-b", name: "Bram", character_revision: 3, imported: false },
   ],
 };
 function wrapper({ children }: { children: ReactNode }) {
@@ -37,7 +48,9 @@ function wrapper({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <App>{children}</App>
+        <RouterTestContext>
+          <App>{children}</App>
+        </RouterTestContext>
       </ConfigProvider>
     </QueryClientProvider>
   );
@@ -51,6 +64,7 @@ it("adds the whole chosen party in one click without a modal or subset fields", 
   const onAdd = vi.fn().mockResolvedValue(undefined);
   render(
     <EncounterAddMenu
+      encounterRevision={9}
       onAddCreature={vi.fn()}
       onAddPc={vi.fn()}
       disabled={false}
@@ -69,6 +83,12 @@ it("adds the whole chosen party in one click without a modal or subset fields", 
     expect(onAdd).toHaveBeenCalledExactlyOnceWith({
       party_key: "party",
       expected_revision: 4,
+      expected_encounter_revision: 9,
+      request_id: expect.any(String),
+      characters: [
+        { character_key: "pc-a", expected_revision: 2 },
+        { character_key: "pc-b", expected_revision: 3 },
+      ],
     }),
   );
 });
@@ -82,6 +102,7 @@ it("prevents duplicate additions while the write and refresh remain pending", as
   );
   render(
     <EncounterAddMenu
+      encounterRevision={9}
       onAddCreature={vi.fn()}
       onAddPc={vi.fn()}
       disabled={false}
@@ -105,6 +126,7 @@ it("offers a local read retry when parties cannot load", async () => {
   api.getParties.mockRejectedValueOnce(new Error("Offline"));
   render(
     <EncounterAddMenu
+      encounterRevision={9}
       onAddCreature={vi.fn()}
       onAddPc={vi.fn()}
       disabled={false}
@@ -118,146 +140,278 @@ it("offers a local read retry when parties cannot load", async () => {
   );
   await waitFor(() => expect(api.getParties).toHaveBeenCalledTimes(2));
 });
-it("opens party creation directly from an empty menu", async () => {
-  api.getParties.mockResolvedValue({ parties: [] });
+
+it("retains the new party name after a failed save and retries the empty roster", async () => {
+  api.createParty
+    .mockRejectedValueOnce(new Error("Unavailable"))
+    .mockResolvedValue({ party_key: "party" });
   render(
-    <EncounterAddMenu
-      onAddCreature={vi.fn()}
-      onAddPc={vi.fn()}
-      disabled={false}
-      onAdd={vi.fn()}
-    />,
+    <PartiesWorkspace>
+      <PartiesPage />
+    </PartiesWorkspace>,
     { wrapper },
   );
-  fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: "Create Party…" }));
-  expect(await screen.findByRole("dialog", { name: "New Party" })).toBeInTheDocument();
-});
-it("keeps a failed party creation draft and permits an explicit retry", async () => {
-  api.createParty
-    .mockRejectedValueOnce(new Error("Could not save"))
-    .mockResolvedValue(party);
-  const onClose = vi.fn();
-  render(<PartyManager initialCreate onClose={onClose} />, { wrapper });
-  const dialog = await screen.findByRole("dialog", { name: "New Party" });
-  fireEvent.change(within(dialog).getByLabelText("Party name"), {
-    target: { value: "Campaign" },
-  });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Add PC" }));
-  fireEvent.change(within(dialog).getByLabelText("PC 1 name"), {
-    target: { value: "Aster" },
-  });
-  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
-    target: { value: "5" },
-  });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-  expect(await screen.findByText("Party could not be saved")).toBeInTheDocument();
-  expect(within(dialog).getByLabelText("PC 1 name")).toHaveValue("Aster");
-  expect(onClose).not.toHaveBeenCalled();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-  expect(api.createParty).toHaveBeenLastCalledWith({
-    name: "Campaign",
-    members: [{ name: "Aster", level: 5 }],
-  });
+  fireEvent.click(await screen.findByRole("button", { name: "New party" }));
+  const dialog = await screen.findByRole("dialog", { name: "New party" });
+  const name = within(dialog).getByLabelText("Party name");
+  fireEvent.change(name, { target: { value: "My group" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Create party" }));
+  expect(await within(dialog).findByText("Party could not be saved")).toBeVisible();
+  expect(name).toHaveValue("My group");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Create party" }));
+  await waitFor(() => expect(api.createParty).toHaveBeenCalledTimes(2));
+  expect(api.createParty).toHaveBeenLastCalledWith({ name: "My group", members: [] });
 });
 
-it("uses one shared level for every PC, including PCs added after entering it", async () => {
-  api.createParty.mockResolvedValue(party);
-  render(<PartyManager initialCreate onClose={vi.fn()} />, { wrapper });
-  const dialog = await screen.findByRole("dialog", { name: "New Party" });
-  expect(within(dialog).getByRole("radio", { name: "Same level" })).toBeChecked();
-  fireEvent.change(within(dialog).getByLabelText("Party name"), {
-    target: { value: "Shared" },
-  });
-  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
+it("updates only selected characters during level review", async () => {
+  render(<PartyPage partyKey="party" />, { wrapper });
+  expect(await screen.findByRole("link", { name: "Aster" })).toHaveAttribute(
+    "href",
+    "/characters/pc-a",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Party actions" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
+  const dialog = await screen.findByRole("dialog", { name: "Set character levels" });
+  expect(await within(dialog).findByRole("checkbox", { name: "Aster" })).toBeChecked();
+  expect(within(dialog).getByText("Level 5")).toBeVisible();
+  fireEvent.click(within(dialog).getByRole("checkbox", { name: "Bram" }));
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "New level" }), {
     target: { value: "7" },
   });
-  for (const [index, name] of ["Aster", "Bram"].entries()) {
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add PC" }));
-    fireEvent.change(within(dialog).getByLabelText(`PC ${index + 1} name`), {
-      target: { value: name },
-    });
-  }
-  expect(within(dialog).queryByRole("spinbutton", { name: "PC 1 level" })).toBeNull();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-  await waitFor(() =>
-    expect(api.createParty).toHaveBeenCalledWith({
-      name: "Shared",
-      members: [
-        { name: "Aster", level: 7 },
-        { name: "Bram", level: 7 },
-      ],
-    }),
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Set 1 character to level 7" }),
   );
-});
-
-it("retains mixed individual drafts while switching level entry modes", async () => {
-  api.getParties.mockResolvedValue({
-    parties: [
-      {
-        ...party,
-        members: party.members.map((member, index) => ({
-          ...member,
-          level: index === 0 ? 4 : 6,
-        })),
-      },
-    ],
-  });
-  api.updateParty.mockResolvedValue(party);
-  render(<PartyManager onClose={vi.fn()} />, { wrapper });
-  fireEvent.click(await screen.findByRole("button", { name: "Campaign" }));
-  const dialog = await screen.findByRole("dialog", { name: "Edit Party" });
-  expect(
-    within(dialog).getByRole("radio", { name: "Individual levels" }),
-  ).toBeChecked();
-  fireEvent.click(within(dialog).getByRole("radio", { name: "Same level" }));
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-  await within(dialog).findByText("Use 1–20.");
-  expect(api.updateParty).not.toHaveBeenCalled();
-  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
-    target: { value: "9" },
-  });
-  fireEvent.click(within(dialog).getByRole("radio", { name: "Individual levels" }));
-  expect(within(dialog).getByRole("spinbutton", { name: "PC 1 level" })).toHaveValue(
-    "4",
-  );
-  expect(within(dialog).getByRole("spinbutton", { name: "PC 2 level" })).toHaveValue(
-    "6",
-  );
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() =>
     expect(api.updateParty).toHaveBeenCalledWith("party", {
-      name: "Campaign",
       expected_revision: 4,
+      name: "Campaign",
       members: [
-        { member_key: "pc-a", name: "Aster", level: 4 },
-        { member_key: "pc-b", name: "Bram", level: 6 },
+        { character_key: "pc-a", expected_character_revision: 2 },
+        { character_key: "pc-b", expected_character_revision: 3 },
+      ],
+      level_updates: [
+        { character_key: "pc-a", expected_character_revision: 2, level: 7 },
       ],
     }),
   );
 });
 
-it("seeds individual entry from the shared level then preserves subsequent individual edits", async () => {
-  render(<PartyManager initialCreate onClose={vi.fn()} />, { wrapper });
-  const dialog = await screen.findByRole("dialog", { name: "New Party" });
-  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
-    target: { value: "5" },
-  });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Add PC" }));
-  fireEvent.click(within(dialog).getByRole("radio", { name: "Individual levels" }));
-  expect(within(dialog).getByRole("spinbutton", { name: "PC 1 level" })).toHaveValue(
-    "5",
+it("reviews a concurrent roster change before retrying retained level and character choices", async () => {
+  api.updateParty
+    .mockRejectedValueOnce(new AtlasApiError(409, "The party changed."))
+    .mockResolvedValue({ party_key: "party" });
+  render(<PartyPage partyKey="party" />, { wrapper });
+  fireEvent.click(await screen.findByRole("button", { name: "Party actions" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
+  const dialog = within(
+    await screen.findByRole("dialog", { name: "Set character levels" }),
   );
-  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "PC 1 level" }), {
-    target: { value: "6" },
+  fireEvent.click(dialog.getByRole("checkbox", { name: "Bram" }));
+  fireEvent.change(dialog.getByRole("spinbutton", { name: "New level" }), {
+    target: { value: "7" },
   });
-  fireEvent.click(within(dialog).getByRole("radio", { name: "Same level" }));
-  expect(within(dialog).getByRole("spinbutton", { name: "Party level" })).toHaveValue(
-    "6",
+  const save = dialog.getByRole("button", { name: "Set 1 character to level 7" });
+  await waitFor(() => expect(save).toBeEnabled());
+  fireEvent.click(save);
+  const review = await dialog.findByRole("button", { name: "Review latest changes" });
+  expect(save).toBeDisabled();
+  const newMember = {
+    character_key: "pc-c",
+    character_revision: 8,
+    name: "Cale",
+    level: 3,
+    imported: false,
+  };
+  const members = [newMember, { ...party.members[0], character_revision: 6, level: 4 }];
+  api.getParties.mockResolvedValue({
+    parties: [{ ...party, name: "Saved elsewhere", revision: 9, members }],
+  });
+  fireEvent.click(review);
+  expect(await dialog.findByRole("status")).toHaveTextContent(
+    "Latest changes reviewed",
   );
-  fireEvent.click(within(dialog).getByRole("radio", { name: "Individual levels" }));
-  expect(within(dialog).getByRole("spinbutton", { name: "PC 1 level" })).toHaveValue(
-    "6",
+  expect(dialog.getByRole("spinbutton", { name: "New level" })).toHaveValue("7");
+  expect(dialog.getByRole("checkbox", { name: "Aster" })).toBeChecked();
+  expect(dialog.getByText("Level 4")).toBeVisible();
+  expect(dialog.getByRole("checkbox", { name: "Cale" })).not.toBeChecked();
+  expect(dialog.queryByRole("checkbox", { name: "Bram" })).toBeNull();
+  expect(api.updateParty).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(save).toBeEnabled());
+  fireEvent.click(save);
+  await waitFor(() =>
+    expect(api.updateParty).toHaveBeenLastCalledWith("party", {
+      name: "Saved elsewhere",
+      expected_revision: 9,
+      members: [
+        { character_key: "pc-c", expected_character_revision: 8 },
+        { character_key: "pc-a", expected_character_revision: 6 },
+      ],
+      level_updates: [
+        { character_key: "pc-a", expected_character_revision: 6, level: 7 },
+      ],
+    }),
+  );
+});
+
+it("reviews the saved name and current roster while retaining a separate rename draft", async () => {
+  api.updateParty.mockRejectedValueOnce(new AtlasApiError(409, "The party changed."));
+  render(<PartyPage partyKey="party" />, { wrapper });
+  fireEvent.click(await screen.findByRole("button", { name: "Party actions" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Rename party" }));
+  const dialog = within(await screen.findByRole("dialog", { name: "Rename party" }));
+  const input = dialog.getByRole("textbox", { name: "Party name" });
+  expect(dialog.queryByRole("spinbutton")).toBeNull();
+  const save = dialog.getByRole("button", { name: "Rename" });
+  expect(save).toBeDisabled();
+  fireEvent.change(input, { target: { value: "My draft" } });
+  await waitFor(() => expect(save).toBeEnabled());
+  fireEvent.click(save);
+  const review = await dialog.findByRole("button", { name: "Review latest changes" });
+  api.getParties.mockResolvedValue({
+    parties: [
+      { ...party, name: "Saved elsewhere", revision: 9, members: [party.members[0]] },
+    ],
+  });
+  fireEvent.click(review);
+  expect(await dialog.findByText("Saved name: Saved elsewhere")).toBeVisible();
+  expect(input).toHaveValue("My draft");
+  expect(api.updateParty).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(save).toBeEnabled());
+  fireEvent.click(save);
+  await waitFor(() =>
+    expect(api.updateParty).toHaveBeenLastCalledWith("party", {
+      name: "My draft",
+      expected_revision: 9,
+      members: [{ character_key: "pc-a", expected_character_revision: 2 }],
+      level_updates: [],
+    }),
+  );
+});
+
+it("keeps one party directory and creation control while the selected roster changes", async () => {
+  const second = { ...party, party_key: "second", name: "Second group", members: [] };
+  api.getParties.mockResolvedValue({ parties: [party, second] });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  function StableWrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={client}>
+        <RouterTestContext>{children}</RouterTestContext>
+      </QueryClientProvider>
+    );
+  }
+  const view = render(
+    <PartiesWorkspace>
+      <PartiesPage />
+    </PartiesWorkspace>,
+    { wrapper: StableWrapper },
+  );
+  const directory = await screen.findByRole("navigation", { name: "Parties" });
+  const create = screen.getByRole("button", { name: "New party" });
+  expect(screen.getByRole("heading", { name: "Select a party" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Characters" })).toHaveAttribute(
+    "href",
+    "/characters",
+  );
+  view.rerender(
+    <PartiesWorkspace selected="party">
+      <PartyPage partyKey="party" />
+    </PartiesWorkspace>,
+  );
+  expect(await screen.findByRole("link", { name: "Aster" })).toBeVisible();
+  expect(screen.getByRole("navigation", { name: "Parties" })).toBe(directory);
+  expect(screen.getByRole("button", { name: "New party" })).toBe(create);
+  expect(within(directory).getByRole("link", { name: /Campaign/ })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  view.rerender(
+    <PartiesWorkspace selected="second">
+      <PartyPage partyKey="second" />
+    </PartiesWorkspace>,
+  );
+  expect(await screen.findByText("No characters in this party yet.")).toBeVisible();
+  expect(screen.getByRole("navigation", { name: "Parties" })).toBe(directory);
+  expect(within(directory).getByRole("link", { name: /Second group/ })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(screen.queryByRole("link", { name: "Aster" })).toBeNull();
+});
+
+it("keeps a native way back and retry when a directly linked party cannot load", async () => {
+  api.getParties.mockRejectedValueOnce(new Error("Unavailable"));
+  const view = render(
+    <PartiesWorkspace selected="missing">
+      <PartyPage partyKey="missing" />
+    </PartiesWorkspace>,
+    { wrapper },
+  );
+  expect(await screen.findByText("Parties could not load")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Back to parties" })).toHaveAttribute(
+    "href",
+    "/parties",
+  );
+  expect(screen.getByRole("button", { name: "New party" })).toBeEnabled();
+  api.getParties.mockResolvedValue({ parties: [] });
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(
+    await screen.findByRole("heading", { name: "Party unavailable" }),
+  ).toBeVisible();
+  expect(screen.getByText("Create a party to get started.")).toBeVisible();
+  view.unmount();
+});
+
+it("restores each desktop tab's own directory after leaving and remounting Parties", async () => {
+  const runtime = (id: string, active: boolean): DesktopTabRuntime => ({
+    id,
+    active,
+    activation: 0,
+    panel: () => document.body,
+    title: vi.fn(),
+    theme: vi.fn(),
+    guard: () => () => {},
+  });
+  const first = runtime("first", false);
+  const second = runtime("second", true);
+  const contents = (showSecond: boolean) => (
+    <>
+      <section hidden>
+        <DesktopTabContext.Provider value={first}>
+          <PartiesWorkspace>
+            <PartiesPage />
+          </PartiesWorkspace>
+        </DesktopTabContext.Provider>
+      </section>
+      <DesktopTabContext.Provider value={second}>
+        {showSecond ? (
+          <PartiesWorkspace>
+            <PartiesPage />
+          </PartiesWorkspace>
+        ) : (
+          <p>Character page</p>
+        )}
+      </DesktopTabContext.Provider>
+    </>
+  );
+  const view = render(contents(true), { wrapper });
+  const directories = await screen.findAllByRole("navigation", {
+    name: "Parties",
+    hidden: true,
+  });
+  const selectors = directories.map((directory) =>
+    directory.querySelector("ul")!.getAttribute("data-scroll-restoration-id"),
+  );
+  expect(new Set(selectors).size).toBe(2);
+  const activeList = directories[1].querySelector("ul")!;
+  expect(document.querySelector(`[data-scroll-restoration-id="${selectors[1]}"]`)).toBe(
+    activeList,
+  );
+  view.rerender(contents(false));
+  expect(activeList.isConnected).toBe(false);
+  view.rerender(contents(true));
+  const restored = await screen.findByRole("navigation", { name: "Parties" });
+  expect(restored.querySelector("ul")).toHaveAttribute(
+    "data-scroll-restoration-id",
+    selectors[1],
   );
 });

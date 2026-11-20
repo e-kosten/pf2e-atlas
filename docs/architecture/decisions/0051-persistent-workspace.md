@@ -41,10 +41,14 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 45. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 47. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
+
+Build each PR's new migrations from the schema at its target branch. Fold
+schema changes made earlier in the PR into the final migration and preserve
+the checksums of migrations already on the target branch.
 
 Under exclusive update and access admission, storage authenticates the applied
 ledger and lends runtime the read-only pre-upgrade snapshot. Runtime uses the
@@ -214,6 +218,37 @@ maintenance, migrations and backups operate on the complete workspace. When
 adding saved access paths, cover the scope using a foreign owner's key or child
 ID, or a slug shared by two owners as appropriate to the operation.
 
+### Shared characters and party rule references
+
+Every saved PC has an independent owner-scoped character identity, including
+manual entries with only a name. Level and an imported Pathbuilder reference are
+optional. Parties own ordered memberships, unique per character and party. A
+character can appear in several parties or have no memberships. Removing a
+membership or deleting a party preserves the character. Character edits and
+bulk level changes update its canonical data across all rosters.
+
+A character owns the imported ability labels, choices, automatic record keys and
+explicit link corrections. Encounter PCs reference that character directly for
+live rule reading. Their name/level snapshots and combat state remain
+participant-owned. Explicit character deletion removes memberships and detaches
+live references while preserving encounter participants. These writes check
+owner and aggregate revisions within one workspace transaction. Adding a party
+also checks the reviewed character revisions.
+
+Schema 47 promotes each existing saved party member independently, retaining
+its key, name, level and roster position. It adds character-creation
+receipts and the typed PC-addition family of encounter receipts. Receipt intent
+binds the original normalized request, and replay precedes mutable guards after
+owner authentication. Historical receipt targets may have been deleted. A replay
+returns its original outcome and never recreates a deleted character.
+
+Workspace archive 4.0 carries independent characters, memberships, associations
+and creation/addition receipts. It is required whenever any of that state is
+present, including historical receipts with no current character. Older supported
+archive members normalize into distinct characters during validation. Standalone
+encounter files retain participant state and omit workspace-local character
+associations and PC-addition receipts.
+
 ### Inline Markdown and custom turns
 
 List descriptions, saved list item notes and encounter participant notes store
@@ -241,10 +276,12 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 Archive versions advance independently of the database schema. Capture emits
-`3.0` when encounters contain GM adjustment state or history, or emits
-`2.0` when the workspace contains an archived list, so readers that cannot
-preserve its status reject the archive before restore. Otherwise capture emits
-`1.1`. New readers treat lists in backups from before schema 44 as active.
+`4.0` for shared characters and their creation/addition receipts. Other
+workspaces use `3.0` for GM adjustment state or
+history, `2.0` for archived lists and `1.1` for other saved state. Readers that
+predate a required archive major reject it before restore. Current readers
+can restore historical member-owned PC references from version `3.0` and treat
+lists in backups from before schema 44 as active.
 Standalone encounter exports with adjustment state or history use version 2.
 Custom turns use a detectable participant kind value. Older readers reject
 archives and standalone encounter files containing that kind before writing.

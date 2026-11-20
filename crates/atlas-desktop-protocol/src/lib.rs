@@ -131,6 +131,8 @@ pub enum EntityLink {
     Record(RecordKey),
     List(String),
     Encounter(String),
+    Party(String),
+    Character(String),
     Trait(TraitKey),
     Definition(DefinitionKey),
     CreatureFamily(String),
@@ -155,6 +157,10 @@ impl EntityLink {
             "record" => RecordKey::parse(key).map(Self::Record).map_err(|_| invalid),
             "list" if stable_key(key, "list_") => Ok(Self::List(key.into())),
             "encounter" if stable_key(key, "encounter_") => Ok(Self::Encounter(key.into())),
+            "party" if character_key(key, "party_") => Ok(Self::Party(key.into())),
+            "character" if character_key(key, "character_") || character_key(key, "member_") => {
+                Ok(Self::Character(key.into()))
+            }
             "trait" => key.parse().map(Self::Trait).map_err(|_| invalid),
             "definition" => {
                 let definition: DefinitionKey = key.parse().map_err(|_| invalid)?;
@@ -188,6 +194,8 @@ impl EntityLink {
             "/records" => "record",
             "/lists" => "list",
             "/encounters" => "encounter",
+            "/parties" => "party",
+            "/characters" => "character",
             "/traits" => "trait",
             "/definitions" => "definition",
             "/families/creatures" => "creature-family",
@@ -202,6 +210,8 @@ impl EntityLink {
             Self::Record(key) => ("record", "/records", key.to_string()),
             Self::List(key) => ("list", "/lists", key.clone()),
             Self::Encounter(key) => ("encounter", "/encounters", key.clone()),
+            Self::Party(key) => ("party", "/parties", key.clone()),
+            Self::Character(key) => ("character", "/characters", key.clone()),
             Self::Trait(key) => ("trait", "/traits", key.to_string()),
             Self::Definition(key) => ("definition", "/definitions", key.to_string()),
             Self::CreatureFamily(key) => ("creature-family", "/families/creatures", key.clone()),
@@ -210,6 +220,14 @@ impl EntityLink {
     }
 }
 
+fn character_key(key: &str, prefix: &str) -> bool {
+    key.strip_prefix(prefix).is_some_and(|id| {
+        id.len() == 32
+            && id
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    })
+}
 fn stable_key(key: &str, prefix: &str) -> bool {
     key.strip_prefix(prefix).is_some_and(|id| {
         id.len() == 16
@@ -279,6 +297,21 @@ mod tests {
                 "encounter_1234567890abcdef",
                 "/encounters/encounter_1234567890abcdef",
             ),
+            (
+                "party",
+                "party_1234567890abcdef1234567890abcdef",
+                "/parties/party_1234567890abcdef1234567890abcdef",
+            ),
+            (
+                "character",
+                "character_1234567890abcdef1234567890abcdef",
+                "/characters/character_1234567890abcdef1234567890abcdef",
+            ),
+            (
+                "character",
+                "member_1234567890abcdef1234567890abcdef",
+                "/characters/member_1234567890abcdef1234567890abcdef",
+            ),
             ("trait", "trait:agile", "/traits/trait%3Aagile"),
             (
                 "definition",
@@ -315,6 +348,8 @@ mod tests {
             "pf2e-atlas://v1/record/spells%3Aone/extra",
             "pf2e-atlas://v1/record/spells%3A%zz",
             "pf2e-atlas://v1/record/spells%3A%00",
+            "pf2e-atlas://v1/party/character_1234567890abcdef1234567890abcdef",
+            "pf2e-atlas://v1/character/character_1234567890abcdef",
         ] {
             assert!(EntityLink::parse(link).is_err(), "{link}");
         }

@@ -1,4 +1,11 @@
 #![deny(unsafe_code)]
+mod character;
+pub use character::{
+    AddEncounterCharacterRequest, CharacterIndexView, CharacterLevelUpdate, CharacterMutationView,
+    CharacterPartyTarget, CharacterPartyView, CharacterRevision, CharacterSummaryView,
+    CreateCharacterRequest, DeleteCharacterRequest, EncounterCharacterMutationView,
+    EncounterCharacterSource, UpdateCharacterRequest,
+};
 mod encounter_adjustments;
 pub use encounter_adjustments::{
     AdjustmentModifierType, AdjustmentTarget, EncounterAdjustmentAction, EncounterAdjustmentInput,
@@ -120,6 +127,13 @@ pub use remaster::{
 mod equipment_family;
 mod graph;
 mod list;
+mod pc_reference;
+pub use pc_reference::{
+    EncounterPcAssociation, EncounterPcReferenceView, PathbuilderPreviewRequest,
+    PathbuilderPreviewView, PcAbilitySectionView, PcAbilitySelection, PcAbilityView,
+    PcReferenceView, SavePathbuilderPcRequest, SavePcAbilityLinkRequest,
+    SetEncounterPcReferenceRequest,
+};
 mod party;
 pub use party::{
     AddEncounterPartyRequest, CreatePartyRequest, DeletePartyRequest, PartyIndexView,

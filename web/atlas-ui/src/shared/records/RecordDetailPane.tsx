@@ -231,6 +231,7 @@ export function RecordDetailPane({
               <RecordPresentation
                 sectionLanding={sectionLanding}
                 identityInHost={identityInHost || showRelated}
+                identityActions={identityActions}
                 showOwnerReturn={showOwnerReturn}
                 visibleOwnerRecordKey={visibleOwnerRecordKey}
                 presentation={detail.presentation}

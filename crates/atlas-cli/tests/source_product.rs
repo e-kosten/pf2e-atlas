@@ -1880,8 +1880,8 @@ fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
              VALUES(1,1,'fight','fight','Saved encounter','draft','Keep encounter note','now','now');
              INSERT INTO saved_list_tags VALUES(1,'keep','now');
              INSERT INTO parties(party_key,owner_id,name) VALUES('kept-party',1,'Kept party');
-             INSERT INTO party_members(member_key,party_key,position,name)
-             VALUES('kept-member','kept-party',0,'Kept member');"
+             INSERT INTO characters(character_key,owner_id,name) VALUES('kept-member',1,'Kept member');
+             INSERT INTO party_character_memberships(party_key,character_key,position) VALUES('kept-party','kept-member',0);"
         ).unwrap();
         if let Some(damage) = damage {
             connection
@@ -1944,7 +1944,7 @@ fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
         assert_eq!(identities(), before.1);
         assert_eq!(config(), before.2);
         let retained: (Option<String>, String, String) = connection.query_row(
-            "SELECT maintenance,tag,party_members.name FROM workspace CROSS JOIN saved_list_tags CROSS JOIN party_members",
+            "SELECT maintenance,tag,characters.name FROM workspace CROSS JOIN saved_list_tags CROSS JOIN characters",
             [],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         ).unwrap();

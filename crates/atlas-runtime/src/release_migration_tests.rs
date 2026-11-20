@@ -109,6 +109,28 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     migrated.remove("workspace_settings");
     assert_eq!(migrated.remove("encounter_adjustments"), Some(Vec::new()));
     migrated.remove("reference_component_digests");
+    assert_eq!(reference_rows.remove("party_members").unwrap().len(), 1);
+    assert_eq!(migrated.remove("encounter_pc_characters"), Some(vec![]));
+    assert_eq!(migrated.remove("character_creation_receipts"), Some(vec![]));
+    assert_eq!(
+        migrated.remove("party_character_memberships"),
+        Some(vec![vec![
+            "kept-party".to_owned().into(),
+            "kept-member".to_owned().into(),
+            0.into()
+        ]])
+    );
+    assert_eq!(
+        migrated.remove("characters"),
+        Some(vec![vec![
+            "kept-member".to_owned().into(),
+            1.into(),
+            "Retained member".to_owned().into(),
+            2.into(),
+            0.into(),
+            rusqlite::types::Value::Null
+        ]])
+    );
     let changed: Vec<_> = reference_rows
         .keys()
         .chain(migrated.keys())
@@ -124,9 +146,15 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     let bytes = std::fs::read(&archive_file).unwrap();
     let archive = WorkspaceArchive::read(bytes.as_slice()).unwrap();
     let source = runtime(&workspace);
+    let preserved: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(preserved["version"], "1.1");
     assert_eq!(
-        serde_json::from_slice::<serde_json::Value>(&bytes).unwrap(),
-        archived_json(source.capture_workspace_archive().unwrap())
+        preserved["saved"]["owners"][0]["parties"][0]["members"][0]["key"],
+        "kept-member"
+    );
+    assert_eq!(
+        archived_json(source.capture_workspace_archive().unwrap())["version"],
+        "4.0"
     );
     let target = initialize_workspace(directory.path().join("restore.sqlite")).unwrap();
     let target = runtime(&target);
@@ -176,6 +204,15 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
     let after = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(after.reference_revision().unwrap(), revision);
     let mut expected = reference;
+    assert_eq!(expected.remove("party_members"), Some(vec![]));
+    for table in [
+        "characters",
+        "party_character_memberships",
+        "encounter_pc_characters",
+        "character_creation_receipts",
+    ] {
+        expected.insert(table.into(), vec![]);
+    }
     for list in expected.get_mut("saved_lists").unwrap() {
         list.push(rusqlite::types::Value::Integer(0));
     }
@@ -466,5 +503,291 @@ fn domain_fixture_has_the_runtime_release_schema_and_ledger() {
     assert_eq!(
         sql_rows(runtime.connection(), LEDGER),
         sql_rows(domain.connection(), LEDGER)
+    );
+}
+
+fn workspace_at_schema(path: &Path, version: u32) -> Workspace {
+    register_extensions().unwrap();
+    let workspace = Workspace::at(path).unwrap();
+    let migrations = RELEASE_HISTORY
+        .migrations
+        .split_at(
+            RELEASE_HISTORY
+                .migrations
+                .partition_point(|step| step.version <= version),
+        )
+        .0;
+    workspace
+        .migrate_history(
+            MigrationHistory {
+                migrations,
+                ..RELEASE_HISTORY
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+    workspace
+}
+
+#[test]
+fn schema_45_upgrade_captures_party_before_reference_tables_exist() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = workspace_at_schema(&directory.path().join("workspace.sqlite"), 45);
+    let write = workspace.write(45).unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO parties(owner_id,party_key,name,revision) VALUES(1,'stable-party','Party',2);
+         INSERT INTO party_members(member_key,party_key,position,name,level)
+             VALUES('stable-member','stable-party',0,'PC',7);",
+    ).unwrap();
+    write.commit().unwrap();
+
+    initialize_workspace(workspace.path()).unwrap();
+    let backup: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(archive_path(&workspace)).unwrap()).unwrap();
+    assert_eq!(backup["version"], "1.1");
+    assert_eq!(
+        backup["saved"]["owners"][0]["parties"][0]["members"][0]["key"],
+        "stable-member"
+    );
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let store = atlas_local_state::LocalStateRead::for_local(&read).unwrap();
+    let party = store.parties().get("stable-party").unwrap();
+    assert_eq!(party.revision, 2);
+    assert_eq!(party.members[0].level, Some(7));
+    assert!(
+        store
+            .characters()
+            .get("stable-member")
+            .unwrap()
+            .reference
+            .is_none()
+    );
+}
+
+#[test]
+fn schema_46_promotes_party_members_and_preserves_encounter_state() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = workspace_at_schema(&directory.path().join("workspace.sqlite"), 46);
+    let write = workspace.write(46).unwrap();
+    let ledger = sql_rows(write.connection(), LEDGER);
+    write
+        .connection()
+        .execute_batch(
+            "INSERT INTO parties(party_key,owner_id,name,revision) VALUES('old-party',1,'Party',2);
+         INSERT INTO party_members(member_key,party_key,position,name,level)
+         VALUES('old-pc','old-party',0,'Same name',7),('other-pc','old-party',1,'Same name',NULL);",
+        )
+        .unwrap();
+    let state = atlas_local_state::LocalStateWrite::for_local(&write).unwrap();
+    let encounter = state
+        .encounters()
+        .create(atlas_local_state::NewEncounter {
+            name: "Existing fight".into(),
+            slug: "existing-fight".into(),
+            note: None,
+            description: None,
+        })
+        .unwrap();
+    let participant = atlas_local_state::AddEncounterParticipant {
+        level_override: Some(7),
+        spell_resources: vec![],
+        participant_variant: atlas_local_state::ParticipantVariant::Normal,
+        hp_origin: atlas_local_state::ParticipantHpOrigin::Explicit,
+        variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
+        record_key: None,
+        participant_kind: atlas_local_state::ParticipantKind::Pc,
+        display_name: "Old combat name".into(),
+        record_title_snapshot: None,
+        record_kind_snapshot: None,
+        side: atlas_local_state::ParticipantSide::Pc,
+        initiative: Some(12),
+        max_hp: Some(35),
+        current_hp: Some(23),
+        temporary_hp: 0,
+        note: None,
+    };
+    let pc = state
+        .encounters()
+        .add_participant(&encounter.encounter_key, participant)
+        .unwrap();
+    let adjustment = atlas_local_state::EncounterAdjustment {
+        adjustment_key: "gm-armor".into(),
+        target: atlas_domain::AdjustmentTarget::ArmorClass,
+        name: "Armor loss".into(),
+        amount: -2,
+        modifier_type: atlas_domain::AdjustmentModifierType::Stacks,
+        timing: None,
+    };
+    let adjustment_intent = serde_json::json!({"action": "gm_adjustment"});
+    let encounters = state.encounters();
+    let revision = encounters
+        .get(&encounter.encounter_key)
+        .unwrap()
+        .unwrap()
+        .revision;
+    encounters
+        .apply_condition_event(
+            &encounter.encounter_key,
+            "gm-adjustment",
+            &adjustment_intent,
+            revision,
+            atlas_local_state::PreparedConditionEvent {
+                adjustments: vec![atlas_local_state::AdjustmentChange {
+                    participant_key: pc.participant_key.clone(),
+                    adjustment_key: adjustment.adjustment_key.clone(),
+                    value: Some(adjustment.clone()),
+                }],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    write.commit().unwrap();
+    initialize_workspace(workspace.path()).unwrap();
+    let mut backup: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(archive_path(&workspace)).unwrap()).unwrap();
+    assert_eq!(backup["version"], "3.0");
+    let migrated = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let applied = sql_rows(migrated.connection(), LEDGER);
+    assert_eq!(applied.len(), ledger.len() + 1);
+    assert_eq!(applied[..ledger.len()], ledger);
+    assert_eq!(
+        applied.last().unwrap()[0],
+        rusqlite::types::Value::Integer(47)
+    );
+
+    let state = atlas_local_state::LocalStateRead::for_local(&migrated).unwrap();
+    let party = state.parties().get("old-party").unwrap();
+    assert_eq!(party.revision, 2);
+    assert_eq!(
+        party
+            .members
+            .iter()
+            .map(|member| (member.character_key.as_str(), member.level))
+            .collect::<Vec<_>>(),
+        [("old-pc", Some(7)), ("other-pc", None)]
+    );
+    assert!(
+        state
+            .characters()
+            .get("old-pc")
+            .unwrap()
+            .reference
+            .is_none()
+    );
+    assert!(
+        state
+            .characters()
+            .encounter_character(&encounter.encounter_key, &pc.participant_key)
+            .unwrap()
+            .is_none()
+    );
+    let saved = state
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved.participants[0].current_hp, Some(23));
+    assert_eq!(saved.participants[0].initiative, Some(12));
+    assert_eq!(saved.participants[0].display_name, "Old combat name");
+    assert_eq!(
+        saved.participants[0].adjustments.as_slice(),
+        std::slice::from_ref(&adjustment)
+    );
+    assert!(
+        state
+            .encounters()
+            .condition_event_receipt(
+                &encounter.encounter_key,
+                "gm-adjustment",
+                &adjustment_intent
+            )
+            .unwrap()
+            .is_some()
+    );
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let add_turn_receipt = "INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,boundary_key) SELECT id,'turn',?2,'{}','migration-test-boundary' FROM encounters WHERE encounter_key=?1";
+    write
+        .connection()
+        .execute(
+            add_turn_receipt,
+            [&encounter.encounter_key, "first-turn-receipt"],
+        )
+        .unwrap();
+    let duplicate_boundary = write
+        .connection()
+        .execute(
+            add_turn_receipt,
+            [&encounter.encounter_key, "second-turn-receipt"],
+        )
+        .unwrap_err();
+    assert_eq!(
+        duplicate_boundary.sqlite_error().unwrap().extended_code,
+        rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE
+    );
+    drop(write);
+    // The release upgrade has no member-owned reference tables. A preview archive
+    // can still carry the earlier member-owned links in its version 3 payload.
+    backup["saved"]["owners"][0]["pc"] = serde_json::json!({
+        "members": [{
+            "member_key": "old-pc",
+            "reference": {"abilities": [{
+                "key": "a".repeat(64), "kind": "feat", "label": "Selected feat",
+                "choice": "Chosen option", "automatic": null, "ambiguous": false,
+                "manual": "feats:testfeat00000001"
+            }]}
+        }],
+        "associations": [{"participant_key": pc.participant_key, "member_key": "old-pc"}]
+    });
+    backup["saved"]["references"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "key": "feats:testfeat00000001",
+            "last_known_name": "Selected feat"
+        }));
+    let mut duplicate = backup.clone();
+    let references = duplicate["saved"]["owners"][0]["pc"]["members"]
+        .as_array_mut()
+        .unwrap();
+    references.push(references[0].clone());
+    assert!(
+        WorkspaceArchive::read(duplicate.to_string().as_bytes())
+            .err()
+            .is_some_and(|message| message.contains("duplicate legacy PC reference"))
+    );
+    let target = initialize_workspace(directory.path().join("restore-preview.sqlite")).unwrap();
+    let target = runtime(&target);
+    let preflight = target.preflight_workspace_restore().unwrap();
+    target
+        .restore_workspace_archive(
+            &WorkspaceArchive::read(backup.to_string().as_bytes()).unwrap(),
+            &preflight,
+            false,
+        )
+        .unwrap();
+    let read = target.read_state().unwrap();
+    let restored = read
+        .local_state()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(restored.participants[0].adjustments, [adjustment]);
+    let state = read.local_state().unwrap();
+    let reference = state.characters().get("old-pc").unwrap().reference.unwrap();
+    let ability = &reference.abilities[0];
+    assert_eq!(ability.choice.as_deref(), Some("Chosen option"));
+    assert_eq!(
+        ability.manual.as_ref().unwrap().to_string(),
+        "feats:testfeat00000001"
+    );
+    assert_eq!(
+        state
+            .characters()
+            .encounter_character(&encounter.encounter_key, &pc.participant_key)
+            .unwrap()
+            .as_deref(),
+        Some("old-pc")
     );
 }

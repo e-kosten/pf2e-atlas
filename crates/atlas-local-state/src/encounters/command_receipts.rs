@@ -8,6 +8,7 @@ use crate::{LocalStateError, LocalStateResult};
 pub(super) enum Family {
     Turn,
     Event,
+    PcAddition,
 }
 
 impl Family {
@@ -15,6 +16,7 @@ impl Family {
         match self {
             Self::Turn => "turn",
             Self::Event => "event",
+            Self::PcAddition => "pc_addition",
         }
     }
 
@@ -22,6 +24,7 @@ impl Family {
         LocalStateError::InvalidRollRequest(match self {
             Self::Turn => "request ID already used for another turn intent",
             Self::Event => "event request ID was reused with different intent",
+            Self::PcAddition => "PC addition request ID was reused with different intent",
         })
     }
 }
@@ -29,6 +32,7 @@ impl Family {
 pub(super) enum Outcome<'a> {
     Turn(&'a str),
     Event(&'a EncounterEventReceipt),
+    PcAddition(&'a super::PcAdditionReceipt),
 }
 
 fn validate_request(id: &str, intent: &serde_json::Value) -> LocalStateResult<()> {
@@ -45,6 +49,12 @@ pub(super) struct StoredReceipt {
 }
 
 impl StoredReceipt {
+    pub(super) fn pc_addition(self) -> LocalStateResult<super::PcAdditionReceipt> {
+        let payload = self.payload.ok_or_else(|| {
+            LocalStateError::IncompatibleSchema("PC addition receipt has no payload".into())
+        })?;
+        super::PcAdditionReceipt::decode(&payload)
+    }
     pub(super) fn event(self) -> LocalStateResult<EncounterEventReceipt> {
         let payload = self.payload.ok_or_else(|| {
             LocalStateError::IncompatibleSchema("event receipt has no payload".into())
@@ -92,6 +102,11 @@ pub(super) fn insert(
     let (family, boundary, receipt) = match outcome {
         Outcome::Turn(boundary) => (Family::Turn, Some(boundary), None),
         Outcome::Event(event) => (Family::Event, None, Some(receipt_codec::encode(event)?)),
+        Outcome::PcAddition(receipt) => (
+            Family::PcAddition,
+            None,
+            Some(receipt_codec::encode(receipt)?),
+        ),
     };
     connection.execute(
         "INSERT INTO encounter_command_receipts

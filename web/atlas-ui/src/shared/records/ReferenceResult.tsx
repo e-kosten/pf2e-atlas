@@ -24,6 +24,7 @@ export function ReferenceResult({
   qualifiers,
   searchCard,
   navigation,
+  previewOnEnter,
 }: {
   row: SearchResultRow;
   actions?: ReactNode;
@@ -31,6 +32,7 @@ export function ReferenceResult({
   qualifiers?: string[];
   searchCard?: boolean;
   navigation?: RecordNavigationView;
+  previewOnEnter?: boolean;
   relationshipClauses?: RelationshipClauseSummaryView[];
   filter?: import("../../generated/atlas").QueryPredicate | null;
   generation?: string;
@@ -86,6 +88,7 @@ export function ReferenceResult({
         context={context}
         qualifiers={qualifiers}
         searchCard={searchCard}
+        previewOnEnter={previewOnEnter}
         href={
           navigation
             ? destinationHref(

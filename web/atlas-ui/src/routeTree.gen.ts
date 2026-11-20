@@ -11,19 +11,24 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as PartiesRouteImport } from './routes/parties'
+import { Route as CharactersIndexRouteImport } from './routes/characters.index'
 import { Route as DefinitionsDefinitionKeyRouteImport } from './routes/definitions.$definitionKey'
 import { Route as EncountersIndexRouteImport } from './routes/encounters.index'
 import { Route as ListsIndexRouteImport } from './routes/lists.index'
 import { Route as ListsSlugRouteImport } from './routes/lists.$slug'
+import { Route as PartiesIndexRouteImport } from './routes/parties.index'
 import { Route as RecordsRecordKeyRouteImport } from './routes/records.$recordKey'
 import { Route as SearchIndexRouteImport } from './routes/search.index'
 import { Route as TraitsTraitKeyRouteImport } from './routes/traits.$traitKey'
+import { Route as CharactersCharacterKeyIndexRouteImport } from './routes/characters.$characterKey.index'
 import { Route as EncountersSlugIndexRouteImport } from './routes/encounters.$slug.index'
 import { Route as EncountersSlugEditRouteImport } from './routes/encounters.$slug.edit'
 import { Route as FamiliesCreaturesFamilyIdRouteImport } from './routes/families.creatures.$familyId'
 import { Route as FamiliesEquipmentFamilyIdRouteImport } from './routes/families.equipment.$familyId'
 import { Route as ListsSlugIndexRouteImport } from './routes/lists.$slug.index'
 import { Route as ListsSlugEditRouteImport } from './routes/lists.$slug.edit'
+import { Route as PartiesPartyKeyIndexRouteImport } from './routes/parties.$partyKey.index'
 import { Route as SearchRecordsRecordKeyRouteImport } from './routes/search.records.$recordKey'
 import { Route as ListsSlugRecordsRecordKeyRouteImport } from './routes/lists.$slug.records.$recordKey'
 
@@ -35,6 +40,16 @@ const IndexRoute = IndexRouteImport.update({
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
   path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartiesRoute = PartiesRouteImport.update({
+  id: '/parties',
+  path: '/parties',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CharactersIndexRoute = CharactersIndexRouteImport.update({
+  id: '/characters/',
+  path: '/characters/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DefinitionsDefinitionKeyRoute =
@@ -58,6 +73,11 @@ const ListsSlugRoute = ListsSlugRouteImport.update({
   path: '/lists/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartiesIndexRoute = PartiesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PartiesRoute,
+} as any)
 const RecordsRecordKeyRoute = RecordsRecordKeyRouteImport.update({
   id: '/records/$recordKey',
   path: '/records/$recordKey',
@@ -73,6 +93,12 @@ const TraitsTraitKeyRoute = TraitsTraitKeyRouteImport.update({
   path: '/traits/$traitKey',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CharactersCharacterKeyIndexRoute =
+  CharactersCharacterKeyIndexRouteImport.update({
+    id: '/characters/$characterKey/',
+    path: '/characters/$characterKey/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const EncountersSlugIndexRoute = EncountersSlugIndexRouteImport.update({
   id: '/encounters/$slug/',
   path: '/encounters/$slug/',
@@ -105,6 +131,11 @@ const ListsSlugEditRoute = ListsSlugEditRouteImport.update({
   path: '/edit',
   getParentRoute: () => ListsSlugRoute,
 } as any)
+const PartiesPartyKeyIndexRoute = PartiesPartyKeyIndexRouteImport.update({
+  id: '/$partyKey/',
+  path: '/$partyKey/',
+  getParentRoute: () => PartiesRoute,
+} as any)
 const SearchRecordsRecordKeyRoute = SearchRecordsRecordKeyRouteImport.update({
   id: '/search/records/$recordKey',
   path: '/search/records/$recordKey',
@@ -120,20 +151,25 @@ const ListsSlugRecordsRecordKeyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/parties': typeof PartiesRouteWithChildren
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
+  '/characters/': typeof CharactersIndexRoute
   '/encounters/': typeof EncountersIndexRoute
   '/lists/': typeof ListsIndexRoute
+  '/parties/': typeof PartiesIndexRoute
   '/search/': typeof SearchIndexRoute
   '/encounters/$slug/edit': typeof EncountersSlugEditRoute
   '/families/creatures/$familyId': typeof FamiliesCreaturesFamilyIdRoute
   '/families/equipment/$familyId': typeof FamiliesEquipmentFamilyIdRoute
   '/lists/$slug/edit': typeof ListsSlugEditRoute
   '/search/records/$recordKey': typeof SearchRecordsRecordKeyRoute
+  '/characters/$characterKey/': typeof CharactersCharacterKeyIndexRoute
   '/encounters/$slug/': typeof EncountersSlugIndexRoute
   '/lists/$slug/': typeof ListsSlugIndexRoute
+  '/parties/$partyKey/': typeof PartiesPartyKeyIndexRoute
   '/lists/$slug/records/$recordKey': typeof ListsSlugRecordsRecordKeyRoute
 }
 export interface FileRoutesByTo {
@@ -142,36 +178,45 @@ export interface FileRoutesByTo {
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/records/$recordKey': typeof RecordsRecordKeyRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
+  '/characters': typeof CharactersIndexRoute
   '/encounters': typeof EncountersIndexRoute
   '/lists': typeof ListsIndexRoute
+  '/parties': typeof PartiesIndexRoute
   '/search': typeof SearchIndexRoute
   '/encounters/$slug/edit': typeof EncountersSlugEditRoute
   '/families/creatures/$familyId': typeof FamiliesCreaturesFamilyIdRoute
   '/families/equipment/$familyId': typeof FamiliesEquipmentFamilyIdRoute
   '/lists/$slug/edit': typeof ListsSlugEditRoute
   '/search/records/$recordKey': typeof SearchRecordsRecordKeyRoute
+  '/characters/$characterKey': typeof CharactersCharacterKeyIndexRoute
   '/encounters/$slug': typeof EncountersSlugIndexRoute
   '/lists/$slug': typeof ListsSlugIndexRoute
+  '/parties/$partyKey': typeof PartiesPartyKeyIndexRoute
   '/lists/$slug/records/$recordKey': typeof ListsSlugRecordsRecordKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/parties': typeof PartiesRouteWithChildren
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
+  '/characters/': typeof CharactersIndexRoute
   '/encounters/': typeof EncountersIndexRoute
   '/lists/': typeof ListsIndexRoute
+  '/parties/': typeof PartiesIndexRoute
   '/search/': typeof SearchIndexRoute
   '/encounters/$slug/edit': typeof EncountersSlugEditRoute
   '/families/creatures/$familyId': typeof FamiliesCreaturesFamilyIdRoute
   '/families/equipment/$familyId': typeof FamiliesEquipmentFamilyIdRoute
   '/lists/$slug/edit': typeof ListsSlugEditRoute
   '/search/records/$recordKey': typeof SearchRecordsRecordKeyRoute
+  '/characters/$characterKey/': typeof CharactersCharacterKeyIndexRoute
   '/encounters/$slug/': typeof EncountersSlugIndexRoute
   '/lists/$slug/': typeof ListsSlugIndexRoute
+  '/parties/$partyKey/': typeof PartiesPartyKeyIndexRoute
   '/lists/$slug/records/$recordKey': typeof ListsSlugRecordsRecordKeyRoute
 }
 export interface FileRouteTypes {
@@ -179,20 +224,25 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
+    | '/parties'
     | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
     | '/traits/$traitKey'
+    | '/characters/'
     | '/encounters/'
     | '/lists/'
+    | '/parties/'
     | '/search/'
     | '/encounters/$slug/edit'
     | '/families/creatures/$familyId'
     | '/families/equipment/$familyId'
     | '/lists/$slug/edit'
     | '/search/records/$recordKey'
+    | '/characters/$characterKey/'
     | '/encounters/$slug/'
     | '/lists/$slug/'
+    | '/parties/$partyKey/'
     | '/lists/$slug/records/$recordKey'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -201,45 +251,56 @@ export interface FileRouteTypes {
     | '/definitions/$definitionKey'
     | '/records/$recordKey'
     | '/traits/$traitKey'
+    | '/characters'
     | '/encounters'
     | '/lists'
+    | '/parties'
     | '/search'
     | '/encounters/$slug/edit'
     | '/families/creatures/$familyId'
     | '/families/equipment/$familyId'
     | '/lists/$slug/edit'
     | '/search/records/$recordKey'
+    | '/characters/$characterKey'
     | '/encounters/$slug'
     | '/lists/$slug'
+    | '/parties/$partyKey'
     | '/lists/$slug/records/$recordKey'
   id:
     | '__root__'
     | '/'
     | '/$'
+    | '/parties'
     | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
     | '/traits/$traitKey'
+    | '/characters/'
     | '/encounters/'
     | '/lists/'
+    | '/parties/'
     | '/search/'
     | '/encounters/$slug/edit'
     | '/families/creatures/$familyId'
     | '/families/equipment/$familyId'
     | '/lists/$slug/edit'
     | '/search/records/$recordKey'
+    | '/characters/$characterKey/'
     | '/encounters/$slug/'
     | '/lists/$slug/'
+    | '/parties/$partyKey/'
     | '/lists/$slug/records/$recordKey'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  PartiesRoute: typeof PartiesRouteWithChildren
   DefinitionsDefinitionKeyRoute: typeof DefinitionsDefinitionKeyRoute
   ListsSlugRoute: typeof ListsSlugRouteWithChildren
   RecordsRecordKeyRoute: typeof RecordsRecordKeyRoute
   TraitsTraitKeyRoute: typeof TraitsTraitKeyRoute
+  CharactersIndexRoute: typeof CharactersIndexRoute
   EncountersIndexRoute: typeof EncountersIndexRoute
   ListsIndexRoute: typeof ListsIndexRoute
   SearchIndexRoute: typeof SearchIndexRoute
@@ -247,6 +308,7 @@ export interface RootRouteChildren {
   FamiliesCreaturesFamilyIdRoute: typeof FamiliesCreaturesFamilyIdRoute
   FamiliesEquipmentFamilyIdRoute: typeof FamiliesEquipmentFamilyIdRoute
   SearchRecordsRecordKeyRoute: typeof SearchRecordsRecordKeyRoute
+  CharactersCharacterKeyIndexRoute: typeof CharactersCharacterKeyIndexRoute
   EncountersSlugIndexRoute: typeof EncountersSlugIndexRoute
 }
 
@@ -264,6 +326,20 @@ declare module '@tanstack/react-router' {
       path: '/$'
       fullPath: '/$'
       preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties': {
+      id: '/parties'
+      path: '/parties'
+      fullPath: '/parties'
+      preLoaderRoute: typeof PartiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/characters/': {
+      id: '/characters/'
+      path: '/characters'
+      fullPath: '/characters/'
+      preLoaderRoute: typeof CharactersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/definitions/$definitionKey': {
@@ -294,6 +370,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parties/': {
+      id: '/parties/'
+      path: '/'
+      fullPath: '/parties/'
+      preLoaderRoute: typeof PartiesIndexRouteImport
+      parentRoute: typeof PartiesRoute
+    }
     '/records/$recordKey': {
       id: '/records/$recordKey'
       path: '/records/$recordKey'
@@ -313,6 +396,13 @@ declare module '@tanstack/react-router' {
       path: '/traits/$traitKey'
       fullPath: '/traits/$traitKey'
       preLoaderRoute: typeof TraitsTraitKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/characters/$characterKey/': {
+      id: '/characters/$characterKey/'
+      path: '/characters/$characterKey'
+      fullPath: '/characters/$characterKey/'
+      preLoaderRoute: typeof CharactersCharacterKeyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/encounters/$slug/': {
@@ -357,6 +447,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListsSlugEditRouteImport
       parentRoute: typeof ListsSlugRoute
     }
+    '/parties/$partyKey/': {
+      id: '/parties/$partyKey/'
+      path: '/$partyKey'
+      fullPath: '/parties/$partyKey/'
+      preLoaderRoute: typeof PartiesPartyKeyIndexRouteImport
+      parentRoute: typeof PartiesRoute
+    }
     '/search/records/$recordKey': {
       id: '/search/records/$recordKey'
       path: '/search/records/$recordKey'
@@ -373,6 +470,19 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface PartiesRouteChildren {
+  PartiesIndexRoute: typeof PartiesIndexRoute
+  PartiesPartyKeyIndexRoute: typeof PartiesPartyKeyIndexRoute
+}
+
+const PartiesRouteChildren: PartiesRouteChildren = {
+  PartiesIndexRoute: PartiesIndexRoute,
+  PartiesPartyKeyIndexRoute: PartiesPartyKeyIndexRoute,
+}
+
+const PartiesRouteWithChildren =
+  PartiesRoute._addFileChildren(PartiesRouteChildren)
 
 interface ListsSlugRouteChildren {
   ListsSlugEditRoute: typeof ListsSlugEditRoute
@@ -393,10 +503,12 @@ const ListsSlugRouteWithChildren = ListsSlugRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  PartiesRoute: PartiesRouteWithChildren,
   DefinitionsDefinitionKeyRoute: DefinitionsDefinitionKeyRoute,
   ListsSlugRoute: ListsSlugRouteWithChildren,
   RecordsRecordKeyRoute: RecordsRecordKeyRoute,
   TraitsTraitKeyRoute: TraitsTraitKeyRoute,
+  CharactersIndexRoute: CharactersIndexRoute,
   EncountersIndexRoute: EncountersIndexRoute,
   ListsIndexRoute: ListsIndexRoute,
   SearchIndexRoute: SearchIndexRoute,
@@ -404,6 +516,7 @@ const rootRouteChildren: RootRouteChildren = {
   FamiliesCreaturesFamilyIdRoute: FamiliesCreaturesFamilyIdRoute,
   FamiliesEquipmentFamilyIdRoute: FamiliesEquipmentFamilyIdRoute,
   SearchRecordsRecordKeyRoute: SearchRecordsRecordKeyRoute,
+  CharactersCharacterKeyIndexRoute: CharactersCharacterKeyIndexRoute,
   EncountersSlugIndexRoute: EncountersSlugIndexRoute,
 }
 export const routeTree = rootRouteImport

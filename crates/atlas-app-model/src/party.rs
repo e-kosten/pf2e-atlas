@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PartyMemberView {
-    pub member_key: String,
+    pub character_key: String,
+    pub character_revision: i64,
+    pub imported: bool,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
@@ -28,11 +30,8 @@ pub struct PartyIndexView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PartyMemberInput {
-    #[serde(default)]
-    pub member_key: Option<String>,
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub level: Option<i64>,
+    pub character_key: String,
+    pub expected_character_revision: i64,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -45,6 +44,8 @@ pub struct CreatePartyRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UpdatePartyRequest {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub level_updates: Vec<crate::CharacterLevelUpdate>,
     pub expected_revision: i64,
     pub name: String,
     pub members: Vec<PartyMemberInput>,
@@ -65,6 +66,9 @@ pub struct PartyMutationView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AddEncounterPartyRequest {
+    pub request_id: String,
+    pub expected_encounter_revision: i64,
+    pub characters: Vec<crate::CharacterRevision>,
     pub party_key: String,
     pub expected_revision: i64,
 }

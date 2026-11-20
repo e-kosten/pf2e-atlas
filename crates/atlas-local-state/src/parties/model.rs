@@ -8,14 +8,14 @@ pub struct Party {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartyMember {
-    pub member_key: String,
+    pub character_key: String,
+    pub revision: i64,
+    pub imported: bool,
     pub name: String,
     pub level: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PartyMemberInput {
-    pub member_key: Option<String>,
-    pub name: String,
-    pub level: Option<i64>,
+    pub character_key: String,
 }

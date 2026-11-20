@@ -466,6 +466,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
               <EncounterRosterPane
                 pending={mutations.pending}
                 encounterSummary={encounterSummary ?? undefined}
+                encounterRevision={encounter.data.revision}
                 difficulty={difficulty}
                 removingKey={
                   mutations.pending && mutations.errorKind === "remove"
@@ -519,10 +520,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                   });
                   return result.active;
                 }}
-                onAddManual={async (request) => {
-                  const result = await mutations.run({ kind: "add-manual", request });
-                  return result.active && result.refreshed;
-                }}
+
                 advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
                 needsInitiative={
                   turnReview.data?.next_turn_unavailable_reason ===

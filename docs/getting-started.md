@@ -49,8 +49,9 @@ Clear **Archived** and save to put the list back in the default view.
 
 Add a creature or hazard with **Add to list or encounter**, choosing an existing
 encounter or creating one. Open Encounters to review the roster and add your PCs.
-You can save a named party and use **Add Party** to add its members together;
-a party member only needs a name. See [saved parties](#saved-parties) for later edits.
+Use **Add PC** to choose a saved character, enter a name or import a PC from
+Pathbuilder. Choose a party under **Add party** to add its members together.
+See [saved parties](#saved-parties) for roster and character management.
 
 Use the encounter controls to set initiative, move through turns, adjust HP,
 track conditions and spell resources, and roll dice.
@@ -133,5 +134,34 @@ and custom paths, or [Installation](installation.md) to update Atlas.
 
 ## Saved parties
 
-Editing a party changes the names and levels used when you add it to a future
-encounter. PCs already added to an encounter keep their existing state.
+Open **Encounters → Parties** and choose **New party**. Give the party a name,
+then use **Add PC** on its roster. **Existing character** adds a saved PC to
+the party. **Enter manually** needs only a name. A character can belong to
+several parties, and **Encounters → Characters** includes PCs without a party.
+
+For a Pathbuilder character, copy the text from Pathbuilder’s **Export JSON**.
+Choose **Add PC → From Pathbuilder** in the character list, a party roster or
+an encounter. Paste the JSON and choose **Continue**. Select an ability to read
+its matched rule. Use **Link rule…** or **Change link** to choose a link.
+Read a search result and select **Link this rule**. You can leave abilities
+unlinked and resolve them later. **Add character**, **Add to party** or
+**Add to encounter** saves the character and your chosen links. An encounter
+also saves newly entered manual PCs and imported PCs for reuse.
+
+Open a character by name to see its party memberships and grouped abilities.
+Filter abilities and select one to read its rules. **Find rule** opens a search
+for an unresolved ability. Review a match and choose **Link this rule** to save
+it. Use **Change link** to correct a match. When the original automatic match
+is available, **Use automatic match** restores it. **Character actions → Refresh
+from Pathbuilder** updates the saved import and its live rules in linked encounters.
+
+Use the roster’s row actions to reorder or remove a character. Open **Party
+actions → Rename party** to change its name. **Set character levels…** shows
+current levels and lets you choose which characters to update. For example,
+select two level-7 PCs, enter level 8, then choose **Set 2 characters to level 8**.
+Shared characters receive the new level in every party they belong to.
+
+Removing a character from a party or deleting a party preserves the characters.
+**Actions → Delete character** removes its memberships
+and detaches its live rules. PCs already in encounters keep their names, levels,
+HP and initiative.

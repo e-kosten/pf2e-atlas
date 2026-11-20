@@ -219,7 +219,7 @@ fn schema_preserves_wire_contract_edges() {
     }
     // Optional input accepts null or omission. The corresponding response
     // omits a missing level and emits a number when present.
-    let input = &schemas["PartyMemberInput"];
+    let input = &schemas["CreateCharacterRequest"];
     assert!(
         !input["required"]
             .as_array()
@@ -236,11 +236,11 @@ fn schema_preserves_wire_contract_edges() {
         json!({"name": "Scout"}),
         json!({"name": "Scout", "level": null}),
     ] {
-        let request = serde_json::from_value::<atlas_app_model::CreatePartyRequest>(
-            json!({"name": "Party", "members": [member]}),
-        )
-        .unwrap();
-        assert_eq!(request.members[0].level, None);
+        let mut member = member;
+        member["request_id"] = json!("create-scout");
+        let request =
+            serde_json::from_value::<atlas_app_model::CreateCharacterRequest>(member).unwrap();
+        assert_eq!(request.level, None);
     }
     let output = &schemas["PartyMemberView"];
     assert!(
@@ -252,12 +252,14 @@ fn schema_preserves_wire_contract_edges() {
     assert_eq!(output["properties"]["level"]["type"], "integer");
     assert_eq!(
         serde_json::to_value(atlas_app_model::PartyMemberView {
-            member_key: "scout".into(),
+            character_key: "scout".into(),
+            character_revision: 0,
+            imported: false,
             name: "Scout".into(),
             level: None,
         })
         .unwrap(),
-        json!({"member_key": "scout", "name": "Scout"})
+        json!({"character_key": "scout", "character_revision":0,"imported":false,"name": "Scout"})
     );
     let hp_value = &schemas["EncounterHpValueInput"];
     assert!(

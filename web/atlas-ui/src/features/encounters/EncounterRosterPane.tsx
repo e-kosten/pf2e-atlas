@@ -6,15 +6,14 @@ import {
   InitiativeEntryEditor,
   type InitiativeEntryFields,
 } from "./InitiativeEntryEditor";
-import { EncounterModal } from "./EncounterModal";
-import { Button, Dropdown, Form, Input, InputNumber, Tooltip, Typography } from "antd";
+import { EncounterPcAdd } from "../parties/EncounterPcAdd";
+import { Button, Dropdown, Form, InputNumber, Tooltip, Typography } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
 import { Dice5, Ellipsis, Eye, EyeOff, GripVertical, Play, Trash2 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
-  AddEncounterManualParticipantRequest,
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
   SearchResultsRequest,
@@ -38,21 +37,15 @@ import {
   type EncounterRecordAddForm as AddRecordForm,
 } from "./EncounterAddDifficulty";
 
-type AddPcForm = {
-  name: string;
-  maxHp?: number | null;
-  initiative?: number | null;
-};
-
 export function EncounterRosterPane({
   currentTurnParticipantKey,
   encounterSummary,
+  encounterRevision,
   difficulty,
   removeError,
   removingKey,
   loading,
   onAddRecord,
-  onAddManual,
   onAddInitiativeEntry,
   initiativeEntryError,
   pending,
@@ -77,6 +70,7 @@ export function EncounterRosterPane({
 }: {
   currentTurnParticipantKey: string | null;
   encounterSummary?: import("../../generated/atlas").EncounterSummaryView;
+  encounterRevision: number;
   difficulty?: EncounterDifficultyProps;
   removingKey: string | null;
   removeError?: { participantKey: string; message: string };
@@ -88,7 +82,6 @@ export function EncounterRosterPane({
   onAddInitiativeEntry?: (request: InitiativeEntryFields) => Promise<boolean>;
   initiativeEntryError?: string;
   pending: boolean;
-  onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<boolean>;
   disabled: boolean;
   error?: string;
   recovery?: React.ReactNode;
@@ -116,7 +109,6 @@ export function EncounterRosterPane({
   selectedParticipantKey: string | null;
   slug: string;
 }) {
-  const formId = useId();
   const currentParticipant = participants.find(
     (participant) => participant.participant_key === currentTurnParticipantKey,
   );
@@ -128,8 +120,7 @@ export function EncounterRosterPane({
   });
   const [added, setAdded] = useState("");
   const [committedAdd, setCommittedAdd] = useState<string | null>(null);
-  const [committedPc, setCommittedPc] = useState(false);
-  const pendingFormReset = useRef({ record: false, pc: false });
+  const pendingFormReset = useRef({ record: false });
   const [recordOpen, setRecordOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
@@ -166,7 +157,6 @@ export function EncounterRosterPane({
       previewBasis,
     ).creature_scenario?.expected,
   );
-  const [pcForm] = Form.useForm<AddPcForm>();
   useEffect(() => {
     if (disabled) return;
     if (pendingFormReset.current.record) {
@@ -176,11 +166,7 @@ export function EncounterRosterPane({
       ]);
       pendingFormReset.current.record = false;
     }
-    if (pendingFormReset.current.pc) {
-      pcForm.resetFields();
-      pendingFormReset.current.pc = false;
-    }
-  }, [disabled, committedAdd, committedPc, recordForm, pcForm, defaultAdjustment]);
+  }, [disabled, committedAdd, recordForm, defaultAdjustment]);
   const addRecord = async () => {
     if (disabled || waitingForCreaturePreview || !candidate) return;
     const { record_ref, quantity, participant_variant, creature_scenario } =
@@ -213,25 +199,6 @@ export function EncounterRosterPane({
       }
     } catch {
       /* The owner displays the failure; retain the form and selection. */
-    }
-  };
-  const addPc = async (values: AddPcForm) => {
-    if (disabled) return;
-    try {
-      const saved = await onAddManual({
-        display_name: values.name,
-        ...(values.maxHp == null ? {} : { max_hp: values.maxHp }),
-        ...(values.initiative == null ? {} : { initiative: values.initiative }),
-      });
-      if (saved) {
-        setPcOpen(false);
-        pcForm.resetFields();
-      } else {
-        pendingFormReset.current.pc = true;
-        setCommittedPc(true);
-      }
-    } catch {
-      /* The owner displays the failure; retain this draft. */
     }
   };
   const renderParticipant = (participant: EncounterParticipantView) => {
@@ -468,6 +435,7 @@ export function EncounterRosterPane({
         <PrimaryToolbar className="encounter-roster__management">
           <EncounterAddMenu
             onAdd={onAddParty}
+            encounterRevision={encounterRevision}
             disabled={disabled}
             onAddCreature={() => {
               setAdded("");
@@ -482,7 +450,6 @@ export function EncounterRosterPane({
                 : undefined
             }
             onAddPc={() => {
-              setCommittedPc(false);
               setPcOpen(true);
             }}
           />
@@ -616,64 +583,18 @@ export function EncounterRosterPane({
           })}
         />
       )}
-      <EncounterModal
-        title="Add PC"
-        confirmLoading={disabled}
-        cancelButtonProps={{ disabled }}
-        closable={!disabled}
-        keyboard={!disabled}
-        mask={{ closable: !disabled }}
-        open={pcOpen && !(committedPc && !disabled)}
-        onCancel={() => setPcOpen(false)}
-        onOk={() => pcForm.submit()}
-      >
-        <Form
-          name={formId}
-          disabled={disabled}
-          form={pcForm}
-          layout="vertical"
-          onFinish={(v) => void addPc(v)}
-        >
-          {recovery}
-          {error && (
-            <ErrorNotice
-              error={error}
-              title="Participant could not be added"
-              description={error}
-            />
-          )}
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="maxHp"
-            label="Max HP"
-            rules={[
-              {
-                type: "integer",
-                min: 0,
-                max: Number.MAX_SAFE_INTEGER,
-                message: "Enter a nonnegative whole number within the supported range.",
-              },
-            ]}
-          >
-            <InputNumber aria-label="Max HP" min={0} />
-          </Form.Item>
-          <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
-            <InputNumber aria-label="Initiative" />
-          </Form.Item>
-        </Form>
-      </EncounterModal>
+      {pcOpen && encounterSummary && (
+        <EncounterPcAdd
+          encounter={{
+            encounterKey: encounterSummary.encounter_key,
+            revision: encounterRevision,
+          }}
+          onClose={() => setPcOpen(false)}
+        />
+      )}
     </section>
   );
 }
-
-const initiativeRule = {
-  type: "integer" as const,
-  min: Number.MIN_SAFE_INTEGER,
-  max: Number.MAX_SAFE_INTEGER,
-  message: "Enter a whole number within the supported range.",
-};
 
 function encounterRecordPickerRequest(query: string): SearchResultsRequest {
   const filter = {

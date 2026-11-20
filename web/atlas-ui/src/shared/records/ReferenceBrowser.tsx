@@ -15,6 +15,7 @@ import {
   type ReferenceReading,
 } from "./useReferenceReading";
 import { BrowseReader } from "./BrowseReader";
+import type { ReaderFooter } from "./ReferenceReader";
 import { ReferenceResult } from "./ReferenceResult";
 import { SearchMatchContext } from "./SearchMatchContext";
 export function ReferenceBrowser({
@@ -39,6 +40,12 @@ export function ReferenceBrowser({
   matchDisplay = DEFAULT_MATCH_DISPLAY,
   showSmallerWeights = false,
   searchCards = false,
+  observeWidth,
+  showRelated,
+  previewOnEnter,
+  readerFooter,
+  showMatchContext = true,
+  loadingLabel = "Searching…",
 }: {
   rows: SearchResultRow[];
   query?: string;
@@ -61,10 +68,17 @@ export function ReferenceBrowser({
   filter?: import("../../generated/atlas").QueryPredicate | null;
   generation?: string;
   onRefreshResults?: () => Promise<void>;
+  observeWidth?: boolean;
+  showRelated?: boolean;
+  previewOnEnter?: boolean;
+  readerFooter?: ReaderFooter;
+  showMatchContext?: boolean;
+  loadingLabel?: string;
 }) {
   const selected = rows.find((row) => row.record.record_key === selectedRecordKey);
   const detail = reading.detail;
   const showContext =
+    showMatchContext &&
     selected &&
     detail &&
     detail.record.record_key === selected.record.record_key &&
@@ -87,6 +101,9 @@ export function ReferenceBrowser({
         onClearSelection={onClearSelection}
         clearSelectionDisabled={disabled}
         positions={positions}
+        observeWidth={observeWidth}
+        showRelated={showRelated}
+        readerFooter={readerFooter}
         readerContext={
           showContext ? (
             <SearchMatchContext
@@ -103,7 +120,7 @@ export function ReferenceBrowser({
         }
       >
         {loading && !rows.length ? (
-          <LoadingStatus className="reference-loading" label="Searching…" />
+          <LoadingStatus className="reference-loading" label={loadingLabel} />
         ) : !rows.length && emptyMessage ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyMessage} />
         ) : null}
@@ -118,6 +135,7 @@ export function ReferenceBrowser({
             onRefreshResults={onRefreshResults}
             selected={row.record.record_key === selectedRecordKey}
             disabled={disabled}
+            previewOnEnter={previewOnEnter}
             onPreview={() => {
               onSelect(row, { navigation: rootNavigation(row.record.record_key) });
             }}

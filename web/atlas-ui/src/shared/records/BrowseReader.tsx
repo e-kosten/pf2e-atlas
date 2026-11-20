@@ -29,6 +29,10 @@ export function BrowseReader({
   removedSelectionKey,
   readerFooter,
   positions,
+  fullWidthUntilSelection = false,
+  observeWidth = false,
+  showRelated,
+  returnLabel,
 }: {
   children: ReactNode;
   resultsHeader?: ReactNode;
@@ -47,10 +51,28 @@ export function BrowseReader({
   removedSelectionKey?: string;
   readerFooter?: ReaderFooter;
   positions?: BrowsePositions;
+  fullWidthUntilSelection?: boolean;
+  observeWidth?: boolean;
+  showRelated?: boolean;
+  returnLabel?: string;
 }) {
   const atlasRouter = useAtlasRouter();
   const paneHeader = Boolean(renderResultsPaneHeader);
-  const narrow = !Grid.useBreakpoint().lg;
+  const viewportNarrow = !Grid.useBreakpoint().lg;
+  const browserRef = useRef<HTMLDivElement>(null);
+  const [hostNarrow, setHostNarrow] = useState<boolean>();
+  useLayoutEffect(() => {
+    const host = browserRef.current;
+    if (!observeWidth || !host) return;
+    const measure = () => {
+      if (host.clientWidth) setHostNarrow(host.clientWidth < 768);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [observeWidth]);
+  const narrow = observeWidth ? (hostNarrow ?? viewportNarrow) : viewportNarrow;
   const [closedRequest, setClosedRequest] = useState<ReferenceReading["request"]>();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
@@ -67,6 +89,7 @@ export function BrowseReader({
   }, []);
   const beforePreview = useRef<HTMLElement | null>(null);
   const readerOpen = reading.request !== null && closedRequest !== reading.request;
+  const listOnly = fullWidthUntilSelection && !readerOpen;
   useLayoutEffect(() => {
     // Capture before route rendering removes scroll content. Native scroll events
     // may still be queued when the user immediately opens the full reference.
@@ -137,7 +160,13 @@ export function BrowseReader({
     }
   }, [readerOpen, removedSelectionKey, restoreResultsFocus, selectedRecordKey]);
   function clearSelectionAction() {
-    return onClearSelection && (selectedRecordKey || reading.request) ? (
+    if (
+      !onClearSelection ||
+      !(selectedRecordKey || reading.request) ||
+      (narrow && returnLabel)
+    )
+      return undefined;
+    return (
       <PaneIconButton
         label="Clear selection"
         icon={<X size={16} aria-hidden="true" />}
@@ -147,7 +176,7 @@ export function BrowseReader({
           restoreResultsFocus();
         }}
       />
-    ) : undefined;
+    );
   }
   function toolbar(actions: ReactNode) {
     return (
@@ -219,7 +248,9 @@ export function BrowseReader({
       readerFooter={readerFooter}
       positions={saved}
       onResults={narrow ? closeReader : undefined}
-      active={!narrow || readerOpen}
+      resultsReturnLabel={returnLabel}
+      showRelated={showRelated}
+      active={(!narrow || readerOpen) && !listOnly}
       selectionActions={clearSelectionAction()}
       selectionActionsInIdentity={paneHeader && !narrow}
       renderLayout={
@@ -243,22 +274,26 @@ export function BrowseReader({
                     defaultSize="35%"
                     min="25%"
                     max="55%"
-                    resizable={!narrow}
+                    resizable={!narrow && !listOnly}
                     style={
                       narrow
                         ? { height: "100%", display: readerOpen ? "none" : "block" }
-                        : undefined
+                        : listOnly
+                          ? { flexBasis: "100%" }
+                          : undefined
                     }
                   >
                     {results}
                   </Splitter.Panel>
                   <Splitter.Panel
                     min="40%"
-                    resizable={!narrow}
+                    resizable={!narrow && !listOnly}
                     style={
                       narrow
                         ? { height: "100%", display: readerOpen ? "block" : "none" }
-                        : undefined
+                        : listOnly
+                          ? { display: "none" }
+                          : undefined
                     }
                   >
                     {paneHeader ? (
@@ -282,7 +317,9 @@ export function BrowseReader({
   );
   return (
     <div
+      ref={browserRef}
       className="reference-browser"
+      data-list-only={listOnly || undefined}
       data-reading={narrow && readerOpen ? "true" : undefined}
     >
       {narrow && !paneHeader ? (

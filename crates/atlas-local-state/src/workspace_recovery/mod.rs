@@ -1,5 +1,8 @@
 //! All-owner saved state for workspace maintenance.
 mod collections;
+mod pc;
+
+use pc::PcState;
 
 use crate::encounters::portability::workspace::{RecoveryEncounter, ValidatedEncounter};
 use crate::{LocalStateError, LocalStateResult};
@@ -23,6 +26,8 @@ struct Owner<E> {
     lists: Vec<List>,
     parties: Vec<Party>,
     encounters: Vec<E>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pc: Option<PcState>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -81,12 +86,17 @@ impl SavedWorkspace {
                             .map(|key| key.to_string()),
                     );
                 }
+                let pc = PcState::capture(db, id)?;
+                if let Some(pc) = &pc {
+                    keys.extend(pc.record_keys());
+                }
                 Ok(Owner {
                     key,
                     name,
                     lists,
                     parties: Party::capture(db, id)?,
                     encounters,
+                    pc,
                 })
             })
             .collect::<LocalStateResult<_>>()?;
@@ -107,6 +117,16 @@ impl SavedWorkspace {
             references,
             condition_floor: condition_floor(db)?,
         })
+    }
+
+    pub fn has_characters(&self) -> bool {
+        self.owners
+            .iter()
+            .any(|owner| owner.pc.as_ref().is_some_and(PcState::has_characters))
+    }
+
+    pub fn has_pc_references(&self) -> bool {
+        self.owners.iter().any(|owner| owner.pc.is_some())
     }
 
     pub fn has_archived_lists(&self) -> bool {
@@ -137,6 +157,7 @@ impl SavedWorkspace {
         let mut lists = BTreeSet::new();
         let mut parties = BTreeSet::new();
         let mut members = BTreeSet::new();
+        let mut legacy_members = BTreeSet::new();
         let mut encounters = BTreeSet::new();
         let mut participants = BTreeSet::new();
         let mut conditions = BTreeSet::new();
@@ -148,7 +169,7 @@ impl SavedWorkspace {
         let validated = self
             .owners
             .into_iter()
-            .map(|owner| {
+            .map(|mut owner| {
                 unique(&mut owners, &owner.key, "principal key")?;
                 let mut list_slugs = BTreeSet::new();
                 for list in &owner.lists {
@@ -161,10 +182,10 @@ impl SavedWorkspace {
                     }
                 }
                 for party in &owner.parties {
-                    party.validate(&mut parties, &mut members)?;
+                    party.validate(&mut parties, &mut legacy_members)?;
                 }
                 let mut encounter_slugs = BTreeSet::new();
-                let restored = owner
+                let restored: Vec<_> = owner
                     .encounters
                     .into_iter()
                     .map(|encounter| {
@@ -208,12 +229,22 @@ impl SavedWorkspace {
                         Ok(encounter)
                     })
                     .collect::<LocalStateResult<_>>()?;
+                let mut pc = owner.pc.take().unwrap_or_default();
+                pc.normalize_legacy(&mut owner.parties)?;
+                pc.validate(
+                    owner.parties.iter().map(Party::key),
+                    &restored,
+                    &references,
+                    &mut members,
+                )?;
+                owner.pc = pc.has_characters().then_some(pc);
                 Ok(Owner {
                     key: owner.key,
                     name: owner.name,
                     lists: owner.lists,
                     parties: owner.parties,
                     encounters: restored,
+                    pc: owner.pc,
                 })
             })
             .collect::<LocalStateResult<_>>()?;
@@ -255,6 +286,9 @@ impl ValidatedWorkspace {
             for encounter in &owner.encounters {
                 encounter.restore(db, id)?;
             }
+            if let Some(pc) = &owner.pc {
+                pc.restore(db, id)?;
+            }
         }
         if floor > condition_floor(db)? {
             db.execute(
@@ -273,7 +307,8 @@ impl ValidatedWorkspace {
 pub fn check_empty(db: &Connection) -> LocalStateResult<()> {
     let empty = db.query_row(
         "SELECT NOT (EXISTS(SELECT 1 FROM saved_lists) OR EXISTS(SELECT 1 FROM parties)
-                     OR EXISTS(SELECT 1 FROM encounters)
+                     OR EXISTS(SELECT 1 FROM encounters) OR EXISTS(SELECT 1 FROM characters)
+                     OR EXISTS(SELECT 1 FROM character_creation_receipts)
                      OR EXISTS(SELECT 1 FROM principals WHERE principal_key != 'local'))",
         [],
         |row| row.get(0),

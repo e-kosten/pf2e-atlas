@@ -211,10 +211,20 @@ fn party_snapshots_supply_mixed_references_and_unknown_levels_stay_unknown() {
             members: [3, 3, 3, 7]
                 .into_iter()
                 .enumerate()
-                .map(|(i, level)| PartyMemberInput {
-                    member_key: None,
-                    name: format!("PC {i}"),
-                    level: Some(level),
+                .map(|(i, level)| {
+                    let character = f
+                        .worker
+                        .create_character(CreateCharacterRequest {
+                            request_id: format!("mixed-{i}"),
+                            name: format!("PC {i}"),
+                            level: Some(level),
+                            party: None,
+                        })
+                        .unwrap();
+                    PartyMemberInput {
+                        character_key: character.character_key,
+                        expected_character_revision: 0,
+                    }
                 })
                 .collect(),
         })
@@ -223,6 +233,16 @@ fn party_snapshots_supply_mixed_references_and_unknown_levels_stay_unknown() {
         .add_encounter_party(
             &key,
             AddEncounterPartyRequest {
+                request_id: "mixed-party".into(),
+                expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
+                characters: party
+                    .members
+                    .iter()
+                    .map(|m| CharacterRevision {
+                        character_key: m.character_key.clone(),
+                        expected_revision: m.character_revision,
+                    })
+                    .collect(),
                 party_key: party.party_key,
                 expected_revision: party.revision,
             },

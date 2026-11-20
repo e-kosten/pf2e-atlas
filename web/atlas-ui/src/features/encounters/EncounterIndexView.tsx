@@ -1,9 +1,14 @@
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
-import { AtlasLink } from "../../app/AtlasLink";
+import { AtlasButtonLink, AtlasLink } from "../../app/AtlasLink";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
-import { encounterDestination, encountersDestination } from "../../app/destinations";
+import {
+  encounterDestination,
+  encountersDestination,
+  partiesDestination,
+  charactersDestination,
+} from "../../app/destinations";
 import { useRouterState } from "@tanstack/react-router";
 import { encounterIndexSearch } from "../../app/routeSearch";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
@@ -19,7 +24,7 @@ import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
-import { PartyManager } from "../parties/PartyManager";
+
 import { encounterStatusLabels } from "./encounterStatus";
 import { CreateEncounterModal } from "./EncounterModals";
 import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
@@ -36,7 +41,6 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   usePageTitle("Encounters");
   const paused = useSavedWritesPaused();
   const queryClient = useQueryClient();
-  const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const editing = useEncounterSettingsOpening();
   const newEncounter = useRef<HTMLButtonElement>(null);
@@ -64,14 +68,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     <EntityIndexPage
       actions={
         <>
-          <Button
-            onClick={(event) => {
-              event.currentTarget.focus();
-              setPartiesOpen(true);
-            }}
-          >
-            Parties
-          </Button>
+          <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
+          <AtlasButtonLink {...charactersDestination()}>Characters</AtlasButtonLink>
           <Button
             disabled={paused}
             ref={newEncounter}
@@ -86,7 +84,6 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       className="encounter-index-view"
       overlays={
         <>
-          {partiesOpen && <PartyManager onClose={() => setPartiesOpen(false)} />}
           {editing.data && (
             <EncounterIndexEditor
               key={editing.data.encounter.encounter_key}

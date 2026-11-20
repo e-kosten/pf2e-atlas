@@ -865,3 +865,88 @@ export function applyEncounterRecovery(
     intent: "action",
   });
 }
+
+export function previewPathbuilderPc(json: string, characterKey?: string) {
+  return http.previewPathbuilderPc(
+    checkRequest({ json, character_key: characterKey }),
+    { intent: "read" },
+  );
+}
+
+export function getCharacters(signal?: AbortSignal) {
+  return http.characters({ signal });
+}
+
+export function getCharacter(characterKey: string, signal?: AbortSignal) {
+  return http.character(characterKey, { signal });
+}
+
+export function createCharacter(
+  request: import("../generated/atlas").CreateCharacterRequest,
+) {
+  return http.createCharacter(checkRequest(request), { intent: "action" });
+}
+
+export function updateCharacter(
+  characterKey: string,
+  request: import("../generated/atlas").UpdateCharacterRequest,
+) {
+  return http.updateCharacter(characterKey, checkRequest(request), {
+    intent: "action",
+  });
+}
+
+export function deleteCharacter(
+  characterKey: string,
+  request: import("../generated/atlas").DeleteCharacterRequest,
+) {
+  return http.deleteCharacter(characterKey, checkRequest(request), {
+    intent: "action",
+  });
+}
+
+export function savePathbuilderPc(
+  request: import("../generated/atlas").SavePathbuilderPcRequest,
+) {
+  return http.savePathbuilderPc(checkRequest(request), { intent: "action" });
+}
+
+export function savePcAbilityLink(
+  characterKey: string,
+  abilityKey: string,
+  request: import("../generated/atlas").SavePcAbilityLinkRequest,
+) {
+  return http.savePcAbilityLink(characterKey, abilityKey, checkRequest(request), {
+    intent: "action",
+  });
+}
+
+export function addEncounterCharacter(
+  encounterRef: string,
+  request: import("../generated/atlas").AddEncounterCharacterRequest,
+) {
+  return http.addEncounterCharacter(encounterRef, checkRequest(request), {
+    intent: "action",
+  });
+}
+
+export function getEncounterPcReference(
+  encounterRef: string,
+  participantKey: string,
+  signal?: AbortSignal,
+) {
+  return http.encounterPcReference(encounterRef, participantKey, { signal });
+}
+
+export function setEncounterPcReference(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").SetEncounterPcReferenceRequest,
+) {
+  return http.setEncounterPcReference(
+    encounterRef,
+    participantKey,
+    checkRequest(request),
+    { intent: "action" },
+  );
+}

@@ -572,6 +572,7 @@ export function RecordPresentation({
   activityRolls,
   hideIdentity = false,
   identityInHost = false,
+  identityActions,
   showOwnerReturn = true,
   reading,
   onOwnerReturn,
@@ -595,6 +596,7 @@ export function RecordPresentation({
   ) => ReactNode;
   hideIdentity?: boolean;
   identityInHost?: boolean;
+  identityActions?: IdentityActions;
   showOwnerReturn?: boolean;
   reading?: EmbeddedReadingContext;
   visibleOwnerRecordKey?: string;
@@ -684,6 +686,7 @@ export function RecordPresentation({
     >
       {!hideIdentity && !identityInHost && (
         <RecordPresentationIdentity
+          actions={identityActions}
           presentation={presentation}
           root={root}
           selection={selection}

@@ -146,15 +146,11 @@ test("a save that completes in an inactive desktop tab runs its close lifecycle"
     await expect(settings).toBeVisible();
     await page.keyboard.press("Control+t");
     await page.getByRole("link", { name: "Encounters", exact: true }).click();
-    await page.getByRole("button", { name: "Parties", exact: true }).click();
-    const parties = page.getByRole("dialog", { name: "Parties", exact: true });
-    await parties.getByRole("button", { name: "New Party", exact: true }).click();
-    const editor = page.getByRole("dialog", { name: "New Party", exact: true });
+    await page.getByRole("link", { name: "Parties", exact: true }).click();
+    await page.getByRole("button", { name: "New party", exact: true }).click();
+    const editor = page.getByRole("dialog", { name: "New party", exact: true });
     const name = `Pending tab party ${Date.now()}`;
     await editor.getByRole("textbox", { name: "Party name" }).fill(name);
-    await editor.getByRole("button", { name: "Add PC" }).click();
-    await editor.getByRole("textbox", { name: "PC 1 name" }).fill("Scout");
-    await editor.getByRole("spinbutton", { name: "Party level" }).fill("3");
     await page.route("**/api/parties", async (route) => {
       if (route.request().method() !== "POST") return route.continue();
       started();
@@ -163,7 +159,7 @@ test("a save that completes in an inactive desktop tab runs its close lifecycle"
       if (response.ok()) saved = await response.json();
       await route.fulfill({ response });
     });
-    await editor.getByRole("button", { name: "Save", exact: true }).click();
+    await editor.getByRole("button", { name: "Create party", exact: true }).click();
     await requestStarted;
     await page.keyboard.press("Control+Shift+Tab");
     const cancel = settings.getByRole("button", { name: "Cancel", exact: true });
@@ -178,9 +174,12 @@ test("a save that completes in an inactive desktop tab runs its close lifecycle"
     await expect(cancel).toBeFocused();
     await page.keyboard.press("Control+Tab");
     await expect(editor).toBeHidden();
-    await expect(parties.getByText(name, { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "New party", exact: true }).click();
+    await expect(editor).toBeVisible();
+    await expect(editor.getByRole("textbox", { name: "Party name" })).toHaveValue("");
     await page.keyboard.press("Escape");
-    await expect(parties).toBeHidden();
+    await expect(editor).toBeHidden();
   } finally {
     release();
     if (saved) {

@@ -14,6 +14,15 @@ pub struct AtlasRetrievalService {
     )>,
 }
 impl AtlasRetrievalService {
+    /// Whether the admitted reference corpus declares this record's pack as PF2e.
+    pub fn is_pf2e_record(&self, key: &atlas_domain::RecordKey) -> bool {
+        atlas_index::reference_pack_applies(
+            self.index.context().reference_preparation.as_ref(),
+            "pf2e",
+            key.pack().as_str(),
+        )
+    }
+
     pub fn source_fingerprint(&self) -> &str {
         &self.index.context().source_fingerprint
     }

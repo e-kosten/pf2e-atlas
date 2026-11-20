@@ -2,6 +2,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LocalStateError {
+    #[error("Character not found: {0}")]
+    CharacterNotFound(String),
+    #[error("Character changed. Review its current details before saving.")]
+    CharacterConflict,
     #[error("This encounter boundary has already been processed")]
     EncounterBoundaryConflict,
     #[error("Party not found: {0}")]

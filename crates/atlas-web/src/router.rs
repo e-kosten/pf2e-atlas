@@ -126,6 +126,19 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
             crate::parties::delete_party,
             crate::parties::update_party
         ))
+        .routes(routes!(crate::pc_reference::preview_pathbuilder_pc))
+        .routes(routes!(crate::pc_reference::save_pathbuilder_pc))
+        .routes(routes!(crate::characters::characters))
+        .routes(routes!(crate::characters::create_character))
+        .routes(routes!(crate::characters::character))
+        .routes(routes!(crate::characters::update_character))
+        .routes(routes!(crate::characters::delete_character))
+        .routes(routes!(crate::characters::add_encounter_character))
+        .routes(routes!(crate::pc_reference::save_pc_ability_link))
+        .routes(routes!(
+            crate::pc_reference::encounter_pc_reference,
+            crate::pc_reference::set_encounter_pc_reference
+        ))
         .routes(routes!(crate::handlers::readiness))
         .routes(routes!(crate::handlers::record_detail_at))
         .routes(routes!(crate::handlers::embedded_reading))

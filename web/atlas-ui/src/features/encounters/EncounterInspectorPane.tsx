@@ -1,3 +1,4 @@
+import { PcCharacterDrawer } from "../parties/PcCharacterDrawer";
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
 import { useRef, useState } from "react";
 import { InitiativeEntryEditor } from "./InitiativeEntryEditor";
@@ -710,6 +711,13 @@ function EncounterParticipantSurface({
                 : participant.participant_kind}
             </p>
             <div className="encounter-reference__actions">
+              {participant.participant_kind === "pc" && (
+                <EncounterPcReferenceButton
+                  encounterKey={encounterKey}
+                  revision={encounterRevision}
+                  participant={participant}
+                />
+              )}
               {participant.record_key && (
                 <EncounterOriginalRecord
                   recordKey={participant.record_key}
@@ -853,5 +861,41 @@ function EncounterParticipantSurface({
         />
       )}
     </section>
+  );
+}
+
+function EncounterPcReferenceButton({
+  encounterKey,
+  revision,
+  participant,
+}: {
+  encounterKey: string;
+  revision: number;
+  participant: EncounterParticipantView;
+}) {
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <Button
+        onClick={(event) => {
+          event.currentTarget.focus();
+          setOpener(event.currentTarget);
+        }}
+      >
+        View PC reference
+      </Button>
+      {opener && (
+        <PcCharacterDrawer
+          location={{
+            encounterKey,
+            participantKey: participant.participant_key,
+            revision,
+          }}
+          name={participant.display_name}
+          opener={opener}
+          onClose={() => setOpener(null)}
+        />
+      )}
+    </>
   );
 }

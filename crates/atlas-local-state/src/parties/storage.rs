@@ -24,12 +24,14 @@ pub(super) fn get(
         return Ok(None);
     };
     let mut statement = connection.prepare(
-        "SELECT member_key, name, level FROM party_members WHERE party_key=?1 ORDER BY position",
+        "SELECT c.character_key,c.name,c.level,c.revision,c.reference_payload IS NOT NULL FROM party_character_memberships m JOIN characters c USING(character_key) WHERE m.party_key=?1 AND c.owner_id=?2 ORDER BY m.position",
     )?;
     party.members = statement
-        .query_map([key], |row| {
+        .query_map(params![key, owner_id], |row| {
             Ok(PartyMember {
-                member_key: row.get(0)?,
+                character_key: row.get(0)?,
+                revision: row.get(3)?,
+                imported: row.get(4)?,
                 name: row.get(1)?,
                 level: row.get(2)?,
             })
@@ -57,19 +59,31 @@ pub(super) fn replace_members(
     owned_party_key: &str,
     members: &[PartyMemberInput],
 ) -> LocalStateResult<()> {
+    let owner: i64 = connection.query_row(
+        "SELECT owner_id FROM parties WHERE party_key=?1",
+        [owned_party_key],
+        |r| r.get(0),
+    )?;
     connection.execute(
-        "DELETE FROM party_members WHERE party_key=?1",
+        "DELETE FROM party_character_memberships WHERE party_key=?1",
         [owned_party_key],
     )?;
     for (position, member) in members.iter().enumerate() {
-        let member_key = member
-            .member_key
-            .clone()
-            .unwrap_or_else(|| new_key("member"));
-        connection.execute(
-            "INSERT INTO party_members(member_key,party_key,position,name,level) VALUES(?1,?2,?3,?4,?5)",
-            params![member_key, owned_party_key, position as i64, member.name.trim(), member.level],
+        let inserted = connection.execute(
+            "INSERT INTO party_character_memberships(party_key,character_key,position)
+             SELECT ?1,character_key,?3 FROM characters WHERE character_key=?2 AND owner_id=?4",
+            params![
+                owned_party_key,
+                member.character_key,
+                position as i64,
+                owner
+            ],
         )?;
+        if inserted == 0 {
+            return Err(crate::LocalStateError::CharacterNotFound(
+                member.character_key.clone(),
+            ));
+        }
     }
     Ok(())
 }

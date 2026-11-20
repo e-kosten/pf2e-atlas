@@ -71,6 +71,7 @@ const apiMocks = vi.hoisted(() => ({
   advanceEncounterTurn: vi.fn(),
   handleEncounterOutgoingTurn: vi.fn(),
   addEncounterManualParticipant: vi.fn(),
+  addEncounterCharacter: vi.fn(),
   addEncounterParticipantCondition: vi.fn(),
   addEncounterRecordParticipant: vi.fn(),
   createEncounter: vi.fn(),
@@ -110,6 +111,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   advanceEncounterTurn: apiMocks.advanceEncounterTurn,
   handleEncounterOutgoingTurn: apiMocks.handleEncounterOutgoingTurn,
   addEncounterManualParticipant: apiMocks.addEncounterManualParticipant,
+  addEncounterCharacter: apiMocks.addEncounterCharacter,
   addEncounterParticipantCondition: apiMocks.addEncounterParticipantCondition,
   addEncounterRecordParticipant: apiMocks.addEncounterRecordParticipant,
   createEncounter: apiMocks.createEncounter,
@@ -330,6 +332,12 @@ describe("encounter views", () => {
     vi.clearAllMocks();
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
     apiMocks.getParties.mockResolvedValue({ parties: [] });
+    apiMocks.addEncounterCharacter.mockResolvedValue({
+      encounter_key: "encounter_ambush",
+      character_key: "character_new",
+      participant_key: "participant_new",
+      available: true,
+    });
     apiMocks.getEmbeddedReading.mockImplementation(
       async ({ parent, artifact_generation }) => ({
         parent,
@@ -1409,6 +1417,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
     const add = await screen.findByRole("dialog", { name: "Add PC" });
+    fireEvent.click(within(add).getByRole("button", { name: "Enter manually" }));
     const previousId = within(add).getByLabelText("Name").id;
     fireEvent.click(within(add).getByRole("button", { name: "Cancel" }));
     fireEvent.click(await screen.findByRole("button", { name: "Encounter actions" }));
@@ -3353,6 +3362,7 @@ describe("encounter views", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Add participants" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
     const dialog = await screen.findByRole("dialog", { name: "Add PC" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     fireEvent.change(within(dialog).getByLabelText("Name"), {
       target: { value: "Mira" },
     });
@@ -3360,19 +3370,27 @@ describe("encounter views", () => {
     const initiative = within(dialog).getByLabelText("Initiative");
     for (const field of [hp, initiative]) {
       fireEvent.change(field, { target: { value: "1.5" } });
-      fireEvent.click(within(dialog).getByRole("button", { name: "OK" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add to encounter" }));
       await within(dialog).findByText(/whole number/);
-      expect(apiMocks.addEncounterManualParticipant).not.toHaveBeenCalled();
+      expect(apiMocks.addEncounterCharacter).not.toHaveBeenCalled();
       fireEvent.change(field, { target: { value: "12" } });
       fireEvent.change(field, { target: { value: "" } });
     }
-    fireEvent.click(within(dialog).getByRole("button", { name: "OK" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add to encounter" }));
     await waitFor(() =>
-      expect(apiMocks.addEncounterManualParticipant).toHaveBeenCalledExactlyOnceWith(
+      expect(apiMocks.addEncounterCharacter).toHaveBeenCalledExactlyOnceWith(
         "encounter_ambush",
-        {
-          display_name: "Mira",
-        },
+        expect.objectContaining({
+          request_id: expect.any(String),
+          expected_encounter_revision: expect.any(Number),
+          source: {
+            kind: "manual",
+            name: "Mira",
+            level: undefined,
+            max_hp: undefined,
+            initiative: undefined,
+          },
+        }),
       ),
     );
   });
@@ -3407,7 +3425,7 @@ describe("encounter views", () => {
 
   it("preserves a failed add-PC draft until a successful receipt", async () => {
     const adding = deferred<{ encounter_key: string }>();
-    apiMocks.addEncounterManualParticipant.mockReturnValueOnce(adding.promise);
+    apiMocks.addEncounterCharacter.mockReturnValueOnce(adding.promise);
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -3419,19 +3437,21 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
     const dialog = await screen.findByRole("dialog", { name: "Add PC" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     const name = within(dialog).getByLabelText("Name");
     fireEvent.change(name, { target: { value: "My PC" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "OK" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add to encounter" }));
     await waitFor(() => expect(name).toBeDisabled());
     await act(async () => adding.reject(new Error("Add unavailable")));
-    await waitFor(() => expect(name).not.toBeDisabled());
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Retry to confirm" }),
+      ).toBeEnabled(),
+    );
+    expect(name).toBeDisabled();
     expect(name).toHaveValue("My PC");
-    expect(
-      within(dialog).getByText(
-        "Couldn’t confirm this change. Check the current values before trying again.",
-      ),
-    ).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "OK" }));
+    expect(within(dialog).getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Retry to confirm" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Add PC" })).not.toBeInTheDocument(),
     );

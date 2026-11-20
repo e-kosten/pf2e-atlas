@@ -294,15 +294,20 @@ Frontend controls consume those facts without inferring cooldowns from prose.
 
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
-Saved parties are ordered reusable PC names and optional levels owned by local-state.
-App-service copies every member, including its supplied level, into independent
-manual encounter participants in one workspace write, checking the reviewed party
-revision. Unknown levels remain unknown; level changes on a party do not rewrite
-previously added PCs.
-Party edits and deletion do not affect existing encounters. Party/member identities
-are independent of names; no live HP, conditions, initiative or reference records
-are stored on parties. Web exposes party management through shared app contracts.
-Foundry import and character sheets remain separate future capabilities.
+Saved characters own their name, optional level and optional imported rule
+reference. Parties own ordered memberships and can share the same character.
+App-service copies canonical identity and level into independent encounter
+participants while linking their rules directly to the character. Party removal
+preserves characters. Character deletion detaches live rule references and
+preserves encounter combat state. Revision checks cover both membership and the
+reviewed characters.
+
+Pathbuilder import projects feats, specials and spells into stable ability
+labels and authored choices. App-service resolves names and aliases in the
+reference snapshot and projects display sections. Local-state persists the
+selected record keys and the GM’s override per ability. The browser composes the
+same rule reader in character pages and contextual encounter reading. See
+[saved-state ownership](decisions/0051-persistent-workspace.md#saved-state-ownership).
 
 Encounter difficulty is an app-service projection of planned opposition, effective
 source levels and typed hazard complexity against the encounter PC snapshot and

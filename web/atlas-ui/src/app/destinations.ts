@@ -9,6 +9,8 @@ import {
 import { encodeReadingAddress } from "./readingUrl";
 import {
   canonicalRouteSearch,
+  characterAbilitySearch,
+  type CharacterAbilityView,
   type ListIndexInput,
   type EncounterIndexInput,
 } from "./routeSearch";
@@ -164,4 +166,24 @@ export function encounterDestination(input: { slug: string }) {
 }
 export function encounterEditDestination(input: { slug: string }) {
   return linkOptions({ to: "/encounters/$slug/edit", params: { slug: input.slug } });
+}
+
+export function partiesDestination() {
+  return linkOptions({ to: "/parties" });
+}
+export function partyDestination(partyKey: string) {
+  return linkOptions({ to: "/parties/$partyKey", params: { partyKey } });
+}
+export function charactersDestination() {
+  return linkOptions({ to: "/characters" });
+}
+export function characterDestination(
+  characterKey: string,
+  view?: CharacterAbilityView,
+) {
+  return linkOptions({
+    to: "/characters/$characterKey",
+    params: { characterKey },
+    search: characterAbilitySearch(view),
+  });
 }

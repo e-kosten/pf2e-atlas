@@ -35,6 +35,9 @@
   height: 100%;
   overflow: clip;
 }
+.reference-browser[data-list-only] > .ant-splitter > .ant-splitter-bar {
+  display: none;
+}
 .reference-browser > div[hidden],
 .reference-browser [hidden] {
   display: none;
