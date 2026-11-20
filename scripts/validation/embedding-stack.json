@@ -129,7 +129,7 @@
       "version": "0.1.4"
     },
     {
-      "checksum": "3a06fb87dc7e5d56c10eea51b7151c8ebf340cbc46e5a926922fa489dc719307",
+      "checksum": "d6e9c442e21453a2bdfcfc07e6a750f12fec7cf3d00444c52aaea174a343ff5d",
       "dependencies": [
         "ahash",
         "auto_enums",
@@ -144,7 +144,7 @@
       ],
       "name": "text-splitter",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "version": "0.33.1"
+      "version": "0.33.2"
     },
     {
       "checksum": "7afbf6e88718afcc138bad01d6ccc3051dbbc3b2ce9793d8b8a3aeb610969cfc",
@@ -208,7 +208,7 @@
       "features": [
         "tokenizers"
       ],
-      "version": "=0.33.1"
+      "version": "=0.33.2"
     },
     "tokenizers": {
       "default-features": false,
