@@ -46,18 +46,22 @@ impl AtlasAppService {
             EncounterCharacterSource::Pathbuilder {
                 json,
                 expected_artifact_generation,
+                rule_links,
             } => {
                 let imported = pathbuilder::parse(json)?;
-                let digest = crate::characters::intent_digest(&(
-                    "pathbuilder",
-                    &imported.name,
-                    imported.level,
-                    &imported.reference,
-                    expected_artifact_generation,
-                ))?;
+                let digest = crate::pc_reference::import_intent_digest(
+                    &(
+                        "pathbuilder",
+                        &imported.name,
+                        imported.level,
+                        &imported.reference,
+                        expected_artifact_generation,
+                    ),
+                    rule_links,
+                )?;
                 (
                     digest,
-                    Some((imported, expected_artifact_generation.clone())),
+                    Some((imported, expected_artifact_generation.clone(), rule_links)),
                 )
             }
         };
@@ -82,11 +86,16 @@ impl AtlasAppService {
         if let Some(recovered) = recovered {
             return Ok(recovered);
         }
-        let prepared = if let Some((mut imported, expected)) = imported {
+        let prepared = if let Some((mut imported, expected, rule_links)) = imported {
+            let rule_links = rule_links.clone();
             let prepared =
                 self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
                     crate::pc_reference::require_generation(session, &expected)?;
-                    crate::pc_reference::resolve(session.retrieval(), &mut imported.reference)?;
+                    crate::pc_reference::resolve_import(
+                        session.retrieval(),
+                        &mut imported.reference,
+                        rule_links,
+                    )?;
                     Ok((imported, session.reference_revision()?))
                 })?;
             Some(prepared)

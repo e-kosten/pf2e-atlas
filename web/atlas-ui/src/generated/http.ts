@@ -678,6 +678,8 @@ export interface CharacterPartyTarget {
   party_key: string;
 }
 
+export type RecordKey = string;
+
 export type EncounterCharacterSource = {
   character_key: string;
   expected_character_revision: number;
@@ -695,6 +697,7 @@ export type EncounterCharacterSource = {
   expected_artifact_generation: string;
   json: string;
   kind: 'pathbuilder';
+  rule_links?: {[key: string]: RecordKey};
 };
 
 export interface AddEncounterCharacterRequest {
@@ -1908,8 +1911,6 @@ export interface ContentRollEncounterContext {
   participant_key: string;
   participant_revision: number;
 }
-
-export type RecordKey = string;
 
 /**
  * Product content address; persisted source addresses retain their storage vocabulary.
@@ -5194,6 +5195,8 @@ export interface RollTableRequest {
   selection: RecordSelection;
 }
 
+export type SavePathbuilderPcRequestRuleLinks = {[key: string]: RecordKey};
+
 export interface SavePathbuilderPcRequest {
   /** @nullable */
   character_key?: string | null;
@@ -5203,6 +5206,7 @@ export interface SavePathbuilderPcRequest {
   json: string;
   party?: CharacterPartyTarget | null;
   request_id: string;
+  rule_links?: SavePathbuilderPcRequestRuleLinks;
 }
 
 export interface SavePcAbilityLinkRequest {

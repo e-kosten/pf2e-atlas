@@ -50,10 +50,9 @@ function PartyRoster({ party }: { party: PartyView }) {
   const navigate = useNavigate();
   const client = useQueryClient();
   const paused = useSavedWritesPaused();
-  const [editing, setEditing] = useState<{
-    kind: "rename" | "levels";
-    party: PartyView;
-  }>();
+  type PartyEdit = { kind: "rename" | "levels"; party: PartyView };
+  const [editing, setEditing] = useState<PartyEdit>();
+  const pendingEdit = useRef<PartyEdit | null>(null);
   const actions = useRef<HTMLButtonElement>(null);
   const [manual, setManual] = useState<PartyView>();
   const [open, setOpen] = useState(false);
@@ -70,6 +69,11 @@ function PartyRoster({ party }: { party: PartyView }) {
     onSuccess: () => refreshCharacters(client),
   });
   const busy = paused || change.isPending;
+  function startEdit(kind: PartyEdit["kind"]) {
+    pendingEdit.current = { kind, party };
+    actions.current?.focus({ preventScroll: true });
+    setOpen(false);
+  }
   return (
     <section className="party-roster-pane">
       <header className="party-page-heading">
@@ -91,28 +95,24 @@ function PartyRoster({ party }: { party: PartyView }) {
             trigger="click"
             placement="bottomRight"
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={(visible) => {
+              if (!pendingEdit.current) setOpen(visible);
+            }}
+            afterOpenChange={(visible) => {
+              // The closing popover still owns Escape until its exit completes.
+              if (visible || !pendingEdit.current) return;
+              setEditing(pendingEdit.current);
+              pendingEdit.current = null;
+            }}
             content={
               <div className="party-context-actions">
-                <Button
-                  type="text"
-                  disabled={busy}
-                  onClick={() => {
-                    setOpen(false);
-                    actions.current?.focus({ preventScroll: true });
-                    setEditing({ kind: "rename", party });
-                  }}
-                >
+                <Button type="text" disabled={busy} onClick={() => startEdit("rename")}>
                   Rename party
                 </Button>
                 <Button
                   type="text"
                   disabled={busy || party.members.length === 0}
-                  onClick={() => {
-                    setOpen(false);
-                    actions.current?.focus({ preventScroll: true });
-                    setEditing({ kind: "levels", party });
-                  }}
+                  onClick={() => startEdit("levels")}
                 >
                   Set character levels…
                 </Button>

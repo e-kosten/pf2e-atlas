@@ -11,7 +11,7 @@ use atlas_domain::{RecordKey, SourceRecordSummary};
 use atlas_local_state::{Character, PcAbilityKind, PcReference};
 use atlas_runtime::{ExactRecordRead, RuntimeError, WorkspaceRead};
 use atlas_search::{AtlasRetrievalService, GetRecordsRequest, ResolveRecordRequest};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 impl AtlasAppService {
     pub fn preview_pathbuilder_pc(
@@ -66,15 +66,18 @@ impl AtlasAppService {
         request: SavePathbuilderPcRequest,
     ) -> AppServiceResult<CharacterMutationView> {
         let mut imported = pathbuilder::parse(&request.json)?;
-        let digest = crate::characters::intent_digest(&(
-            imported.name.trim(),
-            imported.level,
-            &request.party,
-            &request.expected_artifact_generation,
-            &request.character_key,
-            request.expected_character_revision,
-            &imported.reference,
-        ))?;
+        let digest = import_intent_digest(
+            &(
+                imported.name.trim(),
+                imported.level,
+                &request.party,
+                &request.expected_artifact_generation,
+                &request.character_key,
+                request.expected_character_revision,
+                &imported.reference,
+            ),
+            &request.rule_links,
+        )?;
         if request.character_key.is_none() {
             let recovered = self.with_state(|session| {
                 let characters = session.local_state()?.characters();
@@ -90,6 +93,7 @@ impl AtlasAppService {
         let expected_generation = request.expected_artifact_generation.clone();
         let refresh_key = request.character_key.clone();
         let refresh_revision = request.expected_character_revision;
+        let rule_links = request.rule_links;
         let (imported, reference_revision) =
             self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
                 require_generation(session, &expected_generation)?;
@@ -105,7 +109,7 @@ impl AtlasAppService {
                         .get_at_revision(key, expected)?;
                     preserve_choices(previous.reference, &mut imported.reference);
                 }
-                resolve(session.retrieval(), &mut imported.reference)?;
+                resolve_import(session.retrieval(), &mut imported.reference, rule_links)?;
                 Ok((imported, session.reference_revision()?))
             })?;
         self.with_write(|session| {
@@ -170,18 +174,7 @@ impl AtlasAppService {
                 expected_artifact_generation,
             } => self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
                 require_generation(session, &expected_artifact_generation)?;
-                if session
-                    .retrieval()
-                    .get_records(GetRecordsRequest {
-                        record_keys: std::slice::from_ref(&record_key),
-                    })?
-                    .records
-                    .is_empty()
-                {
-                    return Err(AppServiceError::invalid_request(
-                        "This rule is no longer available. Search again before linking it.",
-                    ));
-                }
+                require_available_rules(session.retrieval(), std::slice::from_ref(&record_key))?;
                 Ok((Some(record_key), Some(session.reference_revision()?)))
             })?,
         };
@@ -257,6 +250,62 @@ impl AtlasAppService {
         })
     }
 }
+
+pub(super) fn import_intent_digest(
+    import: &impl serde::Serialize,
+    rule_links: &BTreeMap<String, RecordKey>,
+) -> AppServiceResult<String> {
+    // Existing receipts hash the original import tuple for requests without choices.
+    if rule_links.is_empty() {
+        crate::characters::intent_digest(import)
+    } else {
+        crate::characters::intent_digest(&(import, rule_links))
+    }
+}
+
+pub(super) fn resolve_import(
+    retrieval: &AtlasRetrievalService,
+    reference: &mut PcReference,
+    mut rule_links: BTreeMap<String, RecordKey>,
+) -> AppServiceResult<()> {
+    if !rule_links.is_empty() {
+        let ability_keys: HashSet<_> = reference
+            .abilities
+            .iter()
+            .map(|ability| &ability.key)
+            .collect();
+        if rule_links.keys().any(|key| !ability_keys.contains(key)) {
+            return Err(AppServiceError::invalid_request(
+                "An ability is no longer in this export. Review the import and choose its links again.",
+            ));
+        }
+        let record_keys: Vec<_> = rule_links.values().cloned().collect();
+        require_available_rules(retrieval, &record_keys)?;
+        for ability in &mut reference.abilities {
+            if let Some(key) = rule_links.remove(&ability.key) {
+                ability.manual = Some(key);
+            }
+        }
+    }
+    resolve(retrieval, reference)
+}
+
+fn require_available_rules(
+    retrieval: &AtlasRetrievalService,
+    record_keys: &[RecordKey],
+) -> AppServiceResult<()> {
+    if !retrieval
+        .get_records(GetRecordsRequest { record_keys })?
+        .missing
+        .is_empty()
+    {
+        return Err(AppServiceError::invalid_request(
+            "A selected rule is no longer available. Search again before linking it.",
+        ));
+    }
+    Ok(())
+}
+
 fn preserve_choices(previous: Option<PcReference>, reference: &mut PcReference) {
     if let Some(previous) = previous {
         let manual: HashMap<_, _> = previous
@@ -347,10 +396,7 @@ pub(super) fn require_generation(session: &WorkspaceRead, expected: &str) -> App
     Ok(())
 }
 
-pub(super) fn resolve(
-    retrieval: &AtlasRetrievalService,
-    reference: &mut PcReference,
-) -> AppServiceResult<()> {
+fn resolve(retrieval: &AtlasRetrievalService, reference: &mut PcReference) -> AppServiceResult<()> {
     let mut resolved = HashMap::new();
     for ability in &mut reference.abilities {
         let cache_key = (ability.kind, ability.label.clone());

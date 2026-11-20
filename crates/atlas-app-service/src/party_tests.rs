@@ -354,8 +354,7 @@ fn manual_creation_retry_and_encounter_addition_are_atomic_and_owner_scoped() {
     );
 }
 
-#[test]
-fn imported_references_refresh_once_across_shared_parties_encounters_and_recovery() {
+fn pathbuilder_service() -> (tempfile::TempDir, crate::AtlasAppService) {
     use atlas_search::test_support::{
         ReferencePreparation, hash, input, record, reference_inventory_identity,
     };
@@ -380,6 +379,11 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
                 "Item",
                 json!({"_id":"testfeat00000001","type":"feat","name":"Prepared Counterspell","system":{}}),
             ),
+            record(
+                "feats",
+                "Item",
+                json!({"_id":"testfeat00000002","type":"feat","name":"Practiced Counterspell","system":{}}),
+            ),
         ],
         false,
     );
@@ -395,10 +399,144 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
         entry_keys_sha256,
     });
     crate::test_support::publish_input(&path, &index).unwrap();
+    (directory, service)
+}
 
-    let export = |level| {
-        json!({"success":true,"build":{"name":"Wizard","level":level,"feats":[["Counterspell",null,"Class Feat",2]],"specials":[],"spellCasters":[],"focus":{"arcane":{"int":{"focusSpells":["Test Focus Spell"]}}}}}).to_string()
+fn pathbuilder_export(level: i64) -> String {
+    serde_json::json!({
+        "success": true,
+        "build": {
+            "name": "Wizard", "level": level, "feats": [["Counterspell", null, "Class Feat", 2]],
+            "specials": [], "spellCasters": [],
+            "focus": {"arcane": {"int": {"focusSpells": ["Test Focus Spell"]}}}
+        }
+    })
+    .to_string()
+}
+
+#[test]
+fn imports_reviewed_rule_links_with_party_membership_and_overrides_them_on_refresh() {
+    let (_directory, service) = pathbuilder_service();
+    let json = pathbuilder_export(7);
+    let draft = service.preview_pathbuilder_pc(&json, None).unwrap();
+    let ability_key = draft.abilities[0].ability_key.clone();
+    let prepared_rule: atlas_domain::RecordKey = "feats:testfeat00000001".parse().unwrap();
+    let practiced_rule = "feats:testfeat00000002".parse().unwrap();
+    let roster = party(&service, "Party", &[]);
+    let mut request = SavePathbuilderPcRequest {
+        request_id: "import-with-links".into(),
+        json,
+        rule_links: [("unknown-ability".into(), prepared_rule.clone())].into(),
+        party: Some(CharacterPartyTarget {
+            party_key: roster.party_key.clone(),
+            expected_revision: roster.revision,
+        }),
+        expected_character_revision: None,
+        expected_artifact_generation: draft.artifact_generation.clone(),
+        character_key: None,
     };
+    assert!(service.save_pathbuilder_pc(request.clone()).is_err());
+    assert!(service.characters().unwrap().characters.is_empty());
+    assert!(service.parties().unwrap().parties[0].members.is_empty());
+
+    request.rule_links = [(ability_key.clone(), prepared_rule)].into();
+    let saved = service.save_pathbuilder_pc(request.clone()).unwrap();
+    let replay = service.save_pathbuilder_pc(request.clone()).unwrap();
+    assert_eq!(replay.character_key, saved.character_key);
+    let character = service.character(&saved.character_key).unwrap();
+    assert!(character.abilities[0].manual);
+    assert_eq!(
+        character.abilities[0].record_title.as_deref(),
+        Some("Prepared Counterspell")
+    );
+    let party = &service.parties().unwrap().parties[0];
+    assert_eq!(party.members.len(), 1);
+    assert_eq!(party.members[0].character_key, saved.character_key);
+
+    request.rule_links.insert(ability_key, practiced_rule);
+    assert!(service.save_pathbuilder_pc(request.clone()).is_err());
+    let review = service
+        .preview_pathbuilder_pc(&pathbuilder_export(8), Some(&saved.character_key))
+        .unwrap();
+    assert_eq!(review.retained_manual_count, 1);
+    let refreshed = service
+        .save_pathbuilder_pc(SavePathbuilderPcRequest {
+            request_id: "refresh-with-links".into(),
+            json: pathbuilder_export(8),
+            character_key: Some(saved.character_key.clone()),
+            expected_character_revision: review.character_revision,
+            expected_artifact_generation: review.artifact_generation,
+            party: None,
+            rule_links: request.rule_links,
+        })
+        .unwrap();
+    assert_eq!(refreshed.character_key, saved.character_key);
+    let refreshed = service.character(&refreshed.character_key).unwrap();
+    assert_eq!(refreshed.level, Some(8));
+    assert!(refreshed.abilities[0].manual);
+    assert_eq!(
+        refreshed.abilities[0].record_title.as_deref(),
+        Some("Practiced Counterspell")
+    );
+}
+
+#[test]
+fn encounter_import_rejects_unavailable_links_and_commits_valid_choices_once() {
+    let (_directory, service) = pathbuilder_service();
+    let key = encounter(&service);
+    let json = pathbuilder_export(7);
+    let draft = service.preview_pathbuilder_pc(&json, None).unwrap();
+    let ability_key = draft.abilities[0].ability_key.clone();
+    let mut request = AddEncounterCharacterRequest {
+        request_id: "encounter-import-with-links".into(),
+        expected_encounter_revision: service.encounter(&key).unwrap().revision,
+        party: None,
+        source: EncounterCharacterSource::Pathbuilder {
+            json,
+            expected_artifact_generation: draft.artifact_generation,
+            rule_links: [(
+                ability_key.clone(),
+                "feats:missing000000001".parse().unwrap(),
+            )]
+            .into(),
+        },
+    };
+    assert!(
+        service
+            .add_encounter_character(&key, request.clone())
+            .is_err()
+    );
+    assert!(service.characters().unwrap().characters.is_empty());
+    assert!(service.encounter(&key).unwrap().participants.is_empty());
+
+    if let EncounterCharacterSource::Pathbuilder { rule_links, .. } = &mut request.source {
+        rule_links.insert(ability_key, "feats:testfeat00000001".parse().unwrap());
+    }
+    let saved = service
+        .add_encounter_character(&key, request.clone())
+        .unwrap();
+    let replay = service.add_encounter_character(&key, request).unwrap();
+    assert_eq!(replay, saved);
+    assert_eq!(service.characters().unwrap().characters.len(), 1);
+    assert_eq!(service.encounter(&key).unwrap().participants.len(), 1);
+    let reference = service
+        .encounter_pc_reference(&key, &saved.participant_key)
+        .unwrap()
+        .reference
+        .unwrap();
+    assert!(reference.abilities[0].manual);
+    assert_eq!(
+        reference.abilities[0].record_title.as_deref(),
+        Some("Prepared Counterspell")
+    );
+}
+
+#[test]
+fn imported_references_refresh_once_across_shared_parties_encounters_and_recovery() {
+    use serde_json::json;
+    let (directory, service) = pathbuilder_service();
+    let path = directory.path().join("workspace.sqlite");
+    let export = pathbuilder_export;
     let draft = service.preview_pathbuilder_pc(&export(7), None).unwrap();
     assert!(draft.abilities[0].record_key.is_none());
     assert_eq!(
@@ -414,6 +552,7 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
         character_key: None,
         expected_character_revision: None,
         party: None,
+        rule_links: Default::default(),
     };
     let mut stale = request.clone();
     stale.expected_artifact_generation = "stale".into();
@@ -431,6 +570,7 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
         source: EncounterCharacterSource::Pathbuilder {
             json: export(7),
             expected_artifact_generation: draft.artifact_generation.clone(),
+            rule_links: Default::default(),
         },
         party: None,
     };
@@ -512,6 +652,7 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
             character_key: Some(linked.character_key.clone()),
             expected_character_revision: Some(linked.character_revision),
             party: None,
+            rule_links: Default::default(),
         })
         .unwrap();
     let table = service

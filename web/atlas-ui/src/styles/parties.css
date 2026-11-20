@@ -194,15 +194,18 @@
   margin-block-start: 0;
 }
 
+.pc-ability-browser {
+  min-inline-size: 0;
+  container: pc-abilities / inline-size;
+}
 .character-reference {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   align-content: start;
   gap: var(--space-group);
-  container-type: inline-size;
 }
-.character-reference--reading {
+.character-reference--split {
   grid-template-columns: minmax(15rem, 30%) minmax(0, 1fr);
 }
 .character-reference > :not(.character-reference__index, .character-reference__rule) {
@@ -219,7 +222,7 @@
   max-height: max(20rem, calc(100dvh - 15rem));
   padding-inline-end: var(--space-micro);
 }
-.character-reference--reading .character-reference__index {
+.character-reference--split .character-reference__index {
   padding-inline-end: var(--space-group);
   border-inline-end: 1px solid var(--line);
 }
@@ -235,8 +238,20 @@
   max-height: max(20rem, calc(100dvh - 15rem));
   padding-inline-start: var(--space-control);
 }
-.character-reference__back {
-  justify-self: start;
+.character-reference__prompt {
+  color: var(--muted);
+  padding-block-start: var(--space-group);
+}
+.character-reference__rule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+.character-reference__rule-actions > .ant-btn {
+  margin-block-end: var(--space-group);
+}
+.character-reference__return.ant-btn {
+  display: none;
 }
 .character-reference__sections {
   display: flex;
@@ -271,12 +286,27 @@
 .character-ability-section .ant-list .ant-list-item {
   padding-inline: var(--space-control);
 }
-.character-import,
-.character-import__groups {
+.character-import {
   width: 100%;
 }
-.character-import__groups h3 {
-  margin-block: var(--space-group) var(--space-control);
+@container pc-abilities (width < 48rem) {
+  .character-reference--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .character-reference--split .character-reference__index {
+    padding-inline-end: 0;
+    border-inline-end: 0;
+  }
+  .character-reference--reading .character-reference__index,
+  .character-reference__prompt {
+    display: none;
+  }
+  .character-reference__rule {
+    padding: 0;
+  }
+  .character-reference__return.ant-btn {
+    display: inline-flex;
+  }
 }
 @media (max-width: 767px) {
   .party-page {
@@ -313,15 +343,6 @@
   .party-roster th,
   .party-roster td {
     padding-inline: var(--space-micro);
-  }
-  .character-reference--reading {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .character-reference--reading .character-reference__index {
-    display: none;
-  }
-  .character-reference__rule {
-    padding: 0;
   }
 }
 

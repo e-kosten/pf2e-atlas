@@ -1,4 +1,6 @@
+use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -100,6 +102,8 @@ pub enum EncounterCharacterSource {
     Pathbuilder {
         json: String,
         expected_artifact_generation: String,
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        rule_links: BTreeMap<String, RecordKey>,
     },
 }
 

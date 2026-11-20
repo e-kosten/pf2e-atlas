@@ -125,8 +125,11 @@ several parties, and **Encounters → Characters** includes PCs without a party.
 
 For a Pathbuilder character, copy the text from Pathbuilder’s **Export JSON**.
 Choose **Add PC → From Pathbuilder** in the character list, a party roster or
-an encounter. Paste the JSON, choose **Continue**, review the character, then
-choose **Add character**, **Add to party** or **Add to encounter**. An encounter
+an encounter. Paste the JSON and choose **Continue**. Select an ability to read
+its matched rule. Use **Link rule…** or **Change link** to choose a link.
+Read a search result and select **Link this rule**. You can leave abilities
+unlinked and resolve them later. **Add character**, **Add to party** or
+**Add to encounter** saves the character and your chosen links. An encounter
 also saves newly entered manual PCs and imported PCs for reuse.
 
 Open a character by name to see its party memberships and grouped abilities.

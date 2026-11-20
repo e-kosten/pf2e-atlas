@@ -9,7 +9,8 @@ import {
   within,
 } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
-import { useContext, useState } from "react";
+import { AtlasApiError } from "../../api/apiError";
+import { useContext, useState, type ReactNode } from "react";
 import type {
   PcAbilityView,
   PcReferenceView,
@@ -19,12 +20,15 @@ import { SearchProfileContext } from "../../shared/search/SearchProfileContext";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
 import { CharacterReference } from "./PcCharacterDrawer";
+import { PathbuilderImport } from "./PathbuilderImport";
 
 const api = vi.hoisted(() => ({
   getCharacter: vi.fn(),
   searchPage: vi.fn(),
   getRecordDetail: vi.fn(),
   savePcAbilityLink: vi.fn(),
+  previewPathbuilderPc: vi.fn(),
+  savePathbuilderPc: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
@@ -87,7 +91,13 @@ function page(count = 1): SearchResultsPage {
     },
   };
 }
-function Harness({ ready = true }: { ready?: boolean }) {
+function Harness({
+  ready = true,
+  children,
+}: {
+  ready?: boolean;
+  children?: ReactNode;
+}) {
   const context = useContext(SearchProfileContext);
   const [client] = useState(
     () =>
@@ -103,11 +113,13 @@ function Harness({ ready = true }: { ready?: boolean }) {
             value={{ ...context, keywordSearch: ready, loading: !ready }}
           >
             <App>
-              <CharacterReference
-                location={{ kind: "character", characterKey: "pc" }}
-                name="Simon"
-                mode="page"
-              />
+              {children ?? (
+                <CharacterReference
+                  location={{ kind: "character", characterKey: "pc" }}
+                  name="Simon"
+                  mode="page"
+                />
+              )}
             </App>
           </SearchProfileContext.Provider>
         </RouterTestContext>
@@ -263,3 +275,86 @@ it("does not announce a cached empty result as final while its refresh is pendin
   });
   expect(await screen.findByRole("button", { name: recordTitle })).toBeVisible();
 });
+
+it.each(["cancel", "retry", "new generation"] as const)(
+  "stages an ambiguous rule link until import submission (%s)",
+  async (outcome) => {
+    const ambiguous = { ...ability, ambiguous: true };
+    const draft = {
+      ...character,
+      abilities: [ambiguous],
+      sections: [{ kind: "feat", label: "Feats", abilities: [ambiguous] }],
+      retained_manual_count: 0,
+      artifact_generation: "test-generation",
+    };
+    api.previewPathbuilderPc
+      .mockResolvedValueOnce(draft)
+      .mockResolvedValue({ ...draft, artifact_generation: "new-generation" });
+    api.searchPage.mockResolvedValue(page());
+    api.savePathbuilderPc
+      .mockRejectedValueOnce(
+        outcome === "new generation"
+          ? new AtlasApiError(409, "Generation changed")
+          : new Error("Response lost"),
+      )
+      .mockResolvedValueOnce({ character_key: "pc", available: true });
+    const closed = vi.fn();
+    render(
+      <Harness>
+        <PathbuilderImport onClose={closed} />
+      </Harness>,
+    );
+    fireEvent.change(screen.getByLabelText("Pathbuilder JSON"), {
+      target: { value: "{}" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByText("Multiple matches")).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Link rule for Mature Animal Companion" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: recordTitle }));
+    fireEvent.click(await screen.findByRole("button", { name: "Link this rule" }));
+    expect(await screen.findByText("1 linked · 0 unlinked")).toBeVisible();
+    expect(api.savePcAbilityLink).not.toHaveBeenCalled();
+    expect(api.savePathbuilderPc).not.toHaveBeenCalled();
+
+    if (outcome === "cancel") {
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+      await waitFor(() => expect(closed).toHaveBeenCalledOnce());
+      expect(api.savePathbuilderPc).not.toHaveBeenCalled();
+    } else if (outcome === "new generation") {
+      fireEvent.click(screen.getByRole("button", { name: "Add character" }));
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Review latest changes" }),
+      );
+      expect(
+        await screen.findByText("Atlas rules changed. Choose your draft links again."),
+      ).toBeVisible();
+      expect(screen.getByText("0 linked · 1 unlinked")).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "Add character" }));
+      await waitFor(() => expect(api.savePathbuilderPc).toHaveBeenCalledTimes(2));
+      expect(api.savePathbuilderPc.mock.calls[1][0]).toMatchObject({
+        expected_artifact_generation: "new-generation",
+      });
+      expect(api.savePathbuilderPc.mock.calls[1][0].rule_links).toBeUndefined();
+    } else {
+      fireEvent.click(screen.getByRole("button", { name: "Add character" }));
+      const retry = await screen.findByRole("button", { name: "Retry to confirm" });
+      expect(
+        screen.getByRole("button", { name: /Change link for Mature/ }),
+      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Edit import" })).toBeDisabled();
+      fireEvent.click(retry);
+      await waitFor(() => expect(api.savePathbuilderPc).toHaveBeenCalledTimes(2));
+      const firstRequest = api.savePathbuilderPc.mock.calls[0][0];
+      expect(firstRequest).toMatchObject({
+        json: "{}",
+        rule_links: { companion: recordKey },
+        expected_artifact_generation: "test-generation",
+      });
+      expect(api.savePathbuilderPc.mock.calls[1][0]).toEqual(firstRequest);
+    }
+  },
+);

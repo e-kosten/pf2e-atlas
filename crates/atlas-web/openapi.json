@@ -5118,6 +5118,15 @@
                   "pathbuilder"
                 ],
                 "type": "string"
+              },
+              "rule_links": {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/RecordKey"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
               }
             },
             "required": [
@@ -16874,6 +16883,15 @@
           },
           "request_id": {
             "type": "string"
+          },
+          "rule_links": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RecordKey"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
           }
         },
         "required": [

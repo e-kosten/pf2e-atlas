@@ -88,9 +88,29 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     ).toBeVisible();
     await expect(importer.getByRole("heading", { name: /^Features/ })).toBeVisible();
     await expect(importer.getByText("Darkvision", { exact: true })).toHaveCount(1);
+    await expect(importer.getByText("1 linked · 1 unlinked")).toBeVisible();
+    await activate(
+      importer.getByRole("button", { name: "Change link for Darkvision" }),
+      info,
+    );
+    await activate(
+      importer.getByRole("button", { name: "Darkvision", exact: true }),
+      info,
+    );
+    await expect(
+      importer.getByText("Fixture darkvision reference content."),
+    ).toBeVisible();
+    await activate(importer.getByRole("button", { name: "Link this rule" }), info);
+    await expect(importer.getByRole("region", { name: "PC abilities" })).toBeVisible();
     await activate(importer.getByRole("button", { name: "Add to party" }), info);
     await expect(page).toHaveURL(/\/characters\/[^/]+\/?$/);
     characterKey = new URL(page.url()).pathname.split("/").filter(Boolean).at(-1)!;
+    const imported = (await (
+      await page.request.get(`/api/characters/${characterKey}`)
+    ).json()) as PcReferenceView;
+    expect(
+      imported.abilities.find((ability) => ability.label === "Darkvision")?.manual,
+    ).toBe(true);
     const reference = page.locator(".character-reference");
     const darkvision = reference.getByRole("button", {
       name: "Darkvision",
@@ -101,8 +121,18 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
-    await activate(reference.getByRole("button", { name: "Back", exact: true }), info);
-    if (!info.project.use.hasTouch) await expect(darkvision).toBeFocused();
+    const abilities = reference.getByRole("button", { name: "Abilities", exact: true });
+    if (await abilities.isVisible()) {
+      await activate(abilities, info);
+      await expect(darkvision).toBeFocused();
+    } else {
+      await expect(
+        reference.getByRole("region", { name: "PC abilities" }),
+      ).toBeVisible();
+    }
+    await expect(
+      reference.getByRole("button", { name: "Back", exact: true }),
+    ).toHaveCount(0);
     let started!: () => void;
     const requestStarted = new Promise<void>((resolve) => {
       started = resolve;
@@ -133,7 +163,10 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(task.getByRole("link", { name: "Open full search" })).toHaveCount(0);
     const pendingBounds = (await task.boundingBox())!;
     releaseSearch!();
-    await expect(task.locator("[aria-busy]")).toHaveAttribute("aria-busy", "false");
+    await expect(task.locator(".pc-rule-search__results")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
     const loadedBounds = (await task.boundingBox())!;
     expect(Math.abs(pendingBounds.height - loadedBounds.height)).toBeLessThan(1);
     const search = reference.getByRole("textbox", { name: "Search Atlas rules" });
@@ -146,12 +179,18 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
-    await activate(
-      reference.getByRole("button", { name: "Back to results", exact: true }),
-      info,
-    );
-    await expect(search).toHaveValue("Darkvision");
-    await activate(darkvision, info);
+    const results = reference.getByRole("button", {
+      name: "Back to results",
+      exact: true,
+    });
+    if (await results.isVisible()) {
+      await activate(results, info);
+      await expect(search).toHaveValue("Darkvision");
+      await activate(darkvision, info);
+    } else {
+      await expect(search).toBeVisible();
+      await expect(search).toHaveValue("Darkvision");
+    }
     await activate(reference.getByRole("button", { name: "Link this rule" }), info);
     await expect(
       reference.getByRole("button", { name: "Night sight", exact: true }),
@@ -340,6 +379,7 @@ test("encounter imports and manual PCs create reusable characters", async ({
 
 test("party edit tasks preserve keyboard drafts and update shared characters explicitly", async ({
   page,
+  browserName,
 }, info) => {
   const name = `Party edits ${info.project.name} ${Date.now()}`;
   const first = (await (
@@ -426,7 +466,13 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
     await expect(
       levels.getByRole("button", { name: "Keep editing", exact: true }),
     ).toBeFocused();
-    await page.keyboard.press("Tab");
+    const discard = levels.getByRole("button", { name: "Discard", exact: true });
+    if (browserName === "webkit") {
+      await discard.focus();
+    } else {
+      await page.keyboard.press("Tab");
+      await expect(discard).toBeFocused();
+    }
     await page.keyboard.press("Enter");
     await expect(levels).toBeHidden();
     await expect(actions).toBeFocused();

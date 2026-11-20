@@ -1,5 +1,6 @@
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +37,8 @@ pub struct PathbuilderPreviewView {
 pub struct SavePathbuilderPcRequest {
     pub request_id: String,
     pub json: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub rule_links: BTreeMap<String, RecordKey>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub party: Option<crate::CharacterPartyTarget>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -128,4 +131,40 @@ pub struct PcAbilitySectionView {
     pub kind: String,
     pub label: String,
     pub abilities: Vec<PcAbilityView>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::EncounterCharacterSource;
+    use serde_json::{from_value, json, to_value};
+
+    #[test]
+    fn pathbuilder_rule_links_are_optional_and_use_record_keys() {
+        let save =
+            json!({"request_id": "import", "json": "{}", "expected_artifact_generation": "ready"});
+        let encounter =
+            json!({"kind": "pathbuilder", "json": "{}", "expected_artifact_generation": "ready"});
+        let save_request: SavePathbuilderPcRequest = from_value(save.clone()).unwrap();
+        let encounter_source: EncounterCharacterSource = from_value(encounter.clone()).unwrap();
+        assert!(save_request.rule_links.is_empty());
+        assert_eq!(to_value(save_request).unwrap(), save);
+        assert_eq!(to_value(encounter_source).unwrap(), encounter);
+
+        let links = json!({"ability-key": "feats:linked0000000001"});
+        let mut save = save;
+        save["rule_links"] = links.clone();
+        let request: SavePathbuilderPcRequest = from_value(save.clone()).unwrap();
+        assert_eq!(
+            request.rule_links["ability-key"].to_string(),
+            "feats:linked0000000001"
+        );
+        assert_eq!(to_value(request).unwrap(), save);
+        let mut encounter = encounter;
+        encounter["rule_links"] = links;
+        let source: EncounterCharacterSource = from_value(encounter.clone()).unwrap();
+        assert_eq!(to_value(source).unwrap(), encounter);
+        encounter["rule_links"] = serde_json::Value::Null;
+        assert!(from_value::<EncounterCharacterSource>(encounter).is_err());
+    }
 }

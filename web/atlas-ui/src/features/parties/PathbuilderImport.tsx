@@ -1,5 +1,5 @@
 import { isUnconfirmedMutation } from "../../api/apiError";
-import { Button, Input, List, Space, Typography } from "antd";
+import { Button, Input, Space, Typography } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
 import {
@@ -13,12 +13,15 @@ import type {
   CharacterMutationView,
   EncounterCharacterMutationView,
   PcReferenceView,
+  PcAbilityView,
+  PcAbilitySelection,
   PartyView,
 } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters } from "./characterQueries";
+import { PcAbilityBrowser } from "./PcAbilityBrowser";
 
 export function PathbuilderImport({
   party,
@@ -40,6 +43,33 @@ export function PathbuilderImport({
   const [text, setText] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [ruleLinks, setRuleLinks] = useState<
+    Record<string, { key: string; title: string }>
+  >({});
+  const [linksExpired, setLinksExpired] = useState(false);
+  const reviewedGeneration = useRef<string>(undefined);
+  const chooseLink = useMutation({
+    mutationFn: async ({
+      ability,
+      selection,
+      recordTitle,
+    }: {
+      ability: PcAbilityView;
+      selection: PcAbilitySelection;
+      recordTitle?: string;
+    }) => {
+      if (selection.kind !== "manual" || !recordTitle) return;
+      if (selection.expected_artifact_generation !== reviewedGeneration.current) {
+        throw new Error(
+          "Reference data changed. Review the character again before linking.",
+        );
+      }
+      setRuleLinks((links) => ({
+        ...links,
+        [ability.ability_key]: { key: selection.record_key, title: recordTitle },
+      }));
+    },
+  });
   const paused = useSavedWritesPaused();
   const client = useQueryClient();
   const preview = useMutation({
@@ -60,24 +90,39 @@ export function PathbuilderImport({
           : undefined,
       };
     },
-    onSuccess: () => setReviewing(true),
+    onSuccess: ({ view }) => {
+      if (reviewedGeneration.current !== view.artifact_generation) {
+        if (Object.keys(ruleLinks).length) setLinksExpired(true);
+        setRuleLinks({});
+      }
+      reviewedGeneration.current = view.artifact_generation;
+      chooseLink.reset();
+      setReviewing(true);
+    },
     retry: false,
   });
-  const submitted = useRef<NonNullable<typeof preview.data> | null>(null);
+  type ImportIntent = {
+    review: NonNullable<typeof preview.data>;
+    json: string;
+    ruleLinks: Record<string, string>;
+  };
+  const submitted = useRef<ImportIntent | null>(null);
   const save = useMutation({
     retry: false,
     mutationFn: async (
-      latest: NonNullable<typeof preview.data>,
+      latest: ImportIntent,
     ): Promise<CharacterMutationView | EncounterCharacterMutationView> => {
       submitted.current ??= latest;
-      const reviewed = submitted.current;
+      const { review: reviewed, json, ruleLinks } = submitted.current;
+      const submittedLinks = Object.keys(ruleLinks).length ? ruleLinks : undefined;
       if (encounter) {
         const added = await addEncounterCharacter(encounter.encounterKey, {
           request_id: requestId,
           expected_encounter_revision: reviewed.encounterRevision!,
           source: {
             kind: "pathbuilder",
-            json: text,
+            json,
+            rule_links: submittedLinks,
             expected_artifact_generation: reviewed.view.artifact_generation,
           },
         });
@@ -85,7 +130,8 @@ export function PathbuilderImport({
       }
       return savePathbuilderPc({
         request_id: requestId,
-        json: text,
+        json,
+        rule_links: submittedLinks,
         character_key: character?.character_key,
         expected_character_revision: reviewed.view.character_revision,
         party: reviewed.party
@@ -115,8 +161,22 @@ export function PathbuilderImport({
   });
   const uncertain = Boolean(save.error && isUnconfirmedMutation(save.error));
   const canReview = Boolean(save.error && !isUnconfirmedMutation(save.error));
-  const busy = preview.isPending || save.isPending;
+  const busy = preview.isPending || save.isPending || chooseLink.isPending;
   const draft = preview.data?.view;
+  const stageAbility = (ability: PcAbilityView): PcAbilityView => {
+    const chosen = ruleLinks[ability.ability_key];
+    return chosen
+      ? { ...ability, record_key: chosen.key, record_title: chosen.title, manual: true }
+      : ability;
+  };
+  const abilities = draft?.abilities.map(stageAbility) ?? [];
+  const linked = abilities.filter(
+    (ability) => ability.record_key && ability.record_title,
+  ).length;
+  const retainedManualCount =
+    draft?.abilities.filter(
+      (ability) => ability.manual && !ruleLinks[ability.ability_key],
+    ).length ?? 0;
   const commitLabel = character
     ? "Refresh character"
     : encounter
@@ -128,6 +188,7 @@ export function PathbuilderImport({
     <AtlasModal
       open={!closing}
       title={character ? `Refresh ${character.name}` : "Import from Pathbuilder"}
+      width={reviewing ? 1060 : undefined}
       onCancel={() => setClosing(true)}
       confirmDiscard={{
         when: () => Boolean(text.trim()),
@@ -141,7 +202,7 @@ export function PathbuilderImport({
       mask={{ closable: !busy }}
       footer={(_, { CancelBtn }) =>
         reviewing ? (
-          <Space>
+          <Space wrap>
             <CancelBtn />
             <Button
               disabled={busy || uncertain}
@@ -157,14 +218,23 @@ export function PathbuilderImport({
               loading={save.isPending}
               disabled={paused || busy || canReview}
               onClick={() => {
-                if (preview.data) save.mutate(preview.data);
+                if (!preview.data) return;
+                save.mutate(
+                  submitted.current ?? {
+                    review: preview.data,
+                    json: text,
+                    ruleLinks: Object.fromEntries(
+                      Object.entries(ruleLinks).map(([key, link]) => [key, link.key]),
+                    ),
+                  },
+                );
               }}
             >
               {uncertain ? "Retry to confirm" : commitLabel}
             </Button>
           </Space>
         ) : (
-          <Space>
+          <Space wrap>
             <CancelBtn />
             <Button
               type="primary"
@@ -194,6 +264,9 @@ export function PathbuilderImport({
               disabled={busy}
               onChange={(event) => {
                 setText(event.target.value);
+                setRuleLinks({});
+                setLinksExpired(false);
+                reviewedGeneration.current = undefined;
                 preview.reset();
                 save.reset();
               }}
@@ -243,50 +316,40 @@ export function PathbuilderImport({
                     ` · Level ${draft.previous_level}`}
                 </p>
               )}
-            {draft.retained_manual_count > 0 && (
+            {retainedManualCount > 0 && (
               <p>
-                {draft.retained_manual_count} saved{" "}
-                {draft.retained_manual_count === 1 ? "link retained" : "links retained"}
+                {retainedManualCount} saved{" "}
+                {retainedManualCount === 1 ? "link retained" : "links retained"}
               </p>
             )}
-            <p>
-              {draft.resolved_count} linked · {draft.unresolved_count} need lookup
+            <p aria-live="polite">
+              {linked} linked · {abilities.length - linked} unlinked
             </p>
-            <div className="character-import__groups">
-              {draft.sections.map((section) => (
-                <section key={section.kind}>
-                  <h3>
-                    {section.label} <span>{section.abilities.length}</span>
-                  </h3>
-                  <List
-                    size="small"
-                    dataSource={section.abilities}
-                    renderItem={(ability) => (
-                      <List.Item key={ability.ability_key}>
-                        <div>
-                          <span>
-                            {ability.label}
-                            {ability.choice && ` (${ability.choice})`}
-                          </span>
-                          {ability.record_title &&
-                            ability.record_title.trim().toLocaleLowerCase() !==
-                              ability.label.trim().toLocaleLowerCase() && (
-                              <span className="character-secondary">
-                                {ability.record_title}
-                              </span>
-                            )}
-                        </div>
-                        {!ability.record_title && (
-                          <span className="character-secondary">
-                            {ability.ambiguous ? "Choose a rule" : "Find rule"}
-                          </span>
-                        )}
-                      </List.Item>
-                    )}
-                  />
-                </section>
-              ))}
-            </div>
+            {linksExpired && (
+              <p role="status">Atlas rules changed. Choose your draft links again.</p>
+            )}
+            <PcAbilityBrowser
+              key={draft.artifact_generation}
+              doc={{
+                imported: true,
+                abilities,
+                sections: draft.sections.map((section) => ({
+                  ...section,
+                  abilities: section.abilities.map(stageAbility),
+                })),
+              }}
+              link={chooseLink}
+              linkErrorAction={
+                <Button
+                  loading={preview.isPending}
+                  onClick={() => preview.mutate(text)}
+                >
+                  Review latest changes
+                </Button>
+              }
+              blocked={busy || uncertain}
+              review
+            />
           </section>
         )}
       </Space>

@@ -14,6 +14,9 @@
   padding-block-end: var(--space-group);
   border-block-end: 1px solid var(--line);
 }
+.pc-rule-search__header > .ant-btn {
+  margin-block-end: var(--space-group);
+}
 .pc-rule-search__header h2 {
   margin: 0 0 var(--space-group);
   color: var(--heading-color);
@@ -98,15 +101,7 @@
   border-block-end: 1px solid var(--line);
   background: var(--panel);
 }
-.pc-character-drawer-root .character-reference--searching {
-  flex: 1;
-  min-block-size: 0;
-}
-.pc-character-drawer-root .pc-rule-search {
-  block-size: min(100%, 42rem);
-  min-block-size: 0;
-}
-@media (max-width: 767px) {
+@container pc-abilities (width < 48rem) {
   .character-reference--reading .pc-rule-search {
     display: none;
   }
