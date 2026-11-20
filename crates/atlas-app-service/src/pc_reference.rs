@@ -188,14 +188,27 @@ impl AtlasAppService {
             let reference = character.reference.as_mut().ok_or_else(|| {
                 AppServiceError::invalid_request("This character has no imported reference.")
             })?;
-            reference
+            let ability = reference
                 .abilities
                 .iter_mut()
                 .find(|a| a.key == ability_key)
                 .ok_or_else(|| {
                     AppServiceError::invalid_request("This ability is no longer on the character.")
-                })?
-                .manual = manual;
+                })?;
+            if manual.is_none() {
+                let unavailable = || {
+                    AppServiceError::invalid_request(
+                        "The automatic match is no longer available. Your link was kept.",
+                    )
+                };
+                let automatic = ability.automatic.as_ref().ok_or_else(unavailable)?;
+                let records =
+                    read_titles(session.exact_records(), std::slice::from_ref(automatic))?;
+                if !records.iter().any(|record| record.name.value.is_some()) {
+                    return Err(unavailable());
+                }
+            }
+            ability.manual = manual;
             let saved = characters.update(
                 key,
                 request.expected_character_revision,
@@ -452,7 +465,7 @@ pub(super) fn keys(reference: &PcReference) -> Vec<RecordKey> {
     reference
         .abilities
         .iter()
-        .filter_map(|ability| ability.record_key())
+        .flat_map(|ability| ability.manual.iter().chain(&ability.automatic))
         .filter(|key| seen.insert(*key))
         .cloned()
         .collect()
@@ -481,6 +494,10 @@ pub(super) fn abilities_view(
                 choice: ability.choice,
                 kind: ability.kind.as_str().into(),
                 manual: ability.manual.is_some(),
+                automatic_match_available: ability
+                    .automatic
+                    .as_ref()
+                    .is_some_and(|key| titles.get(key).is_some_and(Option::is_some)),
                 ambiguous: ability.ambiguous,
                 record_key,
                 record_title,

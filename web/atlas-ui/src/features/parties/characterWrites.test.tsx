@@ -154,6 +154,7 @@ it("reviews retained rule corrections and refreshes a stale revision without los
     label: "Counterspell",
     kind: "feat",
     manual: true,
+    automatic_match_available: false,
     ambiguous: false,
     record_key: "feats:prepared",
     record_title: "Counterspell (Prepared)",

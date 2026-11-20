@@ -478,6 +478,46 @@ fn imports_reviewed_rule_links_with_party_membership_and_overrides_them_on_refre
         refreshed.abilities[0].record_title.as_deref(),
         Some("Practiced Counterspell")
     );
+    assert!(!refreshed.abilities[0].automatic_match_available);
+    let restore = |ability: &PcAbilityView, character_revision| {
+        service.save_pc_ability_link(
+            &saved.character_key,
+            &ability.ability_key,
+            SavePcAbilityLinkRequest {
+                expected_character_revision: character_revision,
+                selection: PcAbilitySelection::Automatic,
+            },
+        )
+    };
+    assert!(restore(&refreshed.abilities[0], refreshed.character_revision).is_err());
+    let retained = service.character(&saved.character_key).unwrap();
+    assert_eq!(retained.character_revision, refreshed.character_revision);
+    assert_eq!(
+        retained.abilities[0].record_key,
+        refreshed.abilities[0].record_key
+    );
+
+    let linked_spell = service
+        .save_pc_ability_link(
+            &saved.character_key,
+            &retained.abilities[1].ability_key,
+            SavePcAbilityLinkRequest {
+                expected_character_revision: retained.character_revision,
+                selection: PcAbilitySelection::Manual {
+                    record_key: retained.abilities[0].record_key.clone().unwrap(),
+                    expected_artifact_generation: draft.artifact_generation,
+                },
+            },
+        )
+        .unwrap();
+    assert!(linked_spell.abilities[1].manual);
+    assert!(linked_spell.abilities[1].automatic_match_available);
+    let restored = restore(&linked_spell.abilities[1], linked_spell.character_revision).unwrap();
+    assert!(!restored.abilities[1].manual);
+    assert_eq!(
+        restored.abilities[1].record_key,
+        retained.abilities[1].record_key
+    );
 }
 
 #[test]

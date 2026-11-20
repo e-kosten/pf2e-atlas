@@ -424,9 +424,8 @@ export function ReferenceReader({
     focusMatchTarget,
   ]);
   const detail = reading.detail;
-  const selected = detail?.selected ?? reading.request?.navigation;
-  const fullNavigation = selected
-    ? readingNavigationForUrl(selected, reading.request)
+  const fullNavigation = detail
+    ? readingNavigationForUrl(detail.selected, reading.request)
     : undefined;
   const fullRoute = fullNavigation
     ? recordDestination({
@@ -444,7 +443,7 @@ export function ReferenceReader({
         tab,
       })
     : null;
-  const inIdentity = selectionActionsInIdentity && detail && showRelated;
+  const inIdentity = selectionActionsInIdentity && detail;
   const canReturnToSelection = Boolean(
     selectedRecordKey &&
     reading.request &&
@@ -458,10 +457,7 @@ export function ReferenceReader({
   const hasActions = Boolean(
     onResults ||
     status ||
-    (!footerExpanded &&
-      (reading.canGoBack ||
-        canReturnToSelection ||
-        (!showRelated && (fullRoute || (detail && recordActions))))) ||
+    (!footerExpanded && (reading.canGoBack || canReturnToSelection)) ||
     (!inIdentity && selectionActions),
   );
   const documentActions = (
@@ -529,7 +525,6 @@ export function ReferenceReader({
             {returnToSelectionLabel}
           </Button>
         )}
-        {!footerExpanded && !showRelated && documentActions}
         {!inIdentity && selectionActions}
       </Space>
     </>
@@ -553,7 +548,7 @@ export function ReferenceReader({
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
             showRelated={showRelated}
-            identityActions={showRelated && detail ? documentActions : undefined}
+            identityActions={detail ? documentActions : undefined}
             detail={detail}
             readingContext={detail && readerContext}
             loading={reading.loading}

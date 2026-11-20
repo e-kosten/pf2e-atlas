@@ -3839,6 +3839,7 @@ export type EncounterPcAssociation = {
 export interface PcAbilityView {
   ability_key: string;
   ambiguous: boolean;
+  automatic_match_available: boolean;
   choice?: string;
   kind: string;
   label: string;

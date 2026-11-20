@@ -1,7 +1,7 @@
 import { useAtlasRouter } from "../../app/router";
 import { isPrimaryActivation } from "../../app/navigation";
-import { Button, Grid, Splitter } from "antd";
-import { ArrowLeft, X } from "lucide-react";
+import { Grid, Splitter } from "antd";
+import { X } from "lucide-react";
 import { PaneIconButton } from "../ui/actions/PaneAction";
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ReferenceReader, type ReaderFooter } from "./ReferenceReader";
@@ -160,27 +160,21 @@ export function BrowseReader({
     }
   }, [readerOpen, removedSelectionKey, restoreResultsFocus, selectedRecordKey]);
   function clearSelectionAction() {
-    if (!onClearSelection || !(selectedRecordKey || reading.request)) return undefined;
-    const clear = () => {
-      onClearSelection();
-      restoreResultsFocus();
-    };
-    return returnLabel ? (
-      !narrow && (
-        <Button
-          disabled={clearSelectionDisabled}
-          icon={<ArrowLeft size={16} />}
-          onClick={clear}
-        >
-          {returnLabel}
-        </Button>
-      )
-    ) : (
+    if (
+      !onClearSelection ||
+      !(selectedRecordKey || reading.request) ||
+      (narrow && returnLabel)
+    )
+      return undefined;
+    return (
       <PaneIconButton
         label="Clear selection"
         icon={<X size={16} aria-hidden="true" />}
         disabled={clearSelectionDisabled}
-        onClick={clear}
+        onClick={() => {
+          onClearSelection();
+          restoreResultsFocus();
+        }}
       />
     );
   }
@@ -258,7 +252,7 @@ export function BrowseReader({
       showRelated={showRelated}
       active={(!narrow || readerOpen) && !listOnly}
       selectionActions={clearSelectionAction()}
-      selectionActionsInIdentity={paneHeader && !narrow && !returnLabel}
+      selectionActionsInIdentity={paneHeader && !narrow}
       renderLayout={
         narrow && !paneHeader
           ? undefined

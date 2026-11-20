@@ -141,12 +141,29 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
-    await activate(
-      reference.getByRole("button", { name: "Back to abilities", exact: true }),
-      info,
-    );
+    const backToAbilities = reference.getByRole("button", {
+      name: "Back to abilities",
+      exact: true,
+    });
+    if (info.project.name === "desktop-chromium") {
+      await expect(backToAbilities).toHaveCount(0);
+      await expect(
+        reference.getByRole("region", { name: "PC abilities" }),
+      ).toBeVisible();
+      await activate(reference.getByRole("button", { name: "Clear selection" }), info);
+    } else {
+      await activate(backToAbilities, info);
+    }
     await expect(page).toHaveURL(characterUrl);
     await expect(darkvision).toBeFocused();
+    await activate(
+      reference.getByRole("button", { name: "Link options for Darkvision" }),
+      info,
+    );
+    await expect(
+      page.getByRole("menuitem", { name: "Use automatic match" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     await filter.fill("sight");
     let started!: () => void;
     const requestStarted = new Promise<void>((resolve) => {
@@ -203,6 +220,13 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
+    const ruleIdentity = task.locator(".record-reference__header").filter({
+      has: page.getByRole("heading", { name: "Darkvision", exact: true }),
+    });
+    await expect(ruleIdentity.getByRole("button", { name: "Copy link" })).toBeVisible();
+    await expect(
+      ruleIdentity.getByRole("link", { name: "Open full page" }),
+    ).toBeVisible();
     const results = reference.getByRole("button", {
       name: "Results",
       exact: true,
@@ -219,6 +243,15 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByRole("button", { name: "Night sight", exact: true }),
     ).toBeVisible();
+    await activate(
+      reference.getByRole("button", { name: "Link options for Night sight" }),
+      info,
+    );
+    await expect(page.getByRole("menuitem", { name: "Change link" })).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: "Use automatic match" }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
     if (info.project.name === "desktop-chromium") {
       const viewport = page.viewportSize()!;
       await page.setViewportSize({ width: 500, height: 320 });

@@ -135,9 +135,9 @@ also saves newly entered manual PCs and imported PCs for reuse.
 Open a character by name to see its party memberships and grouped abilities.
 Filter abilities and select one to read its rules. **Find rule** opens a search
 for an unresolved ability. Review a match and choose **Link this rule** to save
-it. Use **Change link** to correct a match or **Use automatic match** to clear
-your choice. **Character actions → Refresh from Pathbuilder** updates the saved import
-and its live rules in linked encounters.
+it. Use **Change link** to correct a match. When the original automatic match
+is available, **Use automatic match** restores it. **Character actions → Refresh
+from Pathbuilder** updates the saved import and its live rules in linked encounters.
 
 Use the roster’s row actions to reorder or remove a character. Open **Party
 actions → Rename party** to change its name. **Set character levels…** shows

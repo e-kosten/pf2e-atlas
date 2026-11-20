@@ -56,6 +56,7 @@ pub struct PcAbilityView {
     pub kind: String,
     pub ambiguous: bool,
     pub manual: bool,
+    pub automatic_match_available: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub choice: Option<String>,

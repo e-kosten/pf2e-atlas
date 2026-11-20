@@ -11620,6 +11620,9 @@
           "ambiguous": {
             "type": "boolean"
           },
+          "automatic_match_available": {
+            "type": "boolean"
+          },
           "choice": {
             "type": "string"
           },
@@ -11644,7 +11647,8 @@
           "label",
           "kind",
           "ambiguous",
-          "manual"
+          "manual",
+          "automatic_match_available"
         ],
         "type": "object"
       },

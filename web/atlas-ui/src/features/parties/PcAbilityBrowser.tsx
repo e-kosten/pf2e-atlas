@@ -168,7 +168,7 @@ export function PcAbilityBrowser({
         <ErrorNotice
           title="Ability reference unavailable"
           error={new Error("Ability reference unavailable")}
-          action={<Button onClick={close}>Back to abilities</Button>}
+          action={<Button onClick={close}>Dismiss</Button>}
         />
       )}
       <div className="pc-ability-browser__list" hidden={finding}>
@@ -276,6 +276,8 @@ export function PcAbilityBrowser({
                         }}
                         renderItem={(ability) => {
                           const label = abilityLabel(ability);
+                          const canUseAutomatic =
+                            ability.manual && ability.automatic_match_available;
                           return (
                             <List.Item key={ability.ability_key}>
                               <div
@@ -358,7 +360,7 @@ export function PcAbilityBrowser({
                                       menu={{
                                         items: [
                                           { key: "change", label: "Change link" },
-                                          ...(ability.manual
+                                          ...(canUseAutomatic
                                             ? [
                                                 {
                                                   key: "automatic",
@@ -407,7 +409,7 @@ export function PcAbilityBrowser({
                                           ? "Find replacement"
                                           : "Find rule"}
                                       </Button>
-                                      {ability.manual && (
+                                      {canUseAutomatic && (
                                         <Button
                                           size="small"
                                           disabled={busy}

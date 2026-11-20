@@ -40,6 +40,7 @@ const ability: PcAbilityView = {
   kind: "feat",
   ambiguous: false,
   manual: false,
+  automatic_match_available: false,
 };
 const character: PcReferenceView = {
   character_key: "pc",
@@ -197,7 +198,7 @@ it("retries a failed rule search in place and restores the ability filter and op
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   expect(await screen.findByRole("link", { name: resultName })).toBeVisible();
   expect(search).toHaveValue(ability.label);
-  fireEvent.click(screen.getByRole("button", { name: "Back to abilities" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(filter).toHaveValue("Companion");
   await waitFor(() => expect(opener).toHaveFocus());
 });
@@ -265,7 +266,7 @@ it("does not announce a cached empty result as final while its refresh is pendin
   expect(
     await screen.findByText("No rules found. Try a different name."),
   ).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Back to abilities" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   let finish!: (value: SearchResultsPage) => void;
   api.searchPage.mockReturnValueOnce(
     new Promise<SearchResultsPage>((resolve) => {

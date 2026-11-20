@@ -1,5 +1,4 @@
 import { Button, Pagination, type InputRef } from "antd";
-import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../api/atlasApi";
@@ -80,9 +79,7 @@ export function AbilityRulePicker({
   return (
     <section className="ability-rule-picker" aria-label="Ability search">
       <header className="ability-rule-picker__header">
-        <Button icon={<ArrowLeft size={16} aria-hidden="true" />} onClick={onBack}>
-          Back to abilities
-        </Button>
+        <Button onClick={onBack}>Cancel</Button>
         <h2>Find rule for {label}</h2>
         <SearchEntry
           inputRef={input}
