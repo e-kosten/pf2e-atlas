@@ -63,7 +63,8 @@ try {
     $tlsCert = Join-Path $root 'localhost.crt'
     Invoke-Checked openssl @('req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
         '-keyout', $tlsKey, '-out', $tlsCert, '-subj', '/CN=Atlas disposable qualification',
-        '-addext', 'subjectAltName=IP:127.0.0.1', '-addext', 'basicConstraints=critical,CA:TRUE')
+        '-addext', 'subjectAltName=IP:127.0.0.1', '-addext', 'basicConstraints=critical,CA:FALSE',
+        '-addext', 'extendedKeyUsage=serverAuth', '-addext', 'keyUsage=critical,digitalSignature,keyEncipherment')
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
     $listener.Start()
     $port = $listener.LocalEndpoint.Port

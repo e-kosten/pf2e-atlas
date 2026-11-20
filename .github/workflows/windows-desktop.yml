@@ -152,14 +152,17 @@ jobs:
             ${{ steps.qualification.outputs.evidence }}/result.json
             ${{ steps.qualification.outputs.evidence }}/normal/*.png
             ${{ steps.qualification.outputs.evidence }}/normal/*.json
+            ${{ steps.qualification.outputs.evidence }}/normal/*.log
             ${{ steps.qualification.outputs.evidence }}/normal/failure-*.txt
             ${{ steps.qualification.outputs.evidence }}/normal/hook-error.txt
             ${{ steps.qualification.outputs.evidence }}/identity/*.png
             ${{ steps.qualification.outputs.evidence }}/identity/*.json
+            ${{ steps.qualification.outputs.evidence }}/identity/*.log
             ${{ steps.qualification.outputs.evidence }}/identity/failure-*.txt
             ${{ steps.qualification.outputs.evidence }}/identity/hook-error.txt
             ${{ steps.qualification.outputs.evidence }}/ledger/*.png
             ${{ steps.qualification.outputs.evidence }}/ledger/*.json
+            ${{ steps.qualification.outputs.evidence }}/ledger/*.log
             ${{ steps.qualification.outputs.evidence }}/ledger/failure-*.txt
             ${{ steps.qualification.outputs.evidence }}/ledger/hook-error.txt
           if-no-files-found: warn

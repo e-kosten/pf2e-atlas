@@ -25,6 +25,19 @@ const log = (event, data = {}) => {
   appendFileSync(join(root, "events.jsonl"), JSON.stringify(entry) + "\n");
   process.stdout.write(JSON.stringify(entry) + "\n");
 };
+function captureHostOutput(stream, path) {
+  let remaining = 1_048_576;
+  writeFileSync(path, "");
+  stream.on("data", (bytes) => {
+    if (remaining > 0) {
+      const retained = bytes.subarray(0, remaining);
+      appendFileSync(path, retained);
+      remaining -= retained.length;
+      if (remaining === 0) log("host-log-limit", { file: basename(path), bytes: 1_048_576 });
+    }
+    // Keep draining after the retention limit so logging cannot block the host.
+  });
+}
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: "utf8", timeout: 30_000, windowsHide: true, ...options });
   if (result.error || result.status !== 0) {
@@ -89,7 +102,14 @@ const served = new Map([
   [packagePath + ".transition.json", plan.installer + ".transition.json"],
   [packagePath + ".transition.json.sig", plan.installer + ".transition.json.sig"],
 ]);
+let transportEvents = 0;
+const transportLog = (event, data) => {
+  if (transportEvents++ < 200) log(event, data);
+};
 const server = createServer({ key: readFileSync(plan.tlsKey), cert: readFileSync(plan.tlsCert) }, (request, response) => {
+  response.once("finish", () => transportLog("release-request", {
+    method: request.method, path: request.url?.slice(0, 2048), status: response.statusCode,
+  }));
   if (request.url === "/releases/latest") {
     response.writeHead(302, { location: `https://127.0.0.1:${plan.port}/releases/tag/release/v${plan.stable}` }).end();
   } else if (request.url === "/releases/download/nightly/latest/nightly-version.txt") {
@@ -102,7 +122,15 @@ const server = createServer({ key: readFileSync(plan.tlsKey), cert: readFileSync
     response.writeHead(404).end();
   }
 });
+server.requestTimeout = 15_000;
+server.headersTimeout = 10_000;
+server.setTimeout(15_000, (socket) => socket.destroy());
+server.on("tlsClientError", (error, socket) => {
+  transportLog("release-tls-error", { code: error.code, message: error.message.slice(0, 2048) });
+  socket.destroy();
+});
 await new Promise((done, reject) => { server.once("error", reject); server.listen(plan.port, "127.0.0.1", done); });
+log("release-server-ready", { port: plan.port });
 
 async function unusedPort() {
   const socket = createTcpServer();
@@ -152,8 +180,11 @@ async function runCase(mode) {
     writeFileSync(join(root, "active-case.json"), JSON.stringify({ caseRoot, home, mode, installDirectory, cdpPort,
       targetVersion: plan.nightly, targetHostSha256: plan.targetHostSha256, targetCliSha256: plan.targetCliSha256 }));
     log("launch-old", { mode, caseRoot });
-    const child = spawn(join(installDirectory, "atlas-desktop.exe"), [], { env, cwd: home, stdio: "ignore", windowsHide: false });
+    const child = spawn(join(installDirectory, "atlas-desktop.exe"), [], { env, cwd: home, stdio: ["ignore", "pipe", "pipe"], windowsHide: false });
+    captureHostOutput(child.stdout, join(caseRoot, "host.stdout.log"));
+    captureHostOutput(child.stderr, join(caseRoot, "host.stderr.log"));
     child.on("error", (error) => log("host-error", { mode, message: String(error) }));
+    child.on("exit", (code, signal) => log("host-exit", { mode, code, signal }));
     const page = await product(plan.stable);
     const runningPath = await page.evaluate(() => window.__ATLAS_DESKTOP_SETUP__?.channel?.workspace_path);
     assert.equal(windowsPath(runningPath), windowsPath(original), "The old host did not open the isolated fixture");
