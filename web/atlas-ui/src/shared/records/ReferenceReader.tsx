@@ -50,6 +50,7 @@ type ReferenceReaderProps = {
   readerFooter?: ReaderFooter;
   positions?: BrowsePositions;
   onResults?: () => void;
+  resultsReturnLabel?: string;
   active?: boolean;
   label?: string;
   returnToSelectionLabel?: string;
@@ -73,6 +74,7 @@ export function ReferenceReader({
   readerFooter,
   positions,
   onResults,
+  resultsReturnLabel = "Results",
   active = true,
   label = "Preview",
   returnToSelectionLabel = "Return to selection",
@@ -88,6 +90,15 @@ export function ReferenceReader({
     select: ({ matches }) => matches[matches.length - 1]?.routeId,
   });
   const preview = useRecordPreview();
+  const owner = useRef(selectedRecordKey);
+  const closePreview = preview.closeForNavigation;
+  const previewOpen = preview.destination !== null;
+  const hasRequest = reading.request !== null;
+  useLayoutEffect(() => {
+    const changed = owner.current !== selectedRecordKey;
+    owner.current = selectedRecordKey;
+    if (previewOpen && (changed || !active || !hasRequest)) closePreview();
+  }, [active, closePreview, hasRequest, previewOpen, selectedRecordKey]);
   const { mode, tab } = useRecordExploreLocation();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
@@ -305,7 +316,6 @@ export function ReferenceReader({
     // or asynchronously fetched embedded ability has rendered the exact target.
   }, [active, reading.detail, reading.landing, reading.request, restorePosition]);
   const hasResults = onResults !== undefined;
-  const hasRequest = reading.request !== null;
   const focusResultsButton = useEffectEvent(() => {
     if (footerExpanded) return;
     const focused = backRef.current?.ownerDocument.activeElement;
@@ -490,7 +500,7 @@ export function ReferenceReader({
       <div className="reference-reader__heading">
         {onResults ? (
           <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
-            Results
+            {resultsReturnLabel}
           </Button>
         ) : !renderLayout ? (
           <Typography.Text type="secondary">{label}</Typography.Text>

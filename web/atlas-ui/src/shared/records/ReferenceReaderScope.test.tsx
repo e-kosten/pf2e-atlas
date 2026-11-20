@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider } from "antd";
 import { getDefinitionDetail, getRecordDetail } from "../../api/atlasApi";
@@ -93,12 +100,14 @@ it("keeps selected-reader child references, owner suppression and source actions
   );
   vi.mocked(getDefinitionDetail).mockResolvedValue(trait);
   const actions = vi.fn((record) => <button>Reader action {record.title}</button>);
+  let clearReading: () => void;
   function SelectedReader() {
     const reading = useReferenceReading({ navigation: rootNavigation("actors:ghoul") });
+    clearReading = () => reading.select(null);
     return (
       <ReferenceReader
         reading={reading}
-        selectedRecordKey="actors:ghoul"
+        selectedRecordKey={reading.request?.navigation.record_key ?? null}
         recordActions={actions}
         showRelated={false}
       />
@@ -160,6 +169,9 @@ it("keeps selected-reader child references, owner suppression and source actions
   expect(within(drawer).queryByRole("button", { name: "Global action" })).toBeNull();
   expect(screen.getAllByRole("dialog")).toHaveLength(1);
   expect(screen.getByRole("heading", { name: "Ghoul" })).toBeVisible();
+  // A route change can clear the selected record while its nested preview is still open.
+  await act(async () => clearReading());
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });
 
 it("preserves the standalone visible root owner when its scoped Host is nested under the app fallback", async () => {

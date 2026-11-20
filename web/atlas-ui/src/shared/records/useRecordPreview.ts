@@ -1,4 +1,3 @@
-import { rootNavigation } from "./useReferenceReading";
 import { useDismissOnReadingNavigation } from "../ui/overlays/useDismissOnReadingNavigation";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { RecordContextError } from "./recordContextError";
@@ -321,12 +320,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   useDismissOnReadingNavigation(destination !== null, closeForNavigation);
 
   const openFrame = useCallback(
-    (next: ReadingFrame, anchor?: HTMLElement, replace = false) => {
-      if (replace) {
-        setHistory([]);
-        opener.current = anchor ?? null;
-        setAnchor(anchor ?? null);
-      } else if (frame && !sameDocument(frame, next)) {
+    (next: ReadingFrame, anchor?: HTMLElement) => {
+      if (frame && !sameDocument(frame, next)) {
         const bookmark = previewBookmark(anchor);
         setHistory((prior) =>
           [
@@ -390,21 +385,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     [encounterContext, openFrame],
   );
 
-  // Selecting a different row starts a new reading session.
-  const selectRecord = useCallback(
-    (key: string, anchor?: HTMLElement, selection?: RecordNavigationView) => {
-      openFrame(
-        {
-          destination: { kind: "record", navigation: selection ?? rootNavigation(key) },
-          selection,
-        },
-        anchor,
-        true,
-      );
-    },
-    [openFrame],
-  );
-
   const openHelp: ReferenceHelpHandler = useCallback(
     (help, anchor, generation, finishOwner) => {
       const destination = help.destination;
@@ -444,7 +424,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       : help,
     definition: standalone ? definition.data : undefined,
     openHelp,
-    selectRecord,
     detail: requestedContext
       ? contextualError || reloadState
         ? undefined

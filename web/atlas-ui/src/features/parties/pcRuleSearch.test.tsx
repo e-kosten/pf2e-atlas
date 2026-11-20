@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { App, ConfigProvider } from "antd";
+import { App, ConfigProvider, Grid } from "antd";
 import { AtlasApiError } from "../../api/apiError";
 import { useContext, useState, type ReactNode } from "react";
 import type {
@@ -55,6 +55,7 @@ const character: PcReferenceView = {
 };
 const recordKey = "feats:companion0000001";
 const recordTitle = "Mature Animal Companion (Ranger)";
+const resultName = /^Mature Animal Companion \(Ranger\)/;
 function page(count = 1): SearchResultsPage {
   return {
     search_content: "all",
@@ -132,7 +133,10 @@ beforeEach(() => {
   api.getCharacter.mockResolvedValue(character);
   api.getRecordDetail.mockResolvedValue(detailFixture(recordKey, recordTitle));
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 it("keeps the linking task visible through preparing, loading, populated and empty searches", async () => {
   let finish!: (value: SearchResultsPage) => void;
@@ -159,13 +163,13 @@ it("keeps the linking task visible through preparing, loading, populated and emp
   await act(async () => {
     finish(page());
   });
-  expect(await task.findByRole("button", { name: recordTitle })).toBeVisible();
+  expect(await task.findByRole("link", { name: resultName })).toBeVisible();
   expect(task.getByText("Player Core")).toBeVisible();
-  expect(task.getByText("Feat Level 6")).toBeVisible();
+  expect(task.getByText("Feat 6")).toBeVisible();
   api.searchPage.mockResolvedValueOnce(page(0));
-  const input = task.getByRole("textbox", { name: "Search Atlas rules" });
+  const input = task.getByRole("searchbox", { name: "Search Atlas rules" });
   fireEvent.change(input, { target: { value: "Another name" } });
-  fireEvent.click(task.getByRole("button", { name: "Search" }));
+  fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
   expect(await task.findByText("No rules found. Try a different name.")).toBeVisible();
   expect(input).toHaveValue("Another name");
   expect(api.searchPage).toHaveBeenLastCalledWith(
@@ -189,9 +193,9 @@ it("retries a failed rule search in place and restores the ability filter and op
   });
   fireEvent.click(opener);
   expect(await screen.findByText("Could not search Atlas")).toBeVisible();
-  const search = screen.getByRole("textbox", { name: "Search Atlas rules" });
+  const search = screen.getByRole("searchbox", { name: "Search Atlas rules" });
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  expect(await screen.findByRole("button", { name: recordTitle })).toBeVisible();
+  expect(await screen.findByRole("link", { name: resultName })).toBeVisible();
   expect(search).toHaveValue(ability.label);
   fireEvent.click(screen.getByRole("button", { name: "Back to abilities" }));
   expect(filter).toHaveValue("Companion");
@@ -199,6 +203,7 @@ it("retries a failed rule search in place and restores the ability filter and op
 });
 
 it("returns from a candidate to the same query and result, then saves the guarded rule link", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: false });
   api.searchPage.mockResolvedValue(page());
   const linkedAbility = {
     ...ability,
@@ -219,11 +224,11 @@ it("returns from a candidate to the same query and result, then saves the guarde
   fireEvent.click(
     await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
   );
-  const result = await screen.findByRole("button", { name: recordTitle });
-  fireEvent.click(result);
+  const result = await screen.findByRole("link", { name: resultName });
+  fireEvent.keyDown(result, { key: "Enter" });
   expect(await screen.findByRole("button", { name: "Link this rule" })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Back to results" }));
-  expect(screen.getByRole("textbox", { name: "Search Atlas rules" })).toHaveValue(
+  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  expect(screen.getByRole("searchbox", { name: "Search Atlas rules" })).toHaveValue(
     ability.label,
   );
   await waitFor(() => expect(result).toHaveFocus());
@@ -273,7 +278,7 @@ it("does not announce a cached empty result as final while its refresh is pendin
   await act(async () => {
     finish(page());
   });
-  expect(await screen.findByRole("button", { name: recordTitle })).toBeVisible();
+  expect(await screen.findByRole("link", { name: resultName })).toBeVisible();
 });
 
 it.each(["cancel", "retry", "new generation"] as const)(
@@ -313,7 +318,7 @@ it.each(["cancel", "retry", "new generation"] as const)(
     fireEvent.click(
       screen.getByRole("button", { name: "Link rule for Mature Animal Companion" }),
     );
-    fireEvent.click(await screen.findByRole("button", { name: recordTitle }));
+    fireEvent.click(await screen.findByRole("link", { name: resultName }));
     fireEvent.click(await screen.findByRole("button", { name: "Link this rule" }));
     expect(await screen.findByText("1 linked · 0 unlinked")).toBeVisible();
     expect(api.savePcAbilityLink).not.toHaveBeenCalled();

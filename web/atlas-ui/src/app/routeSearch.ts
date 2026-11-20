@@ -23,6 +23,7 @@ export type RouteSearchKind =
   | "trait"
   | "definition"
   | "lists"
+  | "character"
   | "encounters"
   | "empty";
 export type ListIndexInput = {
@@ -91,6 +92,33 @@ export function encounterIndexSearch(
   return { view: value === "archived" ? "archived" : "active" };
 }
 
+export type CharacterAbilityView = {
+  kind: "read" | "find";
+  abilityKey: string;
+  query?: string;
+};
+
+export function characterAbilityView(
+  search: AtlasSearchParams,
+): CharacterAbilityView | null {
+  const abilityKey = singleton(search, "ability")?.trim();
+  const kind = singleton(search, "view");
+  if (kind !== undefined && kind !== "read" && kind !== "find")
+    throw new RouteSearchError("view");
+  if (!abilityKey || !kind) return null;
+  const query = kind === "find" ? singleton(search, "q")?.trim() : undefined;
+  return { kind, abilityKey, query };
+}
+
+export function characterAbilitySearch(
+  view?: CharacterAbilityView | null,
+): AtlasSearchParams {
+  if (!view) return {};
+  const search: AtlasSearchParams = { ability: view.abilityKey, view: view.kind };
+  if (view.kind === "find" && view.query !== undefined) search.q = view.query.trim();
+  return search;
+}
+
 function readingSearch(search: AtlasSearchParams): AtlasSearchParams {
   validateReadingSearch(search);
   const selected = selectedNavigation(search, "");
@@ -131,6 +159,7 @@ export function canonicalRouteSearch(
   if (failedFilterTransport(kind, search)) return search;
   const result: AtlasSearchParams = {};
   if (kind === "empty") return result;
+  if (kind === "character") return characterAbilitySearch(characterAbilityView(search));
   if (kind === "lists") {
     const state = listIndexSearch(search);
     if (state.query) result.q = state.query;

@@ -93,10 +93,9 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       importer.getByRole("button", { name: "Change link for Darkvision" }),
       info,
     );
-    await activate(
-      importer.getByRole("button", { name: "Darkvision", exact: true }),
-      info,
-    );
+    const importResult = importer.getByRole("link", { name: /^Darkvision\b/ });
+    if (info.project.use.hasTouch) await activate(importResult, info);
+    else await importResult.press("Enter");
     await expect(
       importer.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
@@ -111,28 +110,44 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     expect(
       imported.abilities.find((ability) => ability.label === "Darkvision")?.manual,
     ).toBe(true);
-    const reference = page.locator(".character-reference");
+    const reference = page.locator(".pc-ability-browser");
     const darkvision = reference.getByRole("button", {
       name: "Darkvision",
       exact: true,
     });
     await expect(reference.getByRole("heading", { name: /^Features/ })).toBeVisible();
+    const filter = reference.getByRole("textbox", { name: "Find an ability" });
+    await filter.fill("Darkvision");
+    const characterUrl = page.url();
+    const shell = page.locator("#atlas-main");
+    expect(
+      await shell.evaluate((node) => node.scrollHeight - node.clientHeight),
+    ).toBeLessThanOrEqual(1);
     await activate(darkvision, info);
+    await expect(page).toHaveURL(/\?ability=/);
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
-    const abilities = reference.getByRole("button", { name: "Abilities", exact: true });
-    if (await abilities.isVisible()) {
-      await activate(abilities, info);
-      await expect(darkvision).toBeFocused();
-    } else {
-      await expect(
-        reference.getByRole("region", { name: "PC abilities" }),
-      ).toBeVisible();
-    }
+    expect(
+      await shell.evaluate((node) => node.scrollHeight - node.clientHeight),
+    ).toBeLessThanOrEqual(1);
+    const abilityUrl = page.url();
+    await page.goBack();
+    await expect(page).toHaveURL(characterUrl);
+    await expect(filter).toHaveValue("Darkvision");
+    await expect(darkvision).toBeFocused();
+    await page.goForward();
+    await expect(page).toHaveURL(abilityUrl);
     await expect(
-      reference.getByRole("button", { name: "Back", exact: true }),
-    ).toHaveCount(0);
+      reference.getByText("Fixture darkvision reference content."),
+    ).toBeVisible();
+    await activate(
+      reference.getByRole("button", { name: "Back to abilities", exact: true }),
+      info,
+    );
+    await expect(page).toHaveURL(characterUrl);
+    await expect(darkvision).toBeFocused();
+    await filter.fill("sight");
     let started!: () => void;
     const requestStarted = new Promise<void>((resolve) => {
       started = resolve;
@@ -163,30 +178,39 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(task.getByRole("link", { name: "Open full search" })).toHaveCount(0);
     const pendingBounds = (await task.boundingBox())!;
     releaseSearch!();
-    await expect(task.locator(".pc-rule-search__results")).toHaveAttribute(
+    await expect(task.locator(".reference-results__scroll")).toHaveAttribute(
       "aria-busy",
       "false",
     );
     const loadedBounds = (await task.boundingBox())!;
     expect(Math.abs(pendingBounds.height - loadedBounds.height)).toBeLessThan(1);
-    const search = reference.getByRole("textbox", { name: "Search Atlas rules" });
+    const search = reference.getByLabel("Search Atlas rules");
     await search.fill("Darkvision");
-    await activate(
-      reference.getByRole("button", { name: "Search", exact: true }),
-      info,
-    );
-    await activate(darkvision, info);
+    await search.press("Enter");
+    await expect(page).toHaveURL(/q=Darkvision/);
+    const lookupUrl = page.url();
+    await page.goBack();
+    await expect(page).toHaveURL(characterUrl);
+    await expect(filter).toHaveValue("sight");
+    await expect(
+      reference.getByRole("button", { name: "Search for Night sight" }),
+    ).toBeFocused();
+    await page.goForward();
+    await expect(page).toHaveURL(lookupUrl);
+    await expect(search).toHaveValue("Darkvision");
+    const result = task.getByRole("link", { name: /^Darkvision\b/ });
+    await activate(result, info);
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
     const results = reference.getByRole("button", {
-      name: "Back to results",
+      name: "Results",
       exact: true,
     });
     if (await results.isVisible()) {
       await activate(results, info);
       await expect(search).toHaveValue("Darkvision");
-      await activate(darkvision, info);
+      await activate(result, info);
     } else {
       await expect(search).toBeVisible();
       await expect(search).toHaveValue("Darkvision");
@@ -195,6 +219,25 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByRole("button", { name: "Night sight", exact: true }),
     ).toBeVisible();
+    if (info.project.name === "desktop-chromium") {
+      const viewport = page.viewportSize()!;
+      await page.setViewportSize({ width: 500, height: 320 });
+      await filter.fill("Darkvision");
+      await activate(darkvision, info);
+      const ruleText = reference.getByText("Fixture darkvision reference content.");
+      await ruleText.scrollIntoViewIfNeeded();
+      await expect(ruleText).toBeInViewport();
+      expect(
+        await reference
+          .locator(".reference-reader__scroll")
+          .evaluate((node) => node.scrollHeight - node.clientHeight),
+      ).toBeLessThanOrEqual(1);
+      await activate(
+        reference.getByRole("button", { name: "Back to abilities", exact: true }),
+        info,
+      );
+      await page.setViewportSize(viewport);
+    }
     const saved = (await (
       await page.request.get(`/api/characters/${characterKey}`)
     ).json()) as PcReferenceView;

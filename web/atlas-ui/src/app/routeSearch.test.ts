@@ -3,6 +3,7 @@ import { encodeFilterUrl } from "../shared/filters/filterUrl";
 import { createAtlasRouter } from "./router";
 import {
   canonicalRouteSearch,
+  characterAbilityView,
   routeSearch,
   searchPage,
   listIndexSearch,
@@ -10,6 +11,7 @@ import {
 } from "./routeSearch";
 import { parseSearchParams, stringifySearchParams } from "./urlState";
 import {
+  characterDestination,
   recordDestination,
   searchDestination,
   listDestination,
@@ -350,4 +352,20 @@ it("drops retired trait scope while retaining ordinary Search parameters", () =>
   expect(
     canonicalRouteSearch("search", { trait_refs: "trait:fire", q: " flame ", filter }),
   ).toEqual({ q: "flame", filter });
+});
+
+it("preserves an explicitly cleared character lookup across URL serialization", () => {
+  const router = createAtlasRouter();
+  const find = { kind: "find", abilityKey: "feature:one" } as const;
+  const destination = characterDestination("pc", { ...find, query: "" });
+  const href = router.buildLocation(destination).href;
+  expect(href).toContain("&q=");
+  const search = parseSearchParams(new URL(href, "http://atlas.test").search);
+  expect(characterAbilityView(canonicalRouteSearch("character", search))).toEqual({
+    ...find,
+    query: "",
+  });
+  expect(
+    characterAbilityView(characterDestination("pc", find).search)?.query,
+  ).toBeUndefined();
 });

@@ -20,6 +20,7 @@ export function RecordBrowseSummary({
   context,
   qualifiers,
   searchCard = false,
+  previewOnEnter = false,
 }: {
   record: RecordSummaryView;
   selected: boolean;
@@ -29,6 +30,7 @@ export function RecordBrowseSummary({
   context?: ReactNode;
   qualifiers?: string[];
   searchCard?: boolean;
+  previewOnEnter?: boolean;
 }) {
   const atlasRouter = useAtlasRouter();
   const classification = [
@@ -97,9 +99,11 @@ export function RecordBrowseSummary({
         onPreview(event.currentTarget);
       }}
       onKeyDown={(event) => {
+        if (disabled) return;
         if (event.key === "Enter" && isPrimaryActivation(event)) {
           event.preventDefault();
-          navigatePath(recordHref, atlasRouter);
+          if (previewOnEnter) onPreview(event.currentTarget);
+          else navigatePath(recordHref, atlasRouter);
           return;
         }
         if (event.key === " " && isPrimaryActivation(event)) {

@@ -17,7 +17,7 @@ import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
 import { refreshCharacters, useCharacters } from "./characterQueries";
-import { PcAbilityBrowser } from "./PcAbilityBrowser";
+import { PcAbilityBrowser, type AbilityNavigation } from "./PcAbilityBrowser";
 
 type CharacterLocation = { kind: "character"; characterKey: string };
 type EncounterLocation = {
@@ -37,6 +37,7 @@ export function CharacterReference({
   opener,
   onClose,
   onRefresh,
+  navigation,
   mode = "drawer",
 }: {
   location: Location;
@@ -44,6 +45,7 @@ export function CharacterReference({
   opener?: HTMLElement | null;
   onClose?: () => void;
   mode?: "page" | "drawer";
+  navigation?: AbilityNavigation;
   onRefresh?: () => void;
 }) {
   const client = useQueryClient();
@@ -139,6 +141,7 @@ export function CharacterReference({
       )}
       <PcAbilityBrowser
         key={doc?.character_key}
+        navigation={navigation}
         doc={doc}
         link={save}
         blocked={paused || attach.isPending}
@@ -257,7 +260,13 @@ export function CharacterReference({
       classNames={{ root: "pc-character-drawer-root" }}
       styles={{
         root: { overflow: "hidden", pointerEvents: "auto" },
-        body: { display: "flex", flexDirection: "column", gap: 12, minHeight: 0 },
+        body: {
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          minHeight: 0,
+          overflow: "hidden",
+        },
       }}
       drawerRender={(content) => (
         <ConfigProvider getPopupContainer={getPopupContainer}>{content}</ConfigProvider>

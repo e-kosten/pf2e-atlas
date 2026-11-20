@@ -189,6 +189,7 @@ export function PathbuilderImport({
       open={!closing}
       title={character ? `Refresh ${character.name}` : "Import from Pathbuilder"}
       width={reviewing ? 1060 : undefined}
+      layout={reviewing ? "browse" : "form"}
       onCancel={() => setClosing(true)}
       confirmDiscard={{
         when: () => Boolean(text.trim()),
@@ -251,7 +252,11 @@ export function PathbuilderImport({
         )
       }
     >
-      <Space orientation="vertical" size="middle" className="character-import">
+      <div
+        className={
+          reviewing ? "character-import character-import--review" : "character-import"
+        }
+      >
         {!reviewing && (
           <div>
             <label htmlFor={textareaId}>Pathbuilder JSON</label>
@@ -303,7 +308,7 @@ export function PathbuilderImport({
           </p>
         )}
         {reviewing && draft && (
-          <section aria-label="Import review">
+          <section className="character-import-review" aria-label="Import review">
             <Typography.Title level={4}>
               {draft.name} · Level {draft.level}
             </Typography.Title>
@@ -352,7 +357,7 @@ export function PathbuilderImport({
             />
           </section>
         )}
-      </Space>
+      </div>
     </AtlasModal>
   );
 }
