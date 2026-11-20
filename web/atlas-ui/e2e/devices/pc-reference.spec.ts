@@ -35,7 +35,43 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
   try {
     await page.goto("/encounters");
     await activate(page.getByRole("link", { name: "Parties", exact: true }), info);
-    await activate(page.locator(`a[href="/parties/${party.party_key}"]`), info);
+    const directory = page.getByRole("navigation", {
+      name: "Parties",
+      includeHidden: true,
+    });
+    const mountedDirectory = await directory.elementHandle();
+    const chooseParty = () =>
+      activate(page.locator(`a[href="/parties/${party.party_key}"]`), info);
+    await chooseParty();
+    await expect(
+      page.getByRole("heading", { name: party.name, exact: true }),
+    ).toBeVisible();
+    expect(
+      await directory.evaluate((node, original) => node === original, mountedDirectory),
+    ).toBe(true);
+    const backToParties = page.getByRole("link", { name: "Back to parties" });
+    if ((page.viewportSize()?.width ?? 0) < 768) {
+      await expect(directory).toBeHidden();
+      await activate(backToParties, info);
+      await expect(
+        page.getByRole("heading", { name: "Parties", exact: true }),
+      ).toBeVisible();
+      await expect(page.locator(`a[href="/parties/${party.party_key}"]`)).toBeFocused();
+      await chooseParty();
+    } else {
+      await activate(page.locator(`a[href="/parties/${second.party_key}"]`), info);
+      await expect(
+        page.getByRole("heading", { name: second.name, exact: true }),
+      ).toBeVisible();
+      await chooseParty();
+      expect(
+        await directory.evaluate(
+          (node, original) => node === original,
+          mountedDirectory,
+        ),
+      ).toBe(true);
+    }
+    await noPageOverflow(page);
     await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
     await activate(page.getByRole("menuitem", { name: "From Pathbuilder" }), info);
     const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
@@ -142,6 +178,13 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(
       reference.getByRole("button", { name: "Night sight", exact: true }),
     ).toBeVisible();
+    await page.goBack();
+    await expect(
+      page.getByRole("heading", { name: second.name, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.locator(`a[href="/parties/${second.party_key}"]`),
+    ).toHaveAttribute("aria-current", "page");
     await page.goto(`/encounters/${encounter.slug}`);
     await activate(
       page.getByRole("button", { name: "Add participants", exact: true }),

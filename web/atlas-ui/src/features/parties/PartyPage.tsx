@@ -15,8 +15,7 @@ import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDanger
 import { AddCharacter } from "./AddCharacter";
 import { CharacterEditor } from "./CharacterEditor";
 import { refreshCharacters } from "./characterQueries";
-import { memberCount, PartyDirectory } from "./PartiesPage";
-import { PartyNavigation } from "./PartyNavigation";
+import { memberCount } from "./PartiesPage";
 import { RenameParty, SetPartyLevels } from "./PartyEditors";
 import { useParties } from "./useParties";
 
@@ -31,29 +30,20 @@ export function PartyPage({ partyKey }: { partyKey: string }) {
   const query = useParties();
   const party = query.data?.parties.find((p) => p.party_key === partyKey);
   usePageTitle(party?.name ?? "Party");
-  return (
-    <div className="party-page">
-      <PartyNavigation active="parties" />
-      {query.error && (
-        <ErrorNotice
-          title="Parties could not load"
-          error={query.error}
-          action={<Button onClick={() => void query.refetch()}>Retry</Button>}
-        />
-      )}
-      {query.isPending && <p role="status">Loading party…</p>}
-      {query.data && (
-        <div className="party-workspace">
-          <PartyDirectory selected={partyKey} parties={query.data.parties} />
-          {party ? (
-            <PartyRoster key={partyKey} party={party} />
-          ) : (
-            <p>Party unavailable.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return party ? (
+    <PartyRoster key={partyKey} party={party} />
+  ) : query.data ? (
+    <section className="party-selection-prompt">
+      <h2 data-party-title tabIndex={-1}>
+        Party unavailable
+      </h2>
+      <p>
+        {query.data.parties.length
+          ? "Choose another party from the list."
+          : "Create a party to get started."}
+      </p>
+    </section>
+  ) : null;
 }
 
 function PartyRoster({ party }: { party: PartyView }) {
@@ -84,7 +74,9 @@ function PartyRoster({ party }: { party: PartyView }) {
     <section className="party-roster-pane">
       <header className="party-page-heading">
         <div>
-          <h1>{party.name}</h1>
+          <h2 data-party-title tabIndex={-1}>
+            {party.name}
+          </h2>
           <span className="character-secondary">
             {memberCount(party.members.length)}
           </span>

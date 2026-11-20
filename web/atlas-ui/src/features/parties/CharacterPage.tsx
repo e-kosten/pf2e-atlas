@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { deleteCharacter } from "../../api/atlasApi";
-import { charactersDestination } from "../../app/destinations";
+import { charactersDestination, partiesDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -11,7 +11,7 @@ import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { CharacterEditor } from "./CharacterEditor";
 import { CharacterMemberships } from "./CharactersPage";
 import { refreshCharacters, useCharacter } from "./characterQueries";
-import { PartyNavigation } from "./PartyNavigation";
+import { AtlasButtonLink } from "../../app/AtlasLink";
 import { CharacterReference } from "./PcCharacterDrawer";
 import { PathbuilderImport } from "./PathbuilderImport";
 import type { PcReferenceView } from "../../generated/atlas";
@@ -21,7 +21,10 @@ export function CharacterPage({ characterKey }: { characterKey: string }) {
   usePageTitle(query.data?.name ?? "Character");
   return (
     <div className="party-page">
-      <PartyNavigation active="characters" />
+      <div className="character-directory-actions">
+        <AtlasButtonLink {...charactersDestination()}>Characters</AtlasButtonLink>
+        <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
+      </div>
       {query.error && (
         <ErrorNotice
           title="Character could not load"

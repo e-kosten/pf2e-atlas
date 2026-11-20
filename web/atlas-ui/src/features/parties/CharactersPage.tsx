@@ -1,13 +1,16 @@
 import { Button } from "antd";
 import { useNavigate } from "@tanstack/react-router";
-import { AtlasLink } from "../../app/AtlasLink";
-import { characterDestination, partyDestination } from "../../app/destinations";
+import { AtlasButtonLink, AtlasLink } from "../../app/AtlasLink";
+import {
+  characterDestination,
+  partiesDestination,
+  partyDestination,
+} from "../../app/destinations";
 import type { CharacterPartyView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { AddCharacter } from "./AddCharacter";
 import { useCharacters } from "./characterQueries";
-import { PartyNavigation } from "./PartyNavigation";
 
 export function CharacterMemberships({ parties }: { parties: CharacterPartyView[] }) {
   return parties.length ? (
@@ -29,10 +32,12 @@ export function CharactersPage() {
   const navigate = useNavigate();
   return (
     <div className="party-page">
-      <PartyNavigation active="characters" />
       <div className="party-page-heading">
         <h1>Characters</h1>
-        <AddCharacter onSaved={(key) => void navigate(characterDestination(key))} />
+        <div className="party-heading-actions">
+          <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
+          <AddCharacter onSaved={(key) => void navigate(characterDestination(key))} />
+        </div>
       </div>
       {query.error && (
         <ErrorNotice

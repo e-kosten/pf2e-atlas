@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as PartiesRouteImport } from './routes/parties'
 import { Route as CharactersIndexRouteImport } from './routes/characters.index'
 import { Route as DefinitionsDefinitionKeyRouteImport } from './routes/definitions.$definitionKey'
 import { Route as EncountersIndexRouteImport } from './routes/encounters.index'
@@ -41,6 +42,11 @@ const SplatRoute = SplatRouteImport.update({
   path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartiesRoute = PartiesRouteImport.update({
+  id: '/parties',
+  path: '/parties',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CharactersIndexRoute = CharactersIndexRouteImport.update({
   id: '/characters/',
   path: '/characters/',
@@ -68,9 +74,9 @@ const ListsSlugRoute = ListsSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const PartiesIndexRoute = PartiesIndexRouteImport.update({
-  id: '/parties/',
-  path: '/parties/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => PartiesRoute,
 } as any)
 const RecordsRecordKeyRoute = RecordsRecordKeyRouteImport.update({
   id: '/records/$recordKey',
@@ -126,9 +132,9 @@ const ListsSlugEditRoute = ListsSlugEditRouteImport.update({
   getParentRoute: () => ListsSlugRoute,
 } as any)
 const PartiesPartyKeyIndexRoute = PartiesPartyKeyIndexRouteImport.update({
-  id: '/parties/$partyKey/',
-  path: '/parties/$partyKey/',
-  getParentRoute: () => rootRouteImport,
+  id: '/$partyKey/',
+  path: '/$partyKey/',
+  getParentRoute: () => PartiesRoute,
 } as any)
 const SearchRecordsRecordKeyRoute = SearchRecordsRecordKeyRouteImport.update({
   id: '/search/records/$recordKey',
@@ -145,6 +151,7 @@ const ListsSlugRecordsRecordKeyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/parties': typeof PartiesRouteWithChildren
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
@@ -191,6 +198,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/parties': typeof PartiesRouteWithChildren
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
@@ -216,6 +224,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
+    | '/parties'
     | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$'
+    | '/parties'
     | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  PartiesRoute: typeof PartiesRouteWithChildren
   DefinitionsDefinitionKeyRoute: typeof DefinitionsDefinitionKeyRoute
   ListsSlugRoute: typeof ListsSlugRouteWithChildren
   RecordsRecordKeyRoute: typeof RecordsRecordKeyRoute
@@ -292,7 +303,6 @@ export interface RootRouteChildren {
   CharactersIndexRoute: typeof CharactersIndexRoute
   EncountersIndexRoute: typeof EncountersIndexRoute
   ListsIndexRoute: typeof ListsIndexRoute
-  PartiesIndexRoute: typeof PartiesIndexRoute
   SearchIndexRoute: typeof SearchIndexRoute
   EncountersSlugEditRoute: typeof EncountersSlugEditRoute
   FamiliesCreaturesFamilyIdRoute: typeof FamiliesCreaturesFamilyIdRoute
@@ -300,7 +310,6 @@ export interface RootRouteChildren {
   SearchRecordsRecordKeyRoute: typeof SearchRecordsRecordKeyRoute
   CharactersCharacterKeyIndexRoute: typeof CharactersCharacterKeyIndexRoute
   EncountersSlugIndexRoute: typeof EncountersSlugIndexRoute
-  PartiesPartyKeyIndexRoute: typeof PartiesPartyKeyIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -317,6 +326,13 @@ declare module '@tanstack/react-router' {
       path: '/$'
       fullPath: '/$'
       preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parties': {
+      id: '/parties'
+      path: '/parties'
+      fullPath: '/parties'
+      preLoaderRoute: typeof PartiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/characters/': {
@@ -356,10 +372,10 @@ declare module '@tanstack/react-router' {
     }
     '/parties/': {
       id: '/parties/'
-      path: '/parties'
+      path: '/'
       fullPath: '/parties/'
       preLoaderRoute: typeof PartiesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PartiesRoute
     }
     '/records/$recordKey': {
       id: '/records/$recordKey'
@@ -433,10 +449,10 @@ declare module '@tanstack/react-router' {
     }
     '/parties/$partyKey/': {
       id: '/parties/$partyKey/'
-      path: '/parties/$partyKey'
+      path: '/$partyKey'
       fullPath: '/parties/$partyKey/'
       preLoaderRoute: typeof PartiesPartyKeyIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PartiesRoute
     }
     '/search/records/$recordKey': {
       id: '/search/records/$recordKey'
@@ -454,6 +470,19 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface PartiesRouteChildren {
+  PartiesIndexRoute: typeof PartiesIndexRoute
+  PartiesPartyKeyIndexRoute: typeof PartiesPartyKeyIndexRoute
+}
+
+const PartiesRouteChildren: PartiesRouteChildren = {
+  PartiesIndexRoute: PartiesIndexRoute,
+  PartiesPartyKeyIndexRoute: PartiesPartyKeyIndexRoute,
+}
+
+const PartiesRouteWithChildren =
+  PartiesRoute._addFileChildren(PartiesRouteChildren)
 
 interface ListsSlugRouteChildren {
   ListsSlugEditRoute: typeof ListsSlugEditRoute
@@ -474,6 +503,7 @@ const ListsSlugRouteWithChildren = ListsSlugRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  PartiesRoute: PartiesRouteWithChildren,
   DefinitionsDefinitionKeyRoute: DefinitionsDefinitionKeyRoute,
   ListsSlugRoute: ListsSlugRouteWithChildren,
   RecordsRecordKeyRoute: RecordsRecordKeyRoute,
@@ -481,7 +511,6 @@ const rootRouteChildren: RootRouteChildren = {
   CharactersIndexRoute: CharactersIndexRoute,
   EncountersIndexRoute: EncountersIndexRoute,
   ListsIndexRoute: ListsIndexRoute,
-  PartiesIndexRoute: PartiesIndexRoute,
   SearchIndexRoute: SearchIndexRoute,
   EncountersSlugEditRoute: EncountersSlugEditRoute,
   FamiliesCreaturesFamilyIdRoute: FamiliesCreaturesFamilyIdRoute,
@@ -489,7 +518,6 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRecordsRecordKeyRoute: SearchRecordsRecordKeyRoute,
   CharactersCharacterKeyIndexRoute: CharactersCharacterKeyIndexRoute,
   EncountersSlugIndexRoute: EncountersSlugIndexRoute,
-  PartiesPartyKeyIndexRoute: PartiesPartyKeyIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
