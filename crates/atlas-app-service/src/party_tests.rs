@@ -694,8 +694,13 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
             serde_json::to_string_pretty(&serde_json::from_str::<serde_json::Value>(json).unwrap())
                 .unwrap();
     }
+    assert!(
+        service
+            .add_encounter_character(&direct_encounter, equivalent_request)
+            .is_err()
+    );
     let replay = service
-        .add_encounter_character(&direct_encounter, equivalent_request)
+        .add_encounter_character(&direct_encounter, direct_request.clone())
         .unwrap();
     assert_eq!(replay.character_key, direct.character_key);
     assert_eq!(replay.participant_key, direct.participant_key);
@@ -709,7 +714,9 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
     );
     let mut changed_request = direct_request;
     if let EncounterCharacterSource::Pathbuilder { json, .. } = &mut changed_request.source {
-        *json = export(8);
+        let mut changed: serde_json::Value = serde_json::from_str(json).unwrap();
+        changed["build"]["equipment"] = json!([["Newly purchased rope", 1, "Not Invested"]]);
+        *json = changed.to_string();
     }
     assert!(
         service
@@ -837,17 +844,44 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
         .unwrap();
     let bytes = capture_archive(service.workspace_path());
     let raw: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(raw["version"], "4.0");
+    assert_eq!(raw["version"], "5.0");
     let mut invalid = raw.clone();
-    invalid["version"] = json!("3.0");
+    invalid["version"] = json!("4.0");
     assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
     let mut invalid = raw.clone();
     invalid["saved"]["owners"][0]["pc"]["character_associations"][0]["character_key"] =
         json!("foreign");
     assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    let mut invalid = raw.clone();
+    let character = &mut invalid["saved"]["owners"][0]["pc"]["characters"][0];
+    character["pathbuilder_source"] =
+        json!(r#"{"success":true,"build":{"name":"Incomplete","level":7}}"#);
+    assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
+    let mut invalid = raw.clone();
+    let character = &mut invalid["saved"]["owners"][0]["pc"]["characters"][0];
+    character["pathbuilder_source"] = json!(
+        r#"{"success":true,"build":{"name":"Different","level":7,"feats":[],"specials":[],"spellCasters":[]}}"#
+    );
+    assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
     let other = restore_archive(&directory.path().join("restored.sqlite"), &bytes);
     let state = other.read_state().unwrap();
     let characters = state.local_state().unwrap().characters();
+    assert_eq!(
+        characters
+            .pathbuilder_source(&view.character_key)
+            .unwrap()
+            .unwrap()
+            .json(),
+        export(8)
+    );
+    assert_eq!(
+        characters
+            .pathbuilder_source(&direct.character_key)
+            .unwrap()
+            .unwrap()
+            .json(),
+        export(7)
+    );
     assert_eq!(
         characters.encounter_character(&key, &pc).unwrap().unwrap(),
         view.character_key
@@ -983,4 +1017,295 @@ fn historical_encounter_addition_alone_requires_v4_and_replays_without_recreatio
     assert_eq!(participants[0].participant_key, created.participant_key);
     assert_eq!(participants[0].current_hp, Some(42));
     assert_eq!(participants[0].initiative, Some(12));
+}
+
+#[test]
+fn saved_pathbuilder_sheet_preserves_full_source_and_reads_known_fields_independently() {
+    use crate::pathbuilder_sheet::{ImportedEquipment, ImportedField::*};
+    let (_directory, service) = pathbuilder_service();
+    let json = r#" {
+      "success": true,
+      "build": {
+        "name": "Example wizard",
+        "level": 7,
+        "class": "Wizard",
+        "xp": 0,
+        "ancestry": "Human",
+        "abilities": { "int": 19 },
+        "attributes": { "ancestryhp": 8, "classhp": 6, "speed": 25 },
+        "proficiencies": { "athletics": 0, "arcana": 6, "newSkill": [] },
+        "lores": [["Library", 2]],
+        "mods": { "Arcana": { "Item Bonus": 1 } },
+        "acTotal": { "acTotal": 22, "shieldBonus": null },
+        "feats": [["Counterspell", null, "Class Feat", 2, "Wizard Feat 2", "standardChoice", null, "future"]],
+        "specials": [],
+        "spellCasters": [{ "name": "Wizard", "perDay": [5, 3], "spells": [
+          { "spellLevel": 1, "list": ["Spell A", "Spell B"] }
+        ], "prepared": [{ "spellLevel": 1, "list": ["Spell B", "Spell B"] }] }],
+        "focusPoints": 0,
+        "equipment": [["Rope", 2, "Not Invested"], ["Rope", 1, "bag", "Not Invested"], {"future": 1}],
+        "equipmentContainers": {"bag":{"containerName":"Backpack"}},
+        "weapons": [{"name":"Staff","attack":9,"die":"d4"}, ["Future", "Future", 1, "simple", 9]],
+        "armor": [{"name":"Explorer's Clothing","worn":true}],
+        "money": [1, 2, 3, 4],
+        "formula": [{"type":"other","known":["Example Formula"]}],
+        "pets": [{"type":"Animal Companion","name":"Example Bear","mature":true}],
+        "familiars": null,
+        "custom": {"number": 123456789012345678901234567890.012345678901}
+      }
+    } "#;
+    let baseline = character(&service, "Manual example", Some(1));
+    assert!(
+        service
+            .character_pathbuilder_sheet(&baseline.character_key)
+            .unwrap()
+            .is_none()
+    );
+    let preview = service.preview_pathbuilder_pc(json, None).unwrap();
+    let request = SavePathbuilderPcRequest {
+        request_id: "full-export".into(),
+        json: json.into(),
+        expected_artifact_generation: preview.artifact_generation,
+        character_key: None,
+        expected_character_revision: None,
+        party: None,
+        rule_links: Default::default(),
+    };
+    let saved = service.save_pathbuilder_pc(request.clone()).unwrap();
+    let mut different = request.clone();
+    different.json = json.replace("012345678901}", "012345678902}");
+    assert_ne!(different.json, request.json);
+    assert!(service.save_pathbuilder_pc(different).is_err());
+    assert_eq!(
+        service.save_pathbuilder_pc(request).unwrap().character_key,
+        saved.character_key
+    );
+    let view = service.character(&saved.character_key).unwrap();
+    service
+        .update_character(
+            &saved.character_key,
+            UpdateCharacterRequest {
+                expected_revision: view.character_revision,
+                name: "Atlas name".into(),
+                level: Some(8),
+            },
+        )
+        .unwrap();
+    let sheet = service
+        .character_pathbuilder_sheet(&saved.character_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!((sheet.name.as_str(), sheet.level), ("Example wizard", 7));
+    assert_eq!(sheet.xp, Value(0));
+    let Value(proficiencies) = sheet.proficiencies else {
+        panic!("missing proficiencies")
+    };
+    assert_eq!(proficiencies["athletics"], Value(0));
+    assert_eq!(proficiencies["newSkill"], Unrecognized);
+    let Value(ac) = sheet.ac_total else {
+        panic!("missing armor class")
+    };
+    assert_eq!(ac.ac_total, Value(22));
+    assert_eq!(ac.shield_bonus, Null);
+    let Value(equipment) = sheet.equipment else {
+        panic!("missing equipment")
+    };
+    assert!(matches!(equipment.as_slice(), [
+        Value(ImportedEquipment::Uncontained(loose, 2, _)),
+        Value(ImportedEquipment::InContainer(packed, 1, bag, _)),
+        Unrecognized
+    ] if loose == "Rope" && packed == "Rope" && bag == "bag"));
+    assert!(matches!(sheet.money, Unrecognized));
+    let Value(weapons) = sheet.weapons else {
+        panic!("missing weapons")
+    };
+    assert!(matches!(weapons.as_slice(), [Value(staff), Unrecognized] if staff.attack == Value(9)));
+    let Value(casters) = sheet.spell_casters else {
+        panic!("missing casters")
+    };
+    let [Value(wizard)] = casters.as_slice() else {
+        panic!("missing wizard")
+    };
+    let Value(prepared) = &wizard.prepared else {
+        panic!("missing prepared spells")
+    };
+    let [Value(rank)] = prepared.as_slice() else {
+        panic!("missing rank")
+    };
+    assert_eq!(rank.spell_level, Value(1));
+    assert_eq!(
+        rank.list,
+        Value(vec![Value("Spell B".into()), Value("Spell B".into())])
+    );
+    let Value(feats) = sheet.feats else {
+        panic!("missing feats")
+    };
+    let [Value(feat)] = feats.as_slice() else {
+        panic!("missing feat")
+    };
+    assert_eq!((feat.name.as_str(), feat.level), ("Counterspell", 2));
+
+    let original = AtlasRuntime::resolve(runtime_options(service.workspace_path())).unwrap();
+    let read = original.read_state().unwrap();
+    let characters = read.local_state().unwrap().characters();
+    assert_eq!(
+        characters
+            .pathbuilder_source(&saved.character_key)
+            .unwrap()
+            .unwrap()
+            .json(),
+        json
+    );
+    drop(read);
+
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    let db = write.connection();
+    db.execute(
+        "INSERT INTO principals(principal_key,name) VALUES('other','Other')",
+        [],
+    )
+    .unwrap();
+    db.execute(
+        "INSERT INTO characters(character_key,owner_id,name,level,reference_payload,pathbuilder_source)
+         SELECT 'foreign-import',p.id,c.name,c.level,c.reference_payload,c.pathbuilder_source
+         FROM characters c, principals p WHERE c.character_key=?1 AND p.principal_key='other'",
+        [&saved.character_key],
+    ).unwrap();
+    write.commit().unwrap();
+    assert!(
+        service
+            .character_pathbuilder_sheet("foreign-import")
+            .is_err()
+    );
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute(
+            "DELETE FROM characters WHERE character_key='foreign-import'",
+            [],
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let revision = service
+        .character(&saved.character_key)
+        .unwrap()
+        .character_revision;
+    service
+        .delete_character(
+            &saved.character_key,
+            DeleteCharacterRequest {
+                expected_revision: revision,
+            },
+        )
+        .unwrap();
+    let archive: serde_json::Value =
+        serde_json::from_slice(&capture_archive(service.workspace_path())).unwrap();
+    assert_eq!(archive["version"], "5.0");
+    let pc = &archive["saved"]["owners"][0]["pc"];
+    assert!(
+        pc["characters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|c| c.get("pathbuilder_source").is_none())
+    );
+    assert!(
+        pc["creation_receipts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["intent_version"] == 2)
+    );
+}
+
+#[test]
+fn legacy_pathbuilder_receipts_replay_without_replacing_the_saved_character() {
+    let (directory, service) = pathbuilder_service();
+    let json = pathbuilder_export(7);
+    let preview = service.preview_pathbuilder_pc(&json, None).unwrap();
+    let generation = preview.artifact_generation;
+    let mut create = SavePathbuilderPcRequest {
+        request_id: "old-create".into(),
+        json: json.clone(),
+        expected_artifact_generation: generation.clone(),
+        character_key: None,
+        expected_character_revision: None,
+        party: None,
+        rule_links: Default::default(),
+    };
+    let encounter = encounter(&service);
+    let mut add = AddEncounterCharacterRequest {
+        request_id: "old-add".into(),
+        expected_encounter_revision: service.encounter(&encounter).unwrap().revision,
+        source: EncounterCharacterSource::Pathbuilder {
+            json: json.clone(),
+            expected_artifact_generation: generation.clone(),
+            rule_links: Default::default(),
+        },
+        party: None,
+    };
+    let original_create = service.save_pathbuilder_pc(create.clone()).unwrap();
+    let original_add = service
+        .add_encounter_character(&encounter, add.clone())
+        .unwrap();
+
+    // Frozen schema-47 digests for this fixture and request context.
+    let create_intent = "4da10141c162169d6edbf3576277ddc14bb7f92b69f2250c289f91ecfeb2463a";
+    let add_intent =
+        r#"{"digest":"12a62b797b6ee0eeddb96a75fef3a963120e5d43eb75e0ef0216b60cda3e7475"}"#;
+    let legacy_generation = "recorded-schema-47-generation";
+    create.expected_artifact_generation = legacy_generation.into();
+    add.expected_encounter_revision = 6;
+    let EncounterCharacterSource::Pathbuilder {
+        expected_artifact_generation,
+        ..
+    } = &mut add.source
+    else {
+        panic!("Pathbuilder source missing");
+    };
+    *expected_artifact_generation = legacy_generation.into();
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    let db = write.connection();
+    db.execute("UPDATE characters SET pathbuilder_source=NULL", [])
+        .unwrap();
+    db.execute(
+        "UPDATE character_creation_receipts SET intent_version=1,intent_digest=?1 WHERE request_id='old-create'",
+        [&create_intent],
+    ).unwrap();
+    db.execute(
+        "UPDATE encounter_command_receipts SET intent_json=?1 WHERE family='pc_addition' AND request_id='old-add'",
+        [&add_intent],
+    ).unwrap();
+    write.commit().unwrap();
+
+    let bytes = capture_archive(service.workspace_path());
+    let archive: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(archive["version"], "4.0");
+    let restored_path = directory.path().join("restored-legacy.sqlite");
+    restore_archive(&restored_path, &bytes);
+    let restored = service_at(&restored_path);
+    assert_eq!(
+        restored.save_pathbuilder_pc(create).unwrap().character_key,
+        original_create.character_key
+    );
+    let replay = restored.add_encounter_character(&encounter, add).unwrap();
+    assert_eq!(replay.participant_key, original_add.participant_key);
+    assert_eq!(replay.character_key, original_add.character_key);
+    for key in [original_create.character_key, original_add.character_key] {
+        assert!(
+            restored
+                .character_pathbuilder_sheet(&key)
+                .unwrap()
+                .is_none()
+        );
+    }
 }

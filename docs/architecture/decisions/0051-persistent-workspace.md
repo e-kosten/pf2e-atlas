@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 47. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 48. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -249,6 +249,18 @@ archive members normalize into distinct characters during validation. Standalone
 encounter files retain participant state and omit workspace-local character
 associations and PC-addition receipts.
 
+Schema 48 adds the optional original Pathbuilder export to the character row.
+Re-import replaces the source and the rule reference together under the existing
+character revision guard. Rule lookups continue to read the compact reference.
+Existing characters receive no synthesized export. The complete source describes
+the imported build and retains unfamiliar fields. App-service reads verified
+facts on demand, independently of the current character name and level.
+
+New Pathbuilder creation and encounter-addition receipts bind the exact accepted
+export text through a digest. A version marker selects the full import intent
+for new receipts and the original intent for legacy receipts. Both recover the
+original outcome without applying the import again.
+
 ### Inline Markdown and custom turns
 
 List descriptions, saved list item notes and encounter participant notes store
@@ -276,8 +288,11 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 Archive versions advance independently of the database schema. Capture emits
-`4.0` for shared characters and their creation/addition receipts. Other
-workspaces use `3.0` for GM adjustment state or
+`5.0` for original Pathbuilder exports or their versioned receipt history.
+Backups that carry complete imports contain the original JSON, including
+biography and custom player fields. Capture emits the legacy `4.0` shape for
+other shared characters and their creation/addition receipts. Other workspaces
+use `3.0` for GM adjustment state or
 history, `2.0` for archived lists and `1.1` for other saved state. Readers that
 predate a required archive major reject it before restore. Current readers
 can restore historical member-owned PC references from version `3.0` and treat

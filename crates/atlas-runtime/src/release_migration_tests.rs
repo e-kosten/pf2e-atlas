@@ -128,6 +128,7 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
             "Retained member".to_owned().into(),
             2.into(),
             0.into(),
+            rusqlite::types::Value::Null,
             rusqlite::types::Value::Null
         ]])
     );
@@ -648,11 +649,15 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     assert_eq!(backup["version"], "3.0");
     let migrated = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let applied = sql_rows(migrated.connection(), LEDGER);
-    assert_eq!(applied.len(), ledger.len() + 1);
+    assert_eq!(applied.len(), ledger.len() + 2);
     assert_eq!(applied[..ledger.len()], ledger);
     assert_eq!(
-        applied.last().unwrap()[0],
+        applied[ledger.len()][0],
         rusqlite::types::Value::Integer(47)
+    );
+    assert_eq!(
+        applied.last().unwrap()[0],
+        rusqlite::types::Value::Integer(48)
     );
 
     let state = atlas_local_state::LocalStateRead::for_local(&migrated).unwrap();
@@ -789,5 +794,78 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
             .unwrap()
             .as_deref(),
         Some("old-pc")
+    );
+}
+
+#[test]
+fn schema_47_upgrade_keeps_legacy_archive_shape_and_character_history() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+    workspace
+        .migrate_history(
+            MigrationHistory {
+                migrations: &RELEASE_HISTORY.migrations[..RELEASE_HISTORY.migrations.len() - 1],
+                ..RELEASE_HISTORY
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+    let write = workspace.write(47).unwrap();
+    write.connection().execute_batch(
+        r#"INSERT INTO characters(character_key,owner_id,name,level,revision,reference_payload)
+            VALUES('kept-character',1,'Kept Character',7,3,'{"abilities":[]}');
+           INSERT INTO character_creation_receipts(owner_id,request_id,intent_digest,character_key)
+            VALUES(1,'old-import','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','kept-character');"#,
+    ).unwrap();
+    write.commit().unwrap();
+    let read = workspace.read(47).unwrap();
+    let revision = read.reference_revision().unwrap();
+    let corpus = sql_rows(read.connection(), TRAITS);
+    drop(read);
+
+    initialize_workspace(workspace.path()).unwrap();
+    assert!(workspace.read(47).is_err());
+    let upgraded = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(upgraded.reference_revision().unwrap(), revision);
+    assert_eq!(sql_rows(upgraded.connection(), TRAITS), corpus);
+    let chars = atlas_local_state::LocalStateRead::for_local(&upgraded)
+        .unwrap()
+        .characters();
+    assert!(
+        chars
+            .pathbuilder_source("kept-character")
+            .unwrap()
+            .is_none()
+    );
+
+    let before = std::fs::read(archive_path(&workspace)).unwrap();
+    let saved: serde_json::Value = serde_json::from_slice(&before).unwrap();
+    assert_eq!(saved["version"], "4.0");
+    assert_eq!(
+        saved["saved"]["owners"][0]["pc"],
+        serde_json::json!({
+            "characters": [{
+                "character_key": "kept-character", "name": "Kept Character", "level": 7,
+                "revision": 3, "reference": {"abilities":[]}
+            }],
+            "creation_receipts": [{
+                "request_id": "old-import", "intent_digest": "a".repeat(64), "character_key": "kept-character"
+            }]
+        })
+    );
+    assert_eq!(
+        archived_json(WorkspaceArchive::capture(&upgraded).unwrap()),
+        saved
+    );
+    let restored = WorkspaceArchive::read(before.as_slice()).unwrap();
+    let destination = initialize_workspace(directory.path().join("restored.sqlite")).unwrap();
+    let destination = runtime(&destination);
+    let preflight = destination.preflight_workspace_restore().unwrap();
+    destination
+        .restore_workspace_archive(&restored, &preflight, false)
+        .unwrap();
+    assert_eq!(
+        archived_json(destination.capture_workspace_archive().unwrap()),
+        saved
     );
 }

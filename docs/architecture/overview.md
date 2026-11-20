@@ -305,7 +305,9 @@ reviewed characters.
 Pathbuilder import projects feats, specials and spells into stable ability
 labels and authored choices. App-service resolves names and aliases in the
 reference snapshot and projects display sections. Local-state persists the
-selected record keys and the GM’s override per ability. The browser composes the
+selected record keys, the GM’s override per ability, and the character’s
+complete latest Pathbuilder export. App-service reads verified sheet fields
+from the saved export on demand. The browser composes the
 same rule reader in character pages and contextual encounter reading. See
 [saved-state ownership](decisions/0051-persistent-workspace.md#saved-state-ownership).
 

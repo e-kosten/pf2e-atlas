@@ -19,7 +19,7 @@ impl EncountersRead<'_> {
         &self,
         encounter: &str,
         request: &str,
-        intent: &serde_json::Value,
+        intents: &[Option<&serde_json::Value>],
     ) -> LocalStateResult<Option<PcAdditionReceipt>> {
         self.get(encounter)?
             .ok_or_else(|| LocalStateError::EncounterNotFound(encounter.into()))?;
@@ -29,7 +29,7 @@ impl EncountersRead<'_> {
             encounter,
             command_receipts::Family::PcAddition,
             request,
-            intent,
+            intents,
         )?
         .map(command_receipts::StoredReceipt::pc_addition)
         .transpose()

@@ -11,6 +11,7 @@ pub(crate) fn initialize_schema(conn: &Connection) -> LocalStateResult<()> {
         include_str!("release/encounter_adjustments.sql"),
         include_str!("release/saved_list_archiving.sql"),
         include_str!("release/characters.sql"),
+        include_str!("release/pathbuilder_sources.sql"),
     ))?;
     Ok(())
 }

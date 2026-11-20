@@ -46,6 +46,12 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
                 apply: |_| Ok(()),
             }),
         },
+        Migration {
+            version: 48,
+            name: "pathbuilder-character-sources",
+            sql: include_str!("../../atlas-local-state/src/release/pathbuilder_sources.sql"),
+            backfill: None,
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

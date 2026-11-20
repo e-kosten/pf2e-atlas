@@ -125,6 +125,15 @@ impl SavedWorkspace {
             .any(|owner| owner.pc.as_ref().is_some_and(PcState::has_characters))
     }
 
+    pub fn has_full_pathbuilder_imports(&self) -> bool {
+        self.owners.iter().any(|owner| {
+            owner
+                .pc
+                .as_ref()
+                .is_some_and(PcState::has_full_pathbuilder_imports)
+        })
+    }
+
     pub fn has_pc_references(&self) -> bool {
         self.owners.iter().any(|owner| owner.pc.is_some())
     }

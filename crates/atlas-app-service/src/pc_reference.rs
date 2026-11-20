@@ -8,7 +8,7 @@ use atlas_app_model::{
     SavePcAbilityLinkRequest, SetEncounterPcReferenceRequest,
 };
 use atlas_domain::{RecordKey, SourceRecordSummary};
-use atlas_local_state::{Character, PcAbilityKind, PcReference};
+use atlas_local_state::{Character, CharacterCreationIntent, PcAbilityKind, PcReference};
 use atlas_runtime::{ExactRecordRead, RuntimeError, WorkspaceRead};
 use atlas_search::{AtlasRetrievalService, GetRecordsRequest, ResolveRecordRequest};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -19,7 +19,7 @@ impl AtlasAppService {
         json: &str,
         character_key: Option<&str>,
     ) -> AppServiceResult<PathbuilderPreviewView> {
-        let mut character = pathbuilder::parse(json)?;
+        let mut character = pathbuilder::preview(json)?;
         let character_key = character_key.map(str::to_owned);
         self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
             let previous = character_key
@@ -54,7 +54,7 @@ impl AtlasAppService {
         request: SavePathbuilderPcRequest,
     ) -> AppServiceResult<CharacterMutationView> {
         let mut imported = pathbuilder::parse(&request.json)?;
-        let digest = import_intent_digest(
+        let legacy = import_intent_digest(
             &(
                 imported.name.trim(),
                 imported.level,
@@ -66,11 +66,16 @@ impl AtlasAppService {
             ),
             &request.rule_links,
         )?;
+        let full = full_import_digest(&legacy, &request.json)?;
+        let intent = CharacterCreationIntent::Pathbuilder {
+            legacy: &legacy,
+            full: &full,
+        };
         if request.character_key.is_none() {
             let recovered = self.with_state(|session| {
                 let characters = session.local_state()?.characters();
                 characters
-                    .creation_receipt(&request.request_id, &digest)?
+                    .creation_receipt(&request.request_id, intent)?
                     .map(|key| crate::characters::creation_view(&characters, &key))
                     .transpose()
             })?;
@@ -78,6 +83,7 @@ impl AtlasAppService {
                 return Ok(view);
             }
         }
+        let source = pathbuilder::source(request.json)?;
         let expected_generation = request.expected_artifact_generation.clone();
         let refresh_key = request.character_key.clone();
         let refresh_revision = request.expected_character_revision;
@@ -104,7 +110,7 @@ impl AtlasAppService {
             let state = session.local_state()?;
             let characters = state.characters();
             if request.character_key.is_none()
-                && let Some(key) = characters.creation_receipt(&request.request_id, &digest)?
+                && let Some(key) = characters.creation_receipt(&request.request_id, intent)?
             {
                 return crate::characters::creation_view(&characters, &key);
             }
@@ -118,12 +124,13 @@ impl AtlasAppService {
                 let expected = request.expected_character_revision.ok_or_else(|| {
                     AppServiceError::invalid_request("Review the character before refreshing it.")
                 })?;
-                characters.update(
+                characters.update_imported(
                     key,
                     expected,
                     &imported.name,
-                    Some(imported.level),
-                    Some(&imported.reference),
+                    imported.level,
+                    &imported.reference,
+                    &source,
                 )?
             } else {
                 if let Some(party) = &request.party {
@@ -131,13 +138,14 @@ impl AtlasAppService {
                         .parties()
                         .get_at_revision(&party.party_key, party.expected_revision)?;
                 }
-                let saved = characters.create(
+                let saved = characters.create_imported(
                     &imported.name,
-                    Some(imported.level),
-                    Some(&imported.reference),
+                    imported.level,
+                    &imported.reference,
+                    &source,
                 )?;
                 crate::characters::join_party(&state, request.party.as_ref(), &saved)?;
-                characters.record_creation(&request.request_id, &digest, &saved.character_key)?;
+                characters.record_creation(&request.request_id, intent, &saved.character_key)?;
                 saved
             };
             crate::characters::creation_view(&characters, &saved.character_key)
@@ -262,6 +270,10 @@ pub(super) fn import_intent_digest(
     } else {
         crate::characters::intent_digest(&(import, rule_links))
     }
+}
+
+pub(super) fn full_import_digest(legacy: &str, json: &str) -> AppServiceResult<String> {
+    crate::characters::intent_digest(&("pathbuilder-source/v2", legacy, json))
 }
 
 pub(super) fn resolve_import(

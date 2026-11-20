@@ -29,6 +29,7 @@ mod parties;
 #[cfg(test)]
 mod party_tests;
 mod pathbuilder;
+pub mod pathbuilder_sheet;
 mod pc_reference;
 mod prepared_content;
 mod presentation;

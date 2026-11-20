@@ -289,8 +289,11 @@ and intermediate totals. Quote expressions containing shell operators.
 atlas workspace export campaign-recovery.json
 ```
 
-Export creates a new archive file with all saved lists, parties, encounters,
-and requested reference configuration. It includes archived lists, archived
+Export creates a new archive file with saved lists, characters, parties,
+encounters, and requested reference configuration. When a character has a
+complete Pathbuilder import, the archive includes the original JSON, including
+any biography and custom fields supplied by the player. Share these archives
+with people who should have access to that character data. It includes archived lists, archived
 encounters and the state needed to resume a running encounter. Backups
 containing archived lists require a version of Atlas that supports list
 archiving. The archive contains saved display
