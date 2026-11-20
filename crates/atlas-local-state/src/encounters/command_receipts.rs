@@ -69,9 +69,11 @@ pub(super) fn recover(
     encounter_ref: &str,
     family: Family,
     request_id: &str,
-    intent: &serde_json::Value,
+    intents: &[Option<&serde_json::Value>],
 ) -> LocalStateResult<Option<StoredReceipt>> {
-    validate_request(request_id, intent)?;
+    for intent in intents.iter().flatten() {
+        validate_request(request_id, intent)?;
+    }
     let row: Option<(String, Option<String>)> = connection
         .query_row(
             "SELECT r.intent_json,r.receipt_json FROM encounter_command_receipts r
@@ -83,7 +85,8 @@ pub(super) fn recover(
         )
         .optional()?;
     row.map(|(saved, payload)| {
-        if serde_json::from_str::<serde_json::Value>(&saved)? != *intent {
+        let saved: serde_json::Value = serde_json::from_str(&saved)?;
+        if !intents.iter().flatten().any(|intent| **intent == saved) {
             return Err(family.conflict());
         }
         Ok(StoredReceipt { payload })

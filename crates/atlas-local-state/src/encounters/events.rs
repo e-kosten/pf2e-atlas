@@ -17,7 +17,7 @@ impl EncountersRead<'_> {
             encounter_key,
             command_receipts::Family::Event,
             request_id,
-            intent,
+            &[Some(intent)],
         )?
         .map(command_receipts::StoredReceipt::event)
         .transpose()

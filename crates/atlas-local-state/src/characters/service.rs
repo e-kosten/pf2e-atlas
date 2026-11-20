@@ -1,6 +1,6 @@
 use super::reference::{decode, encode};
 use super::{Character, CharacterParty, CharacterSummary};
-use crate::{LocalStateError, LocalStateResult, PcReference};
+use crate::{LocalStateError, LocalStateResult, PathbuilderSource, PcReference};
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Clone, Copy)]
@@ -11,6 +11,30 @@ pub struct CharactersRead<'a> {
 pub struct CharactersWrite<'a> {
     read: CharactersRead<'a>,
 }
+/// A creation request may match a legacy receipt or one bound to the complete import.
+#[derive(Clone, Copy)]
+pub enum CharacterCreationIntent<'a> {
+    Legacy(&'a str),
+    Pathbuilder { legacy: &'a str, full: &'a str },
+}
+
+impl<'a> CharacterCreationIntent<'a> {
+    fn digest_at(self, version: i64) -> Option<&'a str> {
+        match (version, self) {
+            (1, Self::Legacy(digest) | Self::Pathbuilder { legacy: digest, .. }) => Some(digest),
+            (2, Self::Pathbuilder { full, .. }) => Some(full),
+            _ => None,
+        }
+    }
+
+    fn latest(self) -> (i64, &'a str) {
+        match self {
+            Self::Legacy(digest) => (1, digest),
+            Self::Pathbuilder { full, .. } => (2, full),
+        }
+    }
+}
+
 impl<'a> std::ops::Deref for CharactersWrite<'a> {
     type Target = CharactersRead<'a>;
     fn deref(&self) -> &Self::Target {
@@ -85,16 +109,32 @@ impl<'a> CharactersRead<'a> {
         }
         Ok(character)
     }
+    pub fn pathbuilder_source(&self, key: &str) -> LocalStateResult<Option<PathbuilderSource>> {
+        let source: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT pathbuilder_source FROM characters WHERE owner_id=?1 AND character_key=?2",
+                params![self.owner_id, key],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| LocalStateError::CharacterNotFound(key.into()))?;
+        source.map(PathbuilderSource::new).transpose()
+    }
     pub fn creation_receipt(
         &self,
         request_id: &str,
-        digest: &str,
+        intent: CharacterCreationIntent<'_>,
     ) -> LocalStateResult<Option<String>> {
-        validate_request(request_id, digest)?;
-        let result: Option<(String,String)> = self.connection.query_row("SELECT intent_digest,character_key FROM character_creation_receipts WHERE owner_id=?1 AND request_id=?2",params![self.owner_id,request_id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+        validate_request(request_id, intent.latest().1)?;
+        let result: Option<(i64, String, String)> = self.connection.query_row(
+            "SELECT intent_version,intent_digest,character_key FROM character_creation_receipts WHERE owner_id=?1 AND request_id=?2",
+            params![self.owner_id, request_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).optional()?;
         result
-            .map(|(intent, key)| {
-                if intent != digest {
+            .map(|(version, digest, key)| {
+                if intent.digest_at(version) != Some(digest.as_str()) {
                     return Err(LocalStateError::InvalidParty(
                         "This creation request was already used with different details.",
                     ));
@@ -124,20 +164,47 @@ impl<'a> CharactersWrite<'a> {
         level: Option<i64>,
         reference: Option<&PcReference>,
     ) -> LocalStateResult<Character> {
+        self.create_with_source(name, level, reference, None)
+    }
+
+    pub fn create_imported(
+        &self,
+        name: &str,
+        level: i64,
+        reference: &PcReference,
+        source: &PathbuilderSource,
+    ) -> LocalStateResult<Character> {
+        validate_import(name, level, reference, source)?;
+        self.create_with_source(name, Some(level), Some(reference), Some(source))
+    }
+
+    fn create_with_source(
+        &self,
+        name: &str,
+        level: Option<i64>,
+        reference: Option<&PcReference>,
+        source: Option<&PathbuilderSource>,
+    ) -> LocalStateResult<Character> {
         crate::atomic_action::run(self.connection, || {
             validate_fields(name, level)?;
             if let Some(reference) = reference {
                 reference.validate()?;
             }
             let key = format!("character_{:032x}", rand::random::<u128>());
-            self.connection.execute("INSERT INTO characters(character_key,owner_id,name,level,reference_payload) VALUES(?1,?2,?3,?4,?5)",params![key,self.owner_id,name.trim(),level,reference.map(encode).transpose()?])?;
+            self.connection.execute("INSERT INTO characters(character_key,owner_id,name,level,reference_payload,pathbuilder_source) VALUES(?1,?2,?3,?4,?5,?6)",params![key,self.owner_id,name.trim(),level,reference.map(encode).transpose()?,source.map(PathbuilderSource::json)])?;
             self.get(&key)
         })
     }
-    pub fn record_creation(&self, request: &str, digest: &str, key: &str) -> LocalStateResult<()> {
+    pub fn record_creation(
+        &self,
+        request: &str,
+        intent: CharacterCreationIntent<'_>,
+        key: &str,
+    ) -> LocalStateResult<()> {
+        let (version, digest) = intent.latest();
         validate_request(request, digest)?;
         self.get(key)?;
-        self.connection.execute("INSERT INTO character_creation_receipts(owner_id,request_id,intent_digest,character_key) VALUES(?1,?2,?3,?4)",params![self.owner_id,request,digest,key])?;
+        self.connection.execute("INSERT INTO character_creation_receipts(owner_id,request_id,intent_digest,character_key,intent_version) VALUES(?1,?2,?3,?4,?5)",params![self.owner_id,request,digest,key,version])?;
         Ok(())
     }
     pub fn update(
@@ -148,13 +215,45 @@ impl<'a> CharactersWrite<'a> {
         level: Option<i64>,
         reference: Option<&PcReference>,
     ) -> LocalStateResult<Character> {
+        self.update_with_source(key, revision, name, level, reference, None)
+    }
+
+    pub fn update_imported(
+        &self,
+        key: &str,
+        revision: i64,
+        name: &str,
+        level: i64,
+        reference: &PcReference,
+        source: &PathbuilderSource,
+    ) -> LocalStateResult<Character> {
+        validate_import(name, level, reference, source)?;
+        self.update_with_source(
+            key,
+            revision,
+            name,
+            Some(level),
+            Some(reference),
+            Some(source),
+        )
+    }
+
+    fn update_with_source(
+        &self,
+        key: &str,
+        revision: i64,
+        name: &str,
+        level: Option<i64>,
+        reference: Option<&PcReference>,
+        source: Option<&PathbuilderSource>,
+    ) -> LocalStateResult<Character> {
         crate::atomic_action::run(self.connection, || {
             self.get_at_revision(key, revision)?;
             validate_fields(name, level)?;
             if let Some(reference) = reference {
                 reference.validate()?;
             }
-            self.connection.execute("UPDATE characters SET name=?1,level=?2,reference_payload=?3,revision=revision+1 WHERE character_key=?4 AND owner_id=?5",params![name.trim(),level,reference.map(encode).transpose()?,key,self.owner_id])?;
+            self.connection.execute("UPDATE characters SET name=?1,level=?2,reference_payload=?3,pathbuilder_source=coalesce(?4,pathbuilder_source),revision=revision+1 WHERE character_key=?5 AND owner_id=?6",params![name.trim(),level,reference.map(encode).transpose()?,source.map(PathbuilderSource::json),key,self.owner_id])?;
             self.get(key)
         })
     }
@@ -211,6 +310,21 @@ impl<'a> CharactersWrite<'a> {
         })
     }
 }
+fn validate_import(
+    name: &str,
+    level: i64,
+    reference: &PcReference,
+    source: &PathbuilderSource,
+) -> LocalStateResult<()> {
+    let authored = source.verify_reference(reference)?;
+    if name.trim() != authored.name || level != authored.level {
+        return Err(LocalStateError::InvalidParty(
+            "Saved character does not match the new Pathbuilder export.",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_fields(name: &str, level: Option<i64>) -> LocalStateResult<()> {
     if level.is_some_and(|level| !(1..=20).contains(&level)) {
         return Err(LocalStateError::InvalidParty(

@@ -1,5 +1,7 @@
+mod pathbuilder_source;
 mod service;
-pub use service::{CharactersRead, CharactersWrite};
+pub use pathbuilder_source::{PathbuilderCharacter, PathbuilderSource};
+pub use service::{CharacterCreationIntent, CharactersRead, CharactersWrite};
 pub(crate) mod reference;
 pub use reference::{
     MAX_PC_ABILITIES, MAX_PC_ABILITY_LABEL, PcAbility, PcAbilityKind, PcReference,

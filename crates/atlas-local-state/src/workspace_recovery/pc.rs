@@ -1,7 +1,7 @@
 use super::{require, rows, unique};
 use crate::characters::reference::{decode, encode};
 use crate::encounters::portability::workspace::ValidatedEncounter;
-use crate::{LocalStateResult, ParticipantKind, PcReference};
+use crate::{LocalStateResult, ParticipantKind, PathbuilderSource, PcReference};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
@@ -44,6 +44,8 @@ struct Character {
     level: Option<i64>,
     revision: i64,
     reference: Option<PcReference>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pathbuilder_source: Option<PathbuilderSource>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -64,6 +66,19 @@ struct CreationReceipt {
     request_id: String,
     intent_digest: String,
     character_key: String,
+    #[serde(
+        default = "legacy_intent_version",
+        skip_serializing_if = "is_legacy_intent"
+    )]
+    intent_version: i64,
+}
+
+fn legacy_intent_version() -> i64 {
+    1
+}
+
+fn is_legacy_intent(version: &i64) -> bool {
+    *version == legacy_intent_version()
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -84,20 +99,44 @@ impl PcState {
         if !current {
             return Ok(None);
         }
+        // Upgrade backups also capture the authenticated schema before migration 48.
+        let full_imports = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('characters') WHERE name='pathbuilder_source')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )?;
+        let source_column = if full_imports {
+            "pathbuilder_source"
+        } else {
+            "NULL"
+        };
         let characters = rows(
             db,
-            "SELECT character_key,name,level,revision,reference_payload FROM characters WHERE owner_id=?1 ORDER BY character_key",
+            &format!(
+                "SELECT character_key,name,level,revision,reference_payload,{source_column}
+                      FROM characters WHERE owner_id=?1 ORDER BY character_key"
+            ),
             [owner],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get::<_, Option<String>>(4)?)),
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get::<_, Option<String>>(4)?,
+                    r.get::<_, Option<String>>(5)?,
+                ))
+            },
         )?
         .into_iter()
-        .map(|(character_key, name, level, revision, payload)| {
+        .map(|(character_key, name, level, revision, payload, source)| {
             Ok(Character {
                 character_key,
                 name,
                 level,
                 revision,
                 reference: payload.as_deref().map(decode).transpose()?,
+                pathbuilder_source: source.map(PathbuilderSource::new).transpose()?,
             })
         })
         .collect::<LocalStateResult<_>>()?;
@@ -124,15 +163,20 @@ impl PcState {
                 })
             },
         )?;
+        let intent_version = if full_imports { "intent_version" } else { "1" };
         let creation_receipts = rows(
             db,
-            "SELECT request_id,intent_digest,character_key FROM character_creation_receipts WHERE owner_id=?1 ORDER BY request_id",
+            &format!(
+                "SELECT request_id,intent_digest,character_key,{intent_version}
+                      FROM character_creation_receipts WHERE owner_id=?1 ORDER BY request_id"
+            ),
             [owner],
             |r| {
                 Ok(CreationReceipt {
                     request_id: r.get(0)?,
                     intent_digest: r.get(1)?,
                     character_key: r.get(2)?,
+                    intent_version: r.get(3)?,
                 })
             },
         )?;
@@ -166,6 +210,17 @@ impl PcState {
             || !self.creation_receipts.is_empty()
             || !self.addition_receipts.is_empty()
     }
+    pub(super) fn has_full_pathbuilder_imports(&self) -> bool {
+        self.characters
+            .iter()
+            .any(|c| c.pathbuilder_source.is_some())
+            || self.creation_receipts.iter().any(|r| r.intent_version == 2)
+            || self.addition_receipts.iter().any(|receipt| {
+                serde_json::from_str::<serde_json::Value>(&receipt.intent_json)
+                    .is_ok_and(|intent| intent.get("pathbuilder_source_version").is_some())
+            })
+    }
+
     pub(super) fn normalize_legacy(
         &mut self,
         parties: &mut [super::Party],
@@ -194,6 +249,7 @@ impl PcState {
                     level: member.level,
                     revision: 0,
                     reference: references.remove(&member.key),
+                    pathbuilder_source: None,
                 });
                 self.memberships.push(Membership {
                     party_key: party.key().into(),
@@ -244,6 +300,14 @@ impl PcState {
                     && character.revision >= 0,
                 "invalid saved character",
             )?;
+            if let Some(source) = &character.pathbuilder_source {
+                let reference = character.reference.as_ref().ok_or_else(|| {
+                    crate::LocalStateError::InvalidParty(
+                        "Saved Pathbuilder export has no rule reference.",
+                    )
+                })?;
+                source.verify_reference(reference)?;
+            }
             if let Some(reference) = &character.reference {
                 reference.validate()?;
             }
@@ -301,6 +365,7 @@ impl PcState {
             )?;
             require(
                 receipt.request_id.len() <= 128
+                    && matches!(receipt.intent_version, 1 | 2)
                     && valid_digest(&receipt.intent_digest)
                     && (1..=255).contains(&receipt.character_key.len()),
                 "invalid character creation receipt",
@@ -329,6 +394,12 @@ impl PcState {
                     .is_some_and(valid_digest),
                 "invalid PC addition intent",
             )?;
+            require(
+                intent
+                    .get("pathbuilder_source_version")
+                    .is_none_or(|version| version.as_u64() == Some(2)),
+                "invalid Pathbuilder addition intent version",
+            )?;
             let value = crate::PcAdditionReceipt::decode(&receipt.receipt_json)?;
             require(
                 value.characters.len() == value.participants.len()
@@ -346,7 +417,7 @@ impl PcState {
     }
     pub(super) fn restore(&self, db: &Connection, owner: i64) -> LocalStateResult<()> {
         for c in &self.characters {
-            db.execute("INSERT INTO characters(character_key,owner_id,name,level,revision,reference_payload) VALUES(?1,?2,?3,?4,?5,?6)",params![c.character_key,owner,c.name,c.level,c.revision,c.reference.as_ref().map(encode).transpose()?])?;
+            db.execute("INSERT INTO characters(character_key,owner_id,name,level,revision,reference_payload,pathbuilder_source) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![c.character_key,owner,c.name,c.level,c.revision,c.reference.as_ref().map(encode).transpose()?,c.pathbuilder_source.as_ref().map(PathbuilderSource::json)])?;
         }
         for m in &self.memberships {
             db.execute("INSERT INTO party_character_memberships(party_key,character_key,position) VALUES(?1,?2,?3)",params![m.party_key,m.character_key,m.position])?;
@@ -355,7 +426,7 @@ impl PcState {
             db.execute("INSERT INTO encounter_pc_characters(participant_id,character_key) SELECT p.id,?1 FROM encounter_participants p JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?2 AND e.owner_id=?3",params![a.character_key,a.participant_key,owner])?;
         }
         for r in &self.creation_receipts {
-            db.execute("INSERT INTO character_creation_receipts(owner_id,request_id,intent_digest,character_key) VALUES(?1,?2,?3,?4)",params![owner,r.request_id,r.intent_digest,r.character_key])?;
+            db.execute("INSERT INTO character_creation_receipts(owner_id,request_id,intent_digest,character_key,intent_version) VALUES(?1,?2,?3,?4,?5)",params![owner,r.request_id,r.intent_digest,r.character_key,r.intent_version])?;
         }
         for r in &self.addition_receipts {
             db.execute("INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,receipt_json) SELECT id,'pc_addition',?2,?3,?4 FROM encounters WHERE encounter_key=?1 AND owner_id=?5",params![r.encounter_key,r.request_id,r.intent_json,r.receipt_json,owner])?;

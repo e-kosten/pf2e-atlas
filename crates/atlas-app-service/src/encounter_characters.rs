@@ -61,7 +61,12 @@ impl AtlasAppService {
                 )?;
                 (
                     digest,
-                    Some((imported, expected_artifact_generation.clone(), rule_links)),
+                    Some((
+                        imported,
+                        json,
+                        expected_artifact_generation.clone(),
+                        rule_links,
+                    )),
                 )
             }
         };
@@ -70,7 +75,16 @@ impl AtlasAppService {
             &request.party,
             request.expected_encounter_revision,
         ))?;
-        let intent = serde_json::json!({"digest":digest});
+        let legacy_intent = serde_json::json!({"digest":digest});
+        let full_intent = imported
+            .as_ref()
+            .map(|(_, json, _, _)| {
+                crate::pc_reference::full_import_digest(&digest, json).map(
+                    |digest| serde_json::json!({"digest":digest,"pathbuilder_source_version":2}),
+                )
+            })
+            .transpose()?;
+        let intents = [Some(&legacy_intent), full_intent.as_ref()];
         let (encounter_key, recovered) = self.with_state(|session| {
             let state = session.local_state()?;
             let encounters = state.encounters();
@@ -78,7 +92,7 @@ impl AtlasAppService {
                 atlas_local_state::LocalStateError::EncounterNotFound(encounter.into())
             })?;
             let recovered = encounters
-                .pc_addition_receipt(&current.encounter_key, &request.request_id, &intent)?
+                .pc_addition_receipt(&current.encounter_key, &request.request_id, &intents)?
                 .map(|receipt| addition_view(&state.characters(), &current.encounter_key, &receipt))
                 .transpose()?;
             Ok((current.encounter_key, recovered))
@@ -86,7 +100,8 @@ impl AtlasAppService {
         if let Some(recovered) = recovered {
             return Ok(recovered);
         }
-        let prepared = if let Some((mut imported, expected, rule_links)) = imported {
+        let prepared = if let Some((mut imported, json, expected, rule_links)) = imported {
+            let source = pathbuilder::source(json.clone())?;
             let rule_links = rule_links.clone();
             let prepared =
                 self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
@@ -98,7 +113,7 @@ impl AtlasAppService {
                     )?;
                     Ok((imported, session.reference_revision()?))
                 })?;
-            Some(prepared)
+            Some((prepared.0, prepared.1, source))
         } else {
             None
         };
@@ -111,7 +126,7 @@ impl AtlasAppService {
             if let Some(receipt) = encounters.pc_addition_receipt(
                 &encounter.encounter_key,
                 &request.request_id,
-                &intent,
+                &intents,
             )? {
                 return addition_view(&state.characters(), &encounter.encounter_key, &receipt);
             }
@@ -133,15 +148,16 @@ impl AtlasAppService {
                     initiative,
                 } => (characters.create(name, *level, None)?, *max_hp, *initiative),
                 EncounterCharacterSource::Pathbuilder { .. } => {
-                    let (imported, revision) = prepared.as_ref().ok_or_else(|| {
+                    let (imported, revision, source) = prepared.as_ref().ok_or_else(|| {
                         AppServiceError::invalid_request("Review the import before adding it.")
                     })?;
                     session.require_reference_revision(*revision)?;
                     (
-                        characters.create(
+                        characters.create_imported(
                             &imported.name,
-                            Some(imported.level),
-                            Some(&imported.reference),
+                            imported.level,
+                            &imported.reference,
+                            source,
                         )?,
                         None,
                         None,
@@ -165,7 +181,7 @@ impl AtlasAppService {
             encounters.record_pc_addition(
                 &encounter.encounter_key,
                 &request.request_id,
-                &intent,
+                full_intent.as_ref().unwrap_or(&legacy_intent),
                 &receipt,
             )?;
             addition_view(&characters, &encounter.encounter_key, &receipt)
@@ -190,7 +206,11 @@ impl AtlasAppService {
                 atlas_local_state::LocalStateError::EncounterNotFound(encounter_ref.into())
             })?;
             if encounters
-                .pc_addition_receipt(&encounter.encounter_key, &request.request_id, &intent)?
+                .pc_addition_receipt(
+                    &encounter.encounter_key,
+                    &request.request_id,
+                    &[Some(&intent)],
+                )?
                 .is_some()
             {
                 return Ok(EncounterMutationView {

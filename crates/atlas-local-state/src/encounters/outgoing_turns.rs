@@ -175,7 +175,7 @@ fn recover_advance(
         encounter_ref,
         command_receipts::Family::Turn,
         request_id,
-        intent,
+        &[Some(intent)],
     )?
     .is_none()
     {

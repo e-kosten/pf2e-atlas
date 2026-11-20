@@ -4,7 +4,8 @@ use atlas_app_model::{
     CharacterSummaryView, CreateCharacterRequest, DeleteCharacterRequest, UpdateCharacterRequest,
 };
 use atlas_local_state::{
-    Character, CharactersRead, LocalStateError, LocalStateWrite, PartyMemberInput,
+    Character, CharacterCreationIntent, CharactersRead, LocalStateError, LocalStateWrite,
+    PartyMemberInput,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -28,10 +29,11 @@ impl AtlasAppService {
         request: CreateCharacterRequest,
     ) -> AppServiceResult<CharacterMutationView> {
         let digest = intent_digest(&(request.name.trim(), request.level, &request.party))?;
+        let intent = CharacterCreationIntent::Legacy(&digest);
         self.with_write(|session| {
             let state = session.local_state()?;
             let characters = state.characters();
-            if let Some(key) = characters.creation_receipt(&request.request_id, &digest)? {
+            if let Some(key) = characters.creation_receipt(&request.request_id, intent)? {
                 return creation_view(&characters, &key);
             }
             if let Some(party) = &request.party {
@@ -41,7 +43,7 @@ impl AtlasAppService {
             }
             let character = characters.create(&request.name, request.level, None)?;
             join_party(&state, request.party.as_ref(), &character)?;
-            characters.record_creation(&request.request_id, &digest, &character.character_key)?;
+            characters.record_creation(&request.request_id, intent, &character.character_key)?;
             creation_view(&characters, &character.character_key)
         })
     }

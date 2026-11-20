@@ -3,8 +3,9 @@
 mod atomic_action;
 mod characters;
 pub use characters::{
-    Character, CharacterParty, CharacterSummary, CharactersRead, CharactersWrite, MAX_PC_ABILITIES,
-    MAX_PC_ABILITY_LABEL, PcAbility, PcAbilityKind, PcReference,
+    Character, CharacterCreationIntent, CharacterParty, CharacterSummary, CharactersRead,
+    CharactersWrite, MAX_PC_ABILITIES, MAX_PC_ABILITY_LABEL, PathbuilderCharacter,
+    PathbuilderSource, PcAbility, PcAbilityKind, PcReference,
 };
 mod encounters;
 mod error;
