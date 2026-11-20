@@ -116,10 +116,11 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         if: ${{ !inputs.cold }}
         with:
-          shared-key: windows-desktop-${{ hashFiles('desktop/bundle-windows.ps1', '.github/workflows/windows-desktop.yml') }}
+          shared-key: windows-updater-qualification-${{ hashFiles('desktop/bundle-windows.ps1') }}
           workspaces: |
             . -> target
             desktop/src-tauri -> target
+          cache-on-failure: true
           cache-workspace-crates: false
           cache-bin: false
       - uses: actions/setup-node@v7

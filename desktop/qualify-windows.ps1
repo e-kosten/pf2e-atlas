@@ -32,6 +32,17 @@ function Invoke-Checked {
     if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE." }
 }
 function Escape-Nsis([string]$Value) { return $Value.Replace('$', '$$').Replace('"', '$\"') }
+function Get-NsisHostHash([string]$Path) {
+    # Tauri 2.12.4 bundles this marker patch, then restores the unpatched build
+    # output. Predict the packaged bytes instead of hashing that restored file.
+    $bytes = [IO.File]::ReadAllBytes($Path)
+    $token = '__TAURI_BUNDLE_TYPE_VAR_UNK'
+    $offset = [Text.Encoding]::ASCII.GetString($bytes).IndexOf($token, [StringComparison]::Ordinal)
+    if ($offset -lt 0) { throw 'The built host has no Tauri bundle-type marker.' }
+    $replacement = [Text.Encoding]::ASCII.GetBytes('__TAURI_BUNDLE_TYPE_VAR_NSS')
+    [Array]::Copy($replacement, 0, $bytes, $offset, $replacement.Length)
+    return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+}
 $original = @{}
 foreach ($name in @('ATLAS_UPDATER_PUBLIC_KEY', 'ATLAS_UPDATER_REHEARSAL_KEY', 'ATLAS_UPDATER_REHEARSAL_ROOT',
     'ATLAS_UPDATER_REHEARSAL_CA', 'ATLAS_DESKTOP_RELEASE', 'ATLAS_DESKTOP_SOURCE_COMMIT', 'ATLAS_WORKSPACE_SCHEMA',
@@ -71,7 +82,7 @@ try {
     $oldInstaller = Join-Path $root 'old-setup.exe'
     & "$PSScriptRoot/bundle-windows.ps1" -PackagedCli $oldCli -Version $stable -OutputInstaller $oldInstaller -HostTargetDirectory "$PSScriptRoot/src-tauri/target"
     if ($LASTEXITCODE -ne 0) { throw 'Could not build the old rehearsal installer.' }
-    $oldHostHash = (Get-FileHash "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/atlas-desktop.exe").Hash.ToLowerInvariant()
+    $oldHostHash = Get-NsisHostHash "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/atlas-desktop.exe"
     $targetInstaller = Join-Path $root 'atlas-desktop-x86_64-pc-windows-msvc-setup.exe'
     & "$PSScriptRoot/bundle-windows.ps1" -PackagedCli $cli -Version $nightly -OutputInstaller $targetInstaller -HostTargetDirectory "$PSScriptRoot/src-tauri/target"
     if ($LASTEXITCODE -ne 0) { throw 'Could not build the target rehearsal installer.' }
@@ -104,7 +115,7 @@ try {
     finally { Pop-Location }
     Copy-Item -LiteralPath "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/PF2e Atlas_${nightly}_x64-setup.exe" -Destination $targetInstaller -Force
     Invoke-Checked node @('desktop/updater-package.mjs', 'sign', "v$nightly", $targetInstaller)
-    $targetHostHash = (Get-FileHash "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/atlas-desktop.exe").Hash.ToLowerInvariant()
+    $targetHostHash = Get-NsisHostHash "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/atlas-desktop.exe"
     @{
         root = $root; oldInstaller = $oldInstaller; installer = $targetInstaller; stable = $stable; nightly = $nightly
         commit = $commit; port = $port; tlsKey = $tlsKey; tlsCert = $tlsCert
