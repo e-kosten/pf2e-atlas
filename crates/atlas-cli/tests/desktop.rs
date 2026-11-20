@@ -65,6 +65,18 @@ fn app_selection_is_the_cli_default_and_explicit_paths_bypass_it() {
     );
     assert!(original.is_file());
 
+    std::fs::remove_file(&separate).unwrap();
+    let missing = command().arg("desktop-probe").output().unwrap();
+    assert!(!missing.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&missing.stdout).unwrap();
+    assert!(
+        report["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("selected workspace is missing")
+    );
+    assert!(!separate.exists());
+
     let config_path = original.with_file_name("workspace-selection.json");
     std::fs::write(&config_path, "invalid selection").unwrap();
     assert!(

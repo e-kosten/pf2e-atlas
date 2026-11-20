@@ -277,6 +277,7 @@ function show(inspection, auto) {
     }
   };
   if (inspection.selection_error) {
+    showWorkspace();
     status("Choose a workspace", [inspection.selection_error, inspection.recovery_release].filter(Boolean).join(" "));
     if (inspection.resume_previous_workspace) {
       action(ui.primary, "Resume my previous workspace", () => recoverWorkspace(true));

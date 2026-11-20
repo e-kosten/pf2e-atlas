@@ -1,6 +1,6 @@
 import { Alert, Button, Flex, Progress, Typography } from "antd";
 import { ArrowDownToLine } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { AtlasModal } from "../shared/ui/overlays/AtlasModal";
 import "./desktopReleaseChannel.css";
 
@@ -192,17 +192,21 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
   const [review, setReview] = useState<ChannelReview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
   const channel = attachment?.channel;
   if (!attachment || !channel || !host) return null;
   const installedNightly = channel.installed.tag.startsWith("nightly/");
   const target = installedNightly ? "Stable" : "Nightly";
   const workspace = selection ?? channel.returning?.workspace ?? channel.active;
   const disabled = busy || channel.busy;
+  const missingSelection =
+    installedNightly && workspace !== channel.active && !channel.other_exists;
   const other: Role = channel.active === "original" ? "separate" : "original";
   const channelName = installedNightly ? "Nightly" : "Stable";
   if (offerOnly && !channel.ready && !open) return null;
 
   async function request(action: ChannelAction) {
+    const id = ++requestId.current;
     setBusy(true);
     setError(null);
     try {
@@ -210,23 +214,32 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
         token: attachment!.token,
         action,
       });
-      setReview(result);
+      if (id === requestId.current) setReview(result);
     } catch (failure) {
-      setError(
-        typeof failure === "string"
-          ? failure
-          : "Atlas couldn’t complete the channel request.",
-      );
+      if (id === requestId.current)
+        setError(
+          typeof failure === "string"
+            ? failure
+            : "Atlas couldn’t complete the channel request.",
+        );
     } finally {
-      setBusy(false);
+      if (id === requestId.current) setBusy(false);
     }
   }
 
   function show() {
+    requestId.current++;
+    setBusy(false);
     setSelection(null);
     setReview(null);
     setError(null);
     setOpen(true);
+  }
+
+  function close() {
+    requestId.current++;
+    setBusy(false);
+    setOpen(false);
   }
 
   return (
@@ -263,7 +276,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
         open={open}
         layout="form"
         title="Change release channel"
-        onCancel={() => setOpen(false)}
+        onCancel={close}
         footer={null}
       >
         <Flex vertical gap="middle">
@@ -300,6 +313,12 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
               <Typography.Text>
                 Choose which data to use after switching to {target}.
               </Typography.Text>
+              {missingSelection && (
+                <Alert
+                  type="error"
+                  title="The earlier copy of your data is missing. Choose your current data to continue."
+                />
+              )}
               <Flex wrap gap="small" className="desktop-channel__choices">
                 {[
                   channel.active,
@@ -327,7 +346,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                   </Button>
                 ))}
               </Flex>
-              {installedNightly && (
+              {installedNightly && !missingSelection && (
                 <Typography.Text type="secondary">
                   {workspace === channel.active
                     ? "Keep the data you’ve been using in Nightly, including your latest changes."
@@ -367,7 +386,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                   )}
                   <Button
                     type="primary"
-                    disabled={disabled}
+                    disabled={disabled || missingSelection}
                     onClick={() => void request({ kind: "install", token: review.id })}
                   >
                     {disabled ? "Installing…" : `Install ${target} and restart`}
@@ -377,7 +396,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                 <Button
                   type="primary"
                   loading={busy}
-                  disabled={channel.busy}
+                  disabled={channel.busy || missingSelection}
                   onClick={() =>
                     void request({
                       kind: "review",
@@ -402,7 +421,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
               className="desktop-channel__waiting"
             >
               <Button
-                disabled={disabled}
+                disabled={disabled || missingSelection}
                 onClick={() =>
                   void request({ kind: "wait", workspace, updates: "hold" })
                 }
@@ -410,7 +429,7 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                 Stay on this build and wait for the next Stable release
               </Button>
               <Button
-                disabled={disabled}
+                disabled={disabled || missingSelection}
                 onClick={() =>
                   void request({ kind: "wait", workspace, updates: "continue" })
                 }

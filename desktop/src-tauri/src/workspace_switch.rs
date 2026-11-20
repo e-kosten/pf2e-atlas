@@ -98,9 +98,9 @@ fn startup(app: &AppHandle, installed: Option<&Build>) -> Result<Option<PathBuf>
         config.returning = None;
         save(app, &mut config)?;
     }
-    let ledger: Value = process::migration_ledger()?;
     if let Some(mut pending) = config.pending.clone() {
         if installed == Some(&pending.target) {
+            let ledger: Value = process::migration_ledger()?;
             if let Some(key) = &pending.initialization_key {
                 let claimed = process::claim_transition(&pending.admission, &ledger, key)?;
                 if claimed.workspace != pending.admission.workspace {
@@ -127,9 +127,17 @@ fn startup(app: &AppHandle, installed: Option<&Build>) -> Result<Option<PathBuf>
             return Err("A channel switch is still pending. Close the installer before resuming your previous workspace.".into());
         }
     }
-    let admission = process::inspect_transition(config.active, &ledger, None)
-        .map_err(|error| process::transition_error(error, "Atlas", "the selected data"))?;
-    Ok(Some(admission.workspace))
+    process::probe_default()?;
+    let selection = process::workspace_selection_snapshot()?;
+    if selection.config != config {
+        return Err(CHANGED_WORKSPACE.into());
+    }
+    selection
+        .workspaces
+        .into_iter()
+        .find(|workspace| workspace.role == config.active)
+        .map(|workspace| Some(workspace.path))
+        .ok_or_else(|| "The selected managed workspace is unavailable.".into())
 }
 
 pub(crate) struct PendingLaunch {

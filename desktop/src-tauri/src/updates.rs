@@ -158,6 +158,25 @@ struct Switch {
     returning_to_stable: bool,
 }
 
+impl Switch {
+    fn validate_destination(&self) -> Result<(), String> {
+        let initializing_pending = self.config.pending.as_ref().is_some_and(|pending| {
+            pending.initialization_key.is_some()
+                && pending.target == self.descriptor.build()
+                && pending.admission == self.admission
+                && pending.returning_to_stable == self.returning_to_stable
+        });
+        if self.admission.key.is_some() || self.seed_source.is_some() || initializing_pending {
+            Ok(())
+        } else {
+            Err(
+                "The selected data is missing. Choose an available copy before switching releases."
+                    .into(),
+            )
+        }
+    }
+}
+
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Descriptor {
@@ -948,6 +967,7 @@ async fn authorize(
     })
     .await
     .map_err(display)??;
+    transition.validate_destination()?;
     offer.switch = Some(transition);
     Ok(offer)
 }
@@ -979,6 +999,26 @@ pub(crate) struct ChannelReview {
     will_seed: bool,
     needs_setup: bool,
     will_upgrade: bool,
+}
+
+impl ChannelReview {
+    fn from_switch(transition: &Switch) -> Result<Self, String> {
+        Ok(Self {
+            id: review_id(transition)?,
+            version: transition.descriptor.version.clone(),
+            workspace: transition.admission.role,
+            will_seed: transition.seed_source.is_some(),
+            needs_setup: transition.admission.key.is_none() && transition.seed_source.is_none(),
+            will_upgrade: transition
+                .seed_source
+                .as_ref()
+                .unwrap_or(&transition.admission)
+                .schema
+                .is_some_and(|schema| {
+                    schema < transition.descriptor.compatibility.workspace_schema
+                }),
+        })
+    }
 }
 
 fn review_id(transition: &Switch) -> Result<String, String> {
@@ -1105,17 +1145,7 @@ pub(crate) async fn desktop_channel_action(
                 .switch
                 .as_ref()
                 .ok_or("Missing reviewed channel switch.")?;
-            let review = ChannelReview {
-                id: review_id(transition)?,
-                version: offer.update.version.clone(),
-                workspace,
-                will_seed: transition.seed_source.is_some(),
-                needs_setup: transition.admission.key.is_none() && transition.seed_source.is_none(),
-                will_upgrade: transition
-                    .admission
-                    .schema
-                    .is_some_and(|schema| schema < offer.compatibility.workspace_schema),
-            };
+            let review = ChannelReview::from_switch(transition)?;
             lock(&desktop.updates.state).channel_offer = Some(offer);
             Ok(Some(review))
         }
@@ -1400,6 +1430,93 @@ fn recover(app: &AppHandle, old_base: Url) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn reviewed_switch(destination: Option<u32>, source: Option<u32>) -> Switch {
+        let admission = |role: Role, schema: Option<u32>| Admission {
+            role,
+            workspace: std::path::PathBuf::from(format!("/Atlas/{}.sqlite", role.as_arg())),
+            key: schema.map(|_| "workspace-key".to_owned()),
+            schema,
+            file_id: schema.map(|_| (1, 2)),
+        };
+        Switch {
+            descriptor: Descriptor {
+                protocol: 2,
+                channel: "nightly".into(),
+                version: "0.2.0-nightly.20261119092300.gaaaaaaaaaaaa".into(),
+                tag: "nightly/20261119092300.gaaaaaaaaaaaa".into(),
+                commit: "a".repeat(40),
+                asset: PACKAGE.into(),
+                sha256: "b".repeat(64),
+                migration_ledger: serde_json::Value::Null,
+                compatibility: Compatibility {
+                    workspace_schema: 45,
+                    foundry_commit: "c".repeat(40),
+                    foundry_version: "8.6.1".into(),
+                },
+            },
+            admission: admission(Role::Separate, destination),
+            seed_source: source.map(|schema| admission(Role::Original, Some(schema))),
+            config: workspace_switch::Config::default(),
+            returning_to_stable: false,
+        }
+    }
+
+    #[test]
+    fn channel_review_warns_about_the_data_that_the_target_will_open() {
+        for (name, destination, source, will_upgrade) in [
+            ("new copy of older data", None, Some(43), true),
+            ("new copy of current data", None, Some(45), false),
+            ("retained older data", Some(43), None, true),
+            ("retained current data", Some(45), None, false),
+        ] {
+            let transition = reviewed_switch(destination, source);
+            transition.validate_destination().unwrap();
+            let review = ChannelReview::from_switch(&transition).unwrap();
+            assert_eq!(
+                review.version, "0.2.0-nightly.20261119092300.gaaaaaaaaaaaa",
+                "{name}"
+            );
+            assert_eq!(review.workspace, Role::Separate, "{name}");
+            assert_eq!(review.will_seed, source.is_some(), "{name}");
+            assert!(!review.needs_setup, "{name}");
+            assert_eq!(review.will_upgrade, will_upgrade, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_missing_destination_requires_copying_data_or_an_exact_pending_initialization() {
+        let mut missing = reviewed_switch(None, None);
+        assert!(
+            missing
+                .validate_destination()
+                .unwrap_err()
+                .contains("selected data is missing")
+        );
+        let before = Build {
+            version: "0.1.0".into(),
+            tag: "release/v0.1.0".into(),
+            commit: "d".repeat(40),
+        };
+        missing.config.pending = Some(
+            workspace_switch::new_transition(
+                before,
+                missing.descriptor.build(),
+                missing.admission.clone(),
+                false,
+            )
+            .unwrap(),
+        );
+        missing.validate_destination().unwrap();
+        let review = ChannelReview::from_switch(&missing).unwrap();
+        assert!(review.needs_setup);
+        assert!(!review.will_upgrade);
+        missing.config.pending.as_mut().unwrap().target.commit = "e".repeat(40);
+        assert!(missing.validate_destination().is_err());
+        reviewed_switch(None, Some(43))
+            .validate_destination()
+            .unwrap();
+    }
 
     #[test]
     fn admission_failure_uses_the_target_release_even_for_same_channel_updates() {

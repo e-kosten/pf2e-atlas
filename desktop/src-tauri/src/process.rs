@@ -265,6 +265,10 @@ pub fn probe(app: &AppHandle) -> Result<WorkspaceProbe, String> {
     probe_with(app, &[])
 }
 
+pub(crate) fn probe_default() -> Result<WorkspaceProbe, String> {
+    read_probe(command()?.arg("desktop-probe"))
+}
+
 pub fn reference_status(app: &AppHandle) -> Result<ReferenceStatus, String> {
     let output = routed(app, "desktop-probe")?
         .arg("--reference-status")
@@ -286,10 +290,11 @@ pub fn wait_for_upgrade(app: &AppHandle) -> Result<(), String> {
 }
 
 fn probe_with(app: &AppHandle, args: &[&str]) -> Result<WorkspaceProbe, String> {
-    let output = routed(app, "desktop-probe")?
-        .args(args)
-        .output()
-        .map_err(display)?;
+    read_probe(routed(app, "desktop-probe")?.args(args))
+}
+
+fn read_probe(command: &mut Command) -> Result<WorkspaceProbe, String> {
+    let output = command.output().map_err(display)?;
     let probe: WorkspaceProbe = decode(&output.stdout)?;
     if !output.status.success() || probe.version != VERSION {
         return Err("The app and bundled Atlas command use different readiness protocols.".into());
