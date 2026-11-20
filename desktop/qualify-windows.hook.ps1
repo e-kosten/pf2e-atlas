@@ -58,12 +58,21 @@ $config = Get-Content -LiteralPath $selection -Raw | ConvertFrom-Json
 if ($config.active -ne 'original' -or !$config.pending -or $config.pending.target.version -ne $request.targetVersion) {
     throw 'The reviewed selection was not kept pending during replacement.'
 }
-$database = (Resolve-Path -LiteralPath $config.pending.admission.workspace).Path
+$resolvedDatabase = Resolve-Path -LiteralPath $config.pending.admission.workspace
+$database = $resolvedDatabase.ProviderPath
 $checkedDatabase = $database
 if ($checkedDatabase.StartsWith('\\?\')) { $checkedDatabase = $checkedDatabase.Substring(4) }
+@{
+    admissionPath = $config.pending.admission.workspace
+    powershellPath = $resolvedDatabase.Path
+    providerPath = $resolvedDatabase.ProviderPath
+    normalizedPath = $checkedDatabase
+    caseRoot = $caseRoot
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $caseRoot 'path-check.json') -Encoding utf8
 if (!$checkedDatabase.StartsWith($caseRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'The reviewed database is outside the disposable case.'
 }
+$database = $checkedDatabase
 if ($request.mode -notin @('normal', 'identity', 'ledger')) { throw 'Unknown qualification mode.' }
 if ($request.mode -ne 'normal') {
     $code = @'

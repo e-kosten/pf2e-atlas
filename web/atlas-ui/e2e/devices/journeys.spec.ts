@@ -2171,6 +2171,9 @@ test("record picker saves an optional entry note and brings the changed list fir
     await activate(trigger, info);
     const dialog = page.getByRole("dialog", { name: "Add to list", exact: true });
     await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
+    const dropdown = page.locator(".ant-select-dropdown:visible");
+    await expect(dropdown).toBeVisible();
+    await expect(dropdown).not.toHaveClass(/ant-slide-up-(?:appear|enter)(?:[-\s]|$)/);
     const choices = page.locator(".ant-select-item-option-content");
     await expect(choices.first()).toHaveText(`Alpha ${suffix}`);
     await activate(choices.filter({ hasText: `Zulu ${suffix}` }), info);
