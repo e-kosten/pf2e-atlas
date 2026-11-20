@@ -41,10 +41,14 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 48. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 47. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
+
+Build each PR's new migrations from the schema at its target branch. Fold
+schema changes made earlier in the PR into the final migration and preserve
+the checksums of migrations already on the target branch.
 
 Under exclusive update and access admission, storage authenticates the applied
 ledger and lends runtime the read-only pre-upgrade snapshot. Runtime uses the
@@ -231,9 +235,8 @@ live references while preserving encounter participants. These writes check
 owner and aggregate revisions within one workspace transaction. Adding a party
 also checks the reviewed character revisions.
 
-Schema 47 introduces member-owned PC references. Schema 48 promotes each
-existing saved member independently, retaining its key,
-reference payload, choices and live encounter links. It adds character-creation
+Schema 47 promotes each existing saved party member independently, retaining
+its key, name, level and roster position. It adds character-creation
 receipts and the typed PC-addition family of encounter receipts. Receipt intent
 binds the original normalized request, and replay precedes mutable guards after
 owner authentication. Historical receipt targets may have been deleted. A replay
@@ -273,8 +276,8 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 Archive versions advance independently of the database schema. Capture emits
-`4.0` for shared characters, their creation/addition receipts, or historical
-member-owned PC references. Other workspaces use `3.0` for GM adjustment state or
+`4.0` for shared characters and their creation/addition receipts. Other
+workspaces use `3.0` for GM adjustment state or
 history, `2.0` for archived lists and `1.1` for other saved state. Readers that
 predate a required archive major reject it before restore. Current readers
 can restore historical member-owned PC references from version `3.0` and treat

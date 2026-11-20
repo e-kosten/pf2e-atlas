@@ -38,12 +38,6 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
         },
         Migration {
             version: 47,
-            name: "pc-rule-references",
-            sql: include_str!("../../atlas-local-state/src/release/pc_references.sql"),
-            backfill: None,
-        },
-        Migration {
-            version: 48,
             name: "shared-characters",
             sql: include_str!("../../atlas-local-state/src/release/characters.sql"),
             backfill: Some(DataBackfill {

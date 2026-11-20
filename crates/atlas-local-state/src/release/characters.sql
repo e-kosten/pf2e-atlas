@@ -6,10 +6,9 @@ CREATE TABLE characters (
     revision INTEGER NOT NULL DEFAULT 0 CHECK(revision >= 0),
     reference_payload TEXT CHECK(reference_payload IS NULL OR json_valid(reference_payload))
 );
-INSERT INTO characters(character_key,owner_id,name,level,reference_payload)
-SELECT m.member_key,p.owner_id,m.name,m.level,r.payload
-FROM party_members m JOIN parties p USING(party_key)
-LEFT JOIN party_member_references r USING(member_key);
+INSERT INTO characters(character_key,owner_id,name,level)
+SELECT m.member_key,p.owner_id,m.name,m.level
+FROM party_members m JOIN parties p USING(party_key);
 
 CREATE TABLE party_character_memberships (
     party_key TEXT NOT NULL REFERENCES parties(party_key) ON DELETE CASCADE,
@@ -24,10 +23,7 @@ CREATE TABLE encounter_pc_characters (
     participant_id INTEGER PRIMARY KEY REFERENCES encounter_participants(id) ON DELETE CASCADE,
     character_key TEXT NOT NULL REFERENCES characters(character_key) ON DELETE CASCADE
 );
-INSERT INTO encounter_pc_characters SELECT participant_id,member_key FROM encounter_pc_party_members;
 CREATE INDEX encounter_pc_characters_character ON encounter_pc_characters(character_key);
-DROP TABLE encounter_pc_party_members;
-DROP TABLE party_member_references;
 DROP TABLE party_members;
 
 CREATE TABLE character_creation_receipts (

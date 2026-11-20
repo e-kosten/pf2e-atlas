@@ -81,82 +81,83 @@ impl PcState {
             [],
             |r| r.get::<_, bool>(0),
         )?;
-        let mut state = Self::default();
-        if current {
-            state.characters=rows(db,"SELECT character_key,name,level,revision,reference_payload FROM characters WHERE owner_id=?1 ORDER BY character_key",[owner],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get::<_,Option<String>>(4)?)))?.into_iter().map(|(character_key,name,level,revision,payload)|Ok(Character{character_key,name,level,revision,reference:payload.as_deref().map(decode).transpose()?})).collect::<LocalStateResult<_>>()?;
-            state.memberships = rows(
-                db,
-                "SELECT m.party_key,m.character_key,m.position FROM party_character_memberships m JOIN parties p USING(party_key) WHERE p.owner_id=?1 ORDER BY m.party_key,m.position",
-                [owner],
-                |r| {
-                    Ok(Membership {
-                        party_key: r.get(0)?,
-                        character_key: r.get(1)?,
-                        position: r.get(2)?,
-                    })
-                },
-            )?;
-            state.character_associations = rows(
-                db,
-                "SELECT p.participant_key,a.character_key FROM encounter_pc_characters a JOIN encounter_participants p ON p.id=a.participant_id JOIN encounters e ON e.id=p.encounter_id WHERE e.owner_id=?1 ORDER BY p.participant_key",
-                [owner],
-                |r| {
-                    Ok(CharacterAssociation {
-                        participant_key: r.get(0)?,
-                        character_key: r.get(1)?,
-                    })
-                },
-            )?;
-            state.creation_receipts = rows(
-                db,
-                "SELECT request_id,intent_digest,character_key FROM character_creation_receipts WHERE owner_id=?1 ORDER BY request_id",
-                [owner],
-                |r| {
-                    Ok(CreationReceipt {
-                        request_id: r.get(0)?,
-                        intent_digest: r.get(1)?,
-                        character_key: r.get(2)?,
-                    })
-                },
-            )?;
-            state.addition_receipts = rows(
-                db,
-                "SELECT e.encounter_key,r.request_id,r.intent_json,r.receipt_json FROM encounter_command_receipts r JOIN encounters e ON e.id=r.encounter_id WHERE e.owner_id=?1 AND r.family='pc_addition' ORDER BY e.encounter_key,r.request_id",
-                [owner],
-                |r| {
-                    Ok(AdditionReceipt {
-                        encounter_key: r.get(0)?,
-                        request_id: r.get(1)?,
-                        intent_json: r.get(2)?,
-                        receipt_json: r.get(3)?,
-                    })
-                },
-            )?;
-        } else {
-            let available = db.query_row(
-                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='party_member_references')",
-                [],
-                |r| r.get::<_, bool>(0),
-            )?;
-            if available {
-                state.members=rows(db,"SELECT m.member_key,r.payload FROM party_member_references r JOIN party_members m USING(member_key) JOIN parties p USING(party_key) WHERE p.owner_id=?1 ORDER BY m.member_key",[owner],|r|Ok((r.get(0)?,r.get::<_,String>(1)?)))?.into_iter().map(|(member_key,payload)|Ok(MemberReference{member_key,reference:decode(&payload)?})).collect::<LocalStateResult<_>>()?;
-                state.associations = rows(
-                    db,
-                    "SELECT p.participant_key,a.member_key FROM encounter_pc_party_members a JOIN encounter_participants p ON p.id=a.participant_id JOIN encounters e ON e.id=p.encounter_id WHERE e.owner_id=?1 ORDER BY p.participant_key",
-                    [owner],
-                    |r| {
-                        Ok(Association {
-                            participant_key: r.get(0)?,
-                            member_key: r.get(1)?,
-                        })
-                    },
-                )?;
-            }
+        if !current {
+            return Ok(None);
         }
-        Ok(
-            (state.has_characters() || !state.members.is_empty() || !state.associations.is_empty())
-                .then_some(state),
-        )
+        let characters = rows(
+            db,
+            "SELECT character_key,name,level,revision,reference_payload FROM characters WHERE owner_id=?1 ORDER BY character_key",
+            [owner],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get::<_, Option<String>>(4)?)),
+        )?
+        .into_iter()
+        .map(|(character_key, name, level, revision, payload)| {
+            Ok(Character {
+                character_key,
+                name,
+                level,
+                revision,
+                reference: payload.as_deref().map(decode).transpose()?,
+            })
+        })
+        .collect::<LocalStateResult<_>>()?;
+        let memberships = rows(
+            db,
+            "SELECT m.party_key,m.character_key,m.position FROM party_character_memberships m JOIN parties p USING(party_key) WHERE p.owner_id=?1 ORDER BY m.party_key,m.position",
+            [owner],
+            |r| {
+                Ok(Membership {
+                    party_key: r.get(0)?,
+                    character_key: r.get(1)?,
+                    position: r.get(2)?,
+                })
+            },
+        )?;
+        let character_associations = rows(
+            db,
+            "SELECT p.participant_key,a.character_key FROM encounter_pc_characters a JOIN encounter_participants p ON p.id=a.participant_id JOIN encounters e ON e.id=p.encounter_id WHERE e.owner_id=?1 ORDER BY p.participant_key",
+            [owner],
+            |r| {
+                Ok(CharacterAssociation {
+                    participant_key: r.get(0)?,
+                    character_key: r.get(1)?,
+                })
+            },
+        )?;
+        let creation_receipts = rows(
+            db,
+            "SELECT request_id,intent_digest,character_key FROM character_creation_receipts WHERE owner_id=?1 ORDER BY request_id",
+            [owner],
+            |r| {
+                Ok(CreationReceipt {
+                    request_id: r.get(0)?,
+                    intent_digest: r.get(1)?,
+                    character_key: r.get(2)?,
+                })
+            },
+        )?;
+        let addition_receipts = rows(
+            db,
+            "SELECT e.encounter_key,r.request_id,r.intent_json,r.receipt_json FROM encounter_command_receipts r JOIN encounters e ON e.id=r.encounter_id WHERE e.owner_id=?1 AND r.family='pc_addition' ORDER BY e.encounter_key,r.request_id",
+            [owner],
+            |r| {
+                Ok(AdditionReceipt {
+                    encounter_key: r.get(0)?,
+                    request_id: r.get(1)?,
+                    intent_json: r.get(2)?,
+                    receipt_json: r.get(3)?,
+                })
+            },
+        )?;
+        let state = Self {
+            characters,
+            memberships,
+            character_associations,
+            creation_receipts,
+            addition_receipts,
+            ..Self::default()
+        };
+        Ok(state.has_characters().then_some(state))
     }
     pub(super) fn has_characters(&self) -> bool {
         !self.characters.is_empty()

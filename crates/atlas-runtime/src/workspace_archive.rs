@@ -117,7 +117,7 @@ impl WorkspaceArchive {
         let reference_config = read_requested_reference_config_snapshot(snapshot)
             .map_err(message)?
             .map(ReferenceConfig::from);
-        let version = if saved.has_pc_references() {
+        let version = if saved.has_characters() {
             CHARACTER_VERSION
         } else if saved.has_encounter_adjustments() {
             ADJUSTMENT_ARCHIVE_VERSION
