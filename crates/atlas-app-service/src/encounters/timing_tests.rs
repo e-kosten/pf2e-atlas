@@ -2445,3 +2445,75 @@ fn initial_start_owns_legacy_duration_reminders_without_running_end_recovery() {
             .any(|r| matches!(r, EncounterTurnReminderView::PersistentDamage { .. }))
     );
 }
+
+#[test]
+fn gm_adjustment_end_and_start_on_wrap_expire_at_distinct_boundaries() {
+    use atlas_domain::{AdjustmentModifierType, AdjustmentTarget};
+    use atlas_local_state::{
+        AdjustmentChange, AdjustmentTiming, EncounterAdjustment, PreparedConditionEvent,
+        TrackerProgress,
+    };
+    let (f, key, first, last) = fixture();
+    set(&f, &key, &last);
+    let revision = snapshot(&f, &key).encounter.revision;
+    let entries = [
+        ("end", &last, LocalEvent::End),
+        ("start", &first, LocalEvent::Start),
+    ];
+    f.worker
+        .with_write(|session| {
+            Ok(session
+                .local_state()?
+                .encounters()
+                .apply_condition_event_with(
+                    &key,
+                    "timed-gm-changes",
+                    &serde_json::json!({"action":"gm_adjustment"}),
+                    revision,
+                    || {
+                        Ok(PreparedConditionEvent {
+                            adjustments: entries
+                                .into_iter()
+                                .map(|(name, anchor, event)| AdjustmentChange {
+                                    participant_key: last.clone(),
+                                    adjustment_key: name.into(),
+                                    value: Some(EncounterAdjustment {
+                                        adjustment_key: name.into(),
+                                        target: AdjustmentTarget::ArmorClass,
+                                        name: name.into(),
+                                        amount: -2,
+                                        modifier_type: AdjustmentModifierType::Stacks,
+                                        timing: Some(AdjustmentTiming {
+                                            duration: rounds(1, Some(anchor), event).unwrap(),
+                                            progress: TrackerProgress::Rounds(1),
+                                        }),
+                                    }),
+                                })
+                                .collect(),
+                            ..Default::default()
+                        })
+                    },
+                )?)
+        })
+        .unwrap();
+    next(&f, &key);
+    let after = snapshot(&f, &key);
+    assert_eq!(
+        after.encounter.current_turn_participant_key.as_deref(),
+        Some(first.as_str())
+    );
+    assert!(
+        after
+            .participants
+            .iter()
+            .all(|actor| actor.adjustments.is_empty())
+    );
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    for (boundary, name) in [(review.outgoing, "end"), (review.incoming, "start")] {
+        let boundary = boundary.unwrap();
+        assert!(matches!(
+            boundary.reminders.as_slice(),
+            [EncounterTurnReminderView::AdjustmentExpired { adjustment_name, .. }] if adjustment_name == name
+        ));
+    }
+}

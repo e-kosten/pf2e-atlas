@@ -1,4 +1,11 @@
 #![deny(unsafe_code)]
+mod encounter_adjustments;
+pub use encounter_adjustments::{
+    AdjustmentModifierType, AdjustmentTarget, EncounterAdjustmentAction, EncounterAdjustmentInput,
+    EncounterAdjustmentPreviewRow, EncounterAdjustmentPreviewView, EncounterAdjustmentRequest,
+    EncounterAdjustmentTargetView, EncounterAdjustmentTimingInput, EncounterAdjustmentTimingView,
+    EncounterAdjustmentView, EncounterAdjustmentsView,
+};
 mod encounter_tracker;
 pub use encounter_tracker::{
     EncounterManualTrackerAction, EncounterManualTrackerView, UpdateEncounterManualTrackerRequest,

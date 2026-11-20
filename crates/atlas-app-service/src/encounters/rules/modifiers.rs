@@ -1,6 +1,7 @@
 //! Typed PF2e modifier competition, independent of presentation contracts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ModifierType {
+    Item,
     Status,
     Circumstance,
     Adjustment,

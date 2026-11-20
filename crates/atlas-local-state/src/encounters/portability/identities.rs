@@ -13,9 +13,22 @@ pub(super) struct Identities {
     encounter_identity: Option<(String, String)>,
 }
 
+fn validate_adjustments(adjustments: &[EncounterAdjustment]) -> LocalStateResult<()> {
+    let mut keys = BTreeSet::new();
+    for adjustment in adjustments {
+        if !adjustment.valid() {
+            return Err(invalid("invalid GM adjustment"));
+        }
+        require_unique(&mut keys, &adjustment.adjustment_key, "GM adjustment")?;
+    }
+    Ok(())
+}
+
 impl EncounterDocument {
     pub(super) fn validate(&mut self) -> LocalStateResult<Identities> {
-        if self.version != VERSION {
+        if !matches!(self.version, VERSION | ADJUSTMENT_VERSION)
+            || (self.version == VERSION && self.requires_adjustment_support())
+        {
             return Err(invalid("unsupported encounter file version"));
         }
         let root = &self.snapshot.encounter;
@@ -36,6 +49,7 @@ impl EncounterDocument {
             live(&row.participant_key)?;
             require_unique(&mut unique, &row.participant_key, "baseline")?;
             unique_conditions(&row.gameplay.conditions)?;
+            validate_adjustments(&row.gameplay.adjustments)?;
         }
         let mut pending = BTreeSet::new();
         for row in &self.pending {
@@ -217,6 +231,7 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
                 || !p.spell_resources.is_empty()
                 || !p.expended_spells.is_empty()
                 || !p.manual_trackers.is_empty()
+                || !p.adjustments.is_empty()
                 || !p.ability_states.is_empty())
         {
             return Err(invalid(
@@ -227,6 +242,7 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
             require_unique(&mut conditions, condition.condition_id, "live condition")?;
         }
         unique_conditions(&p.conditions)?;
+        validate_adjustments(&p.adjustments)?;
         let mut spell_resources = BTreeSet::new();
         for resource in &p.spell_resources {
             require_unique(&mut spell_resources, &resource.key, "spell resource")?;
@@ -384,6 +400,7 @@ impl Identities {
             for condition in &mut row.gameplay.conditions {
                 self.condition(condition);
             }
+            self.adjustments(&mut row.gameplay.adjustments);
             for tracker in &mut row.gameplay.manual_trackers {
                 self.duration(&mut tracker.duration);
             }
@@ -429,6 +446,7 @@ impl Identities {
             for condition in &mut p.conditions {
                 self.condition(condition);
             }
+            self.adjustments(&mut p.adjustments);
             for tracker in &mut p.manual_trackers {
                 self.duration(&mut tracker.duration);
             }
@@ -441,6 +459,14 @@ impl Identities {
                         self.condition_id(id);
                     }
                 }
+            }
+        }
+    }
+
+    fn adjustments(&mut self, adjustments: &mut [EncounterAdjustment]) {
+        for value in adjustments {
+            if let Some(timing) = value.timing.as_mut() {
+                self.duration(&mut timing.duration);
             }
         }
     }

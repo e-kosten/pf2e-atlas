@@ -156,6 +156,7 @@ export type StatModifierTypeView = typeof StatModifierTypeView[keyof typeof Stat
 
 export const StatModifierTypeView = {
   adjustment: 'adjustment',
+  item: 'item',
   status: 'status',
   circumstance: 'circumstance',
 } as const;
@@ -925,6 +926,40 @@ export interface AddSavedListItemRequest {
   note?: string | null;
   record_ref: string;
 }
+
+export type AdjustmentModifierType = typeof AdjustmentModifierType[keyof typeof AdjustmentModifierType];
+
+
+export const AdjustmentModifierType = {
+  stacks: 'stacks',
+  item: 'item',
+  status: 'status',
+  circumstance: 'circumstance',
+} as const;
+
+export type AdjustmentTarget = {
+  kind: 'armor_class';
+} | {
+  kind: 'fortitude';
+} | {
+  kind: 'reflex';
+} | {
+  kind: 'will';
+} | {
+  kind: 'perception';
+} | {
+  key: string;
+  kind: 'skill';
+} | {
+  kind: 'speed';
+  mode: string;
+} | {
+  kind: 'strike_attacks';
+} | {
+  kind: 'spell_attacks';
+} | {
+  kind: 'spell_dcs';
+};
 
 export interface AdvanceEncounterTurnRequest {
   expected_revision: number;
@@ -2711,6 +2746,84 @@ export interface EncounterActionCheckView {
   sources: EncounterActionCheckSourceView[];
 }
 
+export interface EncounterAdjustmentTimingInput {
+  duration: ConditionDurationViewInputSchema;
+  /** Set remaining rounds or seconds explicitly. Omit to preserve progress on edits. */
+  remaining?: number;
+}
+
+export interface EncounterAdjustmentInput {
+  amount: number;
+  modifier_type: AdjustmentModifierType;
+  name: string;
+  target: AdjustmentTarget;
+  timing: EncounterAdjustmentTimingInput | null;
+}
+
+export type EncounterAdjustmentAction = {
+  kind: 'add';
+  value: EncounterAdjustmentInput;
+} | {
+  adjustment_key: string;
+  kind: 'edit';
+  value: EncounterAdjustmentInput;
+} | {
+  adjustment_key: string;
+  kind: 'end';
+};
+
+export interface EncounterAdjustmentPreviewRow {
+  /** @nullable */
+  after: number | null;
+  /** @nullable */
+  before: number | null;
+  label: string;
+  suppressed: boolean;
+}
+
+export interface EncounterAdjustmentPreviewView {
+  /** @minimum 0 */
+  reference_revision?: number;
+  rows: EncounterAdjustmentPreviewRow[];
+}
+
+export interface EncounterAdjustmentRequest {
+  action: EncounterAdjustmentAction;
+  expected_encounter_revision: number;
+  expected_participant_revision: number;
+  /** @minimum 0 */
+  expected_reference_revision?: number;
+  request_id: string;
+}
+
+export interface EncounterAdjustmentTargetView {
+  label: string;
+  target: AdjustmentTarget;
+}
+
+export interface EncounterAdjustmentTimingView {
+  anchor_available: boolean;
+  duration: ConditionDurationView;
+  /** Rounds for round durations, exact seconds for all other durations. */
+  remaining: number;
+}
+
+export interface EncounterAdjustmentView {
+  adjustment_key: string;
+  amount: number;
+  label: string;
+  modifier_type: AdjustmentModifierType;
+  name: string;
+  target: AdjustmentTarget;
+  target_available: boolean;
+  timing: EncounterAdjustmentTimingView | null;
+}
+
+export interface EncounterAdjustmentsView {
+  entries: EncounterAdjustmentView[];
+  targets: EncounterAdjustmentTargetView[];
+}
+
 export interface EncounterCastingRemindersRequest {
   participant_key: string;
   selection: RecordNavigationViewInputSchema;
@@ -3639,6 +3752,7 @@ export interface EncounterParticipantView {
   defeated: boolean;
   display_name: string;
   effective_max_hp: NumberFactView;
+  gm_adjustments?: EncounterAdjustmentsView;
   hazard_disabled: boolean;
   hidden: boolean;
   hp_origin: string;
@@ -3884,6 +3998,12 @@ export interface EncounterStrikeRollView {
 }
 
 export type EncounterTurnReminderView = {
+  adjustment_key: string;
+  adjustment_name: string;
+  kind: 'adjustment_expired';
+  participant_key: string;
+  participant_name: string;
+} | {
   kind: 'tracker_elapsed';
   participant_key: string;
   participant_name: string;
@@ -6566,6 +6686,82 @@ return fetchGenerated<EncounterMutationView>(getUpdateEncounterAbilityStateUrl(e
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateEncounterAbilityStateRequest)
+  }
+);}
+
+
+
+export const getUpdateEncounterAdjustmentUrl = (encounterRef: string,
+    participantKey: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/${encodeURIComponent(String(participantKey))}/adjustments`
+}
+
+export const updateEncounterAdjustment = async (encounterRef: string,
+    participantKey: string,
+    encounterAdjustmentRequest: EncounterAdjustmentRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterMutationView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<EncounterMutationView>(getUpdateEncounterAdjustmentUrl(encounterRef,participantKey),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(encounterAdjustmentRequest)
+  }
+);}
+
+
+
+export const getPreviewEncounterAdjustmentUrl = (encounterRef: string,
+    participantKey: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/${encodeURIComponent(String(participantKey))}/adjustments/preview`
+}
+
+export const previewEncounterAdjustment = async (encounterRef: string,
+    participantKey: string,
+    encounterAdjustmentRequest: EncounterAdjustmentRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterAdjustmentPreviewView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<EncounterAdjustmentPreviewView>(getPreviewEncounterAdjustmentUrl(encounterRef,participantKey),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(encounterAdjustmentRequest)
   }
 );}
 

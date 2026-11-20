@@ -75,6 +75,8 @@ impl EncounterStatus {
 pub struct EncounterParticipant {
     #[serde(default)]
     pub manual_trackers: Vec<super::ManualTracker>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub adjustments: Vec<super::EncounterAdjustment>,
     #[serde(default)]
     pub ability_states: Vec<super::ParticipantAbilityState>,
     #[serde(default)]
@@ -530,6 +532,7 @@ pub struct ConditionDuration {
 #[derive(Debug, Clone)]
 pub struct EncounterTurnUpdate {
     pub manual_trackers: Vec<super::ManualTrackerChange>,
+    pub adjustments: Vec<super::AdjustmentChange>,
     pub start_event: Option<super::PreparedConditionEvent>,
     pub start_claims: Vec<super::EncounterBoundaryClaim>,
     pub turn: EncounterTurnState,

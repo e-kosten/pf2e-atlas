@@ -33,8 +33,8 @@ pub(crate) struct MovementSpeedView {
     pub label: String,
     pub base_value_feet: serde_json::Number,
     pub adjusted_value_feet: serde_json::Number,
-    pub adjustments: Vec<RuntimeAdjustmentView>,
-    pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
+    pub modifiers: Vec<Modifier>,
+    pub suppressed_modifiers: Vec<Modifier>,
     pub notes: Vec<RuntimeEffectNoteView>,
 }
 

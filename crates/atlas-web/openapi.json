@@ -706,6 +706,177 @@
         ],
         "type": "object"
       },
+      "AdjustmentModifierType": {
+        "enum": [
+          "stacks",
+          "item",
+          "status",
+          "circumstance"
+        ],
+        "type": "string"
+      },
+      "AdjustmentTarget": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "armor_class"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "fortitude"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "reflex"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "will"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "perception"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "skill"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "key",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "speed"
+                ],
+                "type": "string"
+              },
+              "mode": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "mode",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "strike_attacks"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "spell_attacks"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "spell_dcs"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "AdvanceEncounterTurnRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4762,6 +4933,309 @@
         ],
         "type": "object"
       },
+      "EncounterAdjustmentAction": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "add"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/EncounterAdjustmentInput"
+              }
+            },
+            "required": [
+              "value",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "adjustment_key": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "edit"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/EncounterAdjustmentInput"
+              }
+            },
+            "required": [
+              "adjustment_key",
+              "value",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "adjustment_key": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "end"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "adjustment_key",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "EncounterAdjustmentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "modifier_type": {
+            "$ref": "#/components/schemas/AdjustmentModifierType"
+          },
+          "name": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/AdjustmentTarget"
+          },
+          "timing": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EncounterAdjustmentTimingInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "target",
+          "name",
+          "amount",
+          "modifier_type",
+          "timing"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentPreviewRow": {
+        "properties": {
+          "after": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "before": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "suppressed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "before",
+          "after",
+          "suppressed"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentPreviewView": {
+        "properties": {
+          "reference_revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/EncounterAdjustmentPreviewRow"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/EncounterAdjustmentAction"
+          },
+          "expected_encounter_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expected_participant_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expected_reference_revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "expected_encounter_revision",
+          "expected_participant_revision",
+          "action"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentTargetView": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/AdjustmentTarget"
+          }
+        },
+        "required": [
+          "target",
+          "label"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentTimingInput": {
+        "additionalProperties": false,
+        "properties": {
+          "duration": {
+            "$ref": "#/components/schemas/ConditionDurationViewInputSchema"
+          },
+          "remaining": {
+            "description": "Set remaining rounds or seconds explicitly. Omit to preserve progress on edits.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "duration"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentTimingView": {
+        "properties": {
+          "anchor_available": {
+            "type": "boolean"
+          },
+          "duration": {
+            "$ref": "#/components/schemas/ConditionDurationView"
+          },
+          "remaining": {
+            "description": "Rounds for round durations, exact seconds for all other durations.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "duration",
+          "remaining",
+          "anchor_available"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentView": {
+        "properties": {
+          "adjustment_key": {
+            "type": "string"
+          },
+          "amount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "modifier_type": {
+            "$ref": "#/components/schemas/AdjustmentModifierType"
+          },
+          "name": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/AdjustmentTarget"
+          },
+          "target_available": {
+            "type": "boolean"
+          },
+          "timing": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EncounterAdjustmentTimingView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "adjustment_key",
+          "target",
+          "label",
+          "target_available",
+          "name",
+          "amount",
+          "modifier_type",
+          "timing"
+        ],
+        "type": "object"
+      },
+      "EncounterAdjustmentsView": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/EncounterAdjustmentView"
+            },
+            "type": "array"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/EncounterAdjustmentTargetView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries",
+          "targets"
+        ],
+        "type": "object"
+      },
       "EncounterCastingRemindersRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5787,6 +6261,9 @@
           "effective_max_hp": {
             "$ref": "#/components/schemas/NumberFactView"
           },
+          "gm_adjustments": {
+            "$ref": "#/components/schemas/EncounterAdjustmentsView"
+          },
           "hazard_disabled": {
             "type": "boolean"
           },
@@ -6757,6 +7234,36 @@
       },
       "EncounterTurnReminderView": {
         "oneOf": [
+          {
+            "properties": {
+              "adjustment_key": {
+                "type": "string"
+              },
+              "adjustment_name": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "adjustment_expired"
+                ],
+                "type": "string"
+              },
+              "participant_key": {
+                "type": "string"
+              },
+              "participant_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "participant_key",
+              "participant_name",
+              "adjustment_key",
+              "adjustment_name",
+              "kind"
+            ],
+            "type": "object"
+          },
           {
             "properties": {
               "kind": {
@@ -18631,6 +19138,7 @@
       "StatModifierTypeView": {
         "enum": [
           "adjustment",
+          "item",
           "status",
           "circumstance"
         ],
@@ -21577,6 +22085,136 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EncounterMutationView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/encounters/{encounter_ref}/participants/{participant_key}/adjustments": {
+      "post": {
+        "operationId": "updateEncounterAdjustment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "encounter_ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncounterAdjustmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncounterMutationView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/encounters/{encounter_ref}/participants/{participant_key}/adjustments/preview": {
+      "post": {
+        "operationId": "previewEncounterAdjustment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "encounter_ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncounterAdjustmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncounterAdjustmentPreviewView"
                 }
               }
             },

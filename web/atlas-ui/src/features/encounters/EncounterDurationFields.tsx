@@ -1,9 +1,19 @@
-import { Button, Form, InputNumber, Segmented, Select, Space, Tooltip } from "antd";
+import {
+  Button,
+  Flex,
+  Form,
+  InputNumber,
+  Segmented,
+  Select,
+  Space,
+  Tooltip,
+} from "antd";
 import type { FormItemProps } from "antd";
 import { X } from "lucide-react";
+import type { ReactNode } from "react";
 import type { EncounterParticipantView } from "../../generated/atlas";
 
-/** The encounter duration controls shared by conditions and manual trackers. */
+/** The encounter duration controls shared by conditions, trackers and GM adjustments. */
 export function EncounterDurationFields({
   participants,
   visible = true,
@@ -14,6 +24,7 @@ export function EncounterDurationFields({
   maximumAmount,
   onUnitChange,
   onRemove,
+  remaining,
 }: {
   participants: EncounterParticipantView[];
   visible?: boolean;
@@ -24,10 +35,16 @@ export function EncounterDurationFields({
   maximumAmount?: number;
   onUnitChange?: () => void;
   onRemove?: () => void;
+  remaining?: ReactNode;
 }) {
   return (
     <>
-      <div style={{ display: visible ? undefined : "none" }}>
+      <Flex
+        align="start"
+        gap="middle"
+        wrap
+        style={{ display: visible ? undefined : "none", rowGap: 0 }}
+      >
         <Form.Item label="Duration">
           <Space.Compact>
             <Form.Item name="durationAmount" noStyle rules={amountRules}>
@@ -68,7 +85,8 @@ export function EncounterDurationFields({
             )}
           </Space.Compact>
         </Form.Item>
-      </div>
+        {remaining}
+      </Flex>
       {timed && (
         <Space align="start" wrap>
           <Form.Item name="durationEvent" rules={timingRules}>

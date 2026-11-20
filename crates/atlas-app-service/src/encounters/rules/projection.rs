@@ -235,12 +235,17 @@ fn project_for_opponent(
             block.condition_guidance.push(condition_note(c, &reason));
         }
     }
+    super::gm_adjustments::apply_all(&mut block, &participant.adjustments);
     if let Some((condition, adjustment)) = movement_restriction {
         for speed in &mut block.speeds {
-            let baseline = &speed.base_value_feet;
+            let adjusted_by_gm = !speed.modifiers.is_empty();
+            let baseline = &speed.adjusted_value_feet;
             let restricted = if let Some(n) = baseline.as_i64() {
                 if n > 0 {
-                    n.checked_add(adjustment).map(|n| Number::from(n.max(5)))
+                    n.checked_add(adjustment).map(|after| {
+                        let minimum = if adjusted_by_gm { n.min(5) } else { 5 };
+                        Number::from(after.max(minimum))
+                    })
                 } else {
                     Some(Number::from(n))
                 }
@@ -249,21 +254,32 @@ fn project_for_opponent(
             } else {
                 baseline.as_f64().and_then(|n| {
                     Number::from_f64(if n > 0.0 {
-                        (n + adjustment as f64).max(5.0)
+                        let minimum = if adjusted_by_gm { n.min(5.0) } else { 5.0 };
+                        (n + adjustment as f64).max(minimum)
                     } else {
                         n
                     })
                 })
             };
             if let Some(restricted) = restricted {
+                let reason = if adjusted_by_gm {
+                    match (baseline.as_f64(), restricted.as_f64()) {
+                        (Some(before), Some(after)) if before > after => {
+                            format!("Speed reduced by {} feet (minimum 5 feet).", before - after)
+                        }
+                        _ => "Speed was already at or below 5 feet.".into(),
+                    }
+                } else {
+                    format!(
+                        "Speed reduced by {} feet, to a minimum of 5 feet.",
+                        adjustment.unsigned_abs()
+                    )
+                };
                 speed.adjusted_value_feet = restricted;
                 speed.notes.push(RuntimeEffectNoteView {
                     source: condition.name().to_owned(),
                     label: condition.name().to_owned(),
-                    reason: format!(
-                        "Speed reduced by {} feet, to a minimum of 5 feet.",
-                        adjustment.unsigned_abs()
-                    ),
+                    reason,
                 });
             }
         }
@@ -743,7 +759,7 @@ pub(in crate::encounters) fn apply(v: &mut StatValueView, m: Modifier) {
         m,
     );
 }
-fn apply_modifier(
+pub(super) fn apply_modifier(
     adjusted_value: &mut Number,
     modifiers: &mut Vec<Modifier>,
     suppressed_modifiers: &mut Vec<Modifier>,

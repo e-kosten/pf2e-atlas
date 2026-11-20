@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 pub struct ParticipantGameplay {
     #[serde(default)]
     pub manual_trackers: Vec<ManualTracker>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub adjustments: Vec<EncounterAdjustment>,
     pub participant_variant: ParticipantVariant,
     pub variant_origin: ParticipantVariantOrigin,
     pub level_override: Option<i64>,
@@ -49,6 +51,7 @@ impl From<&EncounterParticipant> for ParticipantGameplay {
             expended_spells: p.expended_spells.clone(),
             ability_states: p.ability_states.clone(),
             manual_trackers: p.manual_trackers.clone(),
+            adjustments: p.adjustments.clone(),
             persistent_precedence: p.persistent_precedence.clone(),
         }
     }
@@ -263,6 +266,13 @@ fn replace(
                 receipt_codec::encode(a)?
             ],
         )?;
+    }
+    c.execute(
+        "DELETE FROM encounter_adjustments WHERE participant_key=?1",
+        [key],
+    )?;
+    for value in &s.adjustments {
+        super::adjustments::insert(c, key, value)?;
     }
     c.execute(
         "DELETE FROM encounter_manual_trackers WHERE participant_key=?1",

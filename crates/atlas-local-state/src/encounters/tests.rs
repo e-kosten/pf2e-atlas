@@ -1174,6 +1174,7 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
                     |_| {
                         Ok((
                             crate::EncounterTurnUpdate {
+                                adjustments: vec![],
                                 manual_trackers: vec![],
                                 start_event: None,
                                 start_claims: vec![],
@@ -1267,6 +1268,7 @@ fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
             |_| {
                 Ok((
                     EncounterTurnUpdate {
+                        adjustments: vec![],
                         manual_trackers: vec![],
                         turn: EncounterTurnState {
                             participant_key: Some(key.clone()),
@@ -1389,6 +1391,7 @@ fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn st
                 |_| {
                     Ok((
                         crate::EncounterTurnUpdate {
+                            adjustments: vec![],
                             manual_trackers: vec![],
                             start_event: None,
                             start_claims: vec![],
@@ -1449,6 +1452,7 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
         |_| {
             Ok((
                 crate::EncounterTurnUpdate {
+                    adjustments: vec![],
                     manual_trackers: vec![],
                     start_event: None,
                     start_claims: vec![],

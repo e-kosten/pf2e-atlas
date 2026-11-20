@@ -21,6 +21,7 @@ use std::{
 const FORMAT: &str = "pf2e-atlas-workspace";
 const ACTIVE_ONLY_VERSION: &str = "1.1";
 const ARCHIVED_LIST_VERSION: &str = "2.0";
+const ADJUSTMENT_ARCHIVE_VERSION: &str = "3.0";
 
 #[derive(Serialize)]
 pub struct WorkspaceArchive {
@@ -115,7 +116,9 @@ impl WorkspaceArchive {
         let reference_config = read_requested_reference_config_snapshot(snapshot)
             .map_err(message)?
             .map(ReferenceConfig::from);
-        let version = if saved.has_archived_lists() {
+        let version = if saved.has_encounter_adjustments() {
+            ADJUSTMENT_ARCHIVE_VERSION
+        } else if saved.has_archived_lists() {
             ARCHIVED_LIST_VERSION
         } else {
             ACTIVE_ONLY_VERSION
@@ -188,6 +191,9 @@ impl WorkspaceArchive {
         if major == 1 && saved.has_archived_lists() {
             return Err("Archived lists require workspace archive version 2.0 or later".into());
         }
+        if major < 3 && saved.has_encounter_adjustments() {
+            return Err("GM adjustments require workspace archive version 3.0 or later".into());
+        }
         let config = archive
             .reference_config
             .map(|value| {
@@ -238,7 +244,7 @@ fn validate_version(version: &str) -> Result<u32, String> {
         .split_once('.')
         .and_then(|(major, minor)| Some((component(major)?, component(minor)?)))
         .ok_or_else(|| format!("Invalid workspace archive version {version:?}"))?;
-    if !matches!(major, 1 | 2) {
+    if !matches!(major, 1..=3) {
         return Err(format!("Unsupported workspace archive version {version}"));
     }
     Ok(major)
@@ -458,6 +464,7 @@ mod tests {
                 |_| {
                     Ok((
                         EncounterTurnUpdate {
+                            adjustments: vec![],
                             manual_trackers: vec![],
                             start_event: None,
                             start_claims: vec![],
@@ -524,6 +531,75 @@ mod tests {
             })
             .unwrap();
         assert_eq!(retried, receipt);
+    }
+
+    #[test]
+    fn gm_adjustments_use_archive_v3_and_round_trip() {
+        use atlas_local_state::{AdjustmentChange, EncounterAdjustment, PreparedConditionEvent};
+
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.sqlite");
+        let dest = dir.path().join("dest.sqlite");
+        let from = initialize_workspace(&source).unwrap();
+        initialize_workspace(&dest).unwrap();
+        let write = from.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        write.connection().execute_batch(
+            "INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
+                VALUES(1,'enc','example','Example','running','created','updated');
+             INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,
+                position,display_name,initiative,initiative_order,created_at,updated_at)
+                SELECT id,'actor','pc',1,'Actor',10,1,'created','updated' FROM encounters;",
+        ).unwrap();
+
+        let saved = LocalStateWrite::for_local(&write).unwrap().encounters();
+        let adjustment = EncounterAdjustment {
+            adjustment_key: "gm-armor".into(),
+            target: atlas_domain::AdjustmentTarget::ArmorClass,
+            name: "Armor loss".into(),
+            amount: -2,
+            modifier_type: atlas_domain::AdjustmentModifierType::Stacks,
+            timing: None,
+        };
+        let revision = saved.get("enc").unwrap().unwrap().revision;
+        saved
+            .apply_condition_event_with(
+                "enc",
+                "apply",
+                &json!({"action":"gm_adjustment"}),
+                revision,
+                || {
+                    Ok(PreparedConditionEvent {
+                        adjustments: vec![AdjustmentChange {
+                            participant_key: "actor".into(),
+                            adjustment_key: adjustment.adjustment_key.clone(),
+                            value: Some(adjustment.clone()),
+                        }],
+                        ..Default::default()
+                    })
+                },
+            )
+            .unwrap();
+        write.commit().unwrap();
+
+        let mut archive = capture_json(runtime(&source).capture_workspace_archive().unwrap());
+        assert_eq!(archive["version"], "3.0");
+        let validated =
+            WorkspaceArchive::read(serde_json::to_vec(&archive).unwrap().as_slice()).unwrap();
+        archive["version"] = "2.0".into();
+        assert!(WorkspaceArchive::read(serde_json::to_vec(&archive).unwrap().as_slice()).is_err());
+
+        let runtime = runtime(&dest);
+        let preflight = runtime.preflight_workspace_restore().unwrap();
+        runtime
+            .restore_workspace_archive(&validated, &preflight, false)
+            .unwrap();
+        let restored = initialize_workspace(&dest).unwrap();
+        let read = restored.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let encounters = atlas_local_state::LocalStateRead::for_local(&read)
+            .unwrap()
+            .encounters();
+        let detail = encounters.get_with_participants("enc").unwrap().unwrap();
+        assert_eq!(detail.participants[0].adjustments, [adjustment]);
     }
 
     #[test]

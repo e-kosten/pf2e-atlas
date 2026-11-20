@@ -7,6 +7,7 @@ use serde_json::json;
 pub(super) fn participant() -> EncounterParticipant {
     EncounterParticipant {
         manual_trackers: vec![],
+        adjustments: vec![],
         ability_states: vec![],
         turn_resources: None,
         level_override: None,
@@ -275,8 +276,8 @@ fn immobilized_preserves_speed_while_encumbered_reduces_it_independently() {
         .push(super::super::stat_block::MovementSpeedView {
             movement_type: "land".into(),
             label: "Speed".into(),
-            adjustments: vec![],
-            suppressed_adjustments: vec![],
+            modifiers: vec![],
+            suppressed_modifiers: vec![],
             base_value_feet: 25.into(),
             adjusted_value_feet: 25.into(),
             notes: vec![],
@@ -1421,4 +1422,72 @@ fn possible_restrained_demotes_grabbed_but_keeps_independent_known_off_guard() {
     let known = super::causes::condition_causes(&p, None, &sources);
     assert!(!known.known_presence(ConditionRule::Grabbed).unwrap());
     assert!(known.known_presence(ConditionRule::Immobilized).unwrap());
+}
+
+#[test]
+fn gm_adjustments_share_spell_and_strike_projection_and_compete_with_conditions() {
+    use atlas_domain::{AdjustmentModifierType as Kind, AdjustmentTarget as Target};
+    let baseline = source_baseline();
+    let mut actor = participant();
+    actor
+        .conditions
+        .push(condition(1, ConditionRule::Sickened, Some(2)));
+    for (key, target, amount, modifier_type) in [
+        ("gm-spell-attacks", Target::SpellAttacks, -1, Kind::Status),
+        ("gm-spell-dcs", Target::SpellDcs, 3, Kind::Stacks),
+        ("gm-strikes", Target::StrikeAttacks, 1, Kind::Circumstance),
+    ] {
+        actor
+            .adjustments
+            .push(atlas_local_state::EncounterAdjustment {
+                adjustment_key: key.into(),
+                target,
+                name: key.into(),
+                amount,
+                modifier_type,
+                timing: None,
+            });
+    }
+    let projected = project_participant(&actor, &baseline, true, &[]);
+    let spell = projected
+        .activities
+        .iter()
+        .find(|entry| entry.label == "Bolt")
+        .unwrap();
+    assert_eq!(spell.rolls[0].adjusted_value.as_i64(), Some(10));
+    assert_eq!(
+        spell.rolls[0].suppressed_modifiers[0].source,
+        "gm-spell-attacks"
+    );
+    assert_eq!(
+        spell
+            .difficulty_class
+            .as_ref()
+            .unwrap()
+            .adjusted_value
+            .as_i64(),
+        Some(23)
+    );
+
+    let strike = projected
+        .activities
+        .iter()
+        .find(|entry| entry.label == "Finesse claw")
+        .unwrap();
+    assert_eq!(strike.rolls[0].adjusted_value.as_i64(), Some(13));
+    let preview =
+        super::gm_adjustments::observe(&projected, &baseline, &Target::SpellDcs, "gm-spell-dcs");
+    assert_eq!(
+        preview.len(),
+        1,
+        "an entry and its spells share one preview row"
+    );
+    assert_eq!(preview[0].label, "Arcane");
+    assert_eq!(
+        preview[0]
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_i64),
+        Some(23)
+    );
 }

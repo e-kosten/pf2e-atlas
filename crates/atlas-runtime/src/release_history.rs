@@ -30,6 +30,12 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
                 apply: |_| Ok(()),
             }),
         },
+        Migration {
+            version: 46,
+            name: "encounter-adjustments",
+            sql: include_str!("../../atlas-local-state/src/release/encounter_adjustments.sql"),
+            backfill: None,
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

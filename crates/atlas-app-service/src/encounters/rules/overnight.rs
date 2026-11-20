@@ -144,21 +144,26 @@ pub(in crate::encounters) fn prepare(
     });
     for tracker in &mut state.manual_trackers {
         let before = super::super::timing::tracker_rounds(&tracker.progress, round_seconds);
-        tracker.progress = match tracker.progress {
-            atlas_local_state::TrackerProgress::Rounds(v) => {
-                atlas_local_state::TrackerProgress::Rounds(
-                    v.saturating_sub(28800 / round_seconds).max(0),
-                )
-            }
-            atlas_local_state::TrackerProgress::Seconds(v) => {
-                atlas_local_state::TrackerProgress::Seconds(v.saturating_sub(28800).max(0))
-            }
-        };
+        tracker.progress =
+            super::super::timing::advance_progress(&tracker.progress, 28800 / round_seconds, 28800);
         if before > 0 && super::super::timing::tracker_rounds(&tracker.progress, round_seconds) == 0
         {
             row.changes.push(format!("{} ready", tracker.name));
         }
     }
+    state.adjustments.retain_mut(|entry| {
+        let Some(timing) = &mut entry.timing else {
+            return true;
+        };
+        timing.progress =
+            super::super::timing::advance_progress(&timing.progress, 28800 / round_seconds, 28800);
+        if super::super::timing::tracker_rounds(&timing.progress, round_seconds) == 0 {
+            row.changes.push(format!("{} expired", entry.name));
+            false
+        } else {
+            true
+        }
+    });
     let mut after = p.clone();
     after.conditions = state.conditions.clone();
     let maximum = super::effective_hp_maximum(&after, sources, level);

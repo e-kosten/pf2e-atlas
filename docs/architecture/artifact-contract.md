@@ -1033,3 +1033,17 @@ Workspace migration 41 saves manual tracker positions per participant. It assign
 existing positions in the prior tracker-key order. New trackers append, while
 updates retain position. Snapshots continue to carry tracker order through their
 existing arrays, which restore uses to assign positions.
+
+### Encounter GM adjustments
+
+Workspace migration 46 adds participant-owned GM adjustments. Current rows
+retain their stable IDs, order, original duration and exact remaining progress.
+Historical gameplay and turn snapshots decode absent adjustments as empty.
+Existing workspaces begin with no GM adjustments. Recovery from the previous
+schema captures the saved state before the adjustment table exists.
+
+Standalone encounter exports use version 2 and workspace archives use version
+3.0 when they carry adjustment state or history. Earlier supported versions
+remain readable. Encounter import remaps turn anchors with participant identity.
+See [ADR0051](decisions/0051-persistent-workspace.md) and
+[ADR0055](decisions/0055-encounter-condition-evaluation.md).

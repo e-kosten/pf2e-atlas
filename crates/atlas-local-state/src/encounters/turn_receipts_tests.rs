@@ -17,6 +17,7 @@ fn advance(
             |_| {
                 Ok((
                     EncounterTurnUpdate {
+                        adjustments: vec![],
                         turn: EncounterTurnState {
                             participant_key: Some(key.into()),
                             round_number: current.round_number + 1,
@@ -205,6 +206,7 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
         domain.advance_turn_once("test", "first", &intent, current.revision, |_| {
             Ok((
                 EncounterTurnUpdate {
+                    adjustments: vec![],
                     turn: EncounterTurnState {
                         participant_key: Some(actor.participant_key.clone()),
                         round_number: 1,
@@ -240,6 +242,7 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
                     after.encounter.revision,
                     |_| Ok((
                         EncounterTurnUpdate {
+                            adjustments: vec![],
                             turn: EncounterTurnState {
                                 participant_key: Some(actor.participant_key.clone()),
                                 round_number: 2,
@@ -275,6 +278,7 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
             |_| {
                 Ok((
                     EncounterTurnUpdate {
+                        adjustments: vec![],
                         turn: EncounterTurnState {
                             participant_key: Some(actor.participant_key.clone()),
                             round_number: 2,
@@ -373,6 +377,7 @@ fn receipt_recovery_scopes_shared_slugs_and_request_ids_to_the_owner() -> crate:
         domain.advance_turn_once("test", request_id, intent, current.revision, |_| {
             Ok((
                 EncounterTurnUpdate {
+                    adjustments: vec![],
                     turn: EncounterTurnState {
                         participant_key: Some(actor.participant_key),
                         round_number: 2,
@@ -518,6 +523,7 @@ fn a_turn_callback_cannot_tick_a_condition_in_another_encounter() -> crate::Loca
         local.advance_turn_once("test", "wrong-condition", &intent, before.revision, |_| {
             Ok((
                 EncounterTurnUpdate {
+                    adjustments: vec![],
                     turn: EncounterTurnState {
                         participant_key: Some(actor.participant_key),
                         round_number: 2,
