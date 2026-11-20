@@ -188,9 +188,7 @@ it("explains creating a separate copy and keeps the reviewed destination through
     name: "Install Nightly and restart",
   });
   expect(
-    within(dialog).getByText(
-      "After switching, the app and its bundled CLI will use your existing data.",
-    ),
+    within(dialog).getByText("After switching, the app will use your existing data."),
   ).toBeVisible();
   invoke.mockResolvedValueOnce(null);
   fireEvent.click(install);

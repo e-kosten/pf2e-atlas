@@ -778,7 +778,7 @@ fn setup_notice(
     let installed_schema = option_env!("ATLAS_WORKSPACE_SCHEMA")?.parse::<u32>().ok()?;
     if target.workspace_schema > installed_schema {
         return Some(
-            "Atlas will be unavailable until you finish upgrading the workspace after restart."
+            "This version needs to upgrade your data after restarting. Atlas will be unavailable until the upgrade finishes."
                 .into(),
         );
     }

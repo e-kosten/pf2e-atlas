@@ -353,13 +353,16 @@ export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boole
                     .
                   </Typography.Text>
                   <Typography.Text type="secondary">
-                    After switching, the app and its bundled CLI will use your existing
-                    data.
+                    After switching, the app will use your existing data.
                   </Typography.Text>
                   {(review.needs_setup || review.will_upgrade) && (
                     <Alert
                       type="info"
-                      title="Atlas will ask you to prepare your data after restarting."
+                      title={
+                        review.will_upgrade
+                          ? "This version needs to upgrade your data after restarting. Atlas will be unavailable until the upgrade finishes."
+                          : "Atlas needs to set up your data after restarting. The app will be unavailable until setup finishes."
+                      }
                     />
                   )}
                   <Button
