@@ -881,10 +881,10 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     await activate(about, info);
     const aboutPanel = page.getByRole("dialog", { name: "About", exact: true });
     await expect(aboutPanel.getByText(description, { exact: true })).toBeVisible();
-    await activate(
-      aboutPanel.getByRole("button", { name: "Close", exact: true }),
-      info,
-    );
+    const closeAbout = aboutPanel.getByRole("button", { name: "Close", exact: true });
+    // WebKit can report a stable sliver before the drawer's entry motion starts.
+    await expect(closeAbout).toBeInViewport({ ratio: 1 });
+    await activate(closeAbout, info);
     await expect(aboutPanel).toBeHidden();
     await activate(
       page.getByRole("button", { name: "Add records", exact: true }),
