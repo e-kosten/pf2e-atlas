@@ -8,8 +8,14 @@ import type {
   PcReferenceView,
 } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
 import { BrowseReader } from "../../shared/records/BrowseReader";
 import { BrowsePaneHeader } from "../../shared/records/BrowsePaneHeader";
+import {
+  hasReferenceSelectionStatus,
+  ReferenceSelectionStatus,
+} from "../../shared/records/ReferenceSelectionStatus";
+import { usePreparedReferenceSelection } from "../../shared/records/usePreparedReferenceSelection";
 import {
   useReferenceReading,
   rootNavigation,
@@ -49,6 +55,10 @@ export function PcAbilityBrowser({
   blocked = false,
   review = false,
   navigation,
+  active = true,
+  generation,
+  revision,
+  onReviewImport,
 }: {
   doc?: AbilityDocument | null;
   toolbar?: ReactNode;
@@ -57,6 +67,10 @@ export function PcAbilityBrowser({
   blocked?: boolean;
   review?: boolean;
   navigation?: AbilityNavigation;
+  active?: boolean;
+  generation?: string;
+  revision?: number;
+  onReviewImport?: () => void;
 }) {
   const titleId = useId();
   const [filter, setFilter] = useState("");
@@ -69,7 +83,18 @@ export function PcAbilityBrowser({
   const finding = view?.kind === "find";
   const recordKey =
     view?.kind === "read" && selected?.record_title ? selected.record_key : undefined;
-  const reading = useReferenceReading(null, Boolean(recordKey));
+  const reading = useReferenceReading(
+    null,
+    active && Boolean(recordKey),
+    0,
+    generation,
+  );
+  const selection = usePreparedReferenceSelection(
+    reading,
+    active && !finding,
+    JSON.stringify([requestedView, revision]),
+    generation ?? null,
+  );
   const selectRecord = reading.select;
   const abilityRows = useRef(new Map<string, HTMLElement>());
   const abilityFilter = useRef<React.ComponentRef<typeof Input>>(null);
@@ -79,6 +104,8 @@ export function PcAbilityBrowser({
   const currentView = useRef(view);
   const previousView = useRef<AbilityView | null>(null);
   const busy = blocked || link.isPending;
+  const reviewChangedGeneration =
+    onReviewImport && isArtifactGenerationChanged(selection.current?.error);
 
   useLayoutEffect(() => {
     selectRecord(recordKey ? { navigation: rootNavigation(recordKey) } : null);
@@ -86,9 +113,12 @@ export function PcAbilityBrowser({
 
   useLayoutEffect(() => {
     currentView.current = view;
+    if (view) {
+      previousView.current = view;
+      return;
+    }
     const previous = previousView.current;
-    previousView.current = view;
-    if (!previous || view) return;
+    if (!previous) return;
     const frame = requestAnimationFrame(() => {
       const linkedKey = linkedAbility.current;
       const previousRow = abilityRows.current.get(previous.abilityKey);
@@ -99,13 +129,24 @@ export function PcAbilityBrowser({
         : opener.current?.isConnected
           ? opener.current
           : previousRow?.querySelector<HTMLElement>("button");
+      // A successful link write can close the task before the updated row commits.
+      // Leave the focus return pending until the linked ability is rendered.
+      if (
+        linkedKey &&
+        !target &&
+        doc?.abilities.some(
+          (ability) => ability.ability_key === linkedKey && !ability.record_title,
+        )
+      )
+        return;
+      previousView.current = null;
       linkedAbility.current = null;
       if (target) target.focus({ preventScroll: true });
       else abilityFilter.current?.focus({ preventScroll: true });
       opener.current = null;
     });
     return () => cancelAnimationFrame(frame);
-  }, [view]);
+  }, [doc?.abilities, view]);
 
   function open(next: AbilityView, anchor?: HTMLElement | null) {
     if (!view && anchor) opener.current = anchor;
@@ -114,12 +155,14 @@ export function PcAbilityBrowser({
   }
 
   function close() {
+    selection.cancel();
     link.reset();
     if (navigation) navigation.close();
     else setLocalView(null);
   }
 
   function startSearch(ability: PcAbilityView, anchor?: HTMLElement | null) {
+    selection.cancel();
     link.reset();
     open({ kind: "find", abilityKey: ability.ability_key }, anchor);
   }
@@ -278,6 +321,11 @@ export function PcAbilityBrowser({
                           const label = abilityLabel(ability);
                           const canUseAutomatic =
                             ability.manual && ability.automatic_match_available;
+                          const preparing =
+                            selection.current?.request.navigation.record_key ===
+                              ability.record_key &&
+                            selection.current?.name === label &&
+                            hasReferenceSelectionStatus(selection.current);
                           return (
                             <List.Item key={ability.ability_key}>
                               <div
@@ -306,15 +354,26 @@ export function PcAbilityBrowser({
                                         textAlign: "start",
                                       }}
                                       data-record-key={ability.record_key}
-                                      onClick={(event) =>
-                                        open(
-                                          {
-                                            kind: "read",
-                                            abilityKey: ability.ability_key,
+                                      onClick={(event) => {
+                                        const anchor = event.currentTarget;
+                                        void selection.select({
+                                          request: {
+                                            navigation: rootNavigation(
+                                              ability.record_key!,
+                                            ),
                                           },
-                                          event.currentTarget,
-                                        )
-                                      }
+                                          name: label,
+                                          generation: generation ?? null,
+                                          commit: () =>
+                                            open(
+                                              {
+                                                kind: "read",
+                                                abilityKey: ability.ability_key,
+                                              },
+                                              anchor,
+                                            ),
+                                        });
+                                      }}
                                     >
                                       {label}
                                     </Button>
@@ -340,89 +399,113 @@ export function PcAbilityBrowser({
                                       </span>
                                     )}
                                 </div>
-                                <Space wrap>
-                                  {review ? (
-                                    <Button
-                                      size="small"
-                                      disabled={busy}
-                                      aria-label={`${ability.record_title ? "Change link" : "Link rule"} for ${label}`}
-                                      onClick={(event) =>
-                                        startSearch(ability, event.currentTarget)
-                                      }
-                                    >
-                                      {ability.record_title
-                                        ? "Change link"
-                                        : "Link rule…"}
-                                    </Button>
-                                  ) : ability.record_key && ability.record_title ? (
-                                    <Dropdown
-                                      trigger={["click"]}
-                                      menu={{
-                                        items: [
-                                          { key: "change", label: "Change link" },
-                                          ...(canUseAutomatic
-                                            ? [
-                                                {
-                                                  key: "automatic",
-                                                  label: "Use automatic match",
-                                                },
-                                              ]
-                                            : []),
-                                        ],
-                                        onClick: ({ key }) => {
-                                          if (key === "change")
-                                            startSearch(
-                                              ability,
-                                              abilityRows.current
-                                                .get(ability.ability_key)
-                                                ?.querySelector<HTMLElement>(
-                                                  ".character-link-options",
-                                                ),
-                                            );
-                                          else
-                                            submitLink(ability, {
-                                              kind: "automatic",
-                                            });
-                                        },
-                                      }}
-                                    >
+                                {preparing ? (
+                                  <ReferenceSelectionStatus
+                                    selection={selection}
+                                    generationChangedAction={
+                                      reviewChangedGeneration
+                                        ? {
+                                            label: "Review latest changes",
+                                            message: "Reference collection changed",
+                                          }
+                                        : undefined
+                                    }
+                                    onRetry={
+                                      reviewChangedGeneration
+                                        ? () => {
+                                            selection.cancel();
+                                            onReviewImport();
+                                          }
+                                        : undefined
+                                    }
+                                  />
+                                ) : (
+                                  <Space wrap>
+                                    {review ? (
                                       <Button
                                         size="small"
-                                        className="character-link-options"
-                                        aria-label={`Link options for ${label}`}
-                                        type="text"
-                                        icon={<Ellipsis size={16} aria-hidden="true" />}
                                         disabled={busy}
-                                      ></Button>
-                                    </Dropdown>
-                                  ) : (
-                                    <>
-                                      <Button
-                                        size="small"
-                                        disabled={link.isPending}
-                                        aria-label={`Search for ${label}`}
+                                        aria-label={`${ability.record_title ? "Change link" : "Link rule"} for ${label}`}
                                         onClick={(event) =>
                                           startSearch(ability, event.currentTarget)
                                         }
                                       >
-                                        {ability.record_key
-                                          ? "Find replacement"
-                                          : "Find rule"}
+                                        {ability.record_title
+                                          ? "Change link"
+                                          : "Link rule…"}
                                       </Button>
-                                      {canUseAutomatic && (
+                                    ) : ability.record_key && ability.record_title ? (
+                                      <Dropdown
+                                        trigger={["click"]}
+                                        menu={{
+                                          items: [
+                                            { key: "change", label: "Change link" },
+                                            ...(canUseAutomatic
+                                              ? [
+                                                  {
+                                                    key: "automatic",
+                                                    label: "Use automatic match",
+                                                  },
+                                                ]
+                                              : []),
+                                          ],
+                                          onClick: ({ key }) => {
+                                            if (key === "change")
+                                              startSearch(
+                                                ability,
+                                                abilityRows.current
+                                                  .get(ability.ability_key)
+                                                  ?.querySelector<HTMLElement>(
+                                                    ".character-link-options",
+                                                  ),
+                                              );
+                                            else
+                                              submitLink(ability, {
+                                                kind: "automatic",
+                                              });
+                                          },
+                                        }}
+                                      >
                                         <Button
                                           size="small"
+                                          className="character-link-options"
+                                          aria-label={`Link options for ${label}`}
+                                          type="text"
+                                          icon={
+                                            <Ellipsis size={16} aria-hidden="true" />
+                                          }
                                           disabled={busy}
-                                          onClick={() =>
-                                            submitLink(ability, { kind: "automatic" })
+                                        ></Button>
+                                      </Dropdown>
+                                    ) : (
+                                      <>
+                                        <Button
+                                          size="small"
+                                          disabled={link.isPending}
+                                          aria-label={`Search for ${label}`}
+                                          onClick={(event) =>
+                                            startSearch(ability, event.currentTarget)
                                           }
                                         >
-                                          Use automatic match
+                                          {ability.record_key
+                                            ? "Find replacement"
+                                            : "Find rule"}
                                         </Button>
-                                      )}
-                                    </>
-                                  )}
-                                </Space>
+                                        {canUseAutomatic && (
+                                          <Button
+                                            size="small"
+                                            disabled={busy}
+                                            onClick={() =>
+                                              submitLink(ability, { kind: "automatic" })
+                                            }
+                                          >
+                                            Use automatic match
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                  </Space>
+                                )}
                               </div>
                             </List.Item>
                           );

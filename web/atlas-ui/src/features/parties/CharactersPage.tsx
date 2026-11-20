@@ -9,6 +9,7 @@ import {
 import type { CharacterPartyView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AddCharacter } from "./AddCharacter";
 import { useCharacters } from "./characterQueries";
 
@@ -46,7 +47,7 @@ export function CharactersPage() {
           action={<Button onClick={() => void query.refetch()}>Retry</Button>}
         />
       )}
-      {query.isPending && <p role="status">Loading characters…</p>}
+      {query.isPending && <LoadingStatus label="Loading characters…" />}
       {query.data &&
         (query.data.characters.length ? (
           <table className="party-roster">

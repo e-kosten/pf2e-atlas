@@ -15,6 +15,7 @@ import type { PartyView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters } from "./characterQueries";
 import { useParties } from "./useParties";
@@ -251,7 +252,7 @@ export function PartiesWorkspace({
           aria-label="Party list"
         >
           <NewPartyAction />
-          {query.isPending && <p role="status">Loading parties…</p>}
+          {query.isPending && <LoadingStatus label="Loading parties…" />}
           {query.data &&
             (query.data.parties.length ? (
               <PartyDirectory
@@ -264,7 +265,9 @@ export function PartiesWorkspace({
             ))}
         </aside>
         <div className="party-workspace-detail" ref={detail} tabIndex={-1}>
-          {query.isPending && selected && <p role="status">Loading party…</p>}
+          {query.isPending && selected && (
+            <LoadingStatus className="party-roster-loading" label="Loading party…" />
+          )}
           {query.data && children}
         </div>
       </div>

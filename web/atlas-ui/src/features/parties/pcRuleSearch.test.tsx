@@ -12,8 +12,10 @@ import { App, ConfigProvider, Grid } from "antd";
 import { AtlasApiError } from "../../api/apiError";
 import { useContext, useState, type ReactNode } from "react";
 import type {
+  PathbuilderPreviewView,
   PcAbilityView,
   PcReferenceView,
+  RecordDetailView,
   SearchResultsPage,
 } from "../../generated/atlas";
 import { SearchProfileContext } from "../../shared/search/SearchProfileContext";
@@ -203,6 +205,46 @@ it("retries a failed rule search in place and restores the ability filter and op
   await waitFor(() => expect(opener).toHaveFocus());
 });
 
+it("keeps the current rule and footer mounted until the next result is prepared", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+  const first = page();
+  const other = summaryFixture("feats:companion0000002", "Another companion rule");
+  api.searchPage.mockResolvedValue({
+    ...first,
+    rows: [...first.rows, { record: other, matches: [], relationship_evidence: [] }],
+  });
+  let finish!: (detail: RecordDetailView) => void;
+  let pending = true;
+  api.getRecordDetail.mockImplementation((key: string) => {
+    if (key !== other.record_key)
+      return Promise.resolve(detailFixture(recordKey, recordTitle));
+    if (!pending) return Promise.resolve(detailFixture(other.record_key, other.title));
+    pending = false;
+    return new Promise<RecordDetailView>((resolve) => {
+      finish = resolve;
+    });
+  });
+  render(<Harness />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
+  );
+  fireEvent.click(await screen.findByRole("link", { name: resultName }));
+  const heading = await screen.findByRole("heading", { name: recordTitle });
+  const link = screen.getByRole("button", { name: "Link this rule" });
+  await waitFor(() => expect(link).toBeEnabled());
+  fireEvent.click(screen.getByRole("link", { name: /^Another companion rule/ }));
+  expect(heading).toBeVisible();
+  expect(link).toBeDisabled();
+  expect(screen.queryByText("Loading Another companion rule…")).toBeNull();
+  expect(await screen.findByText("Loading Another companion rule…")).toBeVisible();
+  expect(heading).toBeVisible();
+  expect(link).toBeDisabled();
+  await act(async () => finish(detailFixture(other.record_key, other.title)));
+  expect(await screen.findByRole("heading", { name: other.title })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Link this rule" })).toBe(link);
+  await waitFor(() => expect(link).toBeEnabled());
+});
+
 it("returns from a candidate to the same query and result, then saves the guarded rule link", async () => {
   vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: false });
   api.searchPage.mockResolvedValue(page());
@@ -286,13 +328,15 @@ it.each(["cancel", "retry", "new generation"] as const)(
   "stages an ambiguous rule link until import submission (%s)",
   async (outcome) => {
     const ambiguous = { ...ability, ambiguous: true };
-    const draft = {
+    const draft: PathbuilderPreviewView = {
       ...character,
+      level: 7,
       abilities: [ambiguous],
       sections: [{ kind: "feat", label: "Feats", abilities: [ambiguous] }],
       retained_manual_count: 0,
       artifact_generation: "test-generation",
     };
+    let failReview!: (error: Error) => void;
     api.previewPathbuilderPc
       .mockResolvedValueOnce(draft)
       .mockResolvedValue({ ...draft, artifact_generation: "new-generation" });
@@ -320,7 +364,9 @@ it.each(["cancel", "retry", "new generation"] as const)(
       screen.getByRole("button", { name: "Link rule for Mature Animal Companion" }),
     );
     fireEvent.click(await screen.findByRole("link", { name: resultName }));
-    fireEvent.click(await screen.findByRole("button", { name: "Link this rule" }));
+    const link = await screen.findByRole("button", { name: "Link this rule" });
+    await waitFor(() => expect(link).toBeEnabled());
+    fireEvent.click(link);
     expect(await screen.findByText("1 linked · 0 unlinked")).toBeVisible();
     expect(api.savePcAbilityLink).not.toHaveBeenCalled();
     expect(api.savePathbuilderPc).not.toHaveBeenCalled();
@@ -331,10 +377,25 @@ it.each(["cancel", "retry", "new generation"] as const)(
       await waitFor(() => expect(closed).toHaveBeenCalledOnce());
       expect(api.savePathbuilderPc).not.toHaveBeenCalled();
     } else if (outcome === "new generation") {
+      api.previewPathbuilderPc.mockReturnValueOnce(
+        new Promise<PathbuilderPreviewView>((_resolve, reject) => {
+          failReview = reject;
+        }),
+      );
       fireEvent.click(screen.getByRole("button", { name: "Add character" }));
+      const review = screen.getByRole("region", { name: "Import review" });
       fireEvent.click(
         await screen.findByRole("button", { name: "Review latest changes" }),
       );
+      await waitFor(() => expect(api.previewPathbuilderPc).toHaveBeenCalledTimes(2));
+      expect(review).toBeVisible();
+      expect(within(review).getByText("1 linked · 0 unlinked")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Add character" })).toBeDisabled();
+      await act(async () => failReview(new Error("Review failed")));
+      const retry = await screen.findByRole("button", { name: "Retry review" });
+      expect(within(review).getByText("1 linked · 0 unlinked")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Add character" })).toBeDisabled();
+      fireEvent.click(retry);
       expect(
         await screen.findByText("Atlas rules changed. Choose your draft links again."),
       ).toBeVisible();

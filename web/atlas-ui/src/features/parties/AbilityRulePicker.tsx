@@ -6,8 +6,13 @@ import type { SearchResultRow, SearchResultsPage } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { SearchEntry } from "../../shared/filters/SearchEntry";
 import type { SearchSubmission } from "../../shared/filters/filterControls";
-import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
+import {
+  isArtifactGenerationChanged,
+  referenceQueryMeta,
+} from "../../shared/queries/referenceQueries";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
+import { ReferenceSelectionStatus } from "../../shared/records/ReferenceSelectionStatus";
+import { usePreparedReferenceSelection } from "../../shared/records/usePreparedReferenceSelection";
 import { useReferenceReading } from "../../shared/records/useReferenceReading";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import { searchExecution } from "../../shared/search/searchExecution";
@@ -102,10 +107,13 @@ export function AbilityRulePicker({
         <ErrorNotice
           error={result.error}
           title="Could not search Atlas"
+          description={
+            page?.rows.length ? "The previous results are still shown." : undefined
+          }
           action={
             <Button
-              loading={result.isFetching}
-              disabled={disabled}
+              loading={result.isFetching ? { delay: 500 } : false}
+              disabled={disabled || result.isFetching}
               onClick={() => void result.refetch()}
             >
               Retry
@@ -114,7 +122,7 @@ export function AbilityRulePicker({
         />
       )}
       <AbilityRuleResults
-        key={JSON.stringify([pagingKey, pageNumber, page?.artifact_generation])}
+        key={JSON.stringify([pagingKey, pageNumber])}
         page={page}
         pageNumber={pageNumber}
         onPage={(page) => setPaging({ key: pagingKey, page })}
@@ -122,6 +130,7 @@ export function AbilityRulePicker({
         preparing={!execution.ready}
         failed={Boolean(result.error)}
         hasQuery={Boolean(text)}
+        onRefresh={() => void result.refetch()}
         onLink={onLink}
         disabled={disabled}
       />
@@ -137,6 +146,7 @@ function AbilityRuleResults({
   preparing,
   failed,
   hasQuery,
+  onRefresh,
   onLink,
   disabled,
 }: {
@@ -147,14 +157,29 @@ function AbilityRuleResults({
   preparing: boolean;
   failed: boolean;
   hasQuery: boolean;
+  onRefresh: () => void;
   onLink: (record: RuleCandidate) => void;
   disabled: boolean;
 }) {
   const generation = page?.artifact_generation;
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selectionKey, setSelectionKey] = useState<{
+    key: string;
+    generation: string;
+  } | null>(null);
   const reading = useReferenceReading(null, true, 0, generation);
   const rows = page?.rows ?? emptyRows;
+  const selected = selectionKey?.generation === generation ? selectionKey?.key : null;
   const candidate = rows.find((row) => row.record.record_key === selected);
+  const selection = usePreparedReferenceSelection(
+    reading,
+    Boolean(generation) && !disabled && !loading && !failed,
+    0,
+    generation ?? null,
+  );
+  if (selectionKey && !candidate) {
+    setSelectionKey(null);
+    reading.select(null);
+  }
   const detail = reading.detail;
   const request = reading.request;
   const count = page?.page.total ?? 0;
@@ -186,9 +211,15 @@ function AbilityRuleResults({
       loadingLabel={preparing ? "Preparing rule search…" : "Searching Atlas…"}
       selectedRecordKey={candidate?.record.record_key ?? null}
       onSelect={(row, request) => {
-        setSelected(row.record.record_key);
-        reading.select(request);
+        if (!generation) return;
+        void selection.select({
+          request,
+          name: row.record.title,
+          generation,
+          commit: () => setSelectionKey({ key: row.record.record_key, generation }),
+        });
       }}
+      onReaderClose={selection.cancel}
       reading={reading}
       generation={generation}
       disabled={disabled}
@@ -228,18 +259,38 @@ function AbilityRuleResults({
               />
             </div>
           )}
+          <ReferenceSelectionStatus
+            selection={selection}
+            onRetry={() => {
+              if (isArtifactGenerationChanged(selection.current?.error)) {
+                selection.cancel();
+                onRefresh();
+              } else {
+                selection.retry();
+              }
+            }}
+          />
         </div>
       }
       readerFooter={
-        prepared
+        candidate
           ? {
               expanded: false,
               content: (
                 <div className="ability-rule-picker__actions">
                   <Button
                     type="primary"
-                    disabled={disabled || loading || failed || reading.loading}
-                    onClick={() => onLink(prepared)}
+                    disabled={
+                      !prepared ||
+                      disabled ||
+                      loading ||
+                      failed ||
+                      reading.loading ||
+                      Boolean(selection.current)
+                    }
+                    onClick={() => {
+                      if (prepared && !selection.current) onLink(prepared);
+                    }}
                   >
                     Link this rule
                   </Button>

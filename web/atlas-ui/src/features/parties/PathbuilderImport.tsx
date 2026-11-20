@@ -15,6 +15,7 @@ import type {
   PcReferenceView,
   PcAbilityView,
   PcAbilitySelection,
+  PathbuilderPreviewView,
   PartyView,
 } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -22,6 +23,12 @@ import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters } from "./characterQueries";
 import { PcAbilityBrowser } from "./PcAbilityBrowser";
+
+type ImportReview = {
+  view: PathbuilderPreviewView;
+  party?: PartyView;
+  encounterRevision?: number;
+};
 
 export function PathbuilderImport({
   party,
@@ -42,6 +49,7 @@ export function PathbuilderImport({
   const [requestId] = useState(() => crypto.randomUUID());
   const [text, setText] = useState("");
   const [reviewing, setReviewing] = useState(false);
+  const [review, setReview] = useState<{ data?: ImportReview; error?: Error }>({});
   const [closing, setClosing] = useState(false);
   const [ruleLinks, setRuleLinks] = useState<
     Record<string, { key: string; title: string }>
@@ -73,7 +81,7 @@ export function PathbuilderImport({
   const paused = useSavedWritesPaused();
   const client = useQueryClient();
   const preview = useMutation({
-    mutationFn: async (json: string) => {
+    mutationFn: async (json: string): Promise<ImportReview> => {
       const view = await previewPathbuilderPc(json, character?.character_key);
       const target = party
         ? (await getParties()).parties.find(
@@ -90,19 +98,23 @@ export function PathbuilderImport({
           : undefined,
       };
     },
-    onSuccess: ({ view }) => {
+    onSuccess: (next) => {
+      const { view } = next;
       if (reviewedGeneration.current !== view.artifact_generation) {
         if (Object.keys(ruleLinks).length) setLinksExpired(true);
         setRuleLinks({});
       }
       reviewedGeneration.current = view.artifact_generation;
       chooseLink.reset();
+      save.reset();
+      setReview({ data: next });
       setReviewing(true);
     },
+    onError: (error) => setReview((current) => ({ ...current, error })),
     retry: false,
   });
   type ImportIntent = {
-    review: NonNullable<typeof preview.data>;
+    review: ImportReview;
     json: string;
     ruleLinks: Record<string, string>;
   };
@@ -162,7 +174,7 @@ export function PathbuilderImport({
   const uncertain = Boolean(save.error && isUnconfirmedMutation(save.error));
   const canReview = Boolean(save.error && !isUnconfirmedMutation(save.error));
   const busy = preview.isPending || save.isPending || chooseLink.isPending;
-  const draft = preview.data?.view;
+  const draft = review.data?.view;
   const stageAbility = (ability: PcAbilityView): PcAbilityView => {
     const chosen = ruleLinks[ability.ability_key];
     return chosen
@@ -217,12 +229,12 @@ export function PathbuilderImport({
             <Button
               type="primary"
               loading={save.isPending}
-              disabled={paused || busy || canReview}
+              disabled={paused || busy || canReview || Boolean(review.error)}
               onClick={() => {
-                if (!preview.data) return;
+                if (!review.data) return;
                 save.mutate(
                   submitted.current ?? {
-                    review: preview.data,
+                    review: review.data,
                     json: text,
                     ruleLinks: Object.fromEntries(
                       Object.entries(ruleLinks).map(([key, link]) => [key, link.key]),
@@ -240,7 +252,7 @@ export function PathbuilderImport({
             <Button
               type="primary"
               disabled={!text.trim() || busy}
-              loading={preview.isPending}
+              loading={preview.isPending ? { delay: 500 } : false}
               onClick={() => {
                 save.reset();
                 preview.mutate(text);
@@ -270,6 +282,7 @@ export function PathbuilderImport({
               onChange={(event) => {
                 setText(event.target.value);
                 setRuleLinks({});
+                setReview({});
                 setLinksExpired(false);
                 reviewedGeneration.current = undefined;
                 preview.reset();
@@ -278,28 +291,44 @@ export function PathbuilderImport({
             />
           </div>
         )}
-        {preview.error && (
-          <ErrorNotice error={preview.error} title="Could not review character" />
-        )}
-        {save.error && (
+        {review.error ? (
           <ErrorNotice
-            error={save.error}
-            title="Could not save character"
+            error={review.error}
+            title="Could not review character"
+            description={reviewing ? "The previous review is still shown." : undefined}
             action={
-              canReview ? (
+              reviewing ? (
                 <Button
-                  loading={preview.isPending}
-                  onClick={() => {
-                    save.reset();
-                    submitted.current = null;
-                    preview.mutate(text);
-                  }}
+                  disabled={busy}
+                  loading={preview.isPending ? { delay: 500 } : false}
+                  onClick={() => preview.mutate(text)}
                 >
-                  Review latest changes
+                  Retry review
                 </Button>
               ) : undefined
             }
           />
+        ) : (
+          save.error && (
+            <ErrorNotice
+              error={save.error}
+              title="Could not save character"
+              action={
+                canReview ? (
+                  <Button
+                    loading={preview.isPending ? { delay: 500 } : false}
+                    disabled={preview.isPending}
+                    onClick={() => {
+                      submitted.current = null;
+                      preview.mutate(text);
+                    }}
+                  >
+                    Review latest changes
+                  </Button>
+                ) : undefined
+              }
+            />
+          )
         )}
         {save.data && !save.data.available && (
           <p role="status">
@@ -335,6 +364,11 @@ export function PathbuilderImport({
             )}
             <PcAbilityBrowser
               key={draft.artifact_generation}
+              generation={draft.artifact_generation}
+              active={!closing}
+              onReviewImport={
+                !busy && !uncertain ? () => preview.mutate(text) : undefined
+              }
               doc={{
                 imported: true,
                 abilities,
@@ -346,13 +380,14 @@ export function PathbuilderImport({
               link={chooseLink}
               linkErrorAction={
                 <Button
-                  loading={preview.isPending}
+                  loading={preview.isPending ? { delay: 500 } : false}
+                  disabled={preview.isPending}
                   onClick={() => preview.mutate(text)}
                 >
                   Review latest changes
                 </Button>
               }
-              blocked={busy || uncertain}
+              blocked={busy || uncertain || canReview || Boolean(review.error)}
               review
             />
           </section>

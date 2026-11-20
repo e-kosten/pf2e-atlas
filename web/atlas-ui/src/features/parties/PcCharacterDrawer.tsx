@@ -15,6 +15,7 @@ import type {
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
 import { refreshCharacters, useCharacters } from "./characterQueries";
 import { PcAbilityBrowser, type AbilityNavigation } from "./PcAbilityBrowser";
@@ -141,13 +142,15 @@ export function CharacterReference({
       )}
       <PcAbilityBrowser
         key={doc?.character_key}
+        active={!closing}
+        revision={doc?.character_revision}
         navigation={navigation}
         doc={doc}
         link={save}
         blocked={paused || attach.isPending}
         toolbar={
           <>
-            {reference.isPending && <p role="status">Loading PC reference…</p>}
+            {reference.isPending && <LoadingStatus label="Loading PC reference…" />}
             {location.kind === "encounter" && (doc || doc === null) && (
               <Space wrap>
                 {doc && (

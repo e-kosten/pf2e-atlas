@@ -12,6 +12,7 @@ import {
 import type { CharacterSummaryView, PartyView } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters, useCharacters } from "./characterQueries";
 import { useParties } from "./useParties";
@@ -194,38 +195,40 @@ export function CharacterPicker({
         {review.data && (
           <p role="status">Latest character and roster values reviewed.</p>
         )}
-        <List
-          loading={characters.isPending}
-          dataSource={visible}
-          locale={{ emptyText: "No matching characters." }}
-          renderItem={(character) => (
-            <List.Item>
-              <div>
-                {character.name}
-                {character.level !== undefined && (
-                  <span className="character-secondary">Level {character.level}</span>
-                )}
-              </div>
-              <Button
-                disabled={
-                  paused ||
-                  save.isPending ||
-                  canReview ||
-                  review.isPending ||
-                  (uncertain &&
-                    save.variables?.character_key !== character.character_key)
-                }
-                loading={
-                  save.isPending &&
-                  save.variables?.character_key === character.character_key
-                }
-                onClick={() => save.mutate(character)}
-              >
-                {uncertain ? "Retry to confirm" : "Add"}
-              </Button>
-            </List.Item>
-          )}
-        />
+        {characters.isPending && <LoadingStatus label="Loading characters…" />}
+        {characters.data && (
+          <List
+            dataSource={visible}
+            locale={{ emptyText: "No matching characters." }}
+            renderItem={(character) => (
+              <List.Item>
+                <div>
+                  {character.name}
+                  {character.level !== undefined && (
+                    <span className="character-secondary">Level {character.level}</span>
+                  )}
+                </div>
+                <Button
+                  disabled={
+                    paused ||
+                    save.isPending ||
+                    canReview ||
+                    review.isPending ||
+                    (uncertain &&
+                      save.variables?.character_key !== character.character_key)
+                  }
+                  loading={
+                    save.isPending &&
+                    save.variables?.character_key === character.character_key
+                  }
+                  onClick={() => save.mutate(character)}
+                >
+                  {uncertain ? "Retry to confirm" : "Add"}
+                </Button>
+              </List.Item>
+            )}
+          />
+        )}
       </Space>
     </AtlasModal>
   );

@@ -9,6 +9,7 @@ import { charactersDestination, partiesDestination } from "../../app/destination
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { CharacterEditor } from "./CharacterEditor";
@@ -41,7 +42,7 @@ export function CharacterPage({
           action={<Button onClick={() => void query.refetch()}>Retry</Button>}
         />
       )}
-      {query.isPending && <p role="status">Loading character…</p>}
+      {query.isPending && <LoadingStatus label="Loading character…" />}
       {query.data && (
         <CharacterDocument
           key={characterKey}

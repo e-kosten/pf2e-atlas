@@ -11,7 +11,8 @@
   gap: var(--space-control);
   margin-block-end: var(--space-section);
 }
-.party-directory-back.ant-btn {
+.party-directory-back.ant-btn,
+.party-roster-loading {
   display: none;
 }
 .party-workspace {
@@ -238,6 +239,14 @@
 .ability-rule-picker__header .reference-search-entry {
   width: 100%;
 }
+.ability-rule-picker .reference-browser__toolbar .result-pane-header {
+  flex-wrap: nowrap;
+}
+.ability-rule-picker .result-pane-header > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .character-reference__sections {
   display: flex;
   flex-wrap: wrap;
@@ -267,6 +276,9 @@
 }
 .character-ability-row > .ant-space {
   flex-shrink: 0;
+}
+.character-ability-row > .reference-selection-status {
+  max-inline-size: 50%;
 }
 .character-ability-section .ant-list .ant-list-item {
   padding-inline: var(--space-control);
@@ -298,6 +310,9 @@
   .party-directory-back.ant-btn {
     display: inline-flex;
     margin-block-end: var(--space-group);
+  }
+  .party-roster-loading {
+    display: block;
   }
   .party-page-heading {
     align-items: flex-start;
