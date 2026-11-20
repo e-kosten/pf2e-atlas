@@ -187,13 +187,13 @@ fn major_minor_admission_and_conflicting_configuration_leave_no_partial_restore(
         &input,
         &serde_json::json!({
             "format": "pf2e-atlas-workspace",
-            "version": "5.0",
+            "version": "6.0",
             "future_saved_state": {}
         }),
     );
     failure(
         workspace_command(&db, "restore", &input, &[]),
-        "Unsupported workspace archive version 5.0",
+        "Unsupported workspace archive version 6.0",
     );
     archive["version"] = "1.10".into();
     archive["saved"]["owners"][0]["lists"][0]["future_display_hint"] = "ignored".into();
