@@ -871,9 +871,10 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     );
     const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
     const description = "A retained description draft with a useful purpose.";
-    await editor
-      .getByRole("textbox", { name: "Description", exact: true })
-      .fill(description);
+    await replaceMarkdown(
+      editor.getByRole("textbox", { name: "Description", exact: true }),
+      description,
+    );
     await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(editor).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
