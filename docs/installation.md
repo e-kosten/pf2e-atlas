@@ -8,8 +8,7 @@ This guide covers platform support, alternate versions and agent integration.
 On Apple Silicon with macOS Tahoe 26 or later, download
 `atlas-desktop-aarch64-apple-darwin.dmg` from the
 [Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
-For a nightly, use the dated release named in
-[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt).
+For a nightly, visit the [Latest Nightly download page](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest).
 Check the image's SHA-256 against `SHA256SUMS` on the same release. Open the
 image and drag **PF2e Atlas** into **Applications**.
 
@@ -19,8 +18,8 @@ to approve that download. See [Apple's first-open instructions](https://support.
 
 Open the app and choose **Set up Atlas** on a new workspace. For upgrades,
 quit Atlas, replace the app in Applications, reopen it, and use **Setup and
-Updates** if Atlas asks to prepare the workspace. Nightly and stable builds
-use the same workspace. Back it up before switching channels.
+Updates** if Atlas asks to prepare the workspace. Stable and Nightly use the same
+selected data by default. Channel switching lives in **Setup and Updates**.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
 Access** to link it at `~/.local/bin/atlas`. If you already installed a
@@ -41,12 +40,49 @@ download can be retried in Atlas.
 Updater-enabled builds can install subsequent updates in the app. Install the
 first updater-enabled release the same way you installed Atlas originally.
 
+### Switch between Stable and Nightly
+
+Open **Setup and Updates** in Atlas Desktop. On Stable, expand **Preview builds**
+and choose **Try Nightly…**. On Nightly, choose **Change release channel** to return
+to Stable. Choose which data to use and check the other channel's compatibility.
+Atlas shows the version and any setup requirements before installing.
+
+Choose **Use my current data** to keep the same campaign on
+Nightly, or **Use a separate copy** to try it with an independent copy of your
+saved work. Changes made to either copy stay separate. If another workspace
+already exists, **Use the other copy** reopens its earlier work instead of
+overwriting it.
+
+When returning to compatible Stable, choose **Use my current data** to
+keep your latest changes from Nightly, or **Use an earlier copy** to reopen
+the retained copy. Changes made in Nightly won't be copied over to that earlier
+copy. Your current Nightly data remains available.
+Atlas preserves both workspaces. The selected workspace becomes the default for
+the app and its bundled terminal command after the switch opens successfully.
+This also applies while using Nightly. Already running CLI processes keep their
+workspace; new commands follow the saved selection. Explicit `--index` paths and
+repository-mode commands keep their own selection.
+
+An older standalone CLI does not read this selection. Upgrade it or pass an
+explicit `--index` path; Terminal and agent access shows the app's current path.
+
+If Stable cannot open the selected workspace, choose **Stay on this build and
+wait for the next Stable release** to stop checking for Nightly updates, or **Keep checking for Nightly updates
+while waiting**. Atlas saves the choice across restarts and asks before
+installing a compatible Stable. Change or cancel the request in Setup and Updates.
+
+Guided switching requires release builds with signed workspace compatibility.
+If an installer was interrupted, close it before resuming the previous workspace.
+Use **Retry pending install** in the release-channel settings to retry the same build and
+workspace selection. When a supported workspace needs an upgrade, Atlas uses its normal
+[workspace backup and upgrade procedure](setup-and-maintenance.md#upgrade-an-older-prerelease-workspace).
+Older apps installed manually may reopen the original workspace.
+
 ## Windows desktop app
 
 On Windows x64, download `atlas-desktop-x86_64-pc-windows-msvc-setup.exe` from the
 [Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
-For a nightly, use the dated release named in
-[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt).
+For a nightly, visit the [Latest Nightly download page](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest).
 Check its SHA-256 against `SHA256SUMS` on the same release. The installer is
 unsigned, so Windows may show a warning when you open it.
 
@@ -54,9 +90,34 @@ Run the installer, open **PF2e Atlas** from the Start menu, and choose **Set up
 Atlas** for a new workspace. To update, close Atlas and run the installer from
 the newer release. When Atlas reopens, use **Setup and Updates** if prompted.
 
+## Standalone CLI
+
+On macOS or Linux, download and run the official installer:
+
+```bash
+(
+  set -eu
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' EXIT
+  curl --proto '=https' --tlsv1.2 -LsSf \
+    https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh -o "$installer"
+  test -s "$installer"
+  sh "$installer"
+)
+```
+
+On Windows, use PowerShell:
+
+```powershell
+irm https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 | iex
+```
+
+Follow the installer's PATH instructions, then run `atlas setup`.
+Before the first official release, use the [nightly installer](#nightly-builds).
+
 ## Update Atlas
 
-Rerun the [quick-start installer](../README.md#quick-start) to update the CLI to
+Rerun the [standalone installer](#standalone-cli) to update the CLI to
 the latest stable release, then run `atlas setup`. Restart a running web session.
 The installer updates the executable; setup updates reference data while retaining
 your saved lists and encounters. Atlas does not update itself automatically.

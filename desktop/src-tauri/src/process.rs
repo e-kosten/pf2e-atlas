@@ -1,17 +1,26 @@
 use std::{
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     path::PathBuf,
-    process::{ChildStdin, Command, Stdio},
+    process::{Child, ChildStdin, Command, Stdio},
     sync::mpsc::{self, Receiver},
     time::Duration,
 };
 
+use atlas_desktop_protocol::workspace_selection::{
+    TransitionFailure, TransitionFailureKind, TransitionResponse,
+};
 use atlas_desktop_protocol::{
     LauncherReady, ReferenceRefreshResult, ReferenceStatus, SetupPublication, SetupStage, VERSION,
     WorkspaceProbe,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tauri::{AppHandle, Manager};
+
+use crate::{
+    Desktop,
+    workspace_switch::{Admission, Role},
+};
 
 pub struct Launcher {
     pub ready: LauncherReady,
@@ -57,13 +66,212 @@ fn command() -> Result<Command, String> {
     Ok(command)
 }
 
-pub fn probe() -> Result<WorkspaceProbe, String> {
-    probe_with(&[])
+fn routed(app: &AppHandle, subcommand: &str) -> Result<Command, String> {
+    let mut command = command()?;
+    command.arg(subcommand);
+    if let Some(index) = app.state::<Desktop>().workspace_route.index()? {
+        command.arg("--index").arg(index);
+    }
+    if let Some(pending) = crate::workspace_switch::load(app)?.pending
+        && crate::updates::installed_build().as_ref() == Some(&pending.target)
+    {
+        command.env(
+            "ATLAS_DESKTOP_EXPECTED_WORKSPACE",
+            serde_json::to_string(&pending.admission).map_err(display)?,
+        );
+    }
+    Ok(command)
 }
 
-pub fn reference_status() -> Result<ReferenceStatus, String> {
+pub(crate) fn migration_ledger() -> Result<Value, String> {
     let output = command()?
-        .args(["desktop-probe", "--reference-status"])
+        .args(["desktop-probe", "--update-compatibility"])
+        .output()
+        .map_err(display)?;
+    let facts: Value = decode(&output.stdout)?;
+    facts
+        .get("migrationLedger")
+        .cloned()
+        .ok_or("Missing Atlas migration ledger.".into())
+}
+
+pub(crate) fn load_workspace_selection() -> Result<crate::workspace_switch::Config, String> {
+    Ok(workspace_selection_snapshot()?.config)
+}
+
+pub(crate) fn workspace_selection_snapshot()
+-> Result<atlas_desktop_protocol::workspace_selection::SelectionSnapshot, String> {
+    selection("get", None)
+}
+
+pub(crate) fn save_workspace_selection(
+    config: &mut crate::workspace_switch::Config,
+) -> Result<(), String> {
+    *config = selection("save", Some(config))?;
+    Ok(())
+}
+
+pub(crate) fn recover_original_workspace_selection()
+-> Result<crate::workspace_switch::Config, String> {
+    selection("recover-original", None)
+}
+
+fn selection<T: DeserializeOwned>(
+    action: &str,
+    config: Option<&crate::workspace_switch::Config>,
+) -> Result<T, String> {
+    let mut child = command()?
+        .args(["desktop-probe", "--workspace-selection", action])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(display)?;
+    if let Some(config) = config {
+        let mut pipe = child
+            .stdin
+            .take()
+            .ok_or("Atlas selection pipe is missing.")?;
+        serde_json::to_writer(&mut pipe, config).map_err(display)?;
+        pipe.write_all(b"\n").map_err(display)?;
+    } else {
+        child.stdin.take();
+    }
+    let output = child.wait_with_output().map_err(display)?;
+    decode(&output.stdout)
+}
+
+pub(crate) struct TransitionReservation {
+    pub(crate) admission: Admission,
+    child: Child,
+}
+
+impl Drop for TransitionReservation {
+    fn drop(&mut self) {
+        self.child.stdin.take();
+        let _ = self.child.wait();
+    }
+}
+
+pub(crate) fn inspect_transition(
+    role: Role,
+    ledger: &Value,
+    seed: Option<&Admission>,
+) -> Result<Admission, TransitionFailure> {
+    Ok(transition(role, ledger, seed, None, false)?
+        .admission
+        .clone())
+}
+
+pub(crate) fn reserve_transition(
+    role: Role,
+    ledger: &Value,
+) -> Result<TransitionReservation, String> {
+    transition(role, ledger, None, None, true)
+        .map_err(|error| transition_error(error, "Atlas", "the selected data"))
+}
+
+pub(crate) fn claim_transition(
+    admission: &Admission,
+    ledger: &Value,
+    key: &str,
+) -> Result<Admission, String> {
+    Ok(transition(
+        admission.role,
+        ledger,
+        None,
+        Some((&admission.workspace, key)),
+        false,
+    )
+    .map_err(|error| transition_error(error, "Atlas", "the selected data"))?
+    .admission
+    .clone())
+}
+
+fn transition(
+    role: Role,
+    ledger: &Value,
+    seed: Option<&Admission>,
+    initialize: Option<(&PathBuf, &str)>,
+    reserve: bool,
+) -> Result<TransitionReservation, TransitionFailure> {
+    let mut command = command()?;
+    command.args(["desktop-probe", "--transition-workspace", role.as_arg()]);
+    if reserve {
+        command.arg("--reserve-transition");
+    }
+    let mut payload = serde_json::to_vec(&serde_json::json!({
+        "ledger": ledger,
+        "initialize": initialize.map(|(workspace, key)| serde_json::json!({"workspace": workspace, "key": key})),
+        "seed": seed.map(|source| serde_json::json!({
+            "workspace": source.workspace, "key": source.key, "schema": source.schema, "file_id": source.file_id,
+        }))
+    })).map_err(display)?;
+    payload.push(b'\n');
+    if payload.len() > 65_536 {
+        return Err("Atlas migration ledger exceeds the supported size.".into());
+    }
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(display)?;
+    let result = (|| {
+        child
+            .stdin
+            .as_mut()
+            .ok_or("Could not open the workspace check pipe.")?
+            .write_all(&payload)
+            .map_err(display)?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("Could not read the workspace check.")?;
+        let mut line = String::new();
+        BufReader::new(stdout)
+            .read_line(&mut line)
+            .map_err(display)?;
+        match serde_json::from_str::<TransitionResponse>(&line).map_err(display)? {
+            TransitionResponse::Ok { data } => Ok(data),
+            TransitionResponse::Error { error } => Err(error),
+        }
+    })();
+    match result {
+        Ok(admission) => Ok(TransitionReservation { admission, child }),
+        Err(error) => {
+            child.stdin.take();
+            if let Ok(output) = child.wait_with_output() {
+                eprint!("{}", String::from_utf8_lossy(&output.stderr));
+            }
+            Err(error)
+        }
+    }
+}
+
+pub(crate) fn transition_error(error: TransitionFailure, release: &str, data: &str) -> String {
+    eprintln!(
+        "Atlas workspace admission failed ({:?}): {}",
+        error.kind, error.diagnostic
+    );
+    match error.kind {
+        TransitionFailureKind::NewerSchema => format!("This {release} release can’t open {data} yet."),
+        TransitionFailureKind::Busy => "Atlas is using this data for another operation. Wait for it to finish before checking again.".into(),
+        TransitionFailureKind::Unknown => format!("Atlas couldn’t determine whether {release} can use this data."),
+    }
+}
+
+pub fn probe(app: &AppHandle) -> Result<WorkspaceProbe, String> {
+    probe_with(app, &[])
+}
+
+pub(crate) fn probe_default() -> Result<WorkspaceProbe, String> {
+    read_probe(command()?.arg("desktop-probe"))
+}
+
+pub fn reference_status(app: &AppHandle) -> Result<ReferenceStatus, String> {
+    let output = routed(app, "desktop-probe")?
+        .arg("--reference-status")
         .output()
         .map_err(display)?;
     let status: ReferenceStatus = decode(&output.stdout)?;
@@ -73,20 +281,20 @@ pub fn reference_status() -> Result<ReferenceStatus, String> {
     Ok(status)
 }
 
-pub fn wait_for_upgrade() -> Result<(), String> {
-    let probe = probe_with(&["--wait-for-service"])?;
+pub fn wait_for_upgrade(app: &AppHandle) -> Result<(), String> {
+    let probe = probe_with(app, &["--wait-for-service"])?;
     if probe.status == atlas_desktop_protocol::WorkspaceStatus::Busy {
         return Err(probe.message);
     }
     Ok(())
 }
 
-fn probe_with(args: &[&str]) -> Result<WorkspaceProbe, String> {
-    let output = command()?
-        .arg("desktop-probe")
-        .args(args)
-        .output()
-        .map_err(display)?;
+fn probe_with(app: &AppHandle, args: &[&str]) -> Result<WorkspaceProbe, String> {
+    read_probe(routed(app, "desktop-probe")?.args(args))
+}
+
+fn read_probe(command: &mut Command) -> Result<WorkspaceProbe, String> {
+    let output = command.output().map_err(display)?;
     let probe: WorkspaceProbe = decode(&output.stdout)?;
     if !output.status.success() || probe.version != VERSION {
         return Err("The app and bundled Atlas command use different readiness protocols.".into());
@@ -94,9 +302,12 @@ fn probe_with(args: &[&str]) -> Result<WorkspaceProbe, String> {
     Ok(probe)
 }
 
-pub fn start(on_exit: impl FnOnce(u32) + Send + 'static) -> Result<Launcher, String> {
-    let mut child = command()?
-        .args(["web", "--desktop-launcher"])
+pub fn start(
+    app: &AppHandle,
+    on_exit: impl FnOnce(u32) + Send + 'static,
+) -> Result<Launcher, String> {
+    let mut child = routed(app, "web")?
+        .arg("--desktop-launcher")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -168,19 +379,15 @@ pub enum SetupEvent {
 }
 
 pub fn setup(
+    app: &AppHandle,
     mode: SetupMode<'_>,
     build_embeddings_locally: bool,
     progress: impl Fn(Value) + Send + 'static,
     event_received: impl Fn(SetupEvent) + Send + 'static,
     hold: impl FnOnce(ChildStdin),
 ) -> Result<(), Value> {
-    let mut command = command()?;
-    command.args([
-        "setup",
-        "--json",
-        "--desktop-progress",
-        "--desktop-cancel-on-eof",
-    ]);
+    let mut command = routed(app, "setup")?;
+    command.args(["--json", "--desktop-progress", "--desktop-cancel-on-eof"]);
     match mode {
         SetupMode::Staged(stage) => command.args([
             "--desktop-stage",

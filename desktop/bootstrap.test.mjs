@@ -245,3 +245,32 @@ test("the opening cover follows the resolved product scheme over the native fall
     window.close();
   }
 });
+
+for (const [name, resume, label] of [
+  ["missing selected data", false, "Open my original workspace"],
+  ["interrupted channel switch", true, "Resume my previous workspace"],
+]) {
+  test(`${name} displays selection recovery instead of leaving the opening screen`, async () => {
+    const f = await fixture({ trace: false });
+    try {
+      f.take("inspect").resolve({
+        generation: 4,
+        probe: { status: "recovery_required" },
+        selection_error: "The selected data cannot be opened.",
+        resume_previous_workspace: resume,
+      });
+      await setImmediate();
+      const doc = f.window.document;
+      assert.ok(doc.getElementById("workspace")?.isConnected);
+      assert.equal(doc.getElementById("opening-status").hidden, true);
+      assert.equal(doc.getElementById("heading").textContent, "Choose a workspace");
+      const button = doc.getElementById("primary");
+      assert.equal(button.hidden, false);
+      assert.equal(button.textContent, label);
+      button.click();
+      assert.equal(f.take("recover_workspace").args.previous, resume);
+    } finally {
+      f.close();
+    }
+  });
+}

@@ -193,7 +193,23 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
   if (published.draft || !published.prerelease) throw new Error('Expected a published dated nightly');
   verifyReleaseSource(run, published, tag, sha, true);
   await verifyUploadedDesktop(published, dist);
-  if (alreadyCurrent) return;
+  const channelNotes = [
+    'Latest verified Nightly',
+    '',
+    `[Download PF2e Atlas for Apple Silicon](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${macosDmg})`,
+    '',
+    `[Download PF2e Atlas for Windows x64](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${windowsInstaller})`,
+    '',
+    `[Dated release notes and checksums](https://github.com/e-kosten/pf2e-atlas/releases/tag/${tag})`,
+    '',
+    '[Standalone CLI installation](https://github.com/e-kosten/pf2e-atlas/blob/main/docs/installation.md#nightly-builds)',
+  ].join('\n');
+  const publishChannelPage = () => run('gh', ['release', 'edit', nightlyChannel,
+    '--draft=false', '--prerelease', '--latest=false', '--notes', channelNotes]);
+  if (alreadyCurrent) {
+    if (channel?.body !== channelNotes) publishChannelPage();
+    return;
+  }
   // Published dated assets stay immutable. Check actual downloads before advancing
   // the channel so a failed install preserves the last successful nightly.
   temporary((directory) => {
@@ -216,6 +232,6 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     const pointer = path.join(directory, 'nightly-version.txt');
     writeFileSync(pointer, tag + '\n');
     run('gh', ['release', 'upload', nightlyChannel, pointer, '--clobber']);
-    run('gh', ['release', 'edit', nightlyChannel, '--draft=false', '--prerelease', '--latest=false']);
+    publishChannelPage();
   });
 }

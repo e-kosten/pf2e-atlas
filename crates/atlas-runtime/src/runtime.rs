@@ -147,7 +147,10 @@ impl AtlasRuntime {
 
     /// Upgrade only the authenticated workspace schema. The desktop probes
     /// readiness separately before offering any further setup.
-    pub fn upgrade_desktop_workspace(&self) -> Result<(), String> {
+    pub fn upgrade_desktop_workspace(
+        &self,
+        verify: impl FnOnce(&atlas_storage::Workspace) -> Result<(), String>,
+    ) -> Result<(), String> {
         crate::workspace::register_extensions().map_err(|error| error.to_string())?;
         let workspace = atlas_storage::Workspace::existing(self.index_path())
             .map_err(|error| error.to_string())?;
@@ -162,6 +165,7 @@ impl AtlasRuntime {
             }
             error => error.to_string(),
         })?;
+        verify(&workspace)?;
         let schema = workspace
             .check_migration_history(crate::workspace::RELEASE_HISTORY)
             .map_err(|error| error.to_string())?;

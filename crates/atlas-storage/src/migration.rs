@@ -5,6 +5,7 @@ use crate::{
     workspace::APPLICATION_ID,
 };
 use rusqlite::{Connection, Transaction, TransactionBehavior};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -127,6 +128,57 @@ impl<'a> MigrationHistory<'a> {
         hash.update([u8::from(provenance.reconstruct_tables)]);
         hash.update(provenance.bridge_id.as_bytes());
         format!("{hash:x}", hash = hash.finalize())
+    }
+}
+
+/// The executable's migration ledger, without any executable SQL or callbacks.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MigrationLedger {
+    pub application_id: u32,
+    pub entries: Vec<MigrationEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MigrationEntry {
+    pub version: u32,
+    pub name: String,
+    pub checksum: String,
+}
+
+impl MigrationLedger {
+    fn bounds(&self) -> StorageResult<(u32, u32)> {
+        let endpoints = self.entries.first().zip(self.entries.last());
+        let Some((first, last)) = endpoints.filter(|(first, _)| {
+            self.application_id == APPLICATION_ID
+                && first.version > 0
+                && self.entries.iter().enumerate().all(|(index, entry)| {
+                    entry.version.checked_sub(first.version) == u32::try_from(index).ok()
+                })
+        }) else {
+            return Err(StorageError::Migration(
+                "invalid update migration ledger".into(),
+            ));
+        };
+        Ok((first.version, last.version))
+    }
+}
+
+impl MigrationHistory<'_> {
+    pub fn ledger(self) -> MigrationLedger {
+        MigrationLedger {
+            application_id: APPLICATION_ID,
+            entries: self
+                .migrations
+                .iter()
+                .map(|migration| MigrationEntry {
+                    version: migration.version,
+                    name: migration.name.to_owned(),
+                    checksum: self.checksum(migration),
+                })
+                .collect(),
+        }
     }
 }
 
@@ -288,6 +340,37 @@ impl Workspace {
         Ok(current)
     }
 
+    /// Read the persisted workspace identity and authenticate its history against
+    /// compatibility facts emitted by the target executable.
+    pub fn check_update_history(&self, ledger: &MigrationLedger) -> StorageResult<(String, u32)> {
+        let (first, target) = ledger.bounds()?;
+        let _admission = acquire(&self.path, ".access.lock", false)?;
+        let connection = self.connect(false, false)?;
+        let snapshot = Transaction::new_unchecked(&connection, TransactionBehavior::Deferred)?;
+        let (fresh, current) = inspect_ledger(
+            &snapshot,
+            first,
+            target,
+            ledger.entries.iter().map(|entry| {
+                (entry.version, entry.name.as_str(), || {
+                    entry.checksum.clone()
+                })
+            }),
+        )?;
+        if fresh {
+            return Err(StorageError::Unsupported(
+                "workspace is uninitialized".into(),
+            ));
+        }
+        crate::workspace::validate(&snapshot, current, false)?;
+        let key = snapshot.query_row(
+            "SELECT workspace_key FROM workspace WHERE id=1",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok((key, current))
+    }
+
     pub fn upgrade_backup_path(&self) -> PathBuf {
         sidecar(&self.path, ".upgrade-backup.sqlite")
     }
@@ -298,7 +381,24 @@ pub(crate) fn inspect_history(
     connection: &Connection,
     history: MigrationHistory<'_>,
 ) -> StorageResult<(bool, u32)> {
-    let target = history.target();
+    inspect_ledger(
+        connection,
+        history.first(),
+        history.target(),
+        history.migrations.iter().map(|migration| {
+            (migration.version, migration.name, move || {
+                history.checksum(migration)
+            })
+        }),
+    )
+}
+
+fn inspect_ledger<'a>(
+    connection: &Connection,
+    first: u32,
+    target: u32,
+    expected: impl Iterator<Item = (u32, &'a str, impl Fn() -> String)>,
+) -> StorageResult<(bool, u32)> {
     let app: u32 = connection.query_row("PRAGMA application_id", [], |r| r.get(0))?;
     let table_count: u64 = connection.query_row(
         "SELECT count(*) FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'",
@@ -319,10 +419,9 @@ pub(crate) fn inspect_history(
         });
     }
     if !fresh {
-        if current < history.first() {
+        if current < first {
             return Err(StorageError::Unsupported(format!(
-                "workspace schema {current} must be upgraded to schema {} with an Atlas build that supports that schema first",
-                history.first()
+                "workspace schema {current} must be upgraded to schema {first} with an Atlas build that supports that schema first"
             )));
         }
         let mut statement = connection
@@ -336,25 +435,29 @@ pub(crate) fn inspect_history(
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
-        let applied = history
-            .migrations
-            .iter()
-            .take_while(|entry| entry.version <= current);
-        if ledger.len() != applied.clone().count() {
+        let mut applied = expected.take_while(|(version, _, _)| *version <= current);
+        for (version, name, checksum) in ledger {
+            match applied.next() {
+                Some((expected_version, expected_name, expected_checksum))
+                    if version == expected_version
+                        && name == expected_name
+                        && checksum == expected_checksum() => {}
+                Some(_) => {
+                    return Err(StorageError::Migration(format!(
+                        "applied migration {version} differs from executable"
+                    )));
+                }
+                None => {
+                    return Err(StorageError::Migration(
+                        "schema version and ledger disagree".into(),
+                    ));
+                }
+            }
+        }
+        if applied.next().is_some() {
             return Err(StorageError::Migration(
                 "schema version and ledger disagree".into(),
             ));
-        }
-        for ((version, name, checksum), migration) in ledger.iter().zip(applied) {
-            if *version != migration.version
-                || name != migration.name
-                || *checksum != history.checksum(migration)
-            {
-                return Err(StorageError::Migration(format!(
-                    "applied migration {} differs from executable",
-                    version
-                )));
-            }
         }
     }
     Ok((fresh, current))

@@ -17,32 +17,15 @@ The supported reference release is **8.7.0**; setup downloads the pinned source 
 
 ## Quick Start
 
-**1. Install Atlas.** On macOS or Linux:
+Install **PF2e Atlas Desktop** on [Apple Silicon macOS](https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-desktop-aarch64-apple-darwin.dmg) or [Windows x64](https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-desktop-x86_64-pc-windows-msvc-setup.exe). Open Atlas and choose **Set up Atlas**. See the [desktop installation and first-launch instructions](docs/installation.md#macos-desktop-app).
 
-```bash
-(
-  set -eu
-  installer=$(mktemp)
-  trap 'rm -f "$installer"' EXIT
-  curl --proto '=https' --tlsv1.2 -LsSf \
-    https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh -o "$installer"
-  test -s "$installer"
-  sh "$installer"
-)
-```
+To try the newest verified development build, visit [Latest Nightly](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest). Before the first official release, use Nightly.
 
-Before the first stable release, use the [nightly installer](docs/installation.md#nightly-builds).
+### Terminal and browser quick start
 
-On Windows, use PowerShell:
+For Linux, command-line use, or scripts, install Atlas with the [standalone installer](docs/installation.md#standalone-cli).
 
-```powershell
-irm https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 | iex
-```
-
-Follow any PATH instructions printed by the installer so your terminal can find
-`atlas`.
-
-**2. Prepare your local data.**
+**1. Prepare your local data.**
 
 ```bash
 atlas setup
@@ -53,7 +36,7 @@ when you want to update reference data. Setup downloads and verifies the pinned
 Pathfinder reference content, precomputed embeddings, and a search model, then
 prepares them for local searching. You do not need Git. Later runs reuse work already completed.
 
-**3. Open Atlas.**
+**2. Open Atlas.**
 
 ```bash
 atlas web --open

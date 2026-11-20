@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { isFile, nightlyTag, object, readJson, windowsInstaller, writeJson } from './release-data.js';
@@ -9,7 +10,9 @@ const platforms = {
 };
 const packages = Object.values(platforms);
 export const desktopUpdaterAssets = [
-  manifest, packages[0], ...packages.map((name) => name + '.sig'),
+  manifest, packages[0], ...packages.flatMap((name) => [
+    name + '.sig', name + '.transition.json', name + '.transition.json.sig',
+  ]),
 ];
 
 function updaterRef(tag: string): string {
@@ -55,6 +58,7 @@ export function validateDesktopUpdater(tag: string, dist: string): string[] {
   if (info.version !== tag.slice(1)) throw new Error('Desktop update manifest version mismatch');
   const targets = object(info.platforms);
   if (Object.keys(targets).length !== Object.keys(platforms).length) throw new Error('Unexpected desktop update targets');
+  let previousDescriptor: string | undefined;
   for (const [target, name] of Object.entries(platforms)) {
     const asset = object(targets[target]);
     const signature = readFileSync(path.join(dist, name + '.sig'), 'utf8').trim();
@@ -64,6 +68,36 @@ export function validateDesktopUpdater(tag: string, dist: string): string[] {
       || !signedComment?.split('\t').includes(`version:${tag.slice(1)}`)) {
       throw new Error(`Desktop update manifest has mismatched package identity for ${target}`);
     }
+    const descriptorName = name + '.transition.json';
+    const descriptor = object(readJson(path.join(dist, descriptorName)));
+    const proof = readFileSync(path.join(dist, descriptorName + '.sig'), 'utf8').trim();
+    const comment = Buffer.from(proof, 'base64').toString('utf8').split(/\r?\n/)[2];
+    const compatibility = object(info.atlasCompatibility);
+    const ledger = object(descriptor.migrationLedger);
+    const entries = Array.isArray(ledger.entries) ? ledger.entries.map(object) : [];
+    const first = entries[0]?.version;
+    const channel = ref.startsWith('nightly/') ? 'nightly' : 'stable';
+    if (descriptor.protocol !== 2 || descriptor.channel !== channel
+      || descriptor.version !== info.version || descriptor.tag !== ref
+      || typeof descriptor.commit !== 'string' || !/^[0-9a-f]{40}$/.test(descriptor.commit)
+      || (channel === 'nightly' && !ref.endsWith('.g' + descriptor.commit.slice(0, 12)))
+      || descriptor.asset !== name || descriptor.workspaceSchema !== compatibility.workspaceSchema
+      || descriptor.foundryCommit !== compatibility.foundryCommit
+      || descriptor.foundryVersion !== compatibility.foundryVersion
+      || descriptor.sha256 !== createHash('sha256').update(readFileSync(path.join(dist, name))).digest('hex')
+      || !comment?.split('\t').includes(`version:${tag.slice(1)}`)
+      || !Number.isSafeInteger(ledger.applicationId) || typeof first !== 'number' || first < 1
+      || entries.at(-1)?.version !== descriptor.workspaceSchema
+      || entries.some((entry, index) => entry.version !== first + index
+        || typeof entry.name !== 'string' || !entry.name
+        || typeof entry.checksum !== 'string' || !/^[0-9a-f]{64}$/.test(entry.checksum))) {
+      throw new Error(`Invalid desktop transition descriptor for ${name}`);
+    }
+    const shared = JSON.stringify([descriptor.commit, ledger]);
+    if (previousDescriptor !== undefined && previousDescriptor !== shared) {
+      throw new Error('Desktop transition descriptors disagree between platforms');
+    }
+    previousDescriptor = shared;
   }
   return desktopUpdaterAssets;
 }

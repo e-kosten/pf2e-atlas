@@ -871,9 +871,10 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     );
     const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
     const description = "A retained description draft with a useful purpose.";
-    await editor
-      .getByRole("textbox", { name: "Description", exact: true })
-      .fill(description);
+    await replaceMarkdown(
+      editor.getByRole("textbox", { name: "Description", exact: true }),
+      description,
+    );
     await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(editor).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
@@ -881,10 +882,10 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     await activate(about, info);
     const aboutPanel = page.getByRole("dialog", { name: "About", exact: true });
     await expect(aboutPanel.getByText(description, { exact: true })).toBeVisible();
-    await activate(
-      aboutPanel.getByRole("button", { name: "Close", exact: true }),
-      info,
-    );
+    const closeAbout = aboutPanel.getByRole("button", { name: "Close", exact: true });
+    // WebKit can report a stable sliver before the drawer's entry motion starts.
+    await expect(closeAbout).toBeInViewport({ ratio: 1 });
+    await activate(closeAbout, info);
     await expect(aboutPanel).toBeHidden();
     await activate(
       page.getByRole("button", { name: "Add records", exact: true }),
@@ -2171,6 +2172,9 @@ test("record picker saves an optional entry note and brings the changed list fir
     await activate(trigger, info);
     const dialog = page.getByRole("dialog", { name: "Add to list", exact: true });
     await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
+    const dropdown = page.locator(".ant-select-dropdown:visible");
+    await expect(dropdown).toBeVisible();
+    await expect(dropdown).not.toHaveClass(/ant-slide-up-(?:appear|enter)(?:[-\s]|$)/);
     const choices = page.locator(".ant-select-item-option-content");
     await expect(choices.first()).toHaveText(`Alpha ${suffix}`);
     await activate(choices.filter({ hasText: `Zulu ${suffix}` }), info);

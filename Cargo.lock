@@ -194,6 +194,7 @@ dependencies = [
  "tokio",
  "tracing",
  "ureq",
+ "winapi-util",
 ]
 
 [[package]]
@@ -375,6 +376,7 @@ dependencies = [
 name = "atlas-runtime"
 version = "0.1.0"
 dependencies = [
+ "atlas-desktop-protocol",
  "atlas-domain",
  "atlas-embedding",
  "atlas-foundry-model",
@@ -430,6 +432,7 @@ dependencies = [
  "atlas-sqlite-vec",
  "fs2",
  "rusqlite",
+ "serde",
  "sha2",
  "tempfile",
  "thiserror",

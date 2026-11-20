@@ -90,7 +90,11 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     }
     let app = app.clone();
     thread::spawn(move || {
-        match if links_mode {
+        match if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "channels") {
+            run_channels(&app)
+        } else if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "upgrade") {
+            run_upgrade(&app)
+        } else if links_mode {
             run_links(&app)
         } else if selector_mode() {
             run_selector(&app)
@@ -112,10 +116,266 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn upgrade_record(app: &AppHandle, stage: &str, error: Option<&str>) -> Result<(), String> {
+    let home = process::home()?;
+    let path = home.join("upgrade-smoke-result.json");
+    let mut entries: Vec<serde_json::Value> = match std::fs::read(&path) {
+        Ok(bytes) => serde_json::from_slice(&bytes).map_err(display)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => return Err(display(error)),
+    };
+    entries.push(serde_json::json!({
+        "pid": std::process::id(),
+        "build": crate::updates::installed_build(),
+        "window_url": app.get_webview_window(PRIMARY).and_then(|window| window.url().ok()).map(|url| url.to_string()),
+        "stage": stage,
+        "error": error,
+        "selection": crate::workspace_switch::load(app).ok(),
+    }));
+    // LaunchServices gives the incoming process /dev/null for stdio. Preserve
+    // checkpoints in the disposable home across that real updater restart.
+    let mut staged = tempfile::NamedTempFile::new_in(home).map_err(display)?;
+    serde_json::to_writer_pretty(staged.as_file_mut(), &entries).map_err(display)?;
+    staged.persist(path).map_err(display)?;
+    Ok(())
+}
+
+fn run_upgrade(app: &AppHandle) -> Result<(), String> {
+    upgrade_record(app, "started", None)?;
+    let result = run_upgrade_flow(app);
+    upgrade_record(
+        app,
+        if result.is_ok() { "passed" } else { "failed" },
+        result.as_ref().err().map(String::as_str),
+    )?;
+    result
+}
+
+fn run_upgrade_flow(app: &AppHandle) -> Result<(), String> {
+    use crate::workspace_switch::Role;
+
+    let installed =
+        crate::updates::installed_build().ok_or("Upgrade smoke requires a release identity.")?;
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary window unavailable")?;
+    let deadline = Instant::now() + Duration::from_secs(45);
+    let config = crate::workspace_switch::load(app)?;
+    if config.active != Role::Original {
+        return Err("Upgrade smoke requires the original workspace to remain committed.".into());
+    }
+    if installed.tag.starts_with("release/") {
+        if config.pending.is_some() {
+            return Err("Upgrade smoke requires a fresh Stable review.".into());
+        }
+        wait_for(deadline, "desktop settings", || open_setup_panel(&window))?;
+        wait_for(deadline, "preview build disclosure", || {
+            evaluates_true(
+                &window,
+                r#"(() => {
+                const summary = document.querySelector('.desktop-channel__preview summary');
+                if (!summary?.getClientRects().length) return false;
+                if (!summary.parentElement.open) summary.click();
+                return true;
+            })()"#,
+            )
+        })?;
+        for label in [
+            "Try Nightly…",
+            "Use the other copy",
+            "Check Nightly compatibility",
+        ] {
+            wait_for(deadline, label, || {
+                click_product_button(&window, label, true)
+            })?;
+        }
+        wait_for(deadline, "data upgrade downtime warning", || {
+            text_visible(
+                &window,
+                "This version needs to upgrade your data after restarting. Atlas will be unavailable until the upgrade finishes.",
+            )
+        })?;
+        upgrade_record(app, "awaiting-automatic-restart", None)?;
+        wait_for(deadline, "signed Nightly install confirmation", || {
+            click_product_button(&window, "Install Nightly and restart", true)
+        })?;
+        return wait_for(deadline, "automatic target restart", || false);
+    }
+    if !installed.tag.starts_with("nightly/")
+        || !config.pending.as_ref().is_some_and(|pending| {
+            pending.target == installed && pending.admission.role == Role::Separate
+        })
+    {
+        return Err("Upgrade smoke requires the reviewed Nightly target and separate copy.".into());
+    }
+    if process::probe(app)?.status != atlas_desktop_protocol::WorkspaceStatus::UpgradeRequired {
+        return Err("The incoming target did not require the expected data upgrade.".into());
+    }
+    wait_for(
+        deadline,
+        "native upgrade gate after automatic restart",
+        || {
+            evaluates_true(
+                &window,
+                r#"(() => {
+            const heading = document.getElementById('heading');
+            const button = document.getElementById('primary');
+            return heading?.getClientRects().length > 0
+                && heading.textContent === 'Update your workspace for this version of Atlas'
+                && button?.getClientRects().length > 0
+                && button.textContent === 'Update workspace' && !button.disabled;
+        })()"#,
+            )
+        },
+    )?;
+    upgrade_record(app, "automatic-restart-upgrade-gate", None)?;
+    wait_for(deadline, "native workspace preparation", || {
+        click_primary(&window, "Update workspace")
+    })?;
+    wait_for(
+        deadline,
+        "native data-dependent preparation refusal",
+        || {
+            evaluates_true(
+                &window,
+                r#"(() => {
+            const diagnostic = document.getElementById('diagnostic');
+            const details = document.getElementById('details');
+            const button = document.getElementById('primary');
+            if (!diagnostic || diagnostic.hidden || !details?.textContent.includes('invalid workspace migration')
+                || button?.textContent !== 'Check workspace' || button.disabled) return false;
+            diagnostic.open = true;
+            return details.getClientRects().length > 0;
+        })()"#,
+            )
+        },
+    )?;
+    if crate::workspace_switch::load(app)? != config {
+        return Err("Failed preparation changed the committed or pending selection.".into());
+    }
+    upgrade_record(app, "native-preparation-refused", None)?;
+    wait_for(deadline, "workspace recheck after refusal", || {
+        click_primary(&window, "Check workspace")
+    })?;
+    wait_for(deadline, "original workspace recovery", || {
+        evaluates_true(
+            &window,
+            r#"(() => {
+            const button = document.getElementById('secondary');
+            if (!button?.getClientRects().length || button.disabled
+                || button.textContent !== 'Open my original workspace') return false;
+            button.click();
+            return true;
+        })()"#,
+        )
+    })?;
+    wait_for(deadline, "recovered product view", || {
+        evaluates_true(
+            &window,
+            r#"document.querySelector('.topbar')?.getClientRects().length > 0
+                && window.__ATLAS_DESKTOP_SETUP__?.channel?.active === 'original'"#,
+        )
+    })?;
+    let recovered = crate::workspace_switch::load(app)?;
+    if recovered.active != Role::Original || recovered.pending.is_some() {
+        return Err("The recovered original workspace still has a pending switch.".into());
+    }
+    upgrade_record(app, "original-product-recovered", None)
+}
+
+fn run_channels(app: &AppHandle) -> Result<(), String> {
+    let installed =
+        crate::updates::installed_build().ok_or("Channel smoke requires a release identity.")?;
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary window unavailable")?;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    wait_for(deadline, "desktop settings", || open_setup_panel(&window))?;
+    let stable = installed.tag.starts_with("release/");
+    if stable {
+        wait_for(deadline, "preview build disclosure", || {
+            evaluates_true(
+                &window,
+                r#"(() => {
+                const summary = document.querySelector('.desktop-channel__preview summary');
+                if (!summary?.getClientRects().length) return false;
+                if (!summary.parentElement.open) summary.click();
+                return true;
+            })()"#,
+            )
+        })?;
+    }
+    wait_for(deadline, "release channel controls", || {
+        click_product_button(
+            &window,
+            if stable {
+                "Try Nightly…"
+            } else {
+                "Change release channel"
+            },
+            true,
+        ) || (!stable && click_product_button(&window, "Stable available", true))
+    })?;
+    if stable {
+        wait_for(deadline, "Stable channel after restart", || {
+            text_visible(&window, &format!("Version {}", installed.version))
+        })?;
+        let config = crate::workspace_switch::load(app)?;
+        if config.pending.is_some() {
+            return Err("Stable still has a pending switch after opening.".into());
+        }
+        let expected =
+            std::env::var("ATLAS_PILOT_EXPECTED_WORKSPACE").unwrap_or_else(|_| "original".into());
+        if config.active.as_arg() != expected {
+            return Err("Stable did not retain the expected workspace selection.".into());
+        }
+        let cli = Command::new(process::bundled_cli()?)
+            .env("HOME", process::home()?)
+            .arg("desktop-probe")
+            .output()
+            .map_err(display)?;
+        let default: serde_json::Value = serde_json::from_slice(&cli.stdout).map_err(display)?;
+        if !cli.status.success()
+            || default["data"]["workspace"] != serde_json::json!(process::probe(app)?.workspace)
+        {
+            return Err(
+                "The standalone command default differs from the running Stable workspace.".into(),
+            );
+        }
+        std::fs::write(
+            process::home()?.join("channel-switch-complete"),
+            installed.version,
+        )
+        .map_err(display)?;
+        return Ok(());
+    }
+    wait_for(deadline, "Stable compatibility review", || {
+        click_product_button(&window, "Check Stable compatibility", true)
+    })?;
+    if let Err(error) = wait_for(deadline, "signed Stable install confirmation", || {
+        click_product_button(&window, "Install Stable and restart", true)
+    }) {
+        let _ = window.eval("location.hash = 'smoke_error=' + encodeURIComponent(document.querySelector('[role=dialog]')?.innerText || document.body.innerText)");
+        thread::sleep(Duration::from_millis(200));
+        let detail = window
+            .url()
+            .ok()
+            .and_then(|url| url.fragment().map(str::to_owned))
+            .and_then(|fragment| {
+                url::form_urlencoded::parse(fragment.as_bytes())
+                    .find(|(key, _)| key == "smoke_error")
+                    .map(|(_, value)| value.into_owned())
+            })
+            .unwrap_or_default();
+        return Err(format!("{error}: {detail}"));
+    }
+    wait_for(deadline, "installer restart", || false)
+}
+
 fn run(app: &AppHandle) -> Result<(), String> {
     let deadline = Instant::now() + Duration::from_secs(10);
     let home = process::home()?.canonicalize().map_err(display)?;
-    let probe = process::probe()?;
+    let probe = process::probe(app)?;
     if probe.status != atlas_desktop_protocol::WorkspaceStatus::NeedsSetup
         || !probe.workspace.starts_with(home)
         || probe.workspace.exists()
@@ -432,7 +692,7 @@ fn fixture_record_rendered(window: &WebviewWindow, path: &str) -> bool {
 
 fn run_links(app: &AppHandle) -> Result<(), String> {
     let home = process::home()?.canonicalize().map_err(display)?;
-    let probe = process::probe()?;
+    let probe = process::probe(app)?;
     if probe.status != atlas_desktop_protocol::WorkspaceStatus::Browsable
         || !probe.workspace.starts_with(&home)
     {
@@ -509,8 +769,8 @@ fn run_links(app: &AppHandle) -> Result<(), String> {
 fn run_reference(app: &AppHandle) -> Result<(), String> {
     let deadline = Instant::now() + Duration::from_secs(10);
     let home = process::home()?.canonicalize().map_err(display)?;
-    let probe = process::probe()?;
-    let initial = process::reference_status()?;
+    let probe = process::probe(app)?;
+    let initial = process::reference_status(app)?;
     if probe.status != atlas_desktop_protocol::WorkspaceStatus::Browsable
         || !probe.workspace.starts_with(&home)
         || initial.offer.is_none()
@@ -590,7 +850,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     wait_for(deadline, "verified no-op", || {
         text_visible(&window, "Reference data is already up to date.")
     })?;
-    if process::reference_status()?.generation != initial.generation {
+    if process::reference_status(app)?.generation != initial.generation {
         return Err("the no-op changed the committed generation".into());
     }
 
@@ -607,7 +867,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
             && text_visible(&second, "Reference data updated.")
     })?;
     if SETUP_RUNS.load(Ordering::Relaxed) != 3
-        || process::reference_status()?.generation == initial.generation
+        || process::reference_status(app)?.generation == initial.generation
         || app.webview_windows().len() != 2
     {
         return Err(

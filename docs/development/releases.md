@@ -87,6 +87,12 @@ candidates stay outside the update feeds. The stable feed uses the latest
 official stable release, and the nightly feed uses the existing dated-release
 pointer. Both feeds resolve to tagged release assets.
 
+Each platform package also has a signed transition descriptor. Its full release
+identity, package digest and migration ledger allow the installed app to check a
+workspace before switching channels. Release assembly requires the descriptors
+to match the packaged bytes and each other. Older updater builds can continue
+using the original manifest for normal updates.
+
 Before the first updater-enabled production build, generate a Tauri key pair
 with the desktop package's CLI.
 
@@ -125,6 +131,16 @@ and the assembled newer release.
 ```sh
 node desktop/rehearse-updater.mjs 5467 TLS_KEY TLS_CERT RELEASE_REF ASSEMBLED_DIRECTORY
 ```
+
+For channel switching, pass a second release ref and assembled directory to serve
+both feeds. Sign both releases with the same disposable publisher key. Reuse
+the same loopback address and TLS certificate when replacing the served Stable
+fixture to test a pending return. Repeat in disposable macOS and Windows profiles
+with an original campaign and a separate copy. Verify subsequent bundled CLI
+commands follow the committed selection on both Nightly and Stable, while explicit
+paths and repository mode keep their own workspaces. Repeat a cycle after the
+copy has become the default and confirm reopening the other workspace preserves
+its earlier work.
 
 Use the dated release ref, such as `release/v0.2.3` or
 `nightly/20261116092300.gabcdef123456`. The test app trusts only the

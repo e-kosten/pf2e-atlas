@@ -227,7 +227,9 @@ name = "atlas-desktop"
 version = "0.1.0"
 dependencies = [
  "atlas-desktop-protocol",
+ "base64 0.23.1",
  "getrandom 0.4.3",
+ "minisign-verify",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
@@ -238,6 +240,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-clipboard-manager",
