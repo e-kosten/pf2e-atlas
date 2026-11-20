@@ -673,7 +673,10 @@ fn schema_47_promotes_characters_without_losing_choices_or_encounter_links() {
     assert_eq!(saved.participants[0].current_hp, Some(23));
     assert_eq!(saved.participants[0].initiative, Some(12));
     assert_eq!(saved.participants[0].display_name, "Old combat name");
-    assert_eq!(saved.participants[0].adjustments, [adjustment.clone()]);
+    assert_eq!(
+        saved.participants[0].adjustments.as_slice(),
+        std::slice::from_ref(&adjustment)
+    );
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     let boundary_index: String = write
         .connection()
