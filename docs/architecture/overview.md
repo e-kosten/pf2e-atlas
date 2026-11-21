@@ -311,6 +311,15 @@ from the saved export on demand. The browser composes the
 same rule reader in character pages and contextual encounter reading. See
 [saved-state ownership](decisions/0051-persistent-workspace.md#saved-state-ownership).
 
+CLI character detail and party-context reads compose canonical metadata, imported
+identity, selected source facts and rule links in one owner-bound snapshot.
+`characters show --section` and import previews share the source decoder and
+semantic section selection. Machine facts retain typed values and field availability;
+the existing sheet presenter owns readable/derived values and automatic equipment
+matching. Source JSON remains explicit opt-in. Reviewed imports bind exact source
+bytes alongside existing generation/revision guards; saved edits and encounter
+additions retain their existing transactional and replay owners.
+
 Encounter difficulty is an app-service projection of planned opposition, effective
 source levels and typed hazard complexity against the encounter PC snapshot and
 optional guarded level/count overrides. Defeated/disabled state does not change
