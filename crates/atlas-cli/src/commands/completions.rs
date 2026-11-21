@@ -108,7 +108,7 @@ pub(crate) fn character_keys(current: &std::ffi::OsStr) -> Vec<clap_complete::Co
     atlas_app_service::complete_character_keys(&options, prefix)
         .unwrap_or_default()
         .into_iter()
-        .map(clap_complete::CompletionCandidate::new)
+        .map(|(key, name)| clap_complete::CompletionCandidate::new(key).help(Some(name.into())))
         .collect()
 }
 
@@ -119,6 +119,6 @@ pub(crate) fn party_keys(current: &std::ffi::OsStr) -> Vec<clap_complete::Comple
     atlas_app_service::complete_party_keys(&options, prefix)
         .unwrap_or_default()
         .into_iter()
-        .map(clap_complete::CompletionCandidate::new)
+        .map(|(key, name)| clap_complete::CompletionCandidate::new(key).help(Some(name.into())))
         .collect()
 }

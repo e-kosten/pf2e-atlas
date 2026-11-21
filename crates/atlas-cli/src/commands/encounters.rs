@@ -186,10 +186,10 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             if json {
                 write_json_data(&view)?;
             } else {
-                println!(
-                    "Encounter {}\nParticipant {}\nCharacter {}",
+                super::saved_workspace::write_text(&format!(
+                    "Encounter {}\nParticipant {}\nCharacter {}\n",
                     view.encounter_key, view.participant_key, view.character_key
-                );
+                ))?;
             }
         }
         EncounterCommand::AddParty {
@@ -221,7 +221,10 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             if json {
                 write_json_data(&view)?;
             } else {
-                println!("Added reviewed party to {}", view.encounter_key);
+                super::saved_workspace::write_text(&format!(
+                    "Added reviewed party to {}\n",
+                    view.encounter_key
+                ))?;
             }
         }
         EncounterCommand::List => {

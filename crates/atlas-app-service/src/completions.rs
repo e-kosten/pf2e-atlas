@@ -5,7 +5,7 @@ use atlas_runtime::AtlasRuntime;
 pub fn complete_character_keys(
     options: &AtlasAppServiceOptions,
     prefix: &str,
-) -> AppServiceResult<Vec<String>> {
+) -> AppServiceResult<Vec<(String, String)>> {
     let runtime = AtlasRuntime::resolve(crate::service::runtime_options(options))?;
     let session = runtime.read_state()?;
     Ok(session
@@ -13,8 +13,8 @@ pub fn complete_character_keys(
         .characters()
         .list()?
         .into_iter()
-        .map(|c| c.character_key)
-        .filter(|key| key.starts_with(prefix))
+        .filter(|c| c.character_key.starts_with(prefix))
+        .map(|c| (c.character_key, c.name))
         .take(100)
         .collect())
 }
@@ -22,7 +22,7 @@ pub fn complete_character_keys(
 pub fn complete_party_keys(
     options: &AtlasAppServiceOptions,
     prefix: &str,
-) -> AppServiceResult<Vec<String>> {
+) -> AppServiceResult<Vec<(String, String)>> {
     let runtime = AtlasRuntime::resolve(crate::service::runtime_options(options))?;
     let session = runtime.read_state()?;
     Ok(session
@@ -30,8 +30,8 @@ pub fn complete_party_keys(
         .parties()
         .list()?
         .into_iter()
-        .map(|p| p.party_key)
-        .filter(|key| key.starts_with(prefix))
+        .filter(|p| p.party_key.starts_with(prefix))
+        .map(|p| (p.party_key, p.name))
         .take(100)
         .collect())
 }

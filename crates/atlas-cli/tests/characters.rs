@@ -420,6 +420,117 @@ fn party_context_drives_encounter_and_saved_loot_planning_with_replay_guards() {
 }
 
 #[test]
+fn encounter_character_and_party_additions_succeed_when_stdout_closes() {
+    let f = Fixture::new();
+    let character = f.data(&[
+        "characters",
+        "create",
+        "Mira",
+        "--level",
+        "7",
+        "--request-id",
+        "mira",
+    ]);
+    let key = character["character_key"].as_str().unwrap();
+    let member = format!("{key}=0");
+    let party = f.data(&["parties", "create", "Actual party", "--member", &member]);
+    let party_key = party["party_key"].as_str().unwrap();
+    for (action, flags) in [
+        (
+            "add-character",
+            vec!["--character", key, "--expected-character-revision", "0"],
+        ),
+        (
+            "add-party",
+            vec![
+                "--party",
+                party_key,
+                "--expected-party-revision",
+                "0",
+                "--member",
+                &member,
+            ],
+        ),
+    ] {
+        for json in [false, true] {
+            let request_id = format!("closed-{action}-{json}");
+            let encounter = f.data(&["encounters", "create", &request_id]);
+            let encounter_key = encounter["encounter"]["encounter_key"].as_str().unwrap();
+            let mut args = vec![
+                "encounters",
+                action,
+                encounter_key,
+                "--expected-revision",
+                "0",
+                "--request-id",
+                &request_id,
+            ];
+            args.extend(&flags);
+            if json {
+                args.push("--json");
+            }
+            let (reader, writer) = std::io::pipe().unwrap();
+            drop(reader);
+            let output = f.command(&args).stdout(writer).output().unwrap();
+            assert!(
+                output.status.success(),
+                "{action}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(output.stderr.is_empty());
+            // A receipt replay must succeed even after the encounter revision changed.
+            let replay = f.run(&args);
+            assert!(
+                replay.status.success(),
+                "{}",
+                String::from_utf8_lossy(&replay.stderr)
+            );
+            let saved = f.data(&["encounters", "show", encounter_key]);
+            assert_eq!(saved["participants"].as_array().unwrap().len(), 1);
+        }
+    }
+}
+
+#[test]
+fn saved_key_completions_include_display_names() {
+    let f = Fixture::new();
+    let character = f.data(&["characters", "create", "Mira", "--request-id", "mira"]);
+    let party = f.data(&["parties", "create", "Actual party"]);
+    for (command, key, name) in [
+        (
+            "characters",
+            character["character_key"].as_str().unwrap(),
+            "Mira",
+        ),
+        (
+            "parties",
+            party["party_key"].as_str().unwrap(),
+            "Actual party",
+        ),
+    ] {
+        let output = f
+            .command(&["--", "atlas", command, "show", ""])
+            .env("ATLAS_COMPLETE", "zsh")
+            .env("_CLAP_COMPLETE_INDEX", "3")
+            .env("_CLAP_IFS", "\n")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let candidates = String::from_utf8(output.stdout).unwrap();
+        assert!(
+            candidates
+                .lines()
+                .any(|line| line.starts_with(key) && line.contains(name)),
+            "{candidates}"
+        );
+    }
+}
+
+#[test]
 fn invalid_selection_and_changed_source_fail_before_mutation_and_stdin_is_bounded() {
     let f = Fixture::new();
     let path = f.export();
