@@ -57,6 +57,7 @@ pub enum AppErrorCode {
     EncounterParticipantNotFound,
     EncounterParticipantConflict,
     EncounterTurnConflict,
+    EncounterAdditionConflict,
     ArtifactGenerationChanged,
     FilterInvalid,
     FilterFieldInvalid,

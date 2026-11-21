@@ -46,6 +46,7 @@ fn encounter(f: &FixtureWorker) -> String {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),

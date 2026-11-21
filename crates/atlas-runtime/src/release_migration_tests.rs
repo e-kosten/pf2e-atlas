@@ -589,27 +589,9 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
             description: None,
         })
         .unwrap();
-    let participant = atlas_local_state::AddEncounterParticipant {
-        level_override: Some(7),
-        spell_resources: vec![],
-        participant_variant: atlas_local_state::ParticipantVariant::Normal,
-        hp_origin: atlas_local_state::ParticipantHpOrigin::Explicit,
-        variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
-        record_key: None,
-        participant_kind: atlas_local_state::ParticipantKind::Pc,
-        display_name: "Old combat name".into(),
-        record_title_snapshot: None,
-        record_kind_snapshot: None,
-        side: atlas_local_state::ParticipantSide::Pc,
-        initiative: Some(12),
-        max_hp: Some(35),
-        current_hp: Some(23),
-        temporary_hp: 0,
-        note: None,
-    };
     let pc = state
         .encounters()
-        .add_participant(&encounter.encounter_key, participant)
+        .add_participant(&encounter.encounter_key, old_combatant())
         .unwrap();
     let adjustment = atlas_local_state::EncounterAdjustment {
         adjustment_key: "gm-armor".into(),
@@ -649,7 +631,7 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     assert_eq!(backup["version"], "3.0");
     let migrated = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let applied = sql_rows(migrated.connection(), LEDGER);
-    assert_eq!(applied.len(), ledger.len() + 2);
+    assert_eq!(applied.len(), ledger.len() + 3);
     assert_eq!(applied[..ledger.len()], ledger);
     assert_eq!(
         applied[ledger.len()][0],
@@ -657,7 +639,7 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     );
     assert_eq!(
         applied.last().unwrap()[0],
-        rusqlite::types::Value::Integer(48)
+        rusqlite::types::Value::Integer(49)
     );
 
     let state = atlas_local_state::LocalStateRead::for_local(&migrated).unwrap();
@@ -804,7 +786,9 @@ fn schema_47_upgrade_keeps_legacy_archive_shape_and_character_history() {
     workspace
         .migrate_history(
             MigrationHistory {
-                migrations: &RELEASE_HISTORY.migrations[..RELEASE_HISTORY.migrations.len() - 1],
+                migrations: &RELEASE_HISTORY.migrations[..RELEASE_HISTORY
+                    .migrations
+                    .partition_point(|m| m.version <= 47)],
                 ..RELEASE_HISTORY
             },
             |_| Ok(()),
@@ -867,5 +851,178 @@ fn schema_47_upgrade_keeps_legacy_archive_shape_and_character_history() {
     assert_eq!(
         archived_json(destination.capture_workspace_archive().unwrap()),
         saved
+    );
+}
+
+fn old_combatant() -> atlas_local_state::AddEncounterParticipant {
+    atlas_local_state::AddEncounterParticipant {
+        level_override: Some(7),
+        spell_resources: vec![],
+        participant_variant: atlas_local_state::ParticipantVariant::Normal,
+        hp_origin: atlas_local_state::ParticipantHpOrigin::Explicit,
+        variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
+        record_key: None,
+        participant_kind: atlas_local_state::ParticipantKind::Pc,
+        display_name: "Old combat name".into(),
+        record_title_snapshot: None,
+        record_kind_snapshot: None,
+        side: atlas_local_state::ParticipantSide::Pc,
+        initiative: Some(12),
+        max_hp: Some(35),
+        current_hp: Some(23),
+        temporary_hp: 0,
+        note: None,
+    }
+}
+
+#[test]
+fn schema_48_upgrade_preserves_all_receipts_and_boundary_children() {
+    use atlas_local_state::{
+        EncounterBoundaryClaim, EncounterBoundaryKind, EncounterTurnState, EncounterTurnUpdate,
+        LocalStateWrite, NewEncounter, PcAdditionReceipt,
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = workspace_at_schema(&directory.path().join("workspace.sqlite"), 48);
+    let write = workspace.write(48).unwrap();
+    let ledger = sql_rows(write.connection(), LEDGER);
+    let encounters = LocalStateWrite::for_local(&write).unwrap().encounters();
+    let root = encounters
+        .create(NewEncounter {
+            name: "Migration".into(),
+            slug: "migration".into(),
+            note: None,
+            description: None,
+        })
+        .unwrap();
+    let key = &root.encounter_key;
+    let pc = encounters
+        .add_participant(key, old_combatant())
+        .unwrap()
+        .participant_key;
+    let intent = serde_json::json!({"turn":"next"});
+    encounters
+        .advance_turn_once(
+            key,
+            "old-turn",
+            &intent,
+            encounters.get(key).unwrap().unwrap().revision,
+            |_| {
+                Ok((
+                    EncounterTurnUpdate {
+                        turn: EncounterTurnState {
+                            participant_key: Some(pc.clone()),
+                            round_number: 1,
+                            mark_running: true,
+                        },
+                        durations: vec![],
+                        manual_trackers: vec![],
+                        adjustments: vec![],
+                        start_event: Some(Default::default()),
+                        start_claims: vec![EncounterBoundaryClaim {
+                            participant_key: pc.clone(),
+                            round_number: 1,
+                            kind: EncounterBoundaryKind::TurnStart,
+                            scope_key: "turn-start".into(),
+                        }],
+                    },
+                    true,
+                ))
+            },
+        )
+        .unwrap();
+    let digest = serde_json::json!({"digest": "a".repeat(64)});
+    encounters
+        .record_pc_addition(
+            key,
+            "add-pc",
+            &digest,
+            &PcAdditionReceipt {
+                characters: vec!["historical-character".into()],
+                participants: vec![pc],
+            },
+        )
+        .unwrap();
+    let start_id = format!(
+        "start:{}",
+        encounters
+            .latest_outgoing_turn(key)
+            .unwrap()
+            .unwrap()
+            .boundary_key
+    );
+    let tables = [
+        "SELECT * FROM encounter_command_receipts ORDER BY encounter_id,family,request_id",
+        "SELECT * FROM encounter_boundary_claims",
+        "SELECT * FROM encounter_outgoing_turns",
+        "SELECT * FROM pragma_index_list('encounter_command_receipts') ORDER BY name",
+    ];
+    let rows = tables.map(|query| sql_rows(write.connection(), query));
+    assert_eq!((rows[0].len(), rows[1].len(), rows[2].len()), (3, 1, 1));
+    write.commit().unwrap();
+
+    initialize_workspace(workspace.path()).unwrap();
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let applied = sql_rows(read.connection(), LEDGER);
+    assert_eq!(applied.len(), ledger.len() + 1);
+    assert_eq!(applied[..ledger.len()], ledger);
+    assert_eq!(tables.map(|query| sql_rows(read.connection(), query)), rows);
+    assert!(sql_rows(read.connection(), "PRAGMA foreign_key_check").is_empty());
+    let backup = std::fs::read(archive_path(&workspace)).unwrap();
+    assert_eq!(
+        archived_json(WorkspaceArchive::capture(&read).unwrap()),
+        serde_json::from_slice::<serde_json::Value>(&backup).unwrap()
+    );
+    drop(read);
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let encounters = LocalStateWrite::for_local(&write).unwrap().encounters();
+    assert!(
+        encounters
+            .condition_event_receipt(key, &start_id, &intent)
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        encounters
+            .pc_addition_receipt(key, "add-pc", &[Some(&digest)])
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        !encounters
+            .record_addition_committed(key, &start_id, &intent)
+            .unwrap()
+    );
+    encounters
+        .save_record_addition_receipt(key, &start_id, &intent)
+        .unwrap();
+    let doc = encounters.export_document(key).unwrap();
+    let copy = encounters
+        .import_document(doc, Some("copied".into()))
+        .unwrap()
+        .encounter_key;
+    let copied_start = format!(
+        "start:{}",
+        encounters
+            .latest_outgoing_turn(&copy)
+            .unwrap()
+            .unwrap()
+            .boundary_key
+    );
+    assert_ne!(copied_start, start_id);
+    assert!(
+        encounters
+            .condition_event_receipt(&copy, &copied_start, &intent)
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        encounters
+            .record_addition_committed(&copy, &start_id, &intent)
+            .unwrap()
+    );
+    assert!(
+        !encounters
+            .record_addition_committed(&copy, &copied_start, &intent)
+            .unwrap()
     );
 }

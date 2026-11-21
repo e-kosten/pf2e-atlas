@@ -17,6 +17,7 @@ fn fixture() -> (FixtureWorker, String, String) {
         .add_encounter_record_participant(
             &encounter,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:testCreature1000".into(),

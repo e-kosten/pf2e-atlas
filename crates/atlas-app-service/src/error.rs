@@ -99,8 +99,10 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
 impl From<LocalStateError> for AppServiceError {
     fn from(error: LocalStateError) -> Self {
         let code = match &error {
+            LocalStateError::RecordAdditionConflict => AppErrorCode::EncounterAdditionConflict,
             LocalStateError::EncounterBoundaryConflict => AppErrorCode::EncounterTurnConflict,
-            LocalStateError::InvalidDifficultyReference(_)
+            LocalStateError::InvalidRecordAddition(_)
+            | LocalStateError::InvalidDifficultyReference(_)
             | LocalStateError::InvalidParty(_)
             | LocalStateError::InvalidSlug { .. }
             | LocalStateError::InvalidRollRequest(_)

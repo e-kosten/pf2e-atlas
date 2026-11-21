@@ -992,7 +992,7 @@ test("encounter strike controls send and display attack and damage variants", as
   const path = `/api/encounters/${encounter.encounter_key}`;
   try {
     const added = await page.request.post(`${path}/participants/record`, {
-      data: { record_ref: sentinel, quantity: 1 },
+      data: { request_id: crypto.randomUUID(), record_ref: sentinel, quantity: 1 },
     });
     expect(added.ok()).toBeTruthy();
     await page.goto(`/encounters/${encounter.slug}`);
@@ -1065,6 +1065,7 @@ test("encounter references retain their owner, scroll and native destination", a
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
+            request_id: crypto.randomUUID(),
             record_ref: sentinel,
             quantity: 1,
           },
@@ -1259,6 +1260,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
+            request_id: crypto.randomUUID(),
             record_ref: sentinel,
             quantity: 8,
             initiative: 12,

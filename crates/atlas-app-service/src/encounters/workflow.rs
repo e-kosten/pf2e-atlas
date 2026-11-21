@@ -337,17 +337,58 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: AddEncounterRecordParticipantRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let encounter_ref = encounter_ref.to_owned();
+        let intent = serde_json::json!({
+            "record_ref": request.record_ref,
+            "quantity": request.quantity,
+            "initiative": request.initiative,
+            "participant_variant": request.participant_variant,
+            "creature_scenario": request.creature_scenario,
+        });
+        let (receipt, committed) = self.with_state(|session| {
+            let store = session.local_state()?.encounters();
+            let receipt = encounter_receipt(&store, encounter_ref)?;
+            let committed = store.record_addition_committed(
+                &receipt.encounter_key,
+                &request.request_id,
+                &intent,
+            )?;
+            Ok((receipt, committed))
+        })?;
+        if !committed {
+            let request_id = request.request_id.clone();
+            if let Err(error) =
+                self.commit_record_addition(&receipt.encounter_key, request, &intent)
+            {
+                // Another writer may have committed the same intent while this
+                // caller was resolving its source against an older generation.
+                let committed = self.with_state(|session| {
+                    Ok(session
+                        .local_state()?
+                        .encounters()
+                        .record_addition_committed(&receipt.encounter_key, &request_id, &intent)?)
+                })?;
+                if !committed {
+                    return Err(error);
+                }
+            }
+        }
+        Ok(receipt)
+    }
+
+    fn commit_record_addition(
+        &self,
+        encounter_key: &str,
+        request: AddEncounterRecordParticipantRequest,
+        intent: &serde_json::Value,
+    ) -> AppServiceResult<()> {
         let record_ref = request.record_ref.clone();
         let expected = request
             .creature_scenario
             .as_ref()
             .and_then(|scenario| scenario.expected.clone());
-        let (receipt, record, baseline, variant, revision) = self.with_workspace(
+        let (record, baseline, variant, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
-                let receipt =
-                    encounter_receipt(&session.local_state()?.encounters(), &encounter_ref)?;
                 let base = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
                 let replacement = super::record_addition::published_replacement(
                     session.retrieval_mut(),
@@ -364,13 +405,7 @@ impl AtlasAppService {
                     session.retrieval_mut(),
                     None,
                 )?;
-                Ok((
-                    receipt,
-                    record,
-                    baseline,
-                    variant,
-                    session.reference_revision()?,
-                ))
+                Ok((record, baseline, variant, session.reference_revision()?))
             },
         )?;
         super::record_addition::validate_quantity(request.quantity)?;
@@ -392,12 +427,13 @@ impl AtlasAppService {
                 participant
             })
             .collect();
-        self.with_write(move |session| {
+        self.with_write(|session| {
+            let store = session.local_state()?.encounters();
+            if store.record_addition_committed(encounter_key, &request.request_id, intent)? {
+                return Ok(());
+            }
             session.require_reference_revision(revision)?;
-            let added = session
-                .local_state()?
-                .encounters()
-                .add_participants(&receipt.encounter_key, participants)?;
+            let added = store.add_participants(encounter_key, participants)?;
             if let Some(baseline) = &baseline {
                 let adjustment_applicable = super::hydration::adjustment_applicable(&record.source);
                 for participant in added.iter().filter(|participant| {
@@ -416,14 +452,11 @@ impl AtlasAppService {
                         level,
                     );
                     if capacity != participant.current_hp {
-                        session
-                            .local_state()?
-                            .encounters()
-                            .initialize_participant_hp(&participant.participant_key, capacity)?;
+                        store.initialize_participant_hp(&participant.participant_key, capacity)?;
                     }
                 }
             }
-            Ok(receipt)
+            Ok(store.save_record_addition_receipt(encounter_key, &request.request_id, intent)?)
         })
     }
 

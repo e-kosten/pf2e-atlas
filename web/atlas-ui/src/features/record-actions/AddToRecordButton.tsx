@@ -1,3 +1,4 @@
+import { isUnconfirmedMutation } from "../../api/apiError";
 import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -5,6 +6,7 @@ import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoice
 import {
   EncounterAddDifficulty,
   encounterRecordAddition,
+  recordAdditionRequest,
   encounterPreviewBasis,
   type PreparedCreatureAddition,
   type EncounterRecordAddForm,
@@ -44,7 +46,10 @@ import {
   isPrimaryActivation,
   navigateDestination,
 } from "../../app/navigation";
-import type { RecordSummaryView } from "../../generated/atlas";
+import type {
+  AddEncounterRecordParticipantRequest,
+  RecordSummaryView,
+} from "../../generated/atlas";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { slugify } from "../lists/listUtils";
 import { invalidateSavedListQueries, useSavedLists } from "../lists/savedListQueries";
@@ -160,6 +165,10 @@ function AddToRecordModal({
   const queryClient = useQueryClient();
   const { message } = App.useApp();
   const inFlight = useRef(false);
+  const [unconfirmed, setUnconfirmed] = useState<{
+    destination: Destination;
+    request: AddEncounterRecordParticipantRequest;
+  } | null>(null);
   const createdDestination = useRef<Destination | null>(null);
   const lists = useSavedLists({ enabled: open && kind === "list" });
   const encounters = useQuery({
@@ -195,17 +204,17 @@ function AddToRecordModal({
     encounterKey && encounter.data
       ? encounterPreviewBasis(encounterKey, encounter.data.revision)
       : undefined;
-  const waitingForCreaturePreview = Boolean(
-    encounterKey &&
-    scenario &&
-    !encounterRecordAddition(
+  const currentAddition = () =>
+    encounterRecordAddition(
       recordKey,
       creature,
       form,
       scenario,
       preparedCreature,
       previewBasis,
-    ).creature_scenario?.expected,
+    );
+  const waitingForCreaturePreview = Boolean(
+    encounterKey && scenario && !currentAddition().creature_scenario?.expected,
   );
   const resolvedAdjustment =
     detail.data?.record.record_key === recordKey
@@ -242,8 +251,8 @@ function AddToRecordModal({
   const submit = useMutation({
     retry: false,
     mutationFn: async ({ name, note }: { name?: string; note?: string }) => {
-      let destination = selected;
-      if (creating && name) {
+      let destination = unconfirmed?.destination ?? selected;
+      if (!unconfirmed && creating && name) {
         if (kind === "list") {
           const view = await createSavedList({ name, slug: slugify(name), tags: [] });
           destination = {
@@ -266,6 +275,13 @@ function AddToRecordModal({
         });
       }
       if (!destination) throw new Error("Choose a destination.");
+      if (kind === "encounter" && creating && scenario && !unconfirmed) {
+        // A new encounter has a canonical key and revision only after creation.
+        setSelected(destination);
+        setCreating(false);
+        setCreated(true);
+        return;
+      }
       if (kind === "list") {
         const receipt = await addSavedListItem(destination.key, {
           record_ref: recordKey,
@@ -279,18 +295,15 @@ function AddToRecordModal({
         ]);
         return { destination, alreadyPresent: receipt.outcome === "already_present" };
       }
-      const { participant_variant, ...addition } = encounterRecordAddition(
-        recordKey,
-        creature,
-        form,
-        scenario,
-        preparedCreature,
-        previewBasis,
-      );
-      const receipt = await addEncounterRecordParticipant(destination.key, {
-        ...addition,
-        ...(participant_variant === null ? {} : { participant_variant }),
-      });
+      const request = unconfirmed?.request ?? recordAdditionRequest(currentAddition());
+      let receipt;
+      try {
+        receipt = await addEncounterRecordParticipant(destination.key, request);
+      } catch (error) {
+        setUnconfirmed(isUnconfirmedMutation(error) ? { destination, request } : null);
+        throw error;
+      }
+      setUnconfirmed(null);
       void queryClient.invalidateQueries({ queryKey: ["encounters"] });
       for (const ref of new Set([
         destination.key,
@@ -301,7 +314,9 @@ function AddToRecordModal({
       }
       return { destination, alreadyPresent: false };
     },
-    onSuccess: ({ destination, alreadyPresent }) => {
+    onSuccess: (result) => {
+      if (!result) return;
+      const { destination, alreadyPresent } = result;
       const target =
         kind === "list"
           ? listDestination({ slug: destination.slug, selectedRecordKey: null })
@@ -359,6 +374,8 @@ function AddToRecordModal({
     <Modal
       open={open}
       afterClose={() => {
+        // Reopening an unconfirmed add must retain its original destination and ID.
+        if (unconfirmed) return;
         createdDestination.current = null;
         setKind("list");
         setSelected(null);
@@ -377,14 +394,23 @@ function AddToRecordModal({
       okButtonProps={{
         disabled:
           paused ||
-          adjustmentBlocked ||
-          waitingForCreaturePreview ||
-          (!creating && !selected),
+          (!unconfirmed &&
+            (adjustmentBlocked ||
+              waitingForCreaturePreview ||
+              (!creating && !selected))),
       }}
       closable={{ disabled: submit.isPending }}
       keyboard={!submit.isPending}
       mask={{ closable: !submit.isPending }}
-      okText={creating ? "Create & add" : "Add"}
+      okText={
+        unconfirmed
+          ? "Retry to confirm"
+          : creating
+            ? kind === "encounter" && scenario
+              ? "Create & preview"
+              : "Create & add"
+            : "Add"
+      }
       confirmDiscard={{
         when: () =>
           Boolean(
@@ -396,7 +422,8 @@ function AddToRecordModal({
       onCancel={cancel}
       onOk={() => {
         if (paused) return;
-        if (creating || kind === "encounter") form.submit();
+        if (unconfirmed) run();
+        else if (creating || kind === "encounter") form.submit();
         else if (selected) run();
       }}
       footer={(_, { OkBtn, CancelBtn }) => (
@@ -435,8 +462,16 @@ function AddToRecordModal({
             submit.reset();
           }}
           items={[
-            { key: "list", label: "Lists", disabled: submit.isPending },
-            { key: "encounter", label: "Encounters", disabled: submit.isPending },
+            {
+              key: "list",
+              label: "Lists",
+              disabled: submit.isPending || Boolean(unconfirmed),
+            },
+            {
+              key: "encounter",
+              label: "Encounters",
+              disabled: submit.isPending || Boolean(unconfirmed),
+            },
           ]}
         />
       )}
@@ -445,9 +480,16 @@ function AddToRecordModal({
           className="record-destination-picker__form"
           form={form}
           layout="vertical"
-          disabled={paused || submit.isPending}
+          disabled={paused || submit.isPending || Boolean(unconfirmed)}
           onFinish={({ name }) => {
-            if (adjustmentBlocked || waitingForCreaturePreview) return;
+            if (
+              unconfirmed ||
+              adjustmentBlocked ||
+              (encounterKey &&
+                scenario &&
+                !currentAddition().creature_scenario?.expected)
+            )
+              return;
             if (creating && name) run(name.trim());
             else if (selected) run();
           }}
@@ -476,7 +518,11 @@ function AddToRecordModal({
                   className="record-destination-picker__select"
                   ref={choiceInput}
                   aria-label={kind === "list" ? "Saved list" : "Encounter"}
-                  disabled={submit.isPending || (!destinations.length && !selected)}
+                  disabled={
+                    submit.isPending ||
+                    Boolean(unconfirmed) ||
+                    (!destinations.length && !selected)
+                  }
                   loading={catalog.isFetching}
                   showSearch={{ optionFilterProp: "label" }}
                   placeholder={
@@ -499,7 +545,7 @@ function AddToRecordModal({
                 <Button
                   ref={newButton}
                   icon={<Plus size={16} />}
-                  disabled={submit.isPending}
+                  disabled={submit.isPending || Boolean(unconfirmed)}
                   onClick={() => changeMode(true)}
                 >
                   New {kind}
@@ -522,7 +568,7 @@ function AddToRecordModal({
               {creature && (
                 <EncounterRecordAdjustment
                   loading={detail.isPending}
-                  disabled={adjustmentBlocked}
+                  disabled={adjustmentBlocked || Boolean(unconfirmed)}
                 />
               )}
               <Form.Item
@@ -563,7 +609,7 @@ function AddToRecordModal({
             scenario={scenario}
             onPreparedCreature={setPreparedCreature}
             recordName={record?.title ?? recordKey}
-            disabled={submit.isPending || adjustmentBlocked}
+            disabled={submit.isPending || adjustmentBlocked || Boolean(unconfirmed)}
           />
         )}
         {adjustmentBlocked && detail.error && (
@@ -612,10 +658,14 @@ function AddToRecordModal({
             outcome={created ? "saved" : undefined}
             title={
               created
-                ? `${selected?.name} was created. Adding the record could not be confirmed.`
-                : creating
-                  ? `${kind === "list" ? "List" : "Encounter"} could not be created`
-                  : "Record could not be added"
+                ? unconfirmed
+                  ? `${selected?.name} was created. Adding the record could not be confirmed.`
+                  : `${selected?.name} was created. The record could not be added.`
+                : unconfirmed
+                  ? "Addition could not be confirmed"
+                  : creating
+                    ? `${kind === "list" ? "List" : "Encounter"} could not be created`
+                    : "Record could not be added"
             }
           />
         )}

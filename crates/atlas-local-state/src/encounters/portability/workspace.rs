@@ -176,7 +176,7 @@ impl ValidatedEncounter {
             .iter()
             .filter_map(|row| match &row.outcome {
                 ReceiptOutcome::Turn { boundary_key } => Some(boundary_key.as_str()),
-                ReceiptOutcome::Event { .. } => None,
+                ReceiptOutcome::Event { .. } | ReceiptOutcome::RecordAddition => None,
             })
     }
 
@@ -318,6 +318,8 @@ recovery_row!(
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 enum RecoveryReceiptOutcome {
+    #[serde(rename = "record_addition")]
+    RecordAddition,
     #[serde(rename = "turn")]
     Turn { boundary_key: String },
     #[serde(rename = "event")]
@@ -327,6 +329,7 @@ enum RecoveryReceiptOutcome {
 impl From<ReceiptOutcome> for RecoveryReceiptOutcome {
     fn from(outcome: ReceiptOutcome) -> Self {
         match outcome {
+            ReceiptOutcome::RecordAddition => Self::RecordAddition,
             ReceiptOutcome::Turn { boundary_key } => Self::Turn { boundary_key },
             ReceiptOutcome::Event { receipt } => Self::Event { receipt },
         }
@@ -336,6 +339,7 @@ impl From<ReceiptOutcome> for RecoveryReceiptOutcome {
 impl From<RecoveryReceiptOutcome> for ReceiptOutcome {
     fn from(outcome: RecoveryReceiptOutcome) -> Self {
         match outcome {
+            RecoveryReceiptOutcome::RecordAddition => Self::RecordAddition,
             RecoveryReceiptOutcome::Turn { boundary_key } => Self::Turn { boundary_key },
             RecoveryReceiptOutcome::Event { receipt } => Self::Event { receipt },
         }

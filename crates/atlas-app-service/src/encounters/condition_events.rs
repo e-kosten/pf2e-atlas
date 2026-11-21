@@ -1313,6 +1313,7 @@ mod lifecycle_event_tests {
             .add_encounter_record_participant(
                 &key,
                 AddEncounterRecordParticipantRequest {
+                    request_id: crate::test_support::next_request_id(),
                     creature_scenario: None,
                     record_ref: "actors:testCreature1000".into(),
                     quantity: 1,

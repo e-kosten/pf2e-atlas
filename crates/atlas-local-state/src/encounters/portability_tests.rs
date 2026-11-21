@@ -327,3 +327,30 @@ fn tracker_order_survives_updates_recovery_and_export_restore() -> crate::LocalS
     assert_eq!(trackers(&copied.encounter_key)?, ["Re-added", "Second"]);
     Ok(())
 }
+
+#[test]
+fn record_additions_are_scoped_to_the_owner_and_canonical_key() -> crate::LocalStateResult<()> {
+    let store = fixture("record-add-owner")?;
+    let mut connection = store.connection()?;
+    let tx = connection.transaction()?;
+    let local = EncountersWrite::from_connection(&tx, 1);
+    let foreign = EncountersWrite::from_connection(&tx, 2);
+    let key = local.get("test")?.unwrap().encounter_key;
+    let intent = serde_json::json!({"record_ref":"goblin"});
+    local.save_record_addition_receipt(&key, "batch", &intent)?;
+    for wrong in [
+        foreign.record_addition_committed(&key, "batch", &intent),
+        local.record_addition_committed("test", "batch", &intent),
+    ] {
+        assert!(matches!(
+            wrong,
+            Err(crate::LocalStateError::EncounterNotFound(_))
+        ));
+    }
+    assert!(matches!(
+        foreign.save_record_addition_receipt(&key, "other", &intent),
+        Err(crate::LocalStateError::EncounterNotFound(_))
+    ));
+    assert!(!local.record_addition_committed(&key, "other", &intent)?);
+    Ok(())
+}

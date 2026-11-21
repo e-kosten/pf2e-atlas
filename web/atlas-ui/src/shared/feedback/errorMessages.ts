@@ -21,6 +21,8 @@ const explanations: Partial<Record<AppErrorCode, string>> = {
   encounter_participant_not_found: "This participant is no longer in the encounter.",
   encounter_participant_conflict:
     "This participant changed. Review the current values before trying again.",
+  encounter_addition_conflict:
+    "This request was already used for a different addition.",
   encounter_turn_conflict:
     "The encounter changed. Review the current turn before trying again.",
   artifact_generation_changed:

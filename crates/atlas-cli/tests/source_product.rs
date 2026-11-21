@@ -2232,6 +2232,43 @@ fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
 }
 
 #[test]
+fn encounter_add_reuses_a_script_id_but_generates_a_fresh_id_for_each_ordinary_call() {
+    let f = Fixture::new();
+    install_encounter_guard(&f);
+    let created = f.data(&["encounters", "create", "Garden", "--json"]);
+    let key = created["encounter"]["encounter_key"].as_str().unwrap();
+    for _ in 0..2 {
+        f.data(&[
+            "encounters",
+            "add",
+            key,
+            "--record",
+            "Local Guard",
+            "--quantity",
+            "3",
+            "--request-id",
+            "script-batch",
+            "--json",
+        ]);
+        f.data(&[
+            "encounters",
+            "add",
+            "garden",
+            "--record",
+            "Local Guard",
+            "--json",
+        ]);
+    }
+    assert_eq!(
+        f.data(&["encounters", "show", key, "--json"])["participants"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
+    );
+}
+
+#[test]
 fn encounter_exchange_handles_collisions_without_overwriting() {
     let source = Fixture::new();
     let created = source.data(&["encounters", "create", "Traveling encounter", "--json"]);

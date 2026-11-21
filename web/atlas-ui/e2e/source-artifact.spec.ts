@@ -141,6 +141,159 @@ test("narrow preview restores focus after reopening and keeps checks as plain te
   }
 });
 
+test("roster confirms the original previewed batch after its response is lost", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Confirm original addition ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  const recordKey = "pfs-season-1-bestiary:7PXPcv8x3Wnc730i";
+  try {
+    const revision = (await (await page.request.get(path)).json()).revision;
+    expect(
+      (
+        await page.request.patch(`${path}/difficulty`, {
+          data: {
+            expected_revision: revision,
+            reference: { party_level: 4, party_size: 4 },
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await page.getByRole("button", { name: "Add participants" }).click();
+    await page.getByRole("menuitem", { name: "Add creature or hazard…" }).click();
+    const picker = page.getByRole("dialog", { name: "Add creature or hazard" });
+    const search = picker.getByRole("searchbox", { name: "Search records" });
+    await search.fill("Prefect");
+    await search.press("Enter");
+    await picker.locator(`[data-record-key="${recordKey}"]`).click();
+    const previewed = page.waitForResponse((response) => {
+      if (!response.url().endsWith("/difficulty/preview")) return false;
+      const addition = response.request().postDataJSON()?.addition;
+      return addition?.quantity === 3 && addition.participant_variant === "elite";
+    });
+    await picker.getByRole("combobox", { name: "Adjustment" }).click();
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Elite", { exact: true })
+      .click();
+    await picker.getByRole("spinbutton", { name: "Quantity" }).fill("3");
+    const { prepared_creature_choice: choice } = await (await previewed).json();
+    expect(choice).toBeTruthy();
+    let firstRequest;
+    await page.route(
+      "**/participants/record",
+      async (route) => {
+        firstRequest = route.request().postDataJSON();
+        const saved = await route.fetch();
+        expect(saved.ok()).toBeTruthy();
+        await route.fulfill({
+          status: 504,
+          contentType: "application/json",
+          body: JSON.stringify({ code: "operation_timeout", message: "Timed out" }),
+        });
+      },
+      { times: 1 },
+    );
+    await picker.getByRole("button", { name: "Add", exact: true }).click();
+    const retry = picker.getByRole("button", { name: "Retry to confirm" });
+    await expect(retry).toBeEnabled();
+    expect(firstRequest).toMatchObject({
+      request_id: expect.any(String),
+      record_ref: recordKey,
+      quantity: 3,
+      participant_variant: "elite",
+      creature_scenario: { expected: choice },
+    });
+    await info.attach("Confirm original creature addition", {
+      body: await picker.screenshot(),
+      contentType: "image/png",
+    });
+    const replay = page.waitForRequest((request) =>
+      request.url().endsWith(`${path}/participants/record`),
+    );
+    await retry.click();
+    expect((await replay).postDataJSON()).toEqual(firstRequest);
+    await expect(picker.getByText(/Added 3 ×/)).toBeVisible();
+    const after = await (await page.request.get(path)).json();
+    expect(after.participants).toHaveLength(3);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
+test("record reader creates an encounter, previews its creature and confirms the same addition", async ({
+  page,
+}, info) => {
+  const recordKey = "pfs-season-1-bestiary:7PXPcv8x3Wnc730i";
+  await page.goto(`/records/${encodeURIComponent(recordKey)}`);
+  const trigger = page.getByRole("button", {
+    name: "Add to list or encounter",
+    exact: true,
+  });
+  await trigger.click();
+  const picker = page.getByRole("dialog");
+  await picker.getByRole("tab", { name: "Encounters" }).click();
+  await picker.getByRole("button", { name: "New encounter" }).click();
+  await picker
+    .getByRole("textbox", { name: "New encounter name" })
+    .fill(`Confirm reader addition ${Date.now()}`);
+  const creation = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/api/encounters"),
+  );
+  await picker.getByRole("button", { name: "Create & preview" }).click();
+  const { encounter } = await (await creation).json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const add = picker.getByRole("button", { name: /^(?:loading )?Add$/ });
+    await expect(add).toBeEnabled();
+    let original;
+    await page.route(
+      "**/participants/record",
+      async (route) => {
+        original = route.request().postDataJSON();
+        expect((await route.fetch()).ok()).toBeTruthy();
+        await route.fulfill({
+          status: 504,
+          json: { code: "operation_timeout", message: "Timed out" },
+        });
+      },
+      { times: 1 },
+    );
+    await add.click();
+    const retry = picker.getByRole("button", { name: /Retry to confirm$/ });
+    await expect(retry).toBeEnabled();
+    expect(original).toMatchObject({
+      record_ref: recordKey,
+      request_id: expect.any(String),
+      creature_scenario: { expected: { record_key: expect.any(String) } },
+    });
+    await picker.getByRole("button", { name: "Cancel" }).click();
+    await expect(picker).toBeHidden();
+    await trigger.click();
+    await expect(retry).toBeEnabled();
+    await info.attach("Confirm original reader addition", {
+      body: await picker.screenshot(),
+      contentType: "image/png",
+    });
+    const replay = page.waitForRequest((request) =>
+      request.url().endsWith(`${path}/participants/record`),
+    );
+    await retry.click();
+    expect((await replay).postDataJSON()).toEqual(original);
+    await expect(picker).toBeHidden();
+    expect((await (await page.request.get(path)).json()).participants).toHaveLength(1);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
 test("reader follows, closes and promotes exact owned selection through browser history", async ({
   page,
 }) => {
@@ -305,6 +458,7 @@ test("Ghoul condition-adjusted facts and damaged elite HP survive reload", async
   try {
     const added = await page.request.post(`${path}/participants/record`, {
       data: {
+        request_id: crypto.randomUUID(),
         record_ref: "pathfinder-bestiary:LHHgGSs0ELCR4CYK",
         quantity: 1,
       },

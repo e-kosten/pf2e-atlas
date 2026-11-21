@@ -961,6 +961,12 @@ export interface AddEncounterRecordParticipantRequest {
   /** @minimum 0 */
   quantity: number;
   record_ref: string;
+  /**
+     * Reuse this ID and canonical encounter key only to retry the same addition.
+     * @minLength 1
+     * @maxLength 128
+     */
+  request_id: string;
 }
 
 export interface AddSavedListItemRequest {
@@ -1075,6 +1081,7 @@ export const AppErrorCode = {
   encounter_participant_not_found: 'encounter_participant_not_found',
   encounter_participant_conflict: 'encounter_participant_conflict',
   encounter_turn_conflict: 'encounter_turn_conflict',
+  encounter_addition_conflict: 'encounter_addition_conflict',
   artifact_generation_changed: 'artifact_generation_changed',
   filter_invalid: 'filter_invalid',
   filter_field_invalid: 'filter_field_invalid',

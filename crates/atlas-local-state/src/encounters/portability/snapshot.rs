@@ -91,6 +91,7 @@ pub(super) fn capture_document(
                 row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?, row.get::<_, Option<String>>(4)?)))?
             .into_iter().map(|(family, request_id, intent, boundary, payload)| {
                 let outcome = match (family.as_str(), boundary, payload) {
+                    ("record_addition", None, None) => ReceiptOutcome::RecordAddition,
                     ("turn", Some(boundary_key), None) => ReceiptOutcome::Turn { boundary_key },
                     ("event", None, Some(payload)) => ReceiptOutcome::Event {
                         receipt: decode(&payload, &format!("event receipt {request_id}"))?,

@@ -74,6 +74,7 @@ struct Receipt {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum ReceiptOutcome {
+    RecordAddition,
     Turn { boundary_key: String },
     Event { receipt: EncounterEventReceipt },
 }
