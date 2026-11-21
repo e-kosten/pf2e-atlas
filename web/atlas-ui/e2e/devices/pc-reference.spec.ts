@@ -180,6 +180,17 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       breakdown.getByText("Constitution per level", { exact: true }),
     ).toBeVisible();
     await activate(breakdown.getByRole("button", { name: "Close explanation" }), info);
+    const skills = page.getByRole("heading", { name: "Skills", exact: true });
+    const jump = page.getByRole("link", { name: "Jump to Skills" });
+    if (info.project.name.startsWith("phone-")) {
+      const beforeJump = page.url();
+      await activate(jump, info);
+      await expect(skills).toBeFocused();
+      await expect(skills).toBeInViewport();
+      await expect(page).toHaveURL(beforeJump);
+    } else if (info.project.name === "desktop-chromium") {
+      await expect(jump).toBeHidden();
+    }
     await activate(page.getByRole("tab", { name: "Inventory", exact: true }), info);
     await expect(
       page.getByRole("heading", { name: "Backpack", exact: true }),
@@ -926,4 +937,63 @@ test("character sheet keeps formulas together and level choices across import, p
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
     if (characterKey) await deleteCharacters(page.request, [characterKey]);
   }
+});
+
+test("Magic keeps the spell list readable and reveals preparations at their exported rank", async ({
+  page,
+}, info) => {
+  const source = {
+    success: true,
+    build: {
+      name: "Caster with a borrowed spellbook",
+      level: 7,
+      feats: [],
+      specials: [],
+      spellCasters: [
+        {
+          name: "Wizard",
+          perDay: [0, 2, 1, 3, 1],
+          spells: [{ spellLevel: 1, list: ["Force Barrage"] }],
+          prepared: [
+            { spellLevel: 3, list: ["Force Barrage", "Force Barrage", "Haste"] },
+          ],
+        },
+        {
+          name: "Innate spells",
+          spells: [],
+          prepared: [{ spellLevel: 2, list: ["See the Unseen"] }],
+        },
+        {
+          name: "Bard",
+          spells: [{ spellLevel: 1, list: ["Fear"] }],
+        },
+      ],
+    },
+  };
+  await page.goto("/characters");
+  await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+  await activate(page.getByRole("menuitem", { name: "From Pathbuilder" }), info);
+  const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
+  await importer.getByLabel("Pathbuilder JSON").fill(JSON.stringify(source));
+  await activate(importer.getByRole("button", { name: "Continue", exact: true }), info);
+  await activate(importer.getByRole("tab", { name: "Magic", exact: true }), info);
+  const magic = importer.getByRole("tabpanel", { name: "Magic" });
+  const snapshot = magic.getByRole("button", { name: "Prepared at export" });
+  await expect(snapshot).toHaveAttribute("aria-expanded", "false");
+  await expect(magic.getByText("Force Barrage", { exact: true })).toBeVisible();
+  await expect(magic.getByText("See the Unseen", { exact: true })).toBeVisible();
+  await expect(magic.getByText("Fear", { exact: true })).toBeVisible();
+  await expect(magic.getByText(/\bHaste$/)).toBeHidden();
+  await expect(magic.getByText(/Rank 4.*1 slot/)).toBeVisible();
+  if (info.project.use.hasTouch) await activate(snapshot, info);
+  else await snapshot.press("Space");
+  await expect(snapshot).toHaveAttribute("aria-expanded", "true");
+  const preparedRow = magic.locator(".actor-casting__row").filter({ hasText: "Haste" });
+  await expect(preparedRow).toContainText("Rank 3");
+  await expect(preparedRow).toContainText(/Force Barrage\s*×2/);
+  await expect(preparedRow).toContainText("Haste");
+  await noPageOverflow(page);
+  await activate(snapshot, info);
+  await expect(magic.getByText(/\bHaste$/)).toBeHidden();
+  await expect(magic.getByText("Force Barrage", { exact: true })).toBeVisible();
 });

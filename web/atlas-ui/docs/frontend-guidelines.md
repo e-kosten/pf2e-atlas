@@ -2070,6 +2070,19 @@ Sheet reading text uses a relative 16px main/14px detail scale with stronger
 section headings; links inherit their local text size and Ant controls keep
 their standard sizing.
 
+Lead Stats with defenses, movement, Perception and saves. Keep the alphabetical
+Skills list alongside Stats in a wide pane and give stacked panes a local
+**Jump to Skills** link. Keep imported name or level differences visible when
+the saved character has been edited.
+
+In Magic, read each caster’s ordinary spells by rank. When that caster also has
+preparations, put **Prepared at export** after the list in one bordered Ant
+Collapse. Follow the Heightening details panel for the header, boundary and
+body inset. Preserve the rank and count of each preparation, including spells
+prepared at a higher rank. When preparations are the caster’s only spell list,
+show them inline under **Prepared at export**. Keep slot-only ranks and focus
+spells available in the main view.
+
 ### Inline checks and areas
 
 Prepared `@Check` and `@Template` content reads as ordinary rules text. Render the
