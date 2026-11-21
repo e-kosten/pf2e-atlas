@@ -18,6 +18,31 @@ STACK = runpy.run_path(str(HERE / "embedding-stack.py"))
 PROBE = runpy.run_path(str(HERE / "probe-embedding-upgrade.py"))
 
 
+class SearchWitnesses(unittest.TestCase):
+    def test_queries_compare_all_witnesses_on_current_and_historical_clients(self):
+        search = PROBE["search"]
+        navigation = {"record_key": "actions:one"}
+        response = {"rows": [
+            {"record": {"record_key": "actions:one"}, "matches": [
+                {"navigation": navigation, "semantic_similarity": 0.75},
+                {"navigation": {"record_key": "actions:two"}, "semantic_similarity": 0.5},
+            ]},
+            {"record": {"record_key": "actions:two"}, "matches": []},
+        ]}
+        for executable, help_text, expected in [
+            ("historical", "  --limit <LIMIT>", ()),
+            ("current", "  --detail <DETAIL>", ("--detail", "full")),
+        ]:
+            invoke = Mock(return_value=response)
+            with self.subTest(executable=executable), \
+                    patch.object(subprocess, "check_output", return_value=help_text), \
+                    patch.dict(search.__globals__, invoke=invoke):
+                rows = search(Path(executable), "index", "models", "bge-base", "query", "evidence")
+                args = invoke.call_args.args[1]
+                self.assertEqual(tuple(args[args.index("--limit") + 2:]), expected)
+                self.assertEqual([score for _, score in rows[0][1]], [0.75, 0.5])
+
+
 class Routing(unittest.TestCase):
     def setUp(self):
         directory = self.enterContext(tempfile.TemporaryDirectory())
