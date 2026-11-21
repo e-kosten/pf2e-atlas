@@ -12,10 +12,13 @@ import type {
   SheetGroupView,
   SheetRowView,
   SheetSectionKind,
+  SheetSpellRankView,
+  SheetSpellView,
 } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ReferenceHelpLink } from "../../shared/records/ReferenceHelp";
+import { SpellListRow } from "../../shared/records/SpellListRow";
 import { FactRow } from "../../shared/records/presentationFacts";
 import { ValueExplanation } from "../../shared/ui/ValueExplanation";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
@@ -28,6 +31,7 @@ const sectionLabels: Record<SheetSectionKind, string> = {
   magic: "Magic",
   inventory: "Inventory",
   companions: "Companions",
+  proficiencies: "Proficiencies",
 };
 
 export function SavedCharacterSheet({
@@ -65,6 +69,7 @@ export function CharacterSheet({
   abilities,
   sheet: draftSheet,
   draftDetails,
+  priorDetailsChanged = false,
   saved,
   active = true,
   reviewSummary,
@@ -77,6 +82,7 @@ export function CharacterSheet({
   abilities: (active: boolean) => ReactNode;
   sheet?: CharacterSheetView;
   draftDetails?: (signal: AbortSignal) => Promise<ImportDetailsView>;
+  priorDetailsChanged?: boolean;
   saved?: PcReferenceView;
   refreshCharacter?: () => Promise<number | undefined>;
   active?: boolean;
@@ -86,7 +92,6 @@ export function CharacterSheet({
   const [selected, setSelected] = useState<SheetTab>(() =>
     abilityRoute?.active ? "abilities" : defaultTab,
   );
-  const selectedTab = abilityRoute?.active ? "abilities" : selected;
   const draftId = useId();
   const characterKey = saved?.character_key;
   const revision = saved?.character_revision;
@@ -104,14 +109,36 @@ export function CharacterSheet({
       }
       return response;
     },
-    enabled:
-      active &&
-      Boolean(saved?.imported) &&
-      selectedTab !== "abilities" &&
-      selectedTab !== "details",
+    enabled: active && Boolean(saved?.imported),
     retry: false,
     meta: referenceQueryMeta,
   });
+  const sheet = draftSheet ?? sheetQuery.data?.sheet;
+  const showAbilities = Boolean(
+    abilityRoute?.active || abilitySections.some((section) => section.abilities.length),
+  );
+  const showDetails = Boolean(sheet?.has_additional_details || priorDetailsChanged);
+  const sections: SheetSectionKind[] = [
+    "inventory",
+    "magic",
+    "progression",
+    "companions",
+    "proficiencies",
+  ];
+  const visibleSections = sections.filter((kind) =>
+    sheet?.sections.some(
+      (section) => section.kind === kind && section.groups.length > 0,
+    ),
+  );
+  const visible = new Set<SheetTab>(["stats", ...visibleSections]);
+  if (showAbilities) visible.add("abilities");
+  if (showDetails) visible.add("details");
+  if (reviewSummary) visible.add("review");
+  const selectedTab = abilityRoute?.active
+    ? "abilities"
+    : visible.has(selected)
+      ? selected
+      : "stats";
   const detailsQuery = useQuery({
     queryKey: characterKey
       ? ["character-import-details", characterKey, revision]
@@ -120,11 +147,10 @@ export function CharacterSheet({
       draftDetails
         ? draftDetails(signal)
         : getCharacterImportDetails(characterKey!, revision!, signal),
-    enabled: active && selectedTab === "details",
+    enabled: active && showDetails && selectedTab === "details",
     retry: false,
     gcTime: draftDetails ? 0 : undefined,
   });
-  const sheet = draftSheet ?? sheetQuery.data?.sheet;
   const links = useMemo(
     () =>
       new Map(
@@ -196,12 +222,6 @@ export function CharacterSheet({
     label: "Abilities",
     children: abilities(selectedTab === "abilities"),
   };
-  const sections: SheetSectionKind[] = [
-    "inventory",
-    "magic",
-    "progression",
-    "companions",
-  ];
   return (
     <Tabs
       className="character-sheet"
@@ -212,8 +232,12 @@ export function CharacterSheet({
         if (abilityRoute?.active && tab !== "abilities") abilityRoute.close();
       }}
       items={[
-        ...(defaultTab === "stats" ? [stats, lookup] : [lookup, stats]),
-        ...(saved?.imported === false ? [] : sections).map((kind) => ({
+        ...(showAbilities
+          ? defaultTab === "stats"
+            ? [stats, lookup]
+            : [lookup, stats]
+          : [stats]),
+        ...visibleSections.map((kind) => ({
           key: kind,
           label: sectionLabels[kind],
           children: <div className="character-sheet__pane">{renderSection(kind)}</div>,
@@ -227,7 +251,7 @@ export function CharacterSheet({
               },
             ]
           : []),
-        ...(saved?.imported || draftDetails
+        ...(showDetails
           ? [
               {
                 key: "details",
@@ -270,40 +294,142 @@ function SheetGroups({
   links: Map<string, string | undefined>;
   generation?: string;
 }) {
+  const skills = groups.find((group) => group.kind === "skills");
   return (
     <div className={`character-sheet__groups character-sheet__groups--${kind}`}>
-      {groups.map((group, index) => {
-        const compact = group.rows.every((row) => row.summary_value !== undefined);
-        const items = group.rows.map((row, index) => {
-          const key = row.ability_key ? links.get(row.ability_key) : row.record_key;
-          const content = (
-            <SheetRow row={row} recordKey={key} generation={generation} />
-          );
-          const rowKey = `${row.label}-${index}`;
-          return compact ? (
-            <div key={rowKey}>{content}</div>
-          ) : (
-            <li key={rowKey}>{content}</li>
-          );
-        });
-        return (
-          <section
-            key={
-              group.container_id
-                ? `container-${group.container_id}`
-                : `${group.label}-${index}`
-            }
-          >
-            <h3>{group.label}</h3>
-            {compact ? (
-              <div className="record-fact-list">{items}</div>
-            ) : (
-              <ul className="character-sheet__rows">{items}</ul>
-            )}
-          </section>
-        );
-      })}
+      <div className="character-sheet__group-stack">
+        {groups.map((group, index) =>
+          group === skills ? null : (
+            <SheetGroup
+              key={
+                group.container_id
+                  ? `container-${group.container_id}`
+                  : `${group.label}-${index}`
+              }
+              group={group}
+              links={links}
+              generation={generation}
+            />
+          ),
+        )}
+      </div>
+      {skills && <SheetGroup group={skills} links={links} generation={generation} />}
     </div>
+  );
+}
+
+function SheetGroup({
+  group,
+  links,
+  generation,
+}: {
+  group: SheetGroupView;
+  links: Map<string, string | undefined>;
+  generation?: string;
+}) {
+  const skills = group.kind === "skills";
+  const aligned = skills || group.kind === "proficiencies";
+  const compact =
+    !aligned && group.rows.every((row) => row.summary_value !== undefined);
+  const items = group.rows.map((row, index) => {
+    const recordKey = row.ability_key ? links.get(row.ability_key) : row.record_key;
+    const content = (
+      <SheetRow row={row} recordKey={recordKey} generation={generation} />
+    );
+    const key = `${row.label}-${index}`;
+    return compact ? <div key={key}>{content}</div> : <li key={key}>{content}</li>;
+  });
+  return (
+    <section className={skills ? "character-sheet__skills" : undefined}>
+      <h3>{group.label}</h3>
+      {items.length > 0 &&
+        (compact ? (
+          <div className="record-fact-list">{items}</div>
+        ) : (
+          <ul
+            className={aligned ? "character-sheet__rank-list" : "character-sheet__rows"}
+          >
+            {items}
+          </ul>
+        ))}
+      {group.spell_ranks?.length ? (
+        <div className="actor-casting__rows">
+          {group.spell_ranks.map((rank, index) => (
+            <SheetCastingRank
+              key={`${rank.label}-${index}`}
+              rank={rank}
+              links={links}
+              generation={generation}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SheetCastingRank({
+  rank,
+  links,
+  generation,
+}: {
+  rank: SheetSpellRankView;
+  links: Map<string, string | undefined>;
+  generation?: string;
+}) {
+  const spells = (list: SheetSpellView[]) =>
+    list.map((spell, index) => {
+      const key = spell.ability_key && links.get(spell.ability_key);
+      return (
+        <span key={spell.label}>
+          {index > 0 && ", "}
+          <ReferenceHelpLink
+            help={
+              key
+                ? {
+                    definition_key: null,
+                    destination: { kind: "record", navigation: rootNavigation(key) },
+                  }
+                : null
+            }
+            generation={generation}
+          >
+            {spell.label}
+          </ReferenceHelpLink>
+          {spell.count > 1 && ` ×${spell.count}`}
+        </span>
+      );
+    });
+  return (
+    <SpellListRow
+      label={
+        <>
+          {rank.label}
+          {rank.slots !== undefined && (
+            <span className="character-sheet__spell-slots">
+              {" "}
+              {rank.slots} {rank.slots === 1 ? "slot" : "slots"}
+            </span>
+          )}
+        </>
+      }
+    >
+      {rank.prepared.length > 0 && (
+        <span className="character-sheet__spell-list">
+          <strong>Prepared</strong> {spells(rank.prepared)}
+        </span>
+      )}
+      {rank.known.length > 0 && (
+        <span className="character-sheet__spell-list">
+          {rank.prepared.length > 0 && (
+            <>
+              <strong>Known</strong>{" "}
+            </>
+          )}
+          {spells(rank.known)}
+        </span>
+      )}
+    </SpellListRow>
   );
 }
 
@@ -346,7 +472,9 @@ function SheetRow({
             {row.summary_value}
           </ValueExplanation>
         ) : (
-          row.summary_value
+          <ReferenceHelpLink help={row.summary_help} generation={generation}>
+            {row.summary_value}
+          </ReferenceHelpLink>
         )}
       </FactRow>
     );
@@ -373,22 +501,31 @@ function SheetFacts({ facts }: { facts: SheetFactView[] }) {
 }
 
 function ImportDetails({ details }: { details: ImportDetailsView }) {
-  if (details.fields.length === 0)
-    return <p>There is no saved export for this character.</p>;
-  if (!details.previous_fields) return <ImportFields fields={details.fields} />;
+  const previous = details.previous_fields ?? [];
+  if (!previous.length) {
+    return <ImportFields fields={details.fields} />;
+  }
+  if (!details.fields.length) {
+    return (
+      <>
+        <p>These details appear in the previous import only.</p>
+        <ImportFields fields={previous} />
+      </>
+    );
+  }
   return (
     <Collapse
       defaultActiveKey={["incoming"]}
       items={[
         {
           key: "incoming",
-          label: "Incoming export",
+          label: "Incoming import",
           children: <ImportFields fields={details.fields} />,
         },
         {
           key: "previous",
-          label: "Previous export",
-          children: <ImportFields fields={details.previous_fields} />,
+          label: "Previous import",
+          children: <ImportFields fields={previous} />,
         },
       ]}
     />
@@ -398,40 +535,42 @@ function ImportDetails({ details }: { details: ImportDetailsView }) {
 function ImportFields({ fields }: { fields: ImportFieldView[] }) {
   return (
     <ul className="character-sheet__details">
-      {fields.map((field, index) => (
-        <li key={`${field.label}-${index}`}>
-          {field.collection ? (
-            <ImportCollection field={field} />
-          ) : (
-            <>
-              <span>{field.label} </span>
-              <code>{field.value}</code>
-            </>
-          )}
-        </li>
-      ))}
+      {fields.map((field, index) => {
+        const label = field.display_label ?? field.label;
+        return (
+          <li key={`${field.label}-${index}`}>
+            {field.collection ? (
+              <ImportCollection field={field} label={label} />
+            ) : field.scalar_kind === "source_fragment" ? (
+              <details>
+                <summary>{label}</summary>
+                <pre className="character-sheet__source-fragment">{field.value}</pre>
+              </details>
+            ) : (
+              <FactRow label={label}>
+                {field.scalar_kind === "text" &&
+                field.value !== undefined &&
+                /^(?:true|false|null|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)$/i.test(field.value)
+                  ? JSON.stringify(field.value)
+                  : field.value}
+              </FactRow>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-function ImportCollection({ field }: { field: ImportFieldView }) {
+function ImportCollection({ field, label }: { field: ImportFieldView; label: string }) {
   const [opened, setOpened] = useState(false);
-  if (!field.children.length)
-    return (
-      <>
-        <span>{field.label} </span>
-        <code>{field.collection === "array" ? "[]" : "{}"}</code>
-      </>
-    );
   return (
     <details
       onToggle={(event) => {
         if (event.currentTarget.open) setOpened(true);
       }}
     >
-      <summary>
-        {field.label} ({field.children.length})
-      </summary>
+      <summary>{label}</summary>
       {opened && <ImportFields fields={field.children} />}
     </details>
   );

@@ -256,7 +256,7 @@ it("reviews retained rule corrections and refreshes a stale revision without los
     name: "Aster",
     level: 7,
     artifact_generation: "generation",
-    sheet: { name: "Aster", level: 7, sections: [] },
+    sheet: { name: "Aster", level: 7, has_additional_details: false, sections: [] },
     character_revision: 2,
     previous_name: "Aster",
     previous_level: 7,
@@ -314,7 +314,7 @@ it("keeps importer cancellation disabled until the submitted save finishes", asy
     name: "Aster",
     level: 7,
     artifact_generation: "g",
-    sheet: { name: "Aster", level: 7, sections: [] },
+    sheet: { name: "Aster", level: 7, has_additional_details: false, sections: [] },
     sections: [],
   });
   let finish!: (value: { character_key: string; available: boolean }) => void;

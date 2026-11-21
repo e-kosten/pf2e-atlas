@@ -1,5 +1,10 @@
 use super::*;
-use crate::presentation::attribute_label;
+use crate::{
+    definitions::{HelpContext, record_navigation},
+    presentation::attribute_label,
+};
+use atlas_app_model::{ReferenceDestinationView, ReferenceHelpView};
+use atlas_domain::{DefinitionKey, DefinitionNamespace};
 
 const SKILLS: &[(&str, &str, usize)] = &[
     ("acrobatics", "Acrobatics", 1),
@@ -26,21 +31,64 @@ const SAVES: &[(&str, &str, usize)] = &[
     ("will", "Will", 4),
 ];
 
-pub(super) fn groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
-    let mut identity = Vec::new();
-    add_facts(
-        &mut identity,
-        [
-            ("Ancestry", shown(&sheet.ancestry)),
-            ("Heritage", shown(&sheet.heritage)),
-            ("Class", shown(&sheet.class)),
-            ("Background", shown(&sheet.background)),
-            (
-                "Key ability",
-                source_label(&sheet.key_ability, attribute_label),
-            ),
-        ],
-    );
+fn identity(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+) -> AppServiceResult<SheetGroupView> {
+    let mut rows = Vec::new();
+    for (label, field, source_type) in [
+        ("Ancestry", &sheet.ancestry, "ancestry"),
+        ("Heritage", &sheet.heritage, "heritage"),
+        ("Class", &sheet.class, "class"),
+        ("Background", &sheet.background, "background"),
+    ] {
+        let Some(name) = value(field)
+            .map(|name| name.trim())
+            .filter(|name| !name.is_empty())
+        else {
+            continue;
+        };
+        let mut row = compact_row(label, Some(name.to_owned()), Vec::new());
+        if let Some(retrieval) = retrieval {
+            let key = unique_pf2e_record(retrieval, name, |record| {
+                record
+                    .source_type
+                    .as_value()
+                    .is_some_and(|kind| kind == source_type)
+            })?;
+            row.summary_help = key.map(|key| ReferenceHelpView {
+                definition_key: None,
+                destination: ReferenceDestinationView::Record {
+                    navigation: record_navigation(key, vec![], retrieval.source_fingerprint())
+                        .into(),
+                },
+            });
+        }
+        rows.push(row);
+    }
+    if let Some(ability) = value(&sheet.key_ability)
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+    {
+        let mut row = compact_row(
+            "Key ability",
+            Some(attribute_label(ability).to_owned()),
+            Vec::new(),
+        );
+        if let Some(retrieval) = retrieval
+            && let Ok(key) = DefinitionKey::new(DefinitionNamespace::Ability, ability.to_owned())
+        {
+            row.summary_help = HelpContext::load(retrieval, [key.clone()].into())?.help(&key);
+        }
+        rows.push(row);
+    }
+    Ok(group("Character details", rows))
+}
+
+pub(super) fn groups(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+) -> AppServiceResult<Vec<SheetGroupView>> {
     let mut background = Vec::new();
     let languages: Vec<_> = values(&sheet.languages)
         .filter(|language| !language.trim().eq_ignore_ascii_case("None selected"))
@@ -49,7 +97,6 @@ pub(super) fn groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
     add_facts(
         &mut background,
         [
-            ("XP", shown(&sheet.xp)),
             ("Languages", Some(languages.join(", "))),
             ("Resistances", text_list(&sheet.resistances)),
             (
@@ -58,7 +105,6 @@ pub(super) fn groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
             ),
             ("Age", biography(&sheet.age)),
             ("Gender", biography(&sheet.gender)),
-            ("Alignment", biography(&sheet.alignment)),
             ("Deity", biography(&sheet.deity)),
         ],
     );
@@ -169,7 +215,6 @@ pub(super) fn groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
     }
     let mut skills = Vec::new();
     let mut saves = Vec::new();
-    let mut proficiencies = Vec::new();
     let mut labels = std::collections::HashSet::new();
     let ranks = value(&sheet.proficiencies);
     for (entries, rows) in [(SKILLS, &mut skills), (SAVES, &mut saves)] {
@@ -185,16 +230,6 @@ pub(super) fn groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
             }
         }
     }
-    for (key, score) in ranks.into_iter().flatten() {
-        if SKILLS.iter().chain(SAVES).any(|(known, _, _)| known == key) {
-            continue;
-        }
-        if let Some(score) = value(score) {
-            let label = proficiency_label(key);
-            proficiencies.push(compact_row(label, Some(rank(*score)), Vec::new()));
-        }
-    }
-    let mut lore = Vec::new();
     for (name, rank) in values(&sheet.lores) {
         let label = if name.trim().is_empty() {
             "Unnamed Lore".into()
@@ -202,7 +237,7 @@ pub(super) fn groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
             format!("{name} Lore")
         };
         labels.insert(label.clone());
-        lore.push(proficiency_row(sheet, &label, Some(*rank), modifiers[3]));
+        skills.push(proficiency_row(sheet, &label, Some(*rank), modifiers[3]));
     }
     let mut other_bonuses = Vec::new();
     for (label, bonuses) in value(&sheet.mods).into_iter().flatten() {
@@ -210,25 +245,45 @@ pub(super) fn groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
             other_bonuses.push(row(label, bonus_facts(value(bonuses))));
         }
     }
+    skills.sort_by_cached_key(|row| normalize_record_name(&row.label));
+    let mut skills = group("Skills", skills);
+    skills.kind = Some(SheetGroupKind::Skills);
+    Ok(vec![
+        identity(sheet, retrieval)?,
+        group("Defenses & movement", vitals),
+        group("Perception & saves", saves),
+        group("Ability scores", scores),
+        summary("Background & details", background),
+        skills,
+        group("Other exported bonuses", other_bonuses),
+    ])
+}
+
+pub(super) fn proficiencies(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
+    let mut rows = Vec::new();
+    for (key, score) in value(&sheet.proficiencies).into_iter().flatten() {
+        if !SKILLS.iter().chain(SAVES).any(|(known, _, _)| known == key)
+            && let Some(score) = value(score)
+        {
+            rows.push(compact_row(
+                proficiency_label(key),
+                Some(rank(*score)),
+                Vec::new(),
+            ));
+        }
+    }
     for (label, entries) in value(&sheet.specific_proficiencies).into_iter().flatten() {
         if let Some(entries) = text_list(entries) {
-            proficiencies.push(row(
+            rows.push(row(
                 proficiency_label(label),
                 vec![fact_value("Specific proficiencies", entries)],
             ));
         }
     }
-    vec![
-        summary("Character details", identity),
-        group("Defenses & movement", vitals),
-        group("Perception & saves", saves),
-        group("Ability scores", scores),
-        group("Skills", skills),
-        group("Lore", lore),
-        summary("Background & details", background),
-        group("Other proficiencies", proficiencies),
-        group("Other exported bonuses", other_bonuses),
-    ]
+    rows.sort_by_cached_key(|row| normalize_record_name(&row.label));
+    let mut proficiencies = group("Other proficiencies", rows);
+    proficiencies.kind = Some(SheetGroupKind::Proficiencies);
+    vec![proficiencies]
 }
 
 fn proficiency_row(
@@ -251,10 +306,13 @@ fn proficiency_row(
     }
     if let Some(rank_value) = rank_value {
         facts.push(fact_value("Rank", rank(rank_value)));
+    } else if modifier.is_some() {
+        facts.push(fact_value("Rank", "Unavailable"));
     }
     if let Some(proficiency) = proficiency {
         facts.push(fact_value("Proficiency", format!("{proficiency:+}")));
-    } else if let Some(modifier) = modifier {
+    }
+    if let Some(modifier) = modifier {
         facts.push(fact_value("Ability modifier", format!("{modifier:+}")));
     }
     let bonuses = value(&sheet.mods)
@@ -262,9 +320,9 @@ fn proficiency_row(
         .and_then(value);
     facts.extend(bonus_facts(bonuses));
     let summary = base
-        .map(|base| format!("{base:+} base"))
-        .or_else(|| rank_value.map(rank));
-    compact_row(label, summary, facts)
+        .or(modifier)
+        .map_or_else(|| "—".into(), |value| format!("{value:+}"));
+    compact_row(label, Some(summary), facts)
 }
 
 fn bonus_facts(
@@ -298,6 +356,8 @@ fn proficiency_label(key: &str) -> String {
         "martial" => "Martial weapons",
         "simple" => "Simple weapons",
         "unarmed" => "Unarmed attacks",
+        "computers" => "Computers",
+        "piloting" => "Piloting",
         _ => key,
     }
     .to_owned()

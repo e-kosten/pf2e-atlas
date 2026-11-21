@@ -138,7 +138,12 @@ beforeEach(() => {
   api.getCharacterSheet.mockResolvedValue({
     character_key: character.character_key,
     character_revision: character.character_revision,
-    sheet: { name: character.name, level: character.level, sections: [] },
+    sheet: {
+      name: character.name,
+      level: character.level,
+      has_additional_details: false,
+      sections: [],
+    },
   });
   api.getEncounterPcReference.mockResolvedValue({ reference: character });
   api.getRecordDetail.mockResolvedValue(detailFixture(recordKey, recordTitle));
@@ -362,7 +367,12 @@ it.each(["cancel", "retry", "new generation"] as const)(
     const draft: PathbuilderPreviewView = {
       ...character,
       level: 7,
-      sheet: { name: character.name, level: 7, sections: [] },
+      sheet: {
+        name: character.name,
+        level: 7,
+        has_additional_details: false,
+        sections: [],
+      },
       sections: [{ kind: "feat", label: "Feats", abilities: [ambiguous] }],
       artifact_generation: "test-generation",
     };
@@ -460,7 +470,12 @@ it("keeps rule review from replacing an unconfirmed import request", async () =>
   api.previewPathbuilderPc.mockResolvedValue({
     name: character.name,
     level: 7,
-    sheet: { name: character.name, level: 7, sections: [] },
+    sheet: {
+      name: character.name,
+      level: 7,
+      has_additional_details: false,
+      sections: [],
+    },
     sections: character.sections,
     artifact_generation: "older-generation",
   });

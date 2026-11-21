@@ -1,7 +1,6 @@
 use super::*;
 use crate::pathbuilder_sheet::ImportedEquipment;
-use atlas_domain::{RecordKey, RecordKind};
-use atlas_search::ResolveRecordRequest;
+use atlas_domain::RecordKind;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum ItemFamily {
@@ -30,14 +29,8 @@ impl ItemLinks<'_> {
         }
         let key = (family, normalize_record_name(base));
         if !self.matches.contains_key(&key) {
-            let matches = retrieval.resolve_record(ResolveRecordRequest {
-                query: base,
-                filter: None,
-            })?;
-            let mut eligible = matches.into_iter().filter(|result| {
-                let record = &result.record;
-                retrieval.is_pf2e_record(&record.key)
-                    && record.record_kind.as_value() == Some(&RecordKind::Equipment)
+            let target = unique_pf2e_record(retrieval, base, |record| {
+                record.record_kind.as_value() == Some(&RecordKind::Equipment)
                     && match family {
                         ItemFamily::Any => true,
                         ItemFamily::Weapon => record
@@ -49,11 +42,8 @@ impl ItemLinks<'_> {
                             .as_value()
                             .is_some_and(|kind| matches!(kind.as_str(), "armor" | "shield")),
                     }
-            });
-            let first = eligible.next();
-            let unique = first.filter(|_| eligible.next().is_none());
-            self.matches
-                .insert(key.clone(), unique.map(|result| result.record.key));
+            })?;
+            self.matches.insert(key.clone(), target);
         }
         row.record_key.clone_from(&self.matches[&key]);
         Ok(())
@@ -211,7 +201,13 @@ pub(super) fn groups(
         groups[index].rows.push(item);
     }
 
-    if let Some(money) = value(&sheet.money) {
+    if let Some(money) = value(&sheet.money).filter(|money| {
+        groups.iter().any(|group| !group.rows.is_empty())
+            || [&money.pp, &money.gp, &money.sp, &money.cp]
+                .into_iter()
+                .filter_map(value)
+                .any(|count| *count != 0)
+    }) {
         let mut facts = Vec::new();
         add_facts(
             &mut facts,

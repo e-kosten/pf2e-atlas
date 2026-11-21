@@ -1,6 +1,7 @@
 mod details;
 mod inventory;
 mod magic;
+mod source_details;
 mod stats;
 
 use crate::{
@@ -8,12 +9,12 @@ use crate::{
     pathbuilder_sheet::{ImportedField, PathbuilderSheet, read_sheet},
 };
 use atlas_app_model::{
-    CharacterSheetResponse, CharacterSheetView, SheetFactView, SheetGroupView, SheetRowView,
-    SheetSectionKind, SheetSectionView,
+    CharacterSheetResponse, CharacterSheetView, SheetFactView, SheetGroupKind, SheetGroupView,
+    SheetRowView, SheetSectionKind, SheetSectionView,
 };
-use atlas_domain::normalize_record_name;
+use atlas_domain::{RecordKey, SourceRecordSummary, normalize_record_name};
 use atlas_local_state::{PcAbilityKind, PcReference};
-use atlas_search::AtlasRetrievalService;
+use atlas_search::{AtlasRetrievalService, ResolveRecordRequest};
 use std::{collections::HashMap, fmt::Display};
 
 pub(super) use details::compare_imports;
@@ -33,9 +34,8 @@ impl AtlasAppService {
             |(character, source), reference| {
                 let sheet = source
                     .map(|source| {
-                        let parsed = read_sheet(source.json())?;
                         project_sheet(
-                            &parsed,
+                            source.json(),
                             character.reference.as_ref(),
                             reference.ok().flatten().map(|session| session.retrieval()),
                         )
@@ -52,10 +52,12 @@ impl AtlasAppService {
 }
 
 pub(super) fn project_sheet(
-    sheet: &PathbuilderSheet,
+    source: &str,
     reference: Option<&PcReference>,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<CharacterSheetView> {
+    let parsed = read_sheet(source)?;
+    let sheet = &parsed;
     let abilities: AbilityKeys = reference
         .into_iter()
         .flat_map(|reference| &reference.abilities)
@@ -69,8 +71,9 @@ pub(super) fn project_sheet(
     Ok(CharacterSheetView {
         name: sheet.name.trim().to_owned(),
         level: sheet.level,
+        has_additional_details: source_details::has_source_details(source)?,
         sections: vec![
-            section(SheetSectionKind::Stats, stats::groups(sheet)),
+            section(SheetSectionKind::Stats, stats::groups(sheet, retrieval)?),
             section(
                 SheetSectionKind::Progression,
                 progression(sheet, &abilities),
@@ -81,8 +84,27 @@ pub(super) fn project_sheet(
                 inventory::groups(sheet, retrieval)?,
             ),
             section(SheetSectionKind::Companions, companions(sheet)),
+            section(SheetSectionKind::Proficiencies, stats::proficiencies(sheet)),
         ],
     })
+}
+
+fn unique_pf2e_record(
+    retrieval: &AtlasRetrievalService,
+    query: &str,
+    eligible: impl Fn(&SourceRecordSummary) -> bool,
+) -> AppServiceResult<Option<RecordKey>> {
+    let mut matches = retrieval
+        .resolve_record(ResolveRecordRequest {
+            query,
+            filter: None,
+        })?
+        .into_iter()
+        .filter(|result| retrieval.is_pf2e_record(&result.record.key) && eligible(&result.record));
+    let first = matches.next();
+    Ok(first
+        .filter(|_| matches.next().is_none())
+        .map(|result| result.record.key))
 }
 
 type AbilityKeys<'a> = HashMap<(PcAbilityKind, String, String), &'a str>;
@@ -118,7 +140,7 @@ fn section(kind: SheetSectionKind, groups: Vec<SheetGroupView>) -> SheetSectionV
         kind,
         groups: groups
             .into_iter()
-            .filter(|group| !group.rows.is_empty())
+            .filter(|group| !group.rows.is_empty() || !group.spell_ranks.is_empty())
             .collect(),
     }
 }
@@ -126,8 +148,10 @@ fn section(kind: SheetSectionKind, groups: Vec<SheetGroupView>) -> SheetSectionV
 fn group(label: impl Into<String>, rows: Vec<SheetRowView>) -> SheetGroupView {
     SheetGroupView {
         label: label.into(),
+        kind: None,
         container_id: None,
         rows,
+        spell_ranks: Vec::new(),
     }
 }
 
@@ -152,6 +176,7 @@ fn row(label: impl Into<String>, facts: Vec<SheetFactView>) -> SheetRowView {
     SheetRowView {
         label: label.into(),
         summary_value: None,
+        summary_help: None,
         facts,
         ability_key: None,
         record_key: None,
@@ -298,7 +323,7 @@ fn progression(sheet: &PathbuilderSheet, keys: &AbilityKeys<'_>) -> Vec<SheetGro
 }
 
 fn companions(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
-    let rows = values(&sheet.pets).map(|companion| {
+    let rows = values(&sheet.pets).filter_map(|companion| {
         let mut facts = Vec::new();
         add_facts(
             &mut facts,
@@ -312,7 +337,15 @@ fn companions(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
                 ("Armor", shown(&companion.armor)),
             ],
         );
-        row(name(&companion.name, "Unnamed companion"), facts)
+        facts.retain(|fact| !fact.value.trim().is_empty());
+        let name = value(&companion.name).filter(|name| !name.trim().is_empty());
+        if name.is_none() && facts.is_empty() {
+            return None;
+        }
+        Some(row(
+            name.map(String::as_str).unwrap_or("Unnamed companion"),
+            facts,
+        ))
     });
     vec![group("Companions", rows.collect())]
 }

@@ -360,7 +360,7 @@ export function PathbuilderImport({
                   ? `Changes in ${draft.changes.sections.length} sections. See Import summary for details.`
                   : draft.changes.had_sheet
                     ? draft.changes.additional_fields_changed.length > 0
-                      ? "Export details changed. See Import summary for details."
+                      ? "Additional import details changed. See Import summary for details."
                       : "No changes in the exported build."
                     : "This import adds the first saved character sheet."}
                 {draft.changes.removed_corrections.length > 0 &&
@@ -386,6 +386,9 @@ export function PathbuilderImport({
               sheet={draft.sheet}
               active={!closing}
               abilitySections={sections}
+              priorDetailsChanged={Boolean(
+                draft.changes?.additional_fields_changed.length,
+              )}
               draftDetails={(signal) =>
                 getPreviewImportDetails(
                   {
@@ -435,6 +438,7 @@ const summaryLabels = {
   magic: "Magic",
   inventory: "Inventory",
   companions: "Companions",
+  proficiencies: "Proficiencies",
 } as const;
 
 function ImportSummary({
@@ -498,12 +502,9 @@ function ImportSummary({
           {changes.additional_fields_changed.length > 0 && (
             <details>
               <summary>
-                Changed export fields ({changes.additional_fields_changed.length})
+                Changed additional details ({changes.additional_fields_changed.length})
               </summary>
-              <p>
-                Open Additional import details to compare the previous and incoming
-                exports.
-              </p>
+              <p>Open Additional import details to review the affected values.</p>
               <ul>
                 {changes.additional_fields_changed.map((field) => (
                   <li key={field}>{field}</li>
@@ -514,13 +515,25 @@ function ImportSummary({
         </>
       ) : (
         <ul>
-          {sheet.sections.map((section) => (
-            <li key={section.kind}>
-              {summaryLabels[section.kind]}{" "}
-              {section.groups.reduce((count, group) => count + group.rows.length, 0)}{" "}
-              entries
-            </li>
-          ))}
+          {sheet.sections
+            .filter((section) => section.groups.length > 0)
+            .map((section) => {
+              let entries = 0;
+              for (const group of section.groups) {
+                entries += group.rows.length;
+                for (const rank of group.spell_ranks ?? []) {
+                  for (const spell of [...rank.known, ...rank.prepared]) {
+                    entries += spell.count;
+                  }
+                }
+              }
+              return (
+                <li key={section.kind}>
+                  {summaryLabels[section.kind]} {entries}{" "}
+                  {entries === 1 ? "entry" : "entries"}
+                </li>
+              );
+            })}
         </ul>
       )}
     </div>

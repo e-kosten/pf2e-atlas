@@ -1534,6 +1534,14 @@ export interface CharacterMutationView {
   character_key: string;
 }
 
+export type SheetGroupKind = typeof SheetGroupKind[keyof typeof SheetGroupKind];
+
+
+export const SheetGroupKind = {
+  skills: 'skills',
+  proficiencies: 'proficiencies',
+} as const;
+
 export interface SheetFactView {
   label: string;
   value: string;
@@ -1544,13 +1552,30 @@ export interface SheetRowView {
   facts: SheetFactView[];
   label: string;
   record_key?: RecordKey;
+  summary_help?: ReferenceHelpView;
   summary_value?: string;
+}
+
+export interface SheetSpellView {
+  ability_key?: string;
+  /** @minimum 0 */
+  count: number;
+  label: string;
+}
+
+export interface SheetSpellRankView {
+  known: SheetSpellView[];
+  label: string;
+  prepared: SheetSpellView[];
+  slots?: number;
 }
 
 export interface SheetGroupView {
   container_id?: string;
+  kind?: SheetGroupKind;
   label: string;
   rows: SheetRowView[];
+  spell_ranks?: SheetSpellRankView[];
 }
 
 export type SheetSectionKind = typeof SheetSectionKind[keyof typeof SheetSectionKind];
@@ -1562,6 +1587,7 @@ export const SheetSectionKind = {
   magic: 'magic',
   inventory: 'inventory',
   companions: 'companions',
+  proficiencies: 'proficiencies',
 } as const;
 
 export interface SheetSectionView {
@@ -1570,6 +1596,7 @@ export interface SheetSectionView {
 }
 
 export interface CharacterSheetView {
+  has_additional_details: boolean;
   level: number;
   name: string;
   sections: SheetSectionView[];
@@ -4730,10 +4757,22 @@ export const ImportCollectionKind = {
   array: 'array',
 } as const;
 
+export type ImportScalarKind = typeof ImportScalarKind[keyof typeof ImportScalarKind];
+
+
+export const ImportScalarKind = {
+  text: 'text',
+  number: 'number',
+  boolean: 'boolean',
+  source_fragment: 'source_fragment',
+} as const;
+
 export interface ImportFieldView {
   children: ImportFieldView[];
   collection?: ImportCollectionKind;
+  display_label?: string;
   label: string;
+  scalar_kind?: ImportScalarKind;
   value?: string;
 }
 

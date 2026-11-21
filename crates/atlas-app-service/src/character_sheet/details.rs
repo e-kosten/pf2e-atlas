@@ -1,14 +1,10 @@
+use super::source_details::{source_details, source_fields};
 use super::*;
 use crate::{AppServiceError, pathbuilder};
 use atlas_app_model::{
     ImportChangesView, ImportCollectionKind, ImportDetailsView, ImportFieldView,
     ImportSectionChangesView,
 };
-use serde::{
-    Deserialize, Deserializer,
-    de::{MapAccess, Visitor},
-};
-use serde_json::value::RawValue;
 use std::collections::{BTreeMap, HashSet};
 
 impl AtlasAppService {
@@ -64,71 +60,6 @@ impl AtlasAppService {
     }
 }
 
-struct ObjectFields(Vec<(String, Box<RawValue>)>);
-
-impl<'de> Deserialize<'de> for ObjectFields {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct FieldsVisitor;
-
-        impl<'de> Visitor<'de> for FieldsVisitor {
-            type Value = ObjectFields;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a Pathbuilder source object")
-            }
-
-            fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
-                let mut fields = Vec::new();
-                while let Some(field) = map.next_entry()? {
-                    fields.push(field);
-                }
-                Ok(ObjectFields(fields))
-            }
-        }
-        deserializer.deserialize_map(FieldsVisitor)
-    }
-}
-
-fn source_fields(source: &str) -> AppServiceResult<Vec<ImportFieldView>> {
-    object_fields(source).map_err(|_| {
-        AppServiceError::invalid_request("Could not read the Pathbuilder import details.")
-    })
-}
-
-fn object_fields(source: &str) -> serde_json::Result<Vec<ImportFieldView>> {
-    serde_json::from_str::<ObjectFields>(source)?
-        .0
-        .into_iter()
-        .map(|(label, raw)| source_field(label, raw.get()))
-        .collect()
-}
-
-fn source_field(label: String, raw: &str) -> serde_json::Result<ImportFieldView> {
-    let (value, collection, children) = if raw.starts_with('{') {
-        (
-            None,
-            Some(ImportCollectionKind::Object),
-            object_fields(raw)?,
-        )
-    } else if raw.starts_with('[') {
-        let items = serde_json::from_str::<Vec<Box<RawValue>>>(raw)?;
-        let children = items
-            .into_iter()
-            .enumerate()
-            .map(|(index, item)| source_field(format!("Item {}", index + 1), item.get()))
-            .collect::<serde_json::Result<Vec<_>>>()?;
-        (None, Some(ImportCollectionKind::Array), children)
-    } else {
-        (Some(raw.to_owned()), None, Vec::new())
-    };
-    Ok(ImportFieldView {
-        label,
-        value,
-        collection,
-        children,
-    })
-}
-
 pub(crate) fn compare_imports(
     incoming_json: &str,
     incoming: &CharacterSheetView,
@@ -137,10 +68,12 @@ pub(crate) fn compare_imports(
     previous_reference: Option<&PcReference>,
 ) -> AppServiceResult<ImportChangesView> {
     let before = previous_json
-        .map(|raw| project_sheet(&read_sheet(raw)?, previous_reference, None))
+        .map(|raw| project_sheet(raw, previous_reference, None))
         .transpose()?;
     let mut sections = Vec::new();
     if let Some(before) = &before {
+        let incoming_name = &incoming.name;
+        let incoming_level = incoming.level;
         for (previous, incoming) in before.sections.iter().zip(&incoming.sections) {
             let label = match incoming.kind {
                 SheetSectionKind::Stats => "Stats",
@@ -148,8 +81,31 @@ pub(crate) fn compare_imports(
                 SheetSectionKind::Magic => "Magic",
                 SheetSectionKind::Inventory => "Inventory",
                 SheetSectionKind::Companions => "Companions",
+                SheetSectionKind::Proficiencies => "Proficiencies",
             };
-            insert_changes(&mut sections, label, compare_section(previous, incoming));
+            let mut changes = if incoming.kind == SheetSectionKind::Magic {
+                let expanded = |section: &SheetSectionView| {
+                    let mut section = section.clone();
+                    for group in &mut section.groups {
+                        group
+                            .rows
+                            .extend(magic::comparison_rows(&group.spell_ranks));
+                    }
+                    section
+                };
+                compare_section(&expanded(previous), &expanded(incoming))
+            } else {
+                compare_section(previous, incoming)
+            };
+            if incoming.kind == SheetSectionKind::Stats {
+                if &before.name != incoming_name {
+                    changes.changed.push("Imported name".into());
+                }
+                if before.level != incoming_level {
+                    changes.changed.push("Imported level".into());
+                }
+            }
+            insert_changes(&mut sections, label, changes);
         }
     }
     if let Some(previous) = previous_reference {
@@ -303,18 +259,8 @@ fn changed_source_fields(previous: &str, incoming: &str) -> AppServiceResult<Vec
     fn collect(fields: Vec<ImportFieldView>) -> BTreeMap<String, Vec<ImportFieldView>> {
         let mut by_label = BTreeMap::<String, Vec<ImportFieldView>>::new();
         for mut field in fields {
-            if field.label == "build" && field.collection == Some(ImportCollectionKind::Object) {
-                for mut child in field.children {
-                    canonicalize(&mut child);
-                    by_label
-                        .entry(format!("Build · {}", child.label))
-                        .or_default()
-                        .push(child);
-                }
-            } else {
-                canonicalize(&mut field);
-                by_label.entry(field.label.clone()).or_default().push(field);
-            }
+            canonicalize(&mut field);
+            by_label.entry(field.label.clone()).or_default().push(field);
         }
         by_label
     }
@@ -326,15 +272,36 @@ fn changed_source_fields(previous: &str, incoming: &str) -> AppServiceResult<Vec
             field.children.sort_by(|a, b| a.label.cmp(&b.label));
         }
     }
-    let mut previous = collect(source_fields(previous)?);
-    let incoming = collect(source_fields(incoming)?);
+    let previous = source_details(previous)?;
+    let incoming = source_details(incoming)?;
     let mut changed = Vec::new();
-    for (label, incoming) in incoming {
-        if previous.remove(&label).as_ref() != Some(&incoming) {
-            changed.push(label);
+    for (prefix, before, after) in [
+        ("", previous.build, incoming.build),
+        ("Export metadata · ", previous.metadata, incoming.metadata),
+    ] {
+        let mut previous = collect(before);
+        for (label, incoming) in collect(after) {
+            if previous.remove(&label).as_ref() != Some(&incoming) {
+                changed.push(format!("{prefix}{label}"));
+            }
         }
+        changed.extend(previous.into_keys().map(|label| format!("{prefix}{label}")));
     }
-    changed.extend(previous.into_keys());
     changed.sort();
     Ok(changed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn additional_changes_distinguish_scalar_types_and_source_locations() {
+        let prior = r#"{"success":true,"build":{"future":false,"moved":0}}"#;
+        let next = r#"{"success":true,"moved":0,"build":{"future":"false"}}"#;
+        assert_eq!(
+            changed_source_fields(prior, next).unwrap(),
+            ["Export metadata · moved", "future", "moved"],
+        );
+    }
 }

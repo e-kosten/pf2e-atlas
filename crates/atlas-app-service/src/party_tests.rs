@@ -408,6 +408,26 @@ fn pathbuilder_service() -> (tempfile::TempDir, crate::AtlasAppService) {
             spell("spells", "testspell0000001"),
             spell("sf-spells", "testspell0000002"),
             record(
+                "classes",
+                "Item",
+                json!({"_id":"testclass0000001","type":"class","name":"Wizard","system":{}}),
+            ),
+            record(
+                "feats",
+                "Item",
+                json!({"_id":"testfeat00000003","type":"feat","name":"Wizard","system":{}}),
+            ),
+            record(
+                "backgrounds",
+                "Item",
+                json!({"_id":"testbackgr000001","type":"background","name":"Scholar","system":{}}),
+            ),
+            record(
+                "backgrounds",
+                "Item",
+                json!({"_id":"testbackgr000002","type":"background","name":"Scholar","system":{}}),
+            ),
+            record(
                 "feats",
                 "Item",
                 json!({"_id":"testfeat00000001","type":"feat","name":"Prepared Counterspell","system":{}}),
@@ -1096,7 +1116,6 @@ fn saved_pathbuilder_sheet_preserves_full_source_and_reads_known_fields_independ
         .unwrap()
         .unwrap();
     assert_eq!((sheet.name.as_str(), sheet.level), ("Example wizard", 7));
-    assert_eq!(sheet.xp, Value(0));
     let Value(proficiencies) = sheet.proficiencies else {
         panic!("missing proficiencies")
     };
@@ -1318,14 +1337,20 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
     let (_directory, service) = pathbuilder_service();
     let source = json!({"success": true, "build": {
         "name": "Example wizard", "level": 7, "keyability": "int",
+        "xp": 300, "alignment": "CG",
+        "class": "Wizard", "background": "Scholar", "ancestry": "Custom ancestry",
         "languages": ["None selected", "Common"], "age": "Not set",
-        "abilities": {"str": 9, "con": 16, "int": 19},
+        "abilities": {"str": 9, "dex": 14, "con": 16, "int": 19},
         "attributes": {"ancestryhp": 8, "classhp": 6, "bonushp": 0, "bonushpPerLevel": 1},
         "acTotal": {"acTotal": 22, "shieldBonus": null},
-        "proficiencies": {"arcana": 4, "athletics": 0},
+        "proficiencies": {"arcana": 4, "athletics": 0, "classDC": 2, "computers": 0, "piloting": 0},
+        "lores": [["Academia", 2]],
         "mods": {"Arcana": {"Item Bonus": 1}},
         "equipment": [["Rope", 0, "a", "Not Invested"]],
-        "weapons": [{"name":"Dagger","attack":12,"die":"d4","damageType":"P"}],
+        "weapons": [{
+            "name":"Dagger","attack":12,"die":"d4","damageType":"P",
+            "qty":"two","extraDamage":[{"formula":"1d4","type":"fire","enabled":false}]
+        }],
         "equipmentContainers": {
             "a": {"containerName": "Backpack", "bagOfHolding": false},
             "b": {"containerName": "Backpack"}
@@ -1382,6 +1407,16 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
             .collect::<Vec<_>>()
     };
     let stats = rows(SheetSectionKind::Stats);
+    let identity_row = |label| stats.iter().find(|row| row.label == label).unwrap();
+    let class_help = identity_row("Class").summary_help.as_ref().unwrap();
+    let atlas_app_model::ReferenceDestinationView::Record { navigation } = &class_help.destination
+    else {
+        panic!("expected the exact class record");
+    };
+    assert_eq!(navigation.record_key, "classes:testclass0000001");
+    assert!(identity_row("Background").summary_help.is_none());
+    assert!(identity_row("Ancestry").summary_help.is_none());
+
     let fact = |label, fact| {
         stats
             .iter()
@@ -1415,11 +1450,35 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
         "Piercing"
     );
     assert_eq!(fact("Strength", "Modifier"), Some("-1"));
+    let skills = sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Stats)
+        .unwrap()
+        .groups
+        .iter()
+        .find(|group| group.kind == Some(atlas_app_model::SheetGroupKind::Skills))
+        .unwrap();
+    assert_eq!(skills.rows[0].label, "Academia Lore");
+    assert_eq!(skills.rows[1].label, "Acrobatics");
+    assert_eq!(
+        identity_row("Acrobatics").summary_value.as_deref(),
+        Some("+2")
+    );
+    assert_eq!(fact("Acrobatics", "Rank"), Some("Unavailable"));
+    assert_eq!(
+        identity_row("Athletics").summary_value.as_deref(),
+        Some("-1")
+    );
     assert_eq!(fact("Athletics", "Rank"), Some("Untrained"));
     assert_eq!(fact("Athletics", "Ability modifier"), Some("-1"));
     assert_eq!(fact("Athletics", "Proficiency"), None);
     assert_eq!(fact("Athletics", "Base modifier"), None);
-    assert!(!stats.iter().any(|row| row.label == "Age"));
+    assert!(
+        !stats
+            .iter()
+            .any(|row| matches!(row.label.as_str(), "Age" | "XP" | "Alignment"))
+    );
     assert_eq!(
         stats
             .iter()
@@ -1429,19 +1488,50 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
             .as_deref(),
         Some("Common")
     );
+    assert_eq!(identity_row("Arcana").summary_value.as_deref(), Some("+15"));
     assert_eq!(fact("Arcana", "Base modifier"), Some("+15"));
+    assert_eq!(fact("Arcana", "Ability modifier"), Some("+4"));
     assert_eq!(fact("Arcana", "Item Bonus"), Some("+1"));
     assert_eq!(fact("AC", "Shield bonus"), None);
+    let proficiencies = sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Proficiencies)
+        .unwrap()
+        .groups
+        .iter()
+        .find(|group| group.kind == Some(atlas_app_model::SheetGroupKind::Proficiencies))
+        .unwrap();
+    assert!(stats.iter().all(|row| row.label != "Class DC"));
+    assert_eq!(
+        proficiencies
+            .rows
+            .iter()
+            .map(|row| (row.label.as_str(), row.summary_value.as_deref()))
+            .collect::<Vec<_>>(),
+        [
+            ("Class DC", Some("Trained")),
+            ("Computers", Some("Untrained")),
+            ("Piloting", Some("Untrained")),
+        ],
+    );
     assert!(rows(SheetSectionKind::Progression).iter().any(|row| {
         row.label == "Test Heritage" && row.ability_key.as_deref() == Some(heritage.as_str())
     }));
-    assert_eq!(
-        rows(SheetSectionKind::Magic)
-            .iter()
-            .filter(|row| row.label == "Test Focus Spell")
-            .count(),
-        2
-    );
+    let magic = sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Magic)
+        .unwrap();
+    let prepared = magic
+        .groups
+        .iter()
+        .flat_map(|group| &group.spell_ranks)
+        .flat_map(|rank| &rank.prepared)
+        .find(|spell| spell.label == "Test Focus Spell")
+        .unwrap();
+    assert_eq!(prepared.count, 2);
+
     assert!(rows(SheetSectionKind::Inventory).iter().any(|row| {
         row.label == "Rope"
             && row
@@ -1458,10 +1548,30 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
             .find(|field| field.label == label)
             .unwrap()
     };
-    let future = field(details.fields, "future");
+    assert!(sheet.has_additional_details);
+    assert_eq!(
+        details
+            .fields
+            .iter()
+            .map(|field| field.label.as_str())
+            .collect::<Vec<_>>(),
+        ["weapons", "Export metadata"]
+    );
+    let weapons = field(details.fields.clone(), "weapons");
+    assert_eq!(weapons.children[0].label, "Dagger");
+    assert_eq!(
+        weapons.children[0]
+            .children
+            .iter()
+            .map(|field| field.label.as_str())
+            .collect::<Vec<_>>(),
+        ["extraDamage", "qty"],
+    );
+    let metadata = field(details.fields, "Export metadata");
+    let future = field(metadata.children, "future");
+    assert_eq!(future.children.len(), 2);
     assert_eq!(future.children[0].value.as_deref(), Some(precise));
-    assert_eq!(future.children[1].value.as_deref(), Some("null"));
-    assert_eq!(future.children[2].value.as_deref(), Some("false"));
+    assert_eq!(future.children[1].value.as_deref(), Some("false"));
     assert!(
         service
             .character_import_details(&saved.character_key, current.character_revision - 1)
@@ -1472,7 +1582,10 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
     next["build"]["equipment"][0][2] = json!("b");
     next["build"]["spellCasters"][0]["prepared"][0]["list"][1] = json!("Replacement");
     next["build"]["feats"].as_array_mut().unwrap().pop();
-    let incoming = full_source(&next, "9");
+    let weapon = next["build"]["weapons"][0].as_object_mut().unwrap();
+    weapon.remove("extraDamage");
+    weapon.remove("qty");
+    let incoming = next.to_string();
     let review = service
         .preview_pathbuilder_pc(&incoming, Some(&saved.character_key))
         .unwrap();
@@ -1497,8 +1610,14 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
     assert!(
         changes
             .additional_fields_changed
-            .contains(&"future".to_owned())
+            .contains(&"Export metadata · future".to_owned())
     );
+    assert!(
+        changes
+            .additional_fields_changed
+            .contains(&"weapons".to_owned())
+    );
+    assert!(!review.sheet.has_additional_details);
     let comparison = service
         .preview_import_details(
             &incoming,
@@ -1506,16 +1625,12 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
             review.character_revision,
         )
         .unwrap();
+    assert!(comparison.fields.is_empty());
+    let metadata = field(comparison.previous_fields.unwrap(), "Export metadata");
     assert_eq!(
-        field(comparison.fields, "future").children[0]
+        field(metadata.children, "future").children[0]
             .value
             .as_deref(),
-        Some("9")
-    );
-    assert_eq!(
-        field(comparison.previous_fields.unwrap(), "future").children[0]
-            .value
-            .as_deref(),
-        Some(precise)
+        Some(precise),
     );
 }

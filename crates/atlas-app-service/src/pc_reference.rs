@@ -20,8 +20,7 @@ impl AtlasAppService {
         character_key: Option<&str>,
     ) -> AppServiceResult<PathbuilderPreviewView> {
         let mut character = pathbuilder::preview(json)?;
-        let parsed = crate::pathbuilder_sheet::read_sheet(json)?;
-        let json = character_key.map(|_| json.to_owned());
+        let json = json.to_owned();
         let character_key = character_key.map(str::to_owned);
         self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
             let previous = character_key
@@ -48,15 +47,15 @@ impl AtlasAppService {
             preserve_choices(previous_reference.clone(), &mut character.reference);
             resolve(session.retrieval(), &mut character.reference)?;
             let sheet = crate::character_sheet::project_sheet(
-                &parsed,
+                &json,
                 Some(&character.reference),
                 Some(session.retrieval()),
             )?;
-            let changes = json
-                .as_deref()
-                .map(|json| {
+            let changes = character_key
+                .as_ref()
+                .map(|_| {
                     crate::character_sheet::compare_imports(
-                        json,
+                        &json,
                         &sheet,
                         &character.reference,
                         source.as_ref().map(|source| source.json()),
