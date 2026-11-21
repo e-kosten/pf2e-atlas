@@ -21,6 +21,17 @@ Frontend index SHA-256
 Fixture SHA-256
 `08988cd538640b946a1b548ebf331262d2ff662236fde966e4dfe2cea88ae64a`.
 
+The Ubuntu 24.04 x64 capture used Playwright 1.65.0 and the same frontend
+input and index. CI run 44946368739 built its fixture from synthetic merge
+`3793d6e8194acbd46ade6d22b0b2a97284ef8653`, with the same source tree as
+PR head `5e486b69e517f073ee77ca1608973d38e9d7d3ac`. The verified Linux
+fixture SHA-256 is
+`52ce09caa3f44897e0229916f475a39a9b5d0cd661c1af35526c5786b5f4b731`.
+All 12 capture scenarios passed. Seven phone Chromium and six phone WebKit
+references changed for the turn button and retained scroll position. The
+other 27 frames passed comparison with their previous references.
+[Ubuntu capture 44946739019](https://github.com/e-kosten/pf2e-atlas/actions/runs/44946739019)
+
 ## PC reference in the encounter inspector
 
 The condition workflows show the new View PC reference button in the encounter
