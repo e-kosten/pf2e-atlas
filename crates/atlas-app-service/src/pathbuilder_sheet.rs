@@ -1,5 +1,7 @@
 //! On-demand reads of facts supplied by a saved Pathbuilder export.
+use crate::character_context::facts::{FactSource, ToFact, object, present};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
+use atlas_app_model::ImportedFactValue;
 use serde::{Deserialize, Deserializer, de::DeserializeOwned};
 use serde_json::value::RawValue;
 use std::collections::BTreeMap;
@@ -79,6 +81,12 @@ macro_rules! export_object {
                 $(($key, <$ty as ExportShape>::SHAPE)),+
             ]);
         }
+
+        impl FactSource for $name {
+            fn fact_value(&self) -> ImportedFactValue {
+                object([$( (stringify!($field), self.$field.to_fact()) ),+])
+            }
+        }
     };
 }
 
@@ -110,6 +118,8 @@ macro_rules! export_build {
         pub struct PathbuilderSheet {
             pub name: String,
             pub level: i64,
+            pub xp: ImportedField<i64>,
+            pub alignment: ImportedField<String>,
             $(pub $field: $ty),+
         }
 
@@ -132,8 +142,22 @@ macro_rules! export_build {
                 Some(Self {
                     name,
                     level,
+                    xp: read_build_field(build, "xp"),
+                    alignment: read_build_field(build, "alignment"),
                     $($field: read_build_field(build, $key)),+
                 })
+            }
+        }
+
+        impl FactSource for PathbuilderSheet {
+            fn fact_value(&self) -> ImportedFactValue {
+                object([
+                    ("name", present(self.name.fact_value())),
+                    ("level", present(self.level.fact_value())),
+                    ("xp", self.xp.to_fact()),
+                    ("alignment", self.alignment.to_fact()),
+                    $( (stringify!($field), self.$field.to_fact()) ),+
+                ])
             }
         }
     };

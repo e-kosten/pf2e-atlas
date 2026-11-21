@@ -101,7 +101,7 @@ fn member_inputs(
         })
         .collect()
 }
-fn party_view(party: atlas_local_state::Party) -> PartyView {
+pub(crate) fn party_view(party: atlas_local_state::Party) -> PartyView {
     PartyView {
         party_key: party.party_key,
         name: party.name,

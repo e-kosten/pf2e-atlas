@@ -62,11 +62,12 @@ For a CLI-only install, see [installation without the web UI](docs/installation.
 
 ```bash
 atlas search "low level healing spell" --kind spell --limit 5
+atlas parties list --json
 atlas agent skills install
 ```
 
 The skill installer lets you choose your agent and installation scope.
-See [CLI examples](docs/cli-examples.md) for lookup, filters, lists and JSON,
+See [CLI examples](docs/cli-examples.md) for lookup, filters, characters, parties, lists and JSON,
 and [agent skill installation](docs/installation.md#agent-skill) for updates and automation.
 
 ## Documentation

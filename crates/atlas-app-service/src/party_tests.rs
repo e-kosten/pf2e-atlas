@@ -4,6 +4,9 @@ use atlas_runtime::{
 };
 use std::path::Path;
 
+#[path = "character_context_tests.rs"]
+mod context_tests;
+
 fn service() -> (tempfile::TempDir, crate::AtlasAppService) {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("workspace.sqlite");

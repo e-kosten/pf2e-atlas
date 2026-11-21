@@ -228,6 +228,138 @@ Reference updates keep lists and encounters. If an entry disappears from the
 reference content, the list keeps its saved name and details and marks it
 unavailable.
 
+### Characters and party loadouts
+
+Find your saved party and inspect its actual equipment and build context:
+
+```bash
+atlas parties list --json
+atlas parties show "Example party" --json
+atlas characters list --json
+atlas characters show "Mira" --section equipment --section money --json
+atlas parties context "Example party" --section equipment --section spellcasting --section proficiencies --json
+```
+
+Replace the example names with your party and character names. Read commands
+accept an exact unique name or the returned stable key; ambiguous names return
+candidates. Use stable keys for edits.
+
+`characters show` returns all interpreted details by default. Select identity,
+statistics, proficiencies, character-options, abilities, spellcasting, equipment,
+money, crafting or companions with repeated `--section` options. Focused text
+output shows the selected fields; JSON retains their values and availability.
+`parties context` uses the same selectors and reads the ordered roster and each
+member's details together.
+
+`data.character` contains the current name, optional level and revision;
+`imported_identity` identifies the last imported build. Changing a canonical level
+does not update the statistics in an older export. `source_state` distinguishes
+an available complete export, an older rules-only import (`reference_only`), and
+a manual PC (`no_import`). Re-import rules-only PCs to obtain their loadouts.
+
+The machine fields under `sections.SECTION.fields` use `state` values `value`,
+`missing`, `null` and `unrecognized`. Read `value` only when its state is `value`.
+Zero, false and an empty list are supplied values. Lists retain their original
+entries, including repeated gear or prepared spells. Equipment keeps quantities,
+container IDs, customization and exported investment strings; `record_links`
+provides unique automatic base-item matches where available.
+
+For loot planning, read equipment with money, proficiencies and casting. Resolve
+uncertain names, inspect candidate item rules, and save recommendations with
+their reasons in a saved list. Use the player's current budget and confirm any
+facts absent from the export before treating a recommendation as an upgrade.
+
+#### Review and correct ability links
+
+Find abilities needing attention, then read the intended rule before linking it:
+
+```bash
+atlas characters show CHARACTER_KEY --section abilities --needs-review --json
+atlas record resolve 'ABILITY NAME' --json
+atlas record get PACK:ID --json
+```
+
+Copy the stable ability key and character revision from the character read, and
+the artifact generation from the inspected record. Replace the uppercase
+placeholders below with those returned values:
+
+```bash
+atlas characters link CHARACTER_KEY --ability ABILITY_KEY --record PACK:ID --expected-revision REVISION --expected-generation GENERATION --json
+atlas characters show CHARACTER_KEY --section abilities --json
+```
+
+Ability entries expose `link_state`: automatic, manual, unlinked, ambiguous or
+unavailable. A missing linked rule differs from having no link. A manual correction
+can resolve an ambiguous automatic match. `--ability-kind` and `--query` also
+filter the sole abilities section. Restore an available automatic match with
+`characters link CHARACTER_KEY --ability ABILITY_KEY --automatic --expected-revision REVISION`.
+
+#### Review an import before saving it
+
+Export JSON from Pathbuilder, save it to a file, then preview it:
+
+```bash
+atlas characters preview character.json --json
+```
+
+Inspect `proposed`, then copy `source_sha256` and `artifact_generation` into the
+save command. Choose a unique action ID so an identical retry returns the
+original creation outcome:
+
+```bash
+atlas characters import character.json --request-id IMPORT_ID --expected-source-sha256 SHA256 --expected-generation GENERATION --json
+```
+
+To review a replacement for an existing character, use its key:
+
+```bash
+atlas characters preview character.json --character CHARACTER_KEY --json
+```
+
+This preview includes the current revision/context and import `changes`, including
+retained and removed ability corrections. Refresh replaces the canonical name and
+level, complete source and rule reference. After review, use its returned guards:
+
+```bash
+atlas characters refresh CHARACTER_KEY character.json --expected-revision REVISION --expected-source-sha256 SHA256 --expected-generation GENERATION --json
+```
+
+A changed file or stale revision/generation requires another review. `-` reads
+UTF-8 export text from stdin, up to 512 KiB. `--rule-link ABILITY_KEY=PACK:ID` on
+import/refresh applies reviewed ability choices. Refresh is revision guarded;
+creation replay receipts do not make refresh automatically retryable.
+
+Read or export the original text explicitly, including custom fields:
+
+```bash
+atlas characters show CHARACTER_KEY --section source --json
+atlas characters show CHARACTER_KEY --section source --output original-character.json
+```
+
+The output file must be new and preserves the original accepted bytes. Original
+exports can contain player biography and custom data; default context includes
+interpreted fields rather than that original text.
+
+#### Edit a reusable roster
+
+Use the reviewed party revision and each selected character revision. `--member`
+takes `CHARACTER_KEY=REVISION` and can be repeated:
+
+```bash
+atlas parties create "Example party" --json
+atlas characters create "Bran" --level 7 --request-id CREATE_ID --json
+atlas parties add PARTY_KEY --member CHARACTER_KEY=CHARACTER_REVISION --expected-revision PARTY_REVISION --json
+atlas parties set-level PARTY_KEY --member CHARACTER_KEY=CHARACTER_REVISION --level 8 --expected-revision PARTY_REVISION --json
+```
+
+Reread the affected roster after each edit to obtain its new revisions. `reorder`
+supplies every member once, in the desired order. `remove --character KEY`
+removes a membership. `set-level --clear` clears selected canonical levels.
+`characters edit` changes a saved name/level; `parties edit` renames a party.
+Shared character edits appear in all their rosters. Removing a membership or
+deleting a party preserves characters; character deletion detaches encounter
+rule references while preserving participant names, levels and combat state.
+
 ### Encounters
 
 Create an encounter, add opponents, and inspect the roster and suggested award:
@@ -247,6 +379,23 @@ Use `encounters delete garden-sentries` to delete the saved encounter.
 The party options preview difficulty and suggested XP per PC for the supplied
 party without saving those options to the encounter. Omit them to use the
 encounter's saved difficulty reference. Pass `--json` for structured output.
+
+To plan against your saved party, copy the party revision and every member's
+key/revision from `parties show`, and the encounter revision from `encounters show`:
+
+```bash
+atlas encounters add-party garden-sentries --party PARTY_KEY --expected-party-revision PARTY_REVISION --expected-revision ENCOUNTER_REVISION --member CHARACTER_KEY=CHARACTER_REVISION --request-id ADD_ID --json
+atlas encounters show garden-sentries --json
+```
+
+Repeat `--member` for the entire reviewed roster in order. Add one saved PC with
+`encounters add-character ENCOUNTER --character CHARACTER_KEY --expected-character-revision
+CHARACTER_REVISION --expected-revision ENCOUNTER_REVISION --request-id ADD_ID`.
+PC additions copy reviewed names/levels and associate live rules; imported sheet
+HP, AC and resources are not automatically applied to encounter combat state.
+Difficulty then uses the actual encounter roster, including mixed or unknown
+levels. For an identical retry, keep the same request ID and all original input
+values, even if revisions have since changed. A new intent needs a new ID.
 
 #### Move a saved encounter
 

@@ -24,7 +24,9 @@ pub(crate) mod args;
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
 #[command(version)]
-#[command(about = "Search and read Pathfinder 2e references, manage saved lists, and roll dice")]
+#[command(
+    about = "Search Pathfinder 2e references and manage characters, parties, lists and encounters"
+)]
 #[command(
     after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e"
 )]
@@ -80,6 +82,10 @@ pub(crate) enum Command {
     Lists(ListsArgs),
     #[command(about = "Manage saved encounters")]
     Encounters(commands::encounters::EncountersArgs),
+    #[command(about = "Read character builds, equipment and rule links; manage saved PCs")]
+    Characters(commands::characters::args::CharactersArgs),
+    #[command(about = "Manage party rosters and read actual party planning context")]
+    Parties(commands::parties::PartiesArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
     Agent(AgentArgs),
     #[command(about = "Generate shell completion scripts")]
@@ -181,6 +187,8 @@ impl Command {
                 FiltersCommand::Values(options) => options.json,
             },
             Self::Encounters(options) => options.json,
+            Self::Characters(options) => options.workspace.json,
+            Self::Parties(options) => options.workspace.json,
             Self::Lists(lists) => match &lists.command {
                 ListsCommand::Create(options) => options.json,
                 ListsCommand::Ls(options) => options.json,
@@ -243,6 +251,8 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             }
         },
         Command::Encounters(options) => commands::encounters::run(options),
+        Command::Characters(options) => commands::characters::run(options),
+        Command::Parties(options) => commands::parties::run(options),
         Command::Lists(lists) => match lists.command {
             ListsCommand::Create(options) => commands::lists::run_lists_create(options),
             ListsCommand::Ls(options) => commands::lists::run_lists_ls(options),

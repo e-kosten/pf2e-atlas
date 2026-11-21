@@ -1,4 +1,13 @@
 use serde::Serialize;
+use std::io::{self, Write};
+
+fn write_body(body: &str) -> Result<(), String> {
+    match writeln!(io::stdout().lock(), "{body}") {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
 
 #[derive(Debug, Serialize)]
 struct DataEnvelope<T>
@@ -27,8 +36,7 @@ pub enum JsonStatus {
 pub fn write_json_response<T: Serialize>(status: JsonStatus, data: T) -> Result<(), String> {
     let body = serde_json::to_string_pretty(&DataEnvelope { status, data })
         .map_err(|error| error.to_string())?;
-    println!("{body}");
-    Ok(())
+    write_body(&body)
 }
 
 /// Preserve the caller's typed error, including structured details and recovery hints.
@@ -43,8 +51,7 @@ pub fn write_json_failure<T: Serialize>(error: T) -> Result<(), String> {
         error,
     })
     .map_err(|error| error.to_string())?;
-    println!("{body}");
-    Ok(())
+    write_body(&body)
 }
 
 pub fn write_json_data<T>(data: T) -> Result<(), String>

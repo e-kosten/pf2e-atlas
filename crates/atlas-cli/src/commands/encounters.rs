@@ -1,14 +1,14 @@
 use super::product::{app_result, report_app_error};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
-    AddEncounterRecordParticipantRequest, CreateEncounterRequest, EncounterDetailView,
+    AddEncounterCharacterRequest, AddEncounterPartyRequest, AddEncounterRecordParticipantRequest,
+    CharacterRevision, CreateEncounterRequest, EncounterCharacterSource, EncounterDetailView,
     EncounterParticipantVariantView, PreviewEncounterDifficultyRequest,
 };
 use atlas_cli_support::{CliPathMode, write_json_data};
 use clap::{ArgGroup, Args, Subcommand, ValueEnum};
 use std::{
     fs::File,
-    io::{self, Write},
     path::{Path, PathBuf},
     process::ExitCode,
 };
@@ -27,6 +27,36 @@ pub(crate) struct EncountersArgs {
 
 #[derive(Debug, Subcommand)]
 enum EncounterCommand {
+    /// Add a saved character using the reviewed encounter and character revisions.
+    AddCharacter {
+        encounter: String,
+        #[arg(long, add = clap_complete::ArgValueCompleter::new(crate::commands::completions::character_keys))]
+        character: String,
+        #[arg(long)]
+        expected_revision: i64,
+        #[arg(long)]
+        expected_character_revision: i64,
+        #[arg(long)]
+        request_id: String,
+    },
+    /// Add the entire reviewed party in its saved order; reuse the request id on identical retries.
+    AddParty {
+        encounter: String,
+        #[arg(long, add = clap_complete::ArgValueCompleter::new(crate::commands::completions::party_keys))]
+        party: String,
+        #[arg(long)]
+        expected_revision: i64,
+        #[arg(long)]
+        expected_party_revision: i64,
+        #[arg(
+            long = "member",
+            required = true,
+            help = "Reviewed CHARACTER_KEY=REVISION; repeat for every party member in order"
+        )]
+        members: Vec<super::saved_workspace::ReviewedMember>,
+        #[arg(long)]
+        request_id: String,
+    },
     #[command(alias = "ls", about = "List saved encounters")]
     List,
     #[command(about = "Show the roster, difficulty, and suggested XP award")]
@@ -134,6 +164,69 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
         };
     }
     match args.command {
+        EncounterCommand::AddCharacter {
+            encounter,
+            character,
+            expected_revision,
+            expected_character_revision,
+            request_id,
+        } => {
+            let view = view!(service.add_encounter_character(
+                &encounter,
+                AddEncounterCharacterRequest {
+                    request_id,
+                    expected_encounter_revision: expected_revision,
+                    source: EncounterCharacterSource::Existing {
+                        character_key: character,
+                        expected_character_revision
+                    },
+                    party: None,
+                }
+            ));
+            if json {
+                write_json_data(&view)?;
+            } else {
+                super::saved_workspace::write_text(&format!(
+                    "Encounter {}\nParticipant {}\nCharacter {}\n",
+                    view.encounter_key, view.participant_key, view.character_key
+                ))?;
+            }
+        }
+        EncounterCommand::AddParty {
+            encounter,
+            party,
+            expected_revision,
+            expected_party_revision,
+            members,
+            request_id,
+        } => {
+            let view = view!(
+                service.add_encounter_party(
+                    &encounter,
+                    AddEncounterPartyRequest {
+                        request_id,
+                        expected_encounter_revision: expected_revision,
+                        party_key: party,
+                        expected_revision: expected_party_revision,
+                        characters: members
+                            .into_iter()
+                            .map(|m| CharacterRevision {
+                                character_key: m.0.character_key,
+                                expected_revision: m.0.expected_character_revision
+                            })
+                            .collect(),
+                    }
+                )
+            );
+            if json {
+                write_json_data(&view)?;
+            } else {
+                super::saved_workspace::write_text(&format!(
+                    "Added reviewed party to {}\n",
+                    view.encounter_key
+                ))?;
+            }
+        }
         EncounterCommand::List => {
             let view = view!(service.encounters());
             if json {
@@ -330,22 +423,8 @@ fn print_detail(view: &EncounterDetailView) {
 }
 
 fn write_document(output: Option<&Path>, bytes: &[u8]) -> Result<(), String> {
-    let Some(output) = output else {
-        return io::stdout()
-            .lock()
-            .write_all(bytes)
-            .map_err(|err| err.to_string());
-    };
-    let parent = output
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
-    let write = || -> io::Result<()> {
-        let mut staged = tempfile::NamedTempFile::new_in(parent)?;
-        staged.write_all(bytes)?;
-        staged.as_file().sync_all()?;
-        staged.persist_noclobber(output).map_err(|err| err.error)?;
-        Ok(())
-    };
-    write().map_err(|err| format!("{}: {err}", output.display()))
+    match output {
+        Some(path) => super::saved_workspace::write_new_file(path, bytes),
+        None => super::saved_workspace::write_bytes(bytes),
+    }
 }

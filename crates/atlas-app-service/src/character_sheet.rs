@@ -20,6 +20,60 @@ use std::{collections::HashMap, fmt::Display};
 
 pub(super) use details::compare_imports;
 
+/// The same sheet presenters, selected by semantic category rather than visible labels.
+pub(crate) fn context_groups(
+    sheet: &PathbuilderSheet,
+    reference: Option<&PcReference>,
+    retrieval: Option<&AtlasRetrievalService>,
+    selected: &[atlas_app_model::CharacterSection],
+) -> AppServiceResult<
+    std::collections::BTreeMap<atlas_app_model::CharacterSection, Vec<SheetGroupView>>,
+> {
+    use atlas_app_model::CharacterSection as S;
+    let mut result: std::collections::BTreeMap<_, Vec<_>> = std::collections::BTreeMap::new();
+    let keys: AbilityKeys = reference
+        .into_iter()
+        .flat_map(|r| &r.abilities)
+        .map(|a| {
+            (
+                ability_identity(a.kind, &a.label, a.choice.as_deref()),
+                a.key.as_str(),
+            )
+        })
+        .collect();
+    if selected
+        .iter()
+        .any(|s| matches!(s, S::Identity | S::Statistics))
+    {
+        for (section, group) in stats::categorized(sheet, retrieval)? {
+            if selected.contains(&section) {
+                result.entry(section).or_default().push(group);
+            }
+        }
+    }
+    if selected
+        .iter()
+        .any(|s| matches!(s, S::Equipment | S::Money | S::Crafting))
+    {
+        for (section, group) in inventory::categorized(sheet, retrieval)? {
+            if selected.contains(&section) {
+                result.entry(section).or_default().push(group);
+            }
+        }
+    }
+    for section in selected {
+        let groups = match section {
+            S::Proficiencies => stats::proficiencies(sheet),
+            S::CharacterOptions => progression::groups(sheet, &keys),
+            S::Spellcasting => magic::groups(sheet, &keys),
+            S::Companions => companions(sheet),
+            _ => continue,
+        };
+        result.insert(*section, groups);
+    }
+    Ok(result)
+}
+
 impl AtlasAppService {
     pub fn character_sheet(&self, key: &str) -> AppServiceResult<CharacterSheetResponse> {
         let key = key.to_owned();

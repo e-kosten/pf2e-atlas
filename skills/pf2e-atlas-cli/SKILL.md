@@ -1,6 +1,6 @@
 ---
 name: pf2e-atlas-cli
-description: Answer Pathfinder 2e reference questions using the local Atlas CLI, with strict identity lookup, source-attributed search, typed filters, trait definitions, graph context, saved lists, encounter prep and dice rolls.
+description: Answer Pathfinder 2e questions and plan for saved parties using the local Atlas CLI, with character builds and equipment, rule-link corrections, source-attributed search, saved lists, encounters and dice rolls.
 ---
 
 Use `atlas` for PF2e questions. It reads a local artifact built from the Foundry
@@ -8,8 +8,9 @@ PF2e source. Product reads work without the original source clone. Run
 `atlas --help` and subcommand help when the installed version's surface is unclear.
 Use the caller's workspace (`--index PATH`) consistently across related commands;
 otherwise Atlas uses its global workspace. In a checkout, use `--path-mode repo`
-only when the caller intends its local workspace. Use `atlas web` to run
-encounters and manage reusable parties.
+only when the caller intends its local workspace. Use `atlas characters` and
+`atlas parties` for saved PC management and party planning context; `atlas web`
+provides interactive encounter play.
 
 ## Installing Atlas
 
@@ -416,6 +417,95 @@ Lists share the persistent workspace with reference data. A missing record keeps
 its saved snapshot and explicit unresolved status after a reference update. Use
 the list commands to change saved state; source updates preserve it.
 
+## Character and actual-party context
+
+Discover saved identities, then read the sections relevant to the task:
+
+```sh
+atlas characters list --json
+atlas parties list --json
+atlas parties show PARTY_KEY --json
+atlas characters show CHARACTER_KEY --section equipment --section money --json
+atlas characters show CHARACTER_KEY --section spellcasting --section proficiencies --json
+atlas parties context PARTY_KEY --section equipment --section money --section proficiencies --json
+```
+
+`characters show` is the single character-detail read. Repeat `--section` to
+combine identity, statistics, proficiencies, character-options, abilities,
+spellcasting, equipment, money, crafting and companions. With no selector it
+returns all interpreted sections. Reads accept a stable key or exact unique
+name; ambiguous names return candidates. Mutations require stable keys.
+
+Read `data.character` for current canonical metadata/revision and
+`data.imported_identity` for the export's name/level. `source_state` distinguishes
+`available`, `reference_only` (re-import required for sheet/loadout), and
+`no_import`. Selected sections are explicit; omitted sections are not missing
+facts. `sections.SECTION.fields` contains typed `state: value` facts with a
+`value`, or `missing`, `null`, `unrecognized` without a value. Check each level,
+including list entries. Preserve zero, false, known-empty lists, duplicate gear,
+prepared spell occurrences, container IDs and source investment strings. Shared
+sheet summaries may derive numbers from the imported build; these are separate
+from source facts and current encounter state. Metadata edits do not recalculate
+an older imported build.
+
+Equipment `record_links` are unique automatic base-item matches. Read their
+records before judging an upgrade; custom display names, runes and materials
+remain source facts. Look up uncertain names with `record resolve`, `search`
+and `record get`. Do not infer an empty inventory or suitability from unavailable
+facts. For loot planning, combine equipment with money, proficiencies and casting,
+ask for missing budget/current-play context when needed, then save recommendations
+and reasons in an existing or requested saved list. Recommendations do not equip,
+purchase or award items.
+
+Repair an ability by reading its current revision and stable ability key:
+
+```sh
+atlas characters show CHARACTER_KEY --section abilities --needs-review --json
+atlas record resolve 'ABILITY NAME' --json
+atlas record get PACK:ID --json
+atlas characters link CHARACTER_KEY --ability ABILITY_KEY --record PACK:ID --expected-revision REVISION --expected-generation GENERATION --json
+```
+
+Use the generation from the inspected record and current character revision.
+`sections.abilities.entries` contains the existing link facts and `link_state`:
+automatic, manual, unlinked, ambiguous or unavailable. A valid manual link may
+retain automatic ambiguity and should not be treated as unresolved. `--needs-review`,
+`--ability-kind` and `--query` require only `--section abilities`. To restore an
+available automatic match, use `characters link ... --automatic --expected-revision
+REVISION`. No equipment-link correction store is implied.
+
+Preview a player's export before saving:
+
+```sh
+atlas characters preview character.json --json
+atlas characters import character.json --request-id IMPORT_ID --expected-source-sha256 SHA256 --expected-generation GENERATION --json
+atlas characters preview character.json --character CHARACTER_KEY --json
+atlas characters refresh CHARACTER_KEY character.json --expected-revision REVISION --expected-source-sha256 SHA256 --expected-generation GENERATION --json
+```
+
+Take SHA256/generation/revision from preview, inspect `proposed` and any `current`
+context plus `changes`, then save the same input. `-` accepts bounded UTF-8 stdin.
+Refresh replaces canonical name/level, complete source and rule references; retained
+manual corrections follow the existing ability identities. A changed file,
+generation or revision requires a fresh review. Refresh is revision guarded and
+has no automatic replay promise. New character creation/import and encounter PC
+addition use explicit request IDs: replay only the identical original intent,
+including its original guards; never substitute newer values into a retry.
+
+Party management provides create, edit, delete, add, remove, reorder and set-level.
+`--member CHARACTER_KEY=REVISION` is repeatable for reviewed membership/order/level
+inputs. Existing-party edits require `--expected-revision`. Reorder supplies every
+member once; set-level selects only the members to change. Canonical level edits
+affect every party sharing that character. Removing a membership or deleting a
+party preserves characters. Character deletion detaches encounter rule references
+while preserving encounter combat snapshots. Inspect subcommand help for exact
+arguments before a saved-state write.
+
+Original source is opt-in with `characters show CHARACTER_KEY --section source
+--json`. `--output NEW_FILE` with only this section writes the exact original
+export to a new file. It can include biography/custom player fields; ordinary
+context does not return it.
+
 ## Encounter prep
 
 Use `encounters list` to find an encounter slug and `encounters show` to read
@@ -425,6 +515,7 @@ requests a saved-state change:
 ```sh
 atlas encounters list --json
 atlas encounters create "Garden Sentries" --json
+atlas encounters add-party garden-sentries --party PARTY_KEY --expected-party-revision PARTY_REVISION --expected-revision ENCOUNTER_REVISION --member CHARACTER_KEY=CHARACTER_REVISION --request-id ADD_ID --json
 atlas encounters add garden-sentries --record PACK:ID --quantity 2 --adjustment weak --json
 atlas encounters show garden-sentries --party-level 7 --party-size 4 --json
 atlas encounters export garden-sentries --output garden-sentries.json
@@ -436,6 +527,17 @@ participant entry. `--adjustment` accepts `normal`, `elite` or `weak` for
 creatures. Omission uses the creature's known adjustment, defaulting to Normal
 when unavailable. Eligible Elite and Weak additions get that prefix in the
 participant name.
+
+For actual-party planning, first read `parties show/context`, then supply every
+member's key/revision to `encounters add-party` in the reviewed order. The example
+shows one member; repeat `--member` for the whole roster. For one saved PC use
+`encounters add-character ENCOUNTER --character CHARACTER_KEY --expected-character-revision
+CHARACTER_REVISION --expected-revision ENCOUNTER_REVISION --request-id ADD_ID`.
+These additions preserve reviewed name/level snapshots and live character rule
+references, not automatic sheet HP/AC/resource imports. Then add opposition and
+use `encounters show` without numeric party overrides to inspect actual roster
+difficulty, including mixed/unknown levels. Conflicts require review; identical
+request retries preserve the original member/order/revision inputs.
 
 Read `data.difficulty.rating`, `total_xp`, `budgets`, `opposition` and
 `xp_per_pc`. Report opposition XP separately from the suggested award per PC.
