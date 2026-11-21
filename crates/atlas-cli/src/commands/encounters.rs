@@ -140,22 +140,12 @@ enum Adjustment {
 
 pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
     let json = args.json;
-    let retrieval_mode = if matches!(
-        &args.command,
-        EncounterCommand::Add { .. }
-            | EncounterCommand::Export { .. }
-            | EncounterCommand::Import { .. }
-    ) {
-        atlas_app_service::AppServiceRetrievalMode::OnDemandSavedWorkspace
-    } else {
-        atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference
-    };
     let service = match connect(ClientOptions {
         search_profile: None,
         path_mode: crate::cli::runtime_path_mode(args.path_mode),
         index: args.index,
         embedding_cache: None,
-        retrieval_mode,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
         Ok(service) => service,
         Err(error) => return report_app_error(error, json),

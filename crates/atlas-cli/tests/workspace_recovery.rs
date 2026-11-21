@@ -499,7 +499,7 @@ fn sample_app(db: &Path) -> atlas_app_service::AtlasAppService {
         source_root: None,
         embedding_cache_root: None,
         index_path: Some(db.to_owned()),
-        retrieval_mode: AppServiceRetrievalMode::OnDemandSavedWorkspace,
+        retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
     })
     .unwrap()
 }

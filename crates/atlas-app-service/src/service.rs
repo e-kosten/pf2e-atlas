@@ -32,8 +32,6 @@ pub enum AppServiceRetrievalMode {
     OnDemandEmbeddings,
     /// Open bounded command reads, including stored vectors, without query inference.
     OnDemandNoQueryInference,
-    /// Admit saved data and existing exact projections without running search backfills.
-    OnDemandSavedWorkspace,
 }
 
 impl AtlasAppService {
@@ -48,8 +46,7 @@ impl AtlasAppService {
             AppServiceRetrievalMode::OnDemandEmbeddings => {
                 RetrievalBackend::command(CommandRetrievalMode::QueryEmbeddings)
             }
-            AppServiceRetrievalMode::OnDemandNoQueryInference
-            | AppServiceRetrievalMode::OnDemandSavedWorkspace => {
+            AppServiceRetrievalMode::OnDemandNoQueryInference => {
                 RetrievalBackend::command(CommandRetrievalMode::NoQueryInference)
             }
         };

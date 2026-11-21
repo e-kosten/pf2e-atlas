@@ -114,7 +114,7 @@ pub(crate) fn run(args: PartiesArgs) -> Result<ExitCode, String> {
     } else {
         None
     };
-    let service = match args.workspace.connect(false) {
+    let service = match args.workspace.connect() {
         Ok(s) => s,
         Err(e) => return super::product::report_app_error(e, json),
     };

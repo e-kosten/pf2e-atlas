@@ -15,27 +15,12 @@ use std::{
 pub(crate) mod args;
 use args::*;
 fn client(paths: ListsPathOptions) -> Result<AtlasAppService, atlas_app_model::AppError> {
-    connect_lists(
-        paths,
-        atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
-    )
-}
-fn saved_client(paths: ListsPathOptions) -> Result<AtlasAppService, atlas_app_model::AppError> {
-    connect_lists(
-        paths,
-        atlas_app_service::AppServiceRetrievalMode::OnDemandSavedWorkspace,
-    )
-}
-fn connect_lists(
-    paths: ListsPathOptions,
-    retrieval_mode: atlas_app_service::AppServiceRetrievalMode,
-) -> Result<AtlasAppService, atlas_app_model::AppError> {
     connect(ClientOptions {
         search_profile: None,
         path_mode: crate::cli::runtime_path_mode(paths.path_mode),
         index: paths.index,
         embedding_cache: None,
-        retrieval_mode,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     })
 }
 pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String> {
@@ -142,7 +127,7 @@ fn emit_batch(
 }
 
 pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
-    let s = match saved_client(o.paths) {
+    let s = match client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
@@ -153,15 +138,7 @@ pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
 }
 pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
     let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
-    let connect = if sort
-        .as_ref()
-        .is_some_and(atlas_domain::ResultSort::is_record_order)
-    {
-        client
-    } else {
-        saved_client
-    };
-    let s = match connect(o.paths) {
+    let s = match client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
@@ -260,13 +237,7 @@ pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
     if o.record_refs.is_empty() {
         return Err("provide record references or --stdin".into());
     }
-    let connect = if matches!(o.record_refs.as_slice(), [key] if atlas_domain::RecordKey::parse(key).is_ok())
-    {
-        saved_client
-    } else {
-        client
-    };
-    let s = match connect(o.paths) {
+    let s = match client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
@@ -347,7 +318,7 @@ pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
     )
 }
 pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String> {
-    let s = match saved_client(o.paths) {
+    let s = match client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, false),
     };
@@ -370,7 +341,7 @@ pub(crate) fn run_lists_import(o: ListImportOptions) -> Result<ExitCode, String>
     if let Err(error) = document.validate_format() {
         return super::product::report_app_error(error, o.json);
     }
-    let s = match saved_client(o.paths) {
+    let s = match client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };

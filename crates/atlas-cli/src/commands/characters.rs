@@ -21,14 +21,7 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
         CharacterCommand::Preview { selection, .. } => Some(selection.request()?),
         _ => None,
     };
-    let catalog = matches!(
-        args.command,
-        CharacterCommand::Preview { .. }
-            | CharacterCommand::Import(_)
-            | CharacterCommand::Refresh { .. }
-            | CharacterCommand::Link(_)
-    );
-    let service = match args.workspace.connect(catalog) {
+    let service = match args.workspace.connect() {
         Ok(s) => s,
         Err(e) => return super::product::report_app_error(e, json),
     };

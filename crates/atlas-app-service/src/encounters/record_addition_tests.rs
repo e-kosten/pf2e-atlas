@@ -95,7 +95,7 @@ fn record_addition_replays_one_batch_through_concurrency_removal_and_exchange() 
     atlas_runtime::initialize_workspace(&target).unwrap();
     let restored = crate::AtlasAppService::start(crate::AtlasAppServiceOptions {
         index_path: Some(target),
-        retrieval_mode: crate::AppServiceRetrievalMode::OnDemandSavedWorkspace,
+        retrieval_mode: crate::AppServiceRetrievalMode::OnDemandNoQueryInference,
         ..Default::default()
     })
     .unwrap();
