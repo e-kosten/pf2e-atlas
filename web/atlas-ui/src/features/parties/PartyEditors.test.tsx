@@ -146,6 +146,7 @@ it.each(["-", "1."])(
       await screen.findByRole("dialog", { name: "Set character levels" }),
     );
     const level = dialog.getByRole("spinbutton", { name: "New level" });
+    await waitFor(() => expect(level).toHaveFocus());
     fireEvent.keyDown(level, { key: text.slice(-1) });
     fireEvent.change(level, { target: { value: text } });
     fireEvent.keyUp(level, { key: text.slice(-1) });
