@@ -37,8 +37,11 @@ Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/night
 Follow the installer's PATH instructions, then run `atlas --version` and
 `atlas setup --check --json`. If setup is needed, choose normal semantic search
 (`atlas setup`) or a faster lexical-only start (`atlas setup --no-embeddings`)
-with the user before starting downloads and indexing. A first semantic build can
-take hours; installing the skill does not authorize that work by itself.
+with the user before starting downloads and indexing. Standard English setup
+downloads precomputed corpus embeddings and missing query model weights. If the
+precomputed data is unavailable, retry setup or discuss
+`atlas setup --build-embeddings-locally`; local generation can take hours.
+Installing the skill does not authorize downloads or local generation by itself.
 For stable releases, supported platforms and manual archive installation, see
 [the installation guide](https://github.com/e-kosten/pf2e-atlas#quick-start).
 
@@ -87,6 +90,19 @@ does not require model weights. Search responses report the resolved profile and
 complete artifact generation. These operational choices do not establish a
 quality winner between models.
 
+For requested maintenance, `atlas setup --offline` reuses local assets without
+downloading missing source, models or precomputed embeddings. `atlas index build`
+is an advanced manual source update; its workspace destination flag is `--output`,
+whereas setup, reads and `index rebuild` use `--index`. `atlas index rebuild --json`
+repairs generated reference data using the current-schema workspace's saved
+source, locale and profiles. It needs local source and configured model assets,
+validates the replacement before committing it, and retains saved app data.
+
+Inspect cache cleanup with `atlas setup clean --all --check`. To remove those
+source/model caches, use `atlas setup clean --all --yes`; choose `--embeddings` or
+`--source-checkout` for one cache. Cleanup preserves the workspace and saved work,
+but later setup or inference may need downloads again.
+
 ## Output and exact lookup
 
 Prefer JSON output. `record get` and `record resolve` return ordered
@@ -95,6 +111,9 @@ Prefer JSON output. `record get` and `record resolve` return ordered
 or `status: unprocessed` with `reason: prior_runtime_failure`. Preserve successful
 siblings when a batch fails. Whole-command failures use a top-level `error`.
 Errors expose `code`, `message`, and optional `details` and recovery hints.
+`workspace`, `open`, `completions` and ordinary `web` commands do not offer the
+standard `--json` envelope. List and encounter export commands write portable
+JSON documents directly, not envelopes.
 Record batch exit classes are 0 success, 1 miss/ambiguity, 2 invalid input and
 3 runtime failure; mixed failures use the highest class. Other data commands use
 the usual
@@ -412,6 +431,10 @@ for unavailable entries.
 
 `lists export` writes portable JSON to stdout unless `--output PATH` is supplied.
 Importing an existing id fails unless `--replace` is explicitly requested.
+Use `lists edit ID` for name, description, tags or id changes. To hide a list
+without deleting it, use `lists edit ID --archive`; discover it with
+`lists list --include-archived` and restore it with `lists edit ID --restore`.
+`lists remove ID PACK:ID` removes one entry; `lists delete ID` removes the list.
 
 Lists share the persistent workspace with reference data. A missing record keeps
 its saved snapshot and explicit unresolved status after a reference update. Use
@@ -492,14 +515,33 @@ has no automatic replay promise. New character creation/import and encounter PC
 addition use explicit request IDs: replay only the identical original intent,
 including its original guards; never substitute newer values into a retry.
 
-Party management provides create, edit, delete, add, remove, reorder and set-level.
+Create manual characters and reusable rosters, or edit reviewed canonical metadata:
+
+```sh
+atlas characters create 'Bran' --level 7 --request-id CREATE_ID --json
+atlas parties create 'Garden Party' --json
+atlas parties add PARTY_KEY --member CHARACTER_KEY=CHARACTER_REVISION --expected-revision PARTY_REVISION --json
+atlas characters edit CHARACTER_KEY --level 8 --expected-revision CHARACTER_REVISION --json
+atlas parties set-level PARTY_KEY --member CHARACTER_KEY=CHARACTER_REVISION --level 8 --expected-revision PARTY_REVISION --json
+```
+
+Copy keys and revisions from each preceding response; the edit and set-level
+examples are alternative ways to change a level. `characters edit` also accepts
+`--name` or `--clear-level` and preserves the imported build. Manual characters
+have no imported sheet. `characters create` and `characters import` can also add
+the new PC to `--party PARTY_KEY` with `--expected-party-revision REVISION`.
+Import and refresh accept repeated `--rule-link ABILITY_KEY=PACK:ID` for reviewed
+ability corrections from the preview.
+
+Party management also provides edit, delete, remove and reorder.
 `--member CHARACTER_KEY=REVISION` is repeatable for reviewed membership/order/level
 inputs. Existing-party edits require `--expected-revision`. Reorder supplies every
-member once; set-level selects only the members to change. Canonical level edits
-affect every party sharing that character. Removing a membership or deleting a
-party preserves characters. Character deletion detaches encounter rule references
-while preserving encounter combat snapshots. Inspect subcommand help for exact
-arguments before a saved-state write.
+member once; set-level selects only the members to change, with `--clear` instead
+of `--level` to clear their levels. Canonical level edits affect every party sharing
+that character. Removing a membership or deleting a party preserves characters.
+`characters delete CHARACTER_KEY --expected-revision REVISION` removes the
+character and memberships, detaching encounter rule references while preserving
+encounter combat snapshots. Inspect subcommand help before a saved-state write.
 
 Original source is opt-in with `characters show CHARACTER_KEY --section source
 --json`. `--output NEW_FILE` with only this section writes the exact original
@@ -544,6 +586,49 @@ Read `data.difficulty.rating`, `total_xp`, `budgets`, `opposition` and
 Check `basis`, `reference_note`, `award_note` and opponent availability before
 interpreting missing values. The party flags on `show` preview difficulty
 without saving a party override.
+
+`encounters edit ENCOUNTER --name NAME --note TEXT` changes metadata; use
+`--clear-note` or `--clear-description` to remove optional text. Remove one roster
+entry with `encounters remove ENCOUNTER --participant PARTICIPANT_KEY`, taking the
+participant key from `encounters show`. `encounters delete ENCOUNTER` deletes the
+encounter and its participants. Encounter export writes the complete portable
+JSON document directly to stdout or a new `--output` file; import creates a new
+encounter and fails if its destination slug already exists.
+
+## Saved workspace backup and recovery
+
+For a complete saved-state backup, including characters, parties and running
+encounters, use `atlas workspace export campaign-recovery.json`. This creates a
+new archive containing saved state and requested reference configuration;
+reference records, indexes and embeddings are prepared separately. Imported
+characters include their original player exports, including custom/biography data.
+
+Keep the original workspace and archive. Restore into a separate initialized
+workspace with empty saved state:
+
+```sh
+atlas setup --no-embeddings --index campaign-recovered.sqlite
+atlas workspace restore campaign-recovery.json --index campaign-recovered.sqlite
+```
+
+Setup may download reference data; restore can run offline once it is initialized.
+A reference-configuration conflict requires reviewing the settings in an
+interactive terminal with `workspace restore ... --replace-reference-config`.
+The flag prompts; it is not an unattended overwrite option. Restore does not
+merge into populated saved state. Use list or encounter import/export to move
+those individual collections instead.
+
+## Desktop, browser and shell access
+
+If the installed binary includes web support, `atlas web --open` starts the local
+browser UI; pass the same `--index` used for related CLI commands. Restart the
+server after updating the executable. On macOS, `atlas open` opens the installed
+desktop app; `atlas open 'pf2e-atlas://v1/record/actionspf2e%3A1kGNdIIhuglAjIp9'`
+opens a resolved record there. Desktop links select entities in the app's chosen
+workspace, rather than inheriting a CLI `--index` override.
+
+`atlas completions zsh` prints a completion script; bash, fish, powershell and
+elvish are also supported. Generating it does not install shell configuration.
 
 ## Dice and source inspection
 
