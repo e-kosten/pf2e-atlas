@@ -8,7 +8,7 @@ use atlas_app_model::{
 };
 use atlas_domain::QueryFieldState;
 
-pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
+pub(in crate::commands::record) fn render(out: &mut String, spell: &SpellPresentationView) {
     if let Some(note) = &spell.rank_note {
         line(out, note);
     }

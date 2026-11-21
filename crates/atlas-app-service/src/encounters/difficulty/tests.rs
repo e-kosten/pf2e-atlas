@@ -154,6 +154,29 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
         AppErrorCode::EncounterTurnConflict
     );
     let saved = f.worker.encounter(&encounter.slug).unwrap();
+    let comparison = f
+        .worker
+        .compare_encounter_addition(
+            &encounter.slug,
+            Some(saved.revision),
+            EncounterDifficultyReferenceInput {
+                party_level: None,
+                party_size: Some(5),
+            },
+            EncounterDifficultyAddition {
+                record_ref: "Simple trap".into(),
+                quantity: 2,
+                creature_scenario: None,
+                participant_variant: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(comparison.current.party_level, Some(5));
+    assert_eq!(comparison.current.party_size, Some(5));
+    assert_eq!(comparison.current.total_xp, Some(108));
+    assert_eq!(comparison.projected.total_xp, Some(124));
+    assert_eq!(comparison.projected.pc_count, saved.difficulty.pc_count);
+    assert_eq!(f.worker.encounter(&encounter.slug).unwrap(), saved);
     for p in &saved.participants {
         let mut update = super::super::tests::update(p);
         update.defeated = Some(p.participant_kind == EncounterParticipantKindView::Creature);

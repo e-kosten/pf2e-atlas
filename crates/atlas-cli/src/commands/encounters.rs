@@ -2,16 +2,14 @@ use super::product::{app_result, report_app_error};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
     AddEncounterCharacterRequest, AddEncounterPartyRequest, AddEncounterRecordParticipantRequest,
-    CharacterRevision, CreateEncounterRequest, EncounterCharacterSource, EncounterDetailView,
-    EncounterParticipantVariantView, PreviewEncounterDifficultyRequest,
+    CharacterRevision, CreateEncounterRequest, EncounterCharacterSource,
+    EncounterDifficultyAddition, EncounterParticipantVariantView,
 };
 use atlas_cli_support::{CliPathMode, write_json_data};
 use clap::{ArgGroup, Args, Subcommand, ValueEnum};
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    process::ExitCode,
-};
+mod output;
+
+use std::{fs::File, path::PathBuf, process::ExitCode};
 
 #[derive(Debug, Args)]
 pub(crate) struct EncountersArgs {
@@ -62,10 +60,31 @@ enum EncounterCommand {
     #[command(about = "Show the roster, difficulty, and suggested XP award")]
     Show {
         encounter: String,
-        #[arg(long, help = "Preview difficulty at this party level")]
-        party_level: Option<u32>,
-        #[arg(long, help = "Preview difficulty for this number of PCs")]
-        party_size: Option<u32>,
+        #[command(flatten)]
+        party: PartyReference,
+        #[arg(
+            long,
+            value_enum,
+            default_value = "standard",
+            help = "Show a compact roster or complete participant details"
+        )]
+        detail: Detail,
+        #[arg(
+            long,
+            help = "Expand this participant only, using the key from the roster"
+        )]
+        participant: Option<String>,
+    },
+    /// Compare the current encounter with a prospective addition without saving it.
+    Preview {
+        encounter: String,
+        #[command(flatten)]
+        opponent: Opponent,
+        #[command(flatten)]
+        party: PartyReference,
+        /// Require the encounter revision from a previous show or preview.
+        #[arg(long)]
+        expected_revision: Option<i64>,
     },
     #[command(about = "Create a saved encounter")]
     Create {
@@ -100,18 +119,57 @@ enum EncounterCommand {
     #[command(about = "Add a creature or hazard by record key or exact name")]
     Add {
         encounter: String,
-        #[arg(long, add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
-        record: String,
+        #[command(flatten)]
+        opponent: Opponent,
         /// Reuse this ID and the canonical encounter key to retry one intended addition.
         #[arg(long)]
         request_id: Option<String>,
-        #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=50))]
-        quantity: u32,
-        #[arg(long, value_enum)]
-        adjustment: Option<Adjustment>,
         #[arg(long, allow_negative_numbers = true)]
         initiative: Option<i64>,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+enum Detail {
+    Standard,
+    Full,
+}
+
+#[derive(Clone, Copy, Debug, Args)]
+struct PartyReference {
+    #[arg(long, help = "Preview difficulty at this party level")]
+    party_level: Option<u32>,
+    #[arg(long, help = "Preview difficulty for this number of PCs")]
+    party_size: Option<u32>,
+}
+
+impl From<PartyReference> for atlas_app_model::EncounterDifficultyReferenceInput {
+    fn from(reference: PartyReference) -> Self {
+        Self {
+            party_level: reference.party_level,
+            party_size: reference.party_size,
+        }
+    }
+}
+
+#[derive(Debug, Args)]
+struct Opponent {
+    #[arg(long, add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
+    record: String,
+    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=50))]
+    quantity: u32,
+    #[arg(long, value_enum)]
+    adjustment: Option<Adjustment>,
+}
+
+impl From<Adjustment> for EncounterParticipantVariantView {
+    fn from(value: Adjustment) -> Self {
+        match value {
+            Adjustment::Normal => Self::Normal,
+            Adjustment::Elite => Self::Elite,
+            Adjustment::Weak => Self::Weak,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -227,6 +285,9 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             if json {
                 write_json_data(&view)?;
             } else {
+                if view.encounters.is_empty() {
+                    println!("No saved encounters.");
+                }
                 for encounter in view.encounters {
                     println!(
                         "{} · {} ({} participants)",
@@ -237,29 +298,42 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
         }
         EncounterCommand::Show {
             encounter,
-            party_level,
-            party_size,
+            party,
+            detail,
+            participant,
         } => {
-            let mut view = view!(service.encounter(&encounter));
-            if party_level.is_some() || party_size.is_some() {
-                let reference = view.difficulty.reference;
-                view.difficulty = view!(service.preview_encounter_difficulty(
-                    &view.encounter.encounter_key,
-                    PreviewEncounterDifficultyRequest {
-                        expected_revision: view.revision,
-                        reference: atlas_app_model::EncounterDifficultyReferenceInput {
-                            party_level: party_level.or(reference.party_level),
-                            party_size: party_size.or(reference.party_size),
-                        },
-                        addition: None,
-                    },
-                ));
+            let view = view!(service.encounter_with_reference(&encounter, party.into()));
+            if let Some(key) = &participant
+                && !view.participants.iter().any(|p| &p.participant_key == key)
+            {
+                return report_app_error(
+                    atlas_app_model::AppError::new(
+                        atlas_app_model::AppErrorCode::EncounterParticipantNotFound,
+                        format!("Participant {key} is not on this encounter's roster."),
+                    ),
+                    json,
+                );
             }
-            if json {
-                write_json_data(&view)?;
-            } else {
-                print_detail(&view);
-            }
+            output::show(view, party, detail, participant.as_deref(), json)?;
+        }
+        EncounterCommand::Preview {
+            encounter,
+            party,
+            opponent,
+            expected_revision,
+        } => {
+            let comparison = view!(service.compare_encounter_addition(
+                &encounter,
+                expected_revision,
+                party.into(),
+                EncounterDifficultyAddition {
+                    record_ref: opponent.record,
+                    quantity: opponent.quantity,
+                    participant_variant: opponent.adjustment.map(Into::into),
+                    creature_scenario: None,
+                }
+            ));
+            output::comparison(comparison, party, json)?;
         }
         EncounterCommand::Create {
             name,
@@ -324,10 +398,26 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
         }
         EncounterCommand::Export { encounter, output } => {
             let bytes = view!(service.export_encounter(&encounter));
-            write_document(output.as_deref(), &bytes)?;
+            if let Some(path) = output {
+                if let Err(error) = super::saved_workspace::write_new_file(&path, &bytes) {
+                    return super::saved_workspace::file_error(json, error);
+                }
+            } else {
+                super::saved_workspace::write_bytes(&bytes)?;
+            }
         }
         EncounterCommand::Import { input, slug } => {
-            let file = File::open(&input).map_err(|err| format!("{}: {err}", input.display()))?;
+            let file = match File::open(&input) {
+                Ok(file) => file,
+                Err(error) => {
+                    return super::product::command_error(
+                        json,
+                        "file_access_failed",
+                        format!("{}: {error}", input.display()),
+                        3,
+                    );
+                }
+            };
             let report = view!(service.import_encounter(file, slug));
             if json {
                 write_json_data(&report)?;
@@ -351,10 +441,8 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
         }
         EncounterCommand::Add {
             encounter,
-            record,
+            opponent,
             request_id,
-            quantity,
-            adjustment,
             initiative,
         } => {
             let view = view!(service.add_encounter_record_participant(
@@ -366,66 +454,14 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
                             .to_string()
                     }),
                     creature_scenario: None,
-                    record_ref: record,
-                    quantity,
-                    participant_variant: adjustment.map(|value| match value {
-                        Adjustment::Normal => EncounterParticipantVariantView::Normal,
-                        Adjustment::Elite => EncounterParticipantVariantView::Elite,
-                        Adjustment::Weak => EncounterParticipantVariantView::Weak,
-                    }),
+                    record_ref: opponent.record,
+                    quantity: opponent.quantity,
+                    participant_variant: opponent.adjustment.map(Into::into),
                     initiative,
                 }
             ));
-            if json {
-                write_json_data(&view)?;
-            } else {
-                println!("Added {quantity} participant(s) to {}", view.encounter_key);
-            }
+            output::added(view, json)?;
         }
     }
     Ok(ExitCode::SUCCESS)
-}
-
-fn print_detail(view: &EncounterDetailView) {
-    println!("{} ({})", view.encounter.name, view.encounter.slug);
-    for participant in &view.participants {
-        println!(
-            "  {} ({})",
-            participant.display_name, participant.participant_key
-        );
-    }
-    let difficulty = &view.difficulty;
-    match (difficulty.rating.as_deref(), difficulty.total_xp) {
-        (Some(rating), Some(xp)) => println!("Difficulty: {rating} · {xp} opposition XP"),
-        _ => println!(
-            "Difficulty incomplete · {} known opposition XP",
-            difficulty.known_xp
-        ),
-    }
-    if let Some(note) = &difficulty.reference_note {
-        println!("  {note}");
-    }
-    if let Some(award) = difficulty.xp_per_pc {
-        println!("Suggested award: {award} XP per PC");
-        if let Some(note) = &difficulty.award_note {
-            println!("  {note}");
-        }
-    }
-    for budget in &difficulty.budgets {
-        println!("  {} budget: {} XP", budget.label, budget.xp);
-    }
-    for opponent in &difficulty.opposition {
-        if let Some(xp) = opponent.xp {
-            println!("  {}: {xp} XP", opponent.name);
-        } else if let Some(reason) = &opponent.unavailable_reason {
-            println!("  {}: {reason}", opponent.name);
-        }
-    }
-}
-
-fn write_document(output: Option<&Path>, bytes: &[u8]) -> Result<(), String> {
-    match output {
-        Some(path) => super::saved_workspace::write_new_file(path, bytes),
-        None => super::saved_workspace::write_bytes(bytes),
-    }
 }

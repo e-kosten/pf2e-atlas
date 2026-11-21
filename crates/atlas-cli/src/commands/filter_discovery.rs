@@ -31,9 +31,12 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
         };
         if let Some(id) = &o.group {
             if !editor.groups.iter().any(|group| &group.id == id) {
-                return Err(format!(
-                    "Unknown group `{id}`; use atlas filters fields to list groups"
-                ));
+                return super::product::command_error(
+                    o.json,
+                    "invalid_input",
+                    format!("Unknown group `{id}`; use atlas filters fields to list groups"),
+                    2,
+                );
             }
             editor.groups.retain(|group| &group.id == id);
         }
@@ -76,13 +79,21 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
                 field.id == collection && field.field_type == QueryFieldType::Collection
             })
         {
-            return Err(format!(
-                "`{id}` identifies collection entries.\nUse atlas filters fields --field {collection} to inspect the collection and its fields."
-            ));
+            return super::product::command_error(
+                o.json,
+                "invalid_input",
+                format!(
+                    "`{id}` identifies collection entries.\nUse atlas filters fields --field {collection} to inspect the collection and its fields."
+                ),
+                2,
+            );
         }
-        return Err(format!(
-            "Unknown field `{id}`; use atlas filters fields --text QUERY"
-        ));
+        return super::product::command_error(
+            o.json,
+            "invalid_input",
+            format!("Unknown field `{id}`; use atlas filters fields --text QUERY"),
+            2,
+        );
     }
     if o.json {
         c.fields
@@ -161,7 +172,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         Ok(service) => service,
         Err(error) => return crate::commands::product::report_app_error(error, o.json),
     };
-    let filter = match resolve_filter(&o.filter_options, &s) {
+    let filter = match resolve_filter(&o.filter_options, &s, o.artifact_generation.as_deref()) {
         Ok(filter) => filter,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
@@ -199,17 +210,25 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         std::ops::ControlFlow::Continue(value) => value,
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
-    let definition = catalog
-        .fields
-        .iter()
-        .find(|field| field.id == o.field)
-        .ok_or_else(|| format!("Unknown field `{}`", o.field))?;
+    let Some(definition) = catalog.fields.iter().find(|field| field.id == o.field) else {
+        return super::product::command_error(
+            o.json,
+            "invalid_input",
+            format!("Unknown field `{}`", o.field),
+            2,
+        );
+    };
     let statistics_only = matches!(
         definition.field_type,
         QueryFieldType::Number | QueryFieldType::Collection
     );
     if statistics_only && (o.text.is_some() || o.offset != 0 || o.limit != 50) {
-        return Err("--text, --offset and --limit apply to sampled values, not numeric or collection statistics".into());
+        return super::product::command_error(
+            o.json,
+            "invalid_input",
+            "--text, --offset and --limit apply only to sampled values.".into(),
+            2,
+        );
     }
     let values = if statistics_only {
         None

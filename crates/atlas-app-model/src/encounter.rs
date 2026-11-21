@@ -537,6 +537,14 @@ pub struct EncounterMutationView {
     pub encounter_key: String,
 }
 
+/// Only a fresh write can identify the created participants. Existing receipts retain intent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterRecordAdditionResult {
+    pub encounter_key: String,
+    pub request_id: String,
+    pub participant_keys: Option<Vec<String>>,
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

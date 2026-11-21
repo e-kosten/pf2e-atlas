@@ -99,7 +99,7 @@ pub(crate) fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
-            if std::env::args().any(|arg| arg == "--json") {
+            if error.use_stderr() && std::env::args_os().any(|arg| arg == "--json") {
                 let _ = write_json_error("invalid_input", error.to_string());
                 return ExitCode::from(2);
             }
@@ -165,6 +165,7 @@ impl Command {
             },
             Self::Record(args) => match &args.command {
                 RecordCommand::Get(options) => options.json,
+                RecordCommand::RollTable(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
                 RecordCommand::Source(options) => options.json,
                 RecordCommand::Definition(options) => options.json,
@@ -229,6 +230,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         },
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(*options),
+            RecordCommand::RollTable(options) => commands::record::table::run(*options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
             RecordCommand::Source(options) => commands::record::source::run_record_source(options),
             RecordCommand::Definition(options) => commands::record::definition::run(options),

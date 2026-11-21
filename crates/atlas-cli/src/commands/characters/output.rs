@@ -1,7 +1,9 @@
+use super::super::saved_workspace::{SelectionOptions, SheetDetail};
 use atlas_app_model::*;
+use serde_json::{Value, json};
 use std::{collections::BTreeMap, fmt::Write};
 
-pub(crate) fn character(view: &CharacterContextView, focused: bool) -> String {
+pub(crate) fn character(view: &CharacterContextView, options: &SelectionOptions) -> String {
     let c = &view.character;
     let level = c
         .level
@@ -30,24 +32,21 @@ pub(crate) fn character(view: &CharacterContextView, focused: bool) -> String {
     for party in &c.parties {
         let _ = writeln!(text, "Party: {} ({})", party.name, party.party_key);
     }
-    if !focused && view.source_state != CharacterSourceState::Available {
-        if let Some(abilities) = view.sections.get(&CharacterSection::Abilities) {
-            sections(
-                &mut text,
-                &[(CharacterSection::Abilities, abilities.clone())].into(),
-                true,
-            );
-        }
-    } else {
-        sections(&mut text, &view.sections, focused);
-    }
+    let show_unavailable = options.detail == SheetDetail::Full
+        || !options.sections.is_empty()
+        || view.source_state == CharacterSourceState::Available;
+    let visible = view
+        .sections
+        .iter()
+        .filter(|(kind, _)| show_unavailable || **kind == CharacterSection::Abilities);
+    sections(&mut text, visible, options.detail);
     text
 }
 
-pub(crate) fn sections(
+fn sections<'a>(
     text: &mut String,
-    sections: &BTreeMap<CharacterSection, CharacterSectionView>,
-    focused: bool,
+    sections: impl IntoIterator<Item = (&'a CharacterSection, &'a CharacterSectionView)>,
+    detail: SheetDetail,
 ) {
     for (kind, section) in sections {
         let _ = writeln!(text, "\n{}", section_label(*kind));
@@ -89,7 +88,11 @@ pub(crate) fn sections(
             }
             continue;
         }
-        if focused || section.presentation.is_empty() {
+        let has_rows = section
+            .presentation
+            .iter()
+            .any(|g| !g.rows.is_empty() || !g.spell_ranks.is_empty());
+        if detail == SheetDetail::Full || !has_rows {
             for (key, fact) in &section.fields {
                 fact_text(text, key, fact, 2);
             }
@@ -97,6 +100,19 @@ pub(crate) fn sections(
                 let _ = writeln!(text, "  Rule: {}\n    {}", link.title, link.record_key);
             }
         } else {
+            for (key, fact) in &section.fields {
+                match fact {
+                    ImportedFactView::Missing
+                    | ImportedFactView::Null
+                    | ImportedFactView::Unrecognized => fact_text(text, key, fact, 2),
+                    ImportedFactView::Value(ImportedFactValue::List(values))
+                        if values.is_empty() =>
+                    {
+                        fact_text(text, key, fact, 2)
+                    }
+                    _ => {}
+                }
+            }
             for group in &section.presentation {
                 if group.rows.is_empty() && group.spell_ranks.is_empty() {
                     continue;
@@ -134,11 +150,94 @@ pub(crate) fn sections(
             }
         }
     }
-    if !focused {
-        text.push_str(
-            "\nUse --section SECTION for complete fields, or --json for structured details.\n",
-        );
+}
+
+/// Standard JSON keeps imported scalars typed. An absent object member means the
+/// export omitted it. A missing list element needs a tag to preserve its position.
+fn compact_fields(fields: &BTreeMap<String, ImportedFactView>) -> Value {
+    Value::Object(
+        fields
+            .iter()
+            .filter(|(_, value)| !matches!(value, ImportedFactView::Missing))
+            .map(|(key, value)| (key.clone(), compact_fact(value)))
+            .collect(),
+    )
+}
+
+fn compact_fact(fact: &ImportedFactView) -> Value {
+    match fact {
+        ImportedFactView::Missing => json!({"state": "missing"}),
+        ImportedFactView::Null => Value::Null,
+        ImportedFactView::Unrecognized => json!({"state": "unrecognized"}),
+        ImportedFactView::Value(value) => match value {
+            ImportedFactValue::Text(value) => json!(value),
+            ImportedFactValue::Integer(value) => json!(value),
+            ImportedFactValue::Boolean(value) => json!(value),
+            ImportedFactValue::List(entries) => {
+                Value::Array(entries.iter().map(compact_fact).collect())
+            }
+            ImportedFactValue::Object(fields) => compact_fields(fields),
+        },
     }
+}
+
+fn equipment_group(group: &SheetGroupView) -> Value {
+    let items: Vec<_> = group
+        .rows
+        .iter()
+        .filter(|row| row.kind != Some(SheetRowKind::ContainerMetadata))
+        .map(|row| {
+            let mut item = json!({"name": row.label});
+            if let Some(key) = &row.record_key {
+                item["record_key"] = json!(key);
+            }
+            for fact in &row.facts {
+                match fact.role {
+                    Some(SheetFactRole::Quantity) => item["quantity_label"] = json!(fact.value),
+                    Some(SheetFactRole::State) => item["state_label"] = json!(fact.value),
+                    _ => {}
+                }
+            }
+            item
+        })
+        .collect();
+    let mut result = json!({"label": group.label, "items": items});
+    if let Some(id) = &group.container_id {
+        result["container_id"] = json!(id);
+    }
+    result
+}
+
+pub(crate) fn compact_character(view: &CharacterContextView) -> Value {
+    let sections = view
+        .sections
+        .iter()
+        .map(|(kind, section)| {
+            let compact = match kind {
+                CharacterSection::Source => json!({"source_json": section.source_json}),
+                CharacterSection::Abilities => json!(section.abilities),
+                _ => {
+                    let mut result = json!({"fields": compact_fields(&section.fields)});
+                    if *kind == CharacterSection::Equipment {
+                        let groups: Vec<_> = section
+                            .presentation
+                            .iter()
+                            .filter(|group| !group.rows.is_empty())
+                            .map(equipment_group)
+                            .collect();
+                        if !groups.is_empty() {
+                            result["groups"] = json!(groups);
+                        }
+                    } else if !section.record_links.is_empty() {
+                        result["record_links"] = json!(section.record_links);
+                    }
+                    result
+                }
+            };
+            (kind, compact)
+        })
+        .collect::<BTreeMap<_, _>>();
+    json!({"character":view.character,"source_state":view.source_state,"imported_identity":view.imported_identity,"selected_sections":view.selected_sections,"sections":sections})
 }
 
 fn fact_text(text: &mut String, key: &str, fact: &ImportedFactView, indent: usize) {
@@ -200,7 +299,7 @@ fn section_label(section: CharacterSection) -> &'static str {
     }
 }
 
-pub(crate) fn preview(view: &CharacterImportPreviewView, focused: bool) -> String {
+pub(crate) fn preview(view: &CharacterImportPreviewView, detail: SheetDetail) -> String {
     let mut text = format!(
         "Proposed import: {} · level {}\nSource SHA-256: {}\nArtifact generation: {}\n",
         view.name, view.level, view.source_sha256, view.artifact_generation
@@ -219,7 +318,7 @@ pub(crate) fn preview(view: &CharacterImportPreviewView, focused: bool) -> Strin
             "Refresh replaces the saved name and level, imported source, and rule reference.\n",
         );
     }
-    sections(&mut text, &view.proposed, focused);
+    sections(&mut text, &view.proposed, detail);
     if let Some(changes) = &view.changes {
         text.push_str("\nChanges from saved import\n");
         for section in &changes.sections {

@@ -24,17 +24,25 @@ pub(crate) fn build_filter(
 pub(crate) fn resolve_filter(
     options: &FilterOptions,
     service: &AtlasAppService,
+    expected_generation: Option<&str>,
 ) -> Result<Option<QueryPredicate>, AppError> {
-    build_filter_using(options, |reference| resolve_reference(service, reference))
-        .map(|(predicate, _)| predicate)
+    build_filter_using(options, |reference| {
+        resolve_reference(service, reference, expected_generation)
+    })
+    .map(|(predicate, _)| predicate)
 }
 
 pub(crate) fn resolve_reference(
     service: &AtlasAppService,
     reference: &str,
+    expected_generation: Option<&str>,
 ) -> Result<RecordKey, AppError> {
     match service
-        .resolve_record_ref(reference.to_owned(), None)
+        .resolve_record_ref(
+            reference.to_owned(),
+            None,
+            expected_generation.map(str::to_owned),
+        )
         .map_err(|error| error.into_app_error())?
     {
         RecordRefResolutionView::Key(key) => Ok(key),

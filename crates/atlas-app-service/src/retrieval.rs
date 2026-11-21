@@ -24,7 +24,7 @@ impl AtlasAppService {
     pub fn graph_context(
         &self,
         request: atlas_app_model::GraphContextViewRequest,
-    ) -> AppServiceResult<Option<atlas_app_model::GraphContextView>> {
+    ) -> AppServiceResult<Option<(String, atlas_app_model::GraphContextView)>> {
         let key = RecordKey::parse(&request.record_key)
             .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
@@ -59,12 +59,27 @@ impl AtlasAppService {
                 backlink_limit: request.backlink_limit,
             };
 
-            Ok(r.graph_context(request)?
-                .map(|g| atlas_app_model::GraphContextView {
-                    seed: crate::projection::localized_summary_view(&g.seed, r),
-                    outgoing: crate::projection::graph_section_view(g.outgoing, r),
-                    backlinks: crate::projection::graph_section_view(g.backlinks, r),
-                }))
+            let Some(graph) = r.graph_context(request)? else {
+                return Ok(None);
+            };
+            let section = |mut section: atlas_search::GraphContextSection| -> AppServiceResult<_> {
+                let occurrences = crate::relationship_search::evidence_views(
+                    r,
+                    std::mem::take(&mut section.occurrences),
+                )?;
+                Ok(atlas_app_model::GraphSectionView {
+                    occurrences,
+                    ..crate::projection::graph_section_view(section, r)
+                })
+            };
+            Ok(Some((
+                r.artifact_generation()?,
+                atlas_app_model::GraphContextView {
+                    seed: crate::projection::localized_summary_view(&graph.seed, r),
+                    outgoing: section(graph.outgoing)?,
+                    backlinks: section(graph.backlinks)?,
+                },
+            )))
         })
     }
     pub fn variant_group(

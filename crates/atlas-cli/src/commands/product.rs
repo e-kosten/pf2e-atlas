@@ -16,6 +16,20 @@ pub(crate) fn app_result<T>(
         )?)),
     }
 }
+pub(crate) fn command_error(
+    json: bool,
+    code: &str,
+    message: String,
+    exit: u8,
+) -> Result<ExitCode, String> {
+    if json {
+        atlas_cli_support::write_json_error(code, message)?;
+    } else {
+        eprintln!("{message}");
+    }
+    Ok(ExitCode::from(exit))
+}
+
 pub(crate) fn emit<T: Serialize>(
     value: std::ops::ControlFlow<ExitCode, T>,
     json: bool,

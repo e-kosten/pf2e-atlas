@@ -203,6 +203,8 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     let results = f.data(&[
         "search",
         "Defined Fever",
+        "--detail",
+        "full",
         "--retrieval",
         "fts",
         "--where",
@@ -232,7 +234,22 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
         &passage,
         "--json",
     ]);
-    assert_eq!(selected["results"][0]["value"]["selected"], *navigation);
+    let mut guarded = navigation.clone();
+    guarded["artifact_generation"] = results["artifact_generation"].clone();
+    assert_eq!(selected["results"][0]["value"]["selected"], guarded);
+    let direct = f.data(&[
+        "record",
+        "get",
+        "--navigation",
+        &guarded.to_string(),
+        "--detail",
+        "full",
+        "--json",
+    ]);
+    let focused = &direct["results"][0]["value"];
+    assert!(focused["rules"][0]["text"].is_string());
+    assert!(focused.get("content").is_none());
+    assert!(focused.get("facts").is_none());
     let selected_text = f.command(
         &[
             "record",
@@ -273,7 +290,7 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     let detail = f.data(&["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"]);
     let detailtext = serde_json::to_string(&detail).unwrap();
     assert!(detailtext.contains("DC 23"));
-    assert!(detailtext.contains("data-atlas-interaction"));
+    assert!(!detailtext.contains("data-atlas-interaction"));
     assert!(!detailtext.contains("source_json"));
     let resolved = f.data(&["record", "resolve", "Treat Wounds", "--json"]);
     assert_eq!(resolved["results"][0]["value"]["total"], 1);
@@ -328,6 +345,26 @@ fn root_terminal_summary_does_not_read_source_bodies() {
     let text = String::from_utf8(summary.stdout).unwrap();
     assert!(text.contains("Treat Wounds"));
     assert!(!text.contains("Defined Fever"));
+    let summary_json = f.data(&[
+        "record",
+        "get",
+        "actions:aaaaaaaaaaaaaaaa",
+        "--detail",
+        "summary",
+        "--json",
+    ]);
+    let locator = &summary_json["results"][0]["value"]["selected"];
+    assert!(locator["artifact_generation"].is_string());
+    let replay = f.data(&[
+        "record",
+        "get",
+        "--navigation",
+        &locator.to_string(),
+        "--detail",
+        "summary",
+        "--json",
+    ]);
+    assert_eq!(summary_json, replay);
     let detail = f.command(&["record", "get", "actions:aaaaaaaaaaaaaaaa"], false);
     assert!(!detail.status.success());
     let json = f.command(
@@ -369,10 +406,11 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         }
       },{
         "_id":"ffffffffffffffff","name":"Arcane Prepared Spells","type":"spellcastingEntry",
-        "system":{"spelldc":{"dc":33,"value":23},"prepared":{"value":"prepared"},"tradition":{"value":"arcane"}}
+        "system":{"spelldc":{"dc":33,"value":23},"prepared":{"value":"prepared"},"tradition":{"value":"arcane"},
+          "slots":{"slot2":{"max":1,"prepared":[{"id":"eeeeeeeeeeeeeeee"}]},"slot4":{"max":1,"prepared":[{"id":"eeeeeeeeeeeeeeee"}]}}}
       },{
         "_id":"hhhhhhhhhhhhhhhh","name":"Local Ability","type":"action",
-        "system":{"actionType":{"value":"reaction"},"description":{"value":"<p>Embedded ability prose stays with its caster.</p>"}}
+        "system":{"actionType":{"value":"reaction"},"description":{"value":"<p>Embedded ability prose stays with its caster.</p><p><strong>Trigger</strong> The bell rings.</p>"}}
       },{
         "_id":"gggggggggggggggg","name":"River Lore","type":"lore","system":{"mod":{"value":8}}
       }]
@@ -395,6 +433,7 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         "Flavor before mechanics.",
         "Embedded ability prose stays with its caster.",
         "Rank 2: Local Fireball",
+        "Rank 4: Local Fireball",
         "Perception: +12",
         "Fortitude: +0",
         "Reflex: -2",
@@ -407,9 +446,16 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         "Preparation: prepared",
         "Lore modifier: +8",
     ] {
-        assert!(actor.contains(expected), "missing {expected:?} in {actor}");
+        assert!(
+            actor
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .contains(expected),
+            "missing {expected:?} in {actor}"
+        );
     }
-    assert!(actor.find("Flavor before mechanics.").unwrap() < actor.find("Perception:").unwrap());
+    assert!(actor.find("Flavor before mechanics.").unwrap() > actor.find("Perception:").unwrap());
     for internal in [
         "atlas record get",
         "Association:",
@@ -419,7 +465,69 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     ] {
         assert!(!actor.contains(internal), "{internal}: {actor}");
     }
-    let root = f.data(&["record", "get", "creatures:dddddddddddddddd", "--json"]);
+    let key = "creatures:dddddddddddddddd";
+    let focused_ability = f.command(&["record", "get", key, "--section", "abilities"], false);
+    assert!(focused_ability.status.success());
+    let ability_text = String::from_utf8(focused_ability.stdout).unwrap();
+    assert!(ability_text.contains("The bell rings."));
+    assert!(ability_text.contains("Navigation:"));
+    assert!(!ability_text.contains("Flavor before mechanics."));
+    assert!(!ability_text.contains("Local Fireball"));
+    let focused_ability = f.data(&["record", "get", key, "--section", "abilities", "--json"]);
+    let ability = &focused_ability["results"][0]["value"]["sections"]["abilities"]["entries"][0];
+    assert!(
+        ability["rules"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("The bell rings.")
+    );
+    let action = f.data(&[
+        "record",
+        "get",
+        "--navigation",
+        &ability["navigation"].to_string(),
+        "--json",
+    ]);
+    assert_eq!(
+        action["results"][0]["value"]["identity"]["title"],
+        "Local Ability"
+    );
+    let focused = f.data(&[
+        "record",
+        "get",
+        "creatures:dddddddddddddddd",
+        "--section",
+        "defenses",
+        "--section",
+        "spellcasting",
+        "--json",
+    ]);
+    let sections = &focused["results"][0]["value"]["sections"];
+    assert_eq!(sections["defenses"]["saves"]["fortitude"]["value"], 0);
+    assert!(
+        sections["spellcasting"]["entries"]
+            .as_array()
+            .is_some_and(|rows| !rows.is_empty())
+    );
+    let prepared_spell = sections["spellcasting"]["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["title"] == "Local Fireball")
+        .unwrap();
+    assert_eq!(
+        prepared_spell["facts"]["casting_ranks"],
+        serde_json::json!([2, 4])
+    );
+    assert!(sections.get("strikes").is_none());
+    let root = f.data(&[
+        "record",
+        "get",
+        "creatures:dddddddddddddddd",
+        "--detail",
+        "full",
+        "--json",
+    ]);
     let root_value = &root["results"][0]["value"];
     assert_eq!(root_value["identity"]["title"], "Local Caster");
     assert!(root_value.get("parent").is_none());
@@ -459,6 +567,19 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         .find(|activity| activity["title"] == "Local Fireball")
         .unwrap();
     let navigation = &spell["navigation"];
+    let from_full = f.data(&[
+        "record",
+        "get",
+        "--navigation",
+        &navigation.to_string(),
+        "--detail",
+        "summary",
+        "--json",
+    ]);
+    assert_eq!(
+        from_full["results"][0]["value"]["identity"]["title"],
+        "Local Fireball"
+    );
     assert_eq!(navigation["embedded_path"][0]["collection"], "/items");
     assert_eq!(
         navigation["embedded_path"][0]["identity"]["Stable"],
@@ -472,6 +593,8 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
             "creatures:dddddddddddddddd",
             "--embedded-path",
             &owners,
+            "--rank",
+            "2",
         ],
         false,
     );
@@ -518,10 +641,48 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         json["results"][0]["value"]["identity"]["title"],
         "Local Fireball"
     );
+    let rules = &json["results"][0]["value"]["rules"][0];
+    let link = &rules["links"][0];
+    let target = &link["target"]["target"];
+    assert_eq!(target["record_key"], "actions:aaaaaaaaaaaaaaaa");
+    let linked = f.data(&[
+        "record",
+        "get",
+        "--navigation",
+        &target.to_string(),
+        "--detail",
+        "summary",
+        "--json",
+    ]);
     assert_eq!(
-        json["results"][0]["value"]["content"]["body"]["kind"],
-        "spell"
+        linked["results"][0]["value"]["identity"]["record_key"],
+        "actions:aaaaaaaaaaaaaaaa"
     );
+    for mode in ["summary", "full"] {
+        let focused = f.command(
+            &[
+                "record",
+                "get",
+                "--navigation",
+                &rules["navigation"].to_string(),
+                "--detail",
+                mode,
+            ],
+            false,
+        );
+        assert!(focused.status.success());
+        let text = String::from_utf8(focused.stdout).unwrap();
+        assert!(text.contains("From Local Caster"));
+        assert!(text.contains("This customized spell uses local damage"));
+        assert!(!text.contains("Range: 120 feet"));
+    }
+    assert!(
+        json["results"][0]["value"]["facts"]["rank_note"]
+            .as_str()
+            .unwrap()
+            .contains("multiple ranks")
+    );
+    assert_eq!(json["results"][0]["value"]["facts"]["rank"]["value"], 2);
     assert!(json["results"][0]["value"].get("surface").is_none());
     assert!(json["results"][0]["value"].get("source_json").is_none());
     let heightened = f.data(&[
@@ -539,8 +700,8 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     assert_eq!(heightened["identity"]["level_label"], "Rank 5");
     assert_eq!(heightened["parent"]["title"], "Local Caster");
     assert_eq!(heightened["selected"]["spell_rank"], 5);
-    assert_eq!(heightened["content"]["body"]["value"]["rank"]["value"], 5);
-    let healing = heightened["content"]["body"]["value"]["forms"]["value"]
+    assert_eq!(heightened["facts"]["rank"]["value"], 5);
+    let healing = heightened["facts"]["forms"]["value"]
         .as_array()
         .unwrap()
         .iter()
@@ -1229,7 +1390,7 @@ fn record_batch_success_and_resolution_misses_have_honest_envelopes() {
     assert!(value.get("parent").is_none());
     assert!(value["content"].get("identity").is_none());
     assert!(
-        value["content"]["fields"][0]["body"]["html"]
+        value["rules"][0]["text"]
             .as_str()
             .unwrap()
             .contains("unique explanatory prose")
@@ -1354,7 +1515,10 @@ fn lists_create_batch_preserves_input_outcomes_and_rejects_existing_slug() {
     );
     assert_eq!(out.status.code(), Some(1));
     let result: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(result["status"], "partial");
     let data = &result["data"];
+    assert_eq!(data["created"], true);
+    assert_eq!(data["retry_inputs"], serde_json::json!(["No such action"]));
     assert_eq!(data["added_count"], 1);
     assert_eq!(data["already_present_count"], 1);
     assert_eq!(data["failed_count"], 1);
@@ -1375,6 +1539,71 @@ fn lists_create_batch_preserves_input_outcomes_and_rejects_existing_slug() {
     );
     assert_eq!(duplicate.status.code(), Some(2));
     assert_eq!(f.data(&["lists", "show", "research", "--json"]), before);
+}
+
+#[test]
+fn list_batch_failure_keeps_created_list_and_exports_never_clobber() {
+    let f = Fixture::new();
+    let create = f.command(
+        &[
+            "lists",
+            "create",
+            "Unfilled",
+            "--record",
+            "Missing item",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(create.status.code(), Some(1));
+    let reply: Value = serde_json::from_slice(&create.stdout).unwrap();
+    assert_eq!(reply["status"], "error");
+    assert_eq!(reply["data"]["created"], true);
+    let key = reply["data"]["list_key"].as_str().unwrap();
+    let added = f.data(&["lists", "add", key, "Treat Wounds", "--json"]);
+    assert_eq!(added["created"], false);
+    let path = f.root.join("competing-export.json");
+    std::thread::scope(|scope| {
+        let export = || {
+            f.command(
+                &[
+                    "lists",
+                    "export",
+                    "unfilled",
+                    "--output",
+                    path.to_str().unwrap(),
+                ],
+                false,
+            )
+        };
+        let first = scope.spawn(export);
+        let second = export();
+        assert_ne!(
+            first.join().unwrap().status.success(),
+            second.status.success()
+        );
+    });
+    let original = fs::read(&path).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&original).unwrap()["items"][0]["record_key"],
+        "actions:aaaaaaaaaaaaaaaa"
+    );
+    f.data(&["lists", "remove", key, "Treat Wounds", "--json"]);
+    assert!(
+        !f.command(
+            &[
+                "lists",
+                "export",
+                "unfilled",
+                "--output",
+                path.to_str().unwrap()
+            ],
+            false
+        )
+        .status
+        .success()
+    );
+    assert_eq!(fs::read(path).unwrap(), original);
 }
 
 #[test]
@@ -1693,25 +1922,34 @@ fn similar_discovers_exact_record_parts_without_stored_vectors() {
 #[test]
 fn similar_guard_errors_keep_json_pure_and_include_copyable_rediscovery() {
     let fixture = Fixture::new();
-    for (extra, expected_code, expected_seed) in [
+    let stale = [
+        "--part",
+        "part:unavailable",
+        "--artifact-generation",
+        "retired-generation",
+    ];
+    for (seed, extra, expected_code, expected_seed) in [
         (
-            vec!["--part", "part:unavailable"],
+            "Treat Wounds",
+            &["--part", "part:unavailable"][..],
             "invalid_input",
             "'Treat Wounds'",
         ),
         (
-            vec![
-                "--part",
-                "part:unavailable",
-                "--artifact-generation",
-                "retired-generation",
-            ],
+            "Treat Wounds",
+            &stale[..],
+            "artifact_generation_changed",
+            "'Treat Wounds'",
+        ),
+        (
+            "actions:aaaaaaaaaaaaaaaa",
+            &stale[..],
             "artifact_generation_changed",
             "actions:aaaaaaaaaaaaaaaa",
         ),
     ] {
-        let mut arguments = vec!["similar", "Treat Wounds", "--path-mode", "repo", "--json"];
-        arguments.extend(extra);
+        let mut arguments = vec!["similar", seed, "--path-mode", "repo", "--json"];
+        arguments.extend_from_slice(extra);
         let output = fixture.command(&arguments, false);
         assert!(!output.status.success());
         let envelope: Value =
@@ -2217,7 +2455,7 @@ fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
         "--json",
     ]);
     let key = created["encounter"]["encounter_key"].as_str().unwrap();
-    f.data(&[
+    let receipt = f.data(&[
         "encounters",
         "add",
         key,
@@ -2225,6 +2463,8 @@ fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
         "Local Guard",
         "--quantity",
         "2",
+        "--initiative",
+        "17",
         "--json",
     ]);
     let before = f.data(&["encounters", "show", key, "--json"]);
@@ -2232,8 +2472,71 @@ fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
     assert_eq!(participants.len(), 2);
     let first = participants[0]["participant_key"].as_str().unwrap();
     let second = participants[1]["participant_key"].as_str().unwrap();
+    assert_eq!(
+        receipt["participant_keys"],
+        serde_json::json!([first, second])
+    );
+    assert_eq!(receipt["outcome"], "added");
+    assert!(participants[0].get("presentation").is_none());
+    let focused = f.data(&["encounters", "show", key, "--participant", second, "--json"]);
+    assert_eq!(focused["participants"].as_array().unwrap().len(), 1);
+    assert!(focused["participants"][0]["presentation"].is_object());
     let human = f.command(&["encounters", "show", key], false);
-    assert!(String::from_utf8(human.stdout).unwrap().contains(first));
+    let text = String::from_utf8(human.stdout).unwrap();
+    assert!(
+        text.contains(first)
+            && text.contains("Clear this")
+            && text.contains("revision")
+            && text.contains("Initiative 17")
+    );
+    let preview = f.data(&[
+        "encounters",
+        "preview",
+        key,
+        "--record",
+        "Local Guard",
+        "--party-level",
+        "4",
+        "--party-size",
+        "4",
+        "--json",
+    ]);
+    assert_eq!(preview["revision"], before["revision"]);
+    assert_eq!(preview["projected"]["party_level_source"], "preview");
+    assert!(
+        preview["current"]["basis"]
+            .as_str()
+            .unwrap()
+            .contains("level 4")
+    );
+    assert!(preview["current"].get("roster_suggestion").is_none());
+    assert_eq!(preview["current"]["party_size_source"], "preview");
+    assert_eq!(
+        preview["projected"]["opposition"].as_array().unwrap().len(),
+        3
+    );
+    assert!(
+        preview["projected"]["total_xp"].as_u64().unwrap()
+            > preview["current"]["total_xp"].as_u64().unwrap()
+    );
+    assert_eq!(f.data(&["encounters", "show", key, "--json"]), before);
+    let stale = f.command(
+        &[
+            "encounters",
+            "preview",
+            key,
+            "--record",
+            "Local Guard",
+            "--expected-revision",
+            "0",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&stale.stdout).unwrap()["error"]["code"],
+        "encounter_turn_conflict"
+    );
 
     f.data(&[
         "encounters",
@@ -2273,8 +2576,8 @@ fn encounter_add_reuses_a_script_id_but_generates_a_fresh_id_for_each_ordinary_c
     install_encounter_guard(&f);
     let created = f.data(&["encounters", "create", "Garden", "--json"]);
     let key = created["encounter"]["encounter_key"].as_str().unwrap();
-    for _ in 0..2 {
-        f.data(&[
+    for fresh in [true, false] {
+        let receipt = f.data(&[
             "encounters",
             "add",
             key,
@@ -2286,6 +2589,14 @@ fn encounter_add_reuses_a_script_id_but_generates_a_fresh_id_for_each_ordinary_c
             "script-batch",
             "--json",
         ]);
+        assert_eq!(receipt["request_id"], "script-batch");
+        if fresh {
+            assert_eq!(receipt["outcome"], "added");
+            assert_eq!(receipt["participant_keys"].as_array().unwrap().len(), 3);
+        } else {
+            assert_eq!(receipt["outcome"], "already_committed");
+            assert!(receipt["participant_keys"].is_null());
+        }
         f.data(&[
             "encounters",
             "add",
@@ -2393,4 +2704,140 @@ fn encounter_exchange_handles_collisions_without_overwriting() {
     );
     let list = source.data(&["encounters", "list", "--json"]);
     assert_eq!(list["encounters"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn unique_resolution_and_table_rolls_preserve_exact_addresses() {
+    let f = Fixture::new();
+    fs::create_dir_all(f.root.join("packs/tables")).unwrap();
+    let manifest = f.root.join("module.json");
+    let mut m: Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+    m["packs"].as_array_mut().unwrap().push(serde_json::json!({"name":"tables","label":"Tables","type":"RollTable","path":"packs/tables"}));
+    fs::write(manifest, m.to_string()).unwrap();
+    let table = serde_json::json!({"_id":"table00000000000","name":"Road events","formula":"1d2","results":[
+        {"type":"text","range":[1,2],"description":"<p>A rider arrives.</p>"},
+        {"type":"text","range":[1,2],"description":"<p>A warning bell rings.</p>"},
+        {"type":"text","description":"Unnumbered row"}]});
+    fs::write(f.root.join("packs/tables/events.json"), table.to_string()).unwrap();
+    let built = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(
+        built.status.success(),
+        "{}",
+        String::from_utf8_lossy(&built.stdout)
+    );
+    let resolved = f.data(&[
+        "record",
+        "resolve",
+        "Road events",
+        "--alternatives",
+        "0",
+        "--json",
+    ]);
+    let unique = &resolved["results"][0]["value"];
+    assert_eq!(unique["selected"]["record_key"], "tables:table00000000000");
+    let locator = &unique["navigation"];
+    for args in [
+        vec!["Road events".to_owned()],
+        vec!["--navigation".into(), locator.to_string()],
+    ] {
+        let mut command = vec!["record", "roll-table"];
+        command.extend(args.iter().map(String::as_str));
+        command.push("--json");
+        let roll = f.data(&command);
+        assert_eq!(roll["table"]["selected"], *locator);
+        assert!(matches!(roll["outcome"]["total"].as_i64(), Some(1 | 2)));
+        assert_eq!(roll["outcome"]["formula"], "1d2");
+        assert_eq!(roll["matches"].as_array().unwrap().len(), 2);
+        assert_eq!(roll["invalid_ranges"].as_array().unwrap().len(), 1);
+        let row = &roll["matches"][0];
+        assert!(row["rules"][0]["text"].as_str().unwrap().contains("rider"));
+        let reopened = f.data(&[
+            "record",
+            "get",
+            "--navigation",
+            &row["selected"].to_string(),
+            "--json",
+        ]);
+        assert_eq!(&reopened["results"][0]["value"], row);
+    }
+    let mut stale = locator.clone();
+    stale["artifact_generation"] = "stale".into();
+    for command in ["get", "roll-table"] {
+        let output = f.command(
+            &[
+                "record",
+                command,
+                "--navigation",
+                &stale.to_string(),
+                "--json",
+            ],
+            false,
+        );
+        assert_eq!(output.status.code(), Some(3));
+        assert!(String::from_utf8_lossy(&output.stdout).contains("artifact_generation_changed"));
+    }
+}
+
+#[test]
+fn hazard_defenses_hide_legacy_sentinels_and_preserve_applicable_zeroes() {
+    let f = Fixture::new();
+    fs::create_dir_all(f.root.join("packs/hazards")).unwrap();
+    let manifest = f.root.join("module.json");
+    let mut packs: Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+    packs["packs"].as_array_mut().unwrap().push(serde_json::json!({"name":"hazards","label":"Hazards","type":"Actor","path":"packs/hazards"}));
+    fs::write(manifest, packs.to_string()).unwrap();
+    for (id, ac) in [("aaaaaaaaaaaaaaaa", 0), ("bbbbbbbbbbbbbbbb", 15)] {
+        let source = serde_json::json!({"_id":id,"name":"Haunt","type":"hazard","system":{
+            "attributes":{"hp":{"max":0},"ac":{"value":ac},"hardness":0},
+            "saves":{"fortitude":{"value":0,"saveDetail":""},"reflex":{"value":0,"saveDetail":""},"will":{"value":0,"saveDetail":""}}}});
+        fs::write(
+            f.root.join(format!("packs/hazards/{id}.json")),
+            source.to_string(),
+        )
+        .unwrap();
+    }
+    let built = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(
+        built.status.success(),
+        "{}",
+        String::from_utf8_lossy(&built.stdout)
+    );
+    for (key, applicable) in [
+        ("hazards:aaaaaaaaaaaaaaaa", false),
+        ("hazards:bbbbbbbbbbbbbbbb", true),
+    ] {
+        for selection in [vec![], vec!["--section", "defenses"]] {
+            let mut argv = vec!["record", "get", key];
+            argv.extend(selection);
+            let text = f.command(&argv, false);
+            assert!(text.status.success());
+            let text = String::from_utf8(text.stdout).unwrap();
+            assert_eq!(text.contains("HP: 0"), applicable, "{text}");
+            assert_eq!(text.contains("Fortitude: +0"), applicable, "{text}");
+            argv.push("--json");
+            let json = f.data(&argv);
+            let defenses = &json["results"][0]["value"]["sections"]["defenses"];
+            assert_eq!(defenses["defense_block"]["value"], applicable);
+            assert_eq!(defenses["show_saves"], applicable);
+            for field in [
+                "maximum_hp",
+                "armor_class",
+                "saves",
+                "hardness",
+                "broken_threshold",
+            ] {
+                assert_eq!(defenses.get(field).is_some(), applicable, "{defenses}");
+            }
+            if applicable {
+                assert_eq!(defenses["maximum_hp"]["value"], 0);
+                assert_eq!(defenses["saves"]["fortitude"]["value"], 0);
+            }
+        }
+        let full = f.data(&["record", "get", key, "--detail", "full", "--json"]);
+        assert_eq!(
+            full["results"][0]["value"]["content"]["body"]["value"]["actor"]["saves"]["fortitude"]
+                ["value"],
+            0
+        );
+    }
 }

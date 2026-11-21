@@ -27,21 +27,35 @@ fn record_addition_replays_one_batch_through_concurrency_removal_and_exchange() 
     };
     let key = &first.encounter_key;
     let barrier = std::sync::Barrier::new(2);
-    std::thread::scope(|threads| {
-        for _ in 0..2 {
-            threads.spawn(|| {
-                barrier.wait();
-                assert_eq!(
-                    service
-                        .add_encounter_record_participant(key, request.clone())
-                        .unwrap()
-                        .encounter_key,
-                    *key
-                );
-            });
-        }
+    let results = std::thread::scope(|threads| {
+        let add = || {
+            barrier.wait();
+            service
+                .add_encounter_record_participant(key, request.clone())
+                .unwrap()
+        };
+        let first = threads.spawn(add);
+        let second = threads.spawn(add);
+        [first.join().unwrap(), second.join().unwrap()]
     });
-    assert_eq!(service.encounter(key).unwrap().participants.len(), 3);
+    let roster = service.encounter(key).unwrap().participants;
+    let keys = roster
+        .into_iter()
+        .map(|p| p.participant_key)
+        .collect::<Vec<_>>();
+    assert_eq!(keys.len(), 3);
+    assert!(
+        results
+            .iter()
+            .all(|r| r.encounter_key == *key && r.request_id == request.request_id)
+    );
+    assert_eq!(
+        results
+            .iter()
+            .filter_map(|r| r.participant_keys.as_ref())
+            .collect::<Vec<_>>(),
+        vec![&keys]
+    );
     let changed = AddEncounterRecordParticipantRequest {
         quantity: 1,
         ..request.clone()
@@ -110,12 +124,11 @@ fn record_addition_replays_one_batch_through_concurrency_removal_and_exchange() 
     executor.fail_after_submissions(0);
     for dest in [key, &copy.encounter_key] {
         for svc in [&service, &restored] {
-            assert_eq!(
-                svc.add_encounter_record_participant(dest, request.clone())
-                    .unwrap()
-                    .encounter_key,
-                *dest
-            );
+            let replay = svc
+                .add_encounter_record_participant(dest, request.clone())
+                .unwrap();
+            assert_eq!(replay.encounter_key, *dest);
+            assert!(replay.participant_keys.is_none());
             assert_eq!(
                 svc.encounters()
                     .unwrap()

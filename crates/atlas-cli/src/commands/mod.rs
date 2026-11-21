@@ -5,6 +5,7 @@ pub(crate) mod completions;
 pub(crate) mod encounters;
 pub(crate) mod filter_discovery;
 pub(crate) mod filters;
+pub(crate) mod followup;
 pub(crate) mod graph;
 pub(crate) mod index;
 pub(crate) mod lists;

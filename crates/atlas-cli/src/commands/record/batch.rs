@@ -35,31 +35,6 @@ pub(super) struct Batch<T> {
 }
 
 impl<T> Batch<T> {
-    /// Borrow successful values for transport presentation without changing outcomes.
-    pub fn map_values<'a, U>(&'a self, map: impl Fn(&'a T) -> U) -> Batch<U> {
-        Batch {
-            exit: self.exit,
-            results: self
-                .results
-                .iter()
-                .map(|outcome| match outcome {
-                    Outcome::Ok { input, value } => Outcome::Ok {
-                        input: input.clone(),
-                        value: map(value),
-                    },
-                    Outcome::Error { input, error } => Outcome::Error {
-                        input: input.clone(),
-                        error: error.clone(),
-                    },
-                    Outcome::Unprocessed { input, .. } => Outcome::Unprocessed {
-                        input: input.clone(),
-                        reason: UnprocessedReason::PriorRuntimeFailure,
-                    },
-                })
-                .collect(),
-        }
-    }
-
     pub fn status(&self) -> atlas_cli_support::JsonStatus {
         if self.exit == 0 {
             atlas_cli_support::JsonStatus::Ok

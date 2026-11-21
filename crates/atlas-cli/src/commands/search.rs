@@ -1,15 +1,19 @@
 use super::{
     filters::{build_filter, resolve_filter},
-    product::{app_result, print_search_matches, report_app_error},
+    product::{app_result, report_app_error},
 };
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{RetrievalModeView, SearchCriteria, SearchPageRequest, SearchResultsRequest};
 use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 pub(crate) mod args;
+mod presentation;
 use args::SearchOptions;
 pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
-    let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
+    let sort = match super::result_order::requested_sort(&o.sort, o.seed) {
+        Ok(sort) => sort,
+        Err(message) => return super::product::command_error(o.json, "invalid_input", message, 2),
+    };
     if o.print_filter {
         let (_, value) = match build_filter(&o.filter_options) {
             Ok(value) => value,
@@ -44,8 +48,8 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     let service = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
-        index: o.index,
-        embedding_cache: o.embedding_cache_path,
+        index: o.index.clone(),
+        embedding_cache: o.embedding_cache_path.clone(),
         retrieval_mode: if use_embeddings {
             atlas_app_service::AppServiceRetrievalMode::OnDemandEmbeddings
         } else {
@@ -67,11 +71,15 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     } else {
         mode
     };
-    let filter = match resolve_filter(&o.filter_options, &service) {
+    let filter = match resolve_filter(
+        &o.filter_options,
+        &service,
+        o.artifact_generation.as_deref(),
+    ) {
         Ok(filter) => filter,
         Err(error) => return report_app_error(error, o.json),
     };
-    let criteria = match o.query {
+    let criteria = match o.query.clone() {
         Some(query) => SearchCriteria::TextSearch {
             search_content: o.search_content.map(Into::into),
             query,
@@ -84,13 +92,13 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         connection_scope: None,
         sort,
         ranking: Some(o.ranking),
-        search_profile: o.search_profile,
+        search_profile: o.search_profile.clone(),
         criteria,
         page: SearchPageRequest {
             number: o.page,
             size: o.limit,
         },
-        expected_artifact_generation: None,
+        expected_artifact_generation: o.artifact_generation.clone(),
     };
     #[cfg(feature = "web")]
     let hosted = runtime
@@ -111,12 +119,6 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         std::ops::ControlFlow::Continue(value) => value,
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
-    if o.json {
-        write_json_data(&result)?;
-    } else {
-        super::result_order::print_random_seed(&result.sort);
-        print_search_matches(&result.rows);
-        super::product::print_search_page_count(&result);
-    }
+    presentation::write(&o, &result)?;
     Ok(ExitCode::SUCCESS)
 }

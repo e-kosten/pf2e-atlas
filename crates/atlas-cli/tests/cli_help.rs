@@ -9,6 +9,21 @@ fn help(args: &[&str]) -> String {
     String::from_utf8(o.stdout).unwrap()
 }
 #[test]
+fn help_and_version_remain_successful_with_json() {
+    for args in [
+        &["search", "--help", "--json"][..],
+        &["--version", "--json"][..],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert!(!output.stdout.is_empty());
+        assert!(output.stderr.is_empty());
+    }
+}
+#[test]
 fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
     let root = help(&[]);
     for name in [
@@ -37,6 +52,7 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
     }
     let record = help(&["record"]);
     assert!(record.contains("definition"));
+    assert!(record.contains("roll-table"));
     assert!(record.contains("variants"));
     let graph = help(&["graph"]);
     for name in ["uses", "variants", "remaster"] {
@@ -178,26 +194,29 @@ fn profile_flags_support_both_builtins_and_reject_retired_or_conflicting_options
 }
 
 #[test]
-fn explicit_human_detail_conflicts_with_json_before_reading_an_artifact() {
-    for detail in ["summary", "standard", "full"] {
-        for options in [
-            vec!["--detail", detail, "--json"],
-            vec!["--json", "--detail", detail],
-        ] {
-            let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-                .args(["record", "get", "actions:fixture"])
-                .args(options)
-                .output()
-                .unwrap();
-            assert_eq!(output.status.code(), Some(2));
-            let error: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-            assert_eq!(error["status"], "error");
-            let message = error["error"]["message"].as_str().unwrap();
-            assert!(message.contains("--detail"));
-            assert!(message.contains("--json"));
-            assert!(message.contains("cannot be used"));
-        }
-    }
+fn conflicting_record_navigation_is_rejected_before_reading_an_artifact() {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--field",
+            "/name",
+            "--section",
+            "rules",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    let error: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "invalid_input");
+    assert!(
+        error["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("--section")
+    );
 }
 #[test]
 fn retired_flags_fail_instead_of_becoming_a_broader_query() {

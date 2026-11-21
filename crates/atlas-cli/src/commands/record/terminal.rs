@@ -5,6 +5,7 @@ use scraper::{
     node::{Node, Text},
 };
 use std::io::IsTerminal;
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Clone, Copy)]
 pub(crate) struct TerminalLayout {
@@ -171,6 +172,40 @@ pub(crate) fn render_html(html: &str, layout: TerminalLayout) -> Result<String, 
     .map_err(|e| format!("cannot render prepared HTML: {e}"))
 }
 
+/// Prose is wrapped by html2text. Wrap remaining long stat lines at word boundaries.
+pub(super) fn wrap_facts(output: &str, width: usize) -> String {
+    let mut result = String::new();
+    for line in output.lines() {
+        if line.width() <= width
+            || line.contains('\x1b')
+            || line.contains('│')
+            || line.trim_start().starts_with("Navigation: ")
+        {
+            result.push_str(line);
+        } else {
+            let indent = line.len() - line.trim_start_matches(' ').len();
+            let mut count = indent;
+            result.push_str(&line[..indent]);
+            for word in line.split_whitespace() {
+                let size = word.width();
+                if count > indent {
+                    if count + 1 + size > width {
+                        result.push('\n');
+                        result.push_str(&line[..indent]);
+                        count = indent;
+                    } else {
+                        result.push(' ');
+                        count += 1;
+                    }
+                }
+                result.push_str(word);
+                count += size;
+            }
+        }
+        result.push('\n');
+    }
+    result
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -33,6 +33,18 @@ impl AtlasAppService {
         })
     }
 }
+pub(super) fn with_overrides(
+    saved: EncounterDifficultyReference,
+    overrides: EncounterDifficultyReferenceInput,
+) -> AppServiceResult<EncounterDifficultyReference> {
+    let reference = EncounterDifficultyReference {
+        party_level: overrides.party_level.or(saved.party_level),
+        party_size: overrides.party_size.or(saved.party_size),
+    };
+    reference.validate()?;
+    Ok(reference)
+}
+
 fn local_reference(reference: EncounterDifficultyReferenceInput) -> EncounterDifficultyReference {
     EncounterDifficultyReference {
         party_level: reference.party_level,
@@ -125,6 +137,7 @@ pub(super) fn project<'a>(
         party_level,
         party_size,
         pc_count,
+        roster_suggested_level: suggested,
         basis,
         reference_note,
         total_xp: None,

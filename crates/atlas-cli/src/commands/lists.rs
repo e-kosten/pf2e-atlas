@@ -1,4 +1,5 @@
 use super::product::{app_result, emit};
+use super::saved_workspace::{file_error, respond, write_new_file};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
     BatchAddSavedListItemsRequest, BatchSavedListItemInput, BatchSavedListItemMutationView,
@@ -6,7 +7,8 @@ use atlas_app_model::{
     RemoveSavedListItemRequest, SavedListDetailView,
 };
 use atlas_app_service::AtlasAppService;
-use atlas_cli_support::write_json_data;
+use atlas_cli_support::{JsonStatus, write_json_data, write_json_response};
+use serde::Serialize;
 use std::{
     fs,
     io::{self, Read},
@@ -62,6 +64,7 @@ pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String>
             .collect();
         emit_batch(
             s.create_saved_list_with_items(request, items, generate_slug),
+            true,
             o.json,
         )
     }
@@ -69,16 +72,54 @@ pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String>
 
 fn emit_batch(
     result: atlas_app_service::AppServiceResult<BatchSavedListItemMutationView>,
+    created: bool,
     json: bool,
 ) -> Result<ExitCode, String> {
     let view = match app_result(result, json)? {
         std::ops::ControlFlow::Continue(value) => value,
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
-    let failed = view.failed_count > 0;
-    if json {
-        write_json_data(&view)?;
+    let exit = view
+        .items
+        .iter()
+        .filter_map(|item| item.error.as_ref())
+        .map(|error| super::product::exit_class(error.code))
+        .max()
+        .unwrap_or(0);
+    let status = if view.failed_count == 0 {
+        JsonStatus::Ok
+    } else if view.failed_count == view.requested_count {
+        JsonStatus::Error
     } else {
+        JsonStatus::Partial
+    };
+    if json {
+        #[derive(Serialize)]
+        struct BatchResponse<'a> {
+            created: bool,
+            #[serde(flatten)]
+            batch: &'a BatchSavedListItemMutationView,
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            retry_inputs: Vec<&'a str>,
+        }
+        let retry_inputs = view
+            .items
+            .iter()
+            .filter(|item| item.error.is_some())
+            .map(|item| item.input.as_str())
+            .collect();
+        write_json_response(
+            status,
+            BatchResponse {
+                created,
+                batch: &view,
+                retry_inputs,
+            },
+        )?;
+    } else {
+        if created {
+            println!("Created {} ({})", view.slug, view.list_key);
+        }
         println!(
             "{}: {} added, {} already present, {} failed",
             view.slug, view.added_count, view.already_present_count, view.failed_count
@@ -119,11 +160,13 @@ fn emit_batch(
             }
         }
     }
-    Ok(if failed {
-        ExitCode::from(1)
-    } else {
-        ExitCode::SUCCESS
-    })
+    if !json && view.failed_count > 0 {
+        eprintln!(
+            "Retry the failed items with atlas lists add {} --record <RECORD> using the same workspace.",
+            view.slug
+        );
+    }
+    Ok(ExitCode::from(exit))
 }
 
 pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
@@ -131,13 +174,18 @@ pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    emit(
-        app_result(s.saved_lists(o.include_archived), o.json)?,
-        o.json,
-    )
+    respond(s.saved_lists(o.include_archived), o.json, |view| {
+        if view.lists.is_empty() {
+            return "No saved lists.\n".into();
+        }
+        view.lists.iter().map(list_summary).collect()
+    })
 }
 pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
-    let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
+    let sort = match super::result_order::requested_sort(&o.sort, o.seed) {
+        Ok(sort) => sort,
+        Err(message) => return super::product::command_error(o.json, "invalid_input", message, 2),
+    };
     let s = match client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
@@ -191,8 +239,22 @@ pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
     }
     Ok(ExitCode::SUCCESS)
 }
+fn list_summary(list: &atlas_app_model::SavedListSummaryView) -> String {
+    let archived = if list.archived { " · archived" } else { "" };
+    let mut text = format!(
+        "{} ({}) · {} items{archived}\n  {}\n",
+        list.name, list.slug, list.item_count, list.list_key
+    );
+    if let Some(description) = &list.description {
+        text.push_str(&format!("  {description}\n"));
+    }
+    if !list.tags.is_empty() {
+        text.push_str(&format!("  Tags: {}\n", list.tags.join(", ")));
+    }
+    text
+}
 fn print_list(v: &SavedListDetailView) {
-    println!("{} — {}", v.list.slug, v.list.name);
+    print!("{}", list_summary(&v.list));
     if let Some(error) = &v.reference_error {
         eprintln!("Reference records could not be checked. {}", error.message);
     }
@@ -235,7 +297,12 @@ pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
         );
     }
     if o.record_refs.is_empty() {
-        return Err("provide record references or --stdin".into());
+        return super::product::command_error(
+            o.json,
+            "invalid_input",
+            "Provide record references or --stdin.".into(),
+            2,
+        );
     }
     let s = match client(o.paths) {
         Ok(service) => service,
@@ -254,6 +321,7 @@ pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
             list_ref: o.slug,
             items,
         }),
+        false,
         o.json,
     )
 }
@@ -263,17 +331,29 @@ pub(crate) fn run_lists_remove(o: ListRemoveOptions) -> Result<ExitCode, String>
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    emit(
-        app_result(
-            s.remove_saved_list_item(
-                &o.slug,
-                RemoveSavedListItemRequest {
-                    record_ref: o.record_ref,
-                },
-            ),
-            o.json,
-        )?,
+    respond(
+        s.remove_saved_list_item(
+            &o.slug,
+            RemoveSavedListItemRequest {
+                record_ref: o.record_ref,
+            },
+        ),
         o.json,
+        |view| {
+            let action =
+                if view.outcome == atlas_app_model::SavedListItemMutationOutcomeView::NotPresent {
+                    "Already absent"
+                } else {
+                    "Removed"
+                };
+            format!(
+                "{action} · {} ({}) · {} ({})\n",
+                view.record_name.as_deref().unwrap_or("Record"),
+                view.record_key,
+                view.slug,
+                view.list_key
+            )
+        },
     )
 }
 pub(crate) fn run_lists_delete(o: ListDeleteOptions) -> Result<ExitCode, String> {
@@ -281,14 +361,26 @@ pub(crate) fn run_lists_delete(o: ListDeleteOptions) -> Result<ExitCode, String>
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    emit(app_result(s.delete_saved_list(&o.slug), o.json)?, o.json)
+    respond(s.delete_saved_list(&o.slug), o.json, |view| {
+        format!("Deleted {} ({})\n", view.slug, view.list_key)
+    })
 }
 pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
     if o.clear_description && o.description.is_some() {
-        return Err("--description conflicts with --clear-description".into());
+        return super::product::command_error(
+            o.json,
+            "invalid_input",
+            "--description conflicts with --clear-description".into(),
+            2,
+        );
     }
     if o.clear_tags && !o.tags.is_empty() {
-        return Err("--tag conflicts with --clear-tags".into());
+        return super::product::command_error(
+            o.json,
+            "invalid_input",
+            "--tag conflicts with --clear-tags".into(),
+            2,
+        );
     }
     let s = match client(o.paths) {
         Ok(service) => service,
@@ -309,12 +401,10 @@ pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
     } else {
         None
     };
-    emit(
-        app_result(
-            s.edit_saved_list_metadata(&o.list_ref, o.id, o.name, description, tags, archived),
-            o.json,
-        )?,
+    respond(
+        s.edit_saved_list_metadata(&o.list_ref, o.id, o.name, description, tags, archived),
         o.json,
+        |view| format!("Updated {}", list_summary(&view.list)),
     )
 }
 pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String> {
@@ -328,16 +418,36 @@ pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String>
     };
     let json = serde_json::to_string_pretty(&document).map_err(|e| e.to_string())?;
     if let Some(p) = o.output {
-        fs::write(p, json).map_err(|e| e.to_string())?;
+        if let Err(error) = write_new_file(&p, json.as_bytes()) {
+            return file_error(false, error);
+        }
     } else {
         println!("{json}");
     }
     Ok(ExitCode::SUCCESS)
 }
 pub(crate) fn run_lists_import(o: ListImportOptions) -> Result<ExitCode, String> {
+    let bytes = match fs::read(&o.input) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return file_error(
+                o.json,
+                io::Error::new(error.kind(), format!("{}: {error}", o.input.display())),
+            );
+        }
+    };
     let document: atlas_app_model::SavedListExportDocumentView =
-        serde_json::from_slice(&fs::read(o.input).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
+        match serde_json::from_slice(&bytes) {
+            Ok(document) => document,
+            Err(error) => {
+                return super::product::command_error(
+                    o.json,
+                    "invalid_input",
+                    format!("{}: {error}", o.input.display()),
+                    2,
+                );
+            }
+        };
     if let Err(error) = document.validate_format() {
         return super::product::report_app_error(error, o.json);
     }
@@ -363,15 +473,19 @@ pub(crate) fn run_lists_note(o: ListNoteOptions) -> Result<ExitCode, String> {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    emit(
-        app_result(
-            s.set_saved_list_item_note(
-                &o.slug,
-                &o.record_key,
-                o.text.filter(|text| !text.trim().is_empty()),
-            ),
-            o.json,
-        )?,
+    respond(
+        s.set_saved_list_item_note(
+            &o.slug,
+            &o.record_key,
+            o.text.filter(|text| !text.trim().is_empty()),
+        ),
         o.json,
+        |view| {
+            let note = view.note.as_deref().unwrap_or("Note cleared");
+            format!(
+                "{} ({}) · {} ({})\n  {note}\n",
+                view.title, view.record_key, view.slug, view.list_key
+            )
+        },
     )
 }

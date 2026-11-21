@@ -53,6 +53,9 @@ pub struct EncounterDifficultyView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub party_size: Option<u32>,
     pub pc_count: u32,
+    /// Roster-derived suggestion before applying a GM reference.
+    #[serde(skip)]
+    pub roster_suggested_level: Option<u32>,
     pub basis: String,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub reference_note: Option<String>,
@@ -97,4 +100,14 @@ pub struct EncounterDifficultyOpponentView {
 pub struct EncounterDifficultyRuleView {
     pub title: String,
     pub navigation: crate::RecordNavigationView,
+}
+
+/// Current and prospective XP, calculated from the same saved roster and reference generation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EncounterDifficultyComparison {
+    pub encounter_key: String,
+    pub revision: i64,
+    pub artifact_generation: String,
+    pub current: EncounterDifficultyView,
+    pub projected: EncounterDifficultyView,
 }

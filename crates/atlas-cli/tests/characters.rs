@@ -160,6 +160,8 @@ fn one_character_read_selects_lossless_equipment_and_exports_original_source() {
         "equipment",
         "--section",
         "money",
+        "--detail",
+        "full",
     ]);
     assert_eq!(selected["character"]["character_key"], key);
     assert_eq!(selected["selected_sections"], json!(["equipment", "money"]));
@@ -172,8 +174,32 @@ fn one_character_read_selects_lossless_equipment_and_exports_original_source() {
         selected["sections"]["money"]["fields"]["money"]["value"]["sp"]["state"],
         "null"
     );
-    let full = f.data(&["characters", "show", &key]);
-    assert!(full["sections"].get("source").is_none());
+    let compact = f.data(&[
+        "characters",
+        "show",
+        &key,
+        "--section",
+        "money",
+        "--section",
+        "equipment",
+    ]);
+    let equipment = &compact["sections"]["equipment"]["fields"];
+    assert_eq!(equipment["equipment"][0]["quantity"], 2);
+    assert_eq!(equipment["armor"][0]["worn"], false);
+    assert!(equipment.get("weapons").is_none());
+    assert_eq!(
+        compact["sections"]["money"]["fields"]["money"].get("sp"),
+        Some(&Value::Null)
+    );
+    assert!(
+        compact["sections"]["equipment"]["groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|g| g["label"] == "Backpack" && g["items"][0]["name"] == "Rope")
+    );
+    let standard = f.data(&["characters", "show", &key]);
+    assert!(standard["sections"].get("source").is_none());
     let raw = f.data(&["characters", "show", &key, "--section", "source"]);
     assert_eq!(
         raw["sections"]["source"]["source_json"],
@@ -198,7 +224,29 @@ fn one_character_read_selects_lossless_equipment_and_exports_original_source() {
     assert_eq!(fs::read(&output).unwrap(), fs::read(&path).unwrap());
     let human = f.run(&["characters", "show", &key, "--section", "equipment"]);
     let text = String::from_utf8(human.stdout).unwrap();
-    assert!(text.contains("quantity: 2") && text.contains("Rope") && text.contains("Backpack"));
+    assert!(text.contains("Quantity: 2") && text.contains("Rope") && text.contains("Backpack"));
+
+    let mut source: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    source["build"]["equipment"] = json!([]);
+    fs::write(&path, serde_json::to_vec(&source).unwrap()).unwrap();
+    let input = path.to_str().unwrap();
+    let preview = f.data(&["characters", "preview", input, "--character", &key]);
+    f.data(&[
+        "characters",
+        "refresh",
+        &key,
+        input,
+        "--expected-revision",
+        "0",
+        "--expected-source-sha256",
+        preview["source_sha256"].as_str().unwrap(),
+        "--expected-generation",
+        preview["artifact_generation"].as_str().unwrap(),
+    ]);
+    let empty = f.data(&["characters", "show", &key, "--section", "equipment"]);
+    let fields = &empty["sections"]["equipment"]["fields"];
+    assert_eq!(fields.get("equipment"), Some(&json!([])));
+    assert!(fields.get("weapons").is_none());
 }
 
 #[test]

@@ -1,5 +1,7 @@
 use super::*;
-use atlas_app_model::PreviewEncounterDifficultyRequest;
+use atlas_app_model::{
+    EncounterDifficultyAddition, EncounterDifficultyComparison, PreviewEncounterDifficultyRequest,
+};
 
 impl AtlasAppService {
     pub fn preview_encounter_difficulty(
@@ -36,6 +38,41 @@ impl AtlasAppService {
             move |session| read_preview(session, &encounter_ref, request, reference),
         )
     }
+
+    /// One snapshot supplies the saved defaults, roster and reference rules for both budgets.
+    pub fn compare_encounter_addition(
+        &self,
+        encounter_ref: &str,
+        expected_revision: Option<i64>,
+        overrides: EncounterDifficultyReferenceInput,
+        addition: EncounterDifficultyAddition,
+    ) -> AppServiceResult<EncounterDifficultyComparison> {
+        super::super::record_addition::validate_quantity(addition.quantity)?;
+        let encounter_ref = encounter_ref.to_owned();
+        self.with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |session| {
+                let snapshot = session
+                    .local_state()?
+                    .encounters()
+                    .get_with_participants(&encounter_ref)?
+                    .ok_or_else(|| super::super::projection::encounter_not_found(&encounter_ref))?;
+                if let Some(expected) = expected_revision {
+                    guard_revision(&snapshot.encounter, expected)?;
+                }
+                let reference = with_overrides(snapshot.encounter.difficulty_reference, overrides)?;
+                let (current, projected) =
+                    project_preview(session, &snapshot.participants, reference, Some(addition))?;
+                Ok(EncounterDifficultyComparison {
+                    encounter_key: snapshot.encounter.encounter_key,
+                    revision: snapshot.encounter.revision,
+                    artifact_generation: session.retrieval().artifact_generation()?,
+                    current,
+                    projected,
+                })
+            },
+        )
+    }
 }
 
 fn read_preview(
@@ -50,14 +87,26 @@ fn read_preview(
         .get_with_participants(encounter_ref)?
         .ok_or_else(|| super::super::projection::encounter_not_found(encounter_ref))?;
     guard_revision(&snapshot.encounter, request.expected_revision)?;
+    let (_, projected) =
+        project_preview(session, &snapshot.participants, reference, request.addition)?;
+    Ok(projected)
+}
+
+fn project_preview(
+    session: &mut atlas_runtime::WorkspaceRead,
+    participants: &[EncounterParticipant],
+    reference: EncounterDifficultyReference,
+    addition: Option<EncounterDifficultyAddition>,
+) -> AppServiceResult<(EncounterDifficultyView, EncounterDifficultyView)> {
     let mut records = std::collections::BTreeMap::new();
     super::super::hydration::load_participant_sources(
         session.retrieval_mut(),
-        &snapshot.participants,
+        participants,
         &mut records,
     )?;
-    let mut view = project(reference, &snapshot.participants, |key| records.get(key));
-    if let Some(addition) = request.addition {
+    let current = project(reference, participants, |key| records.get(key));
+    let mut view = current.clone();
+    if let Some(addition) = addition {
         let key = super::super::hydration::resolve_record_key(
             session.retrieval_mut(),
             &addition.record_ref,
@@ -118,9 +167,9 @@ fn read_preview(
             view.party_level,
             addition.quantity,
         ));
-        recalculate(&mut view, &snapshot.participants);
+        recalculate(&mut view, participants);
     }
-    Ok(view)
+    Ok((current, view))
 }
 
 #[cfg(test)]

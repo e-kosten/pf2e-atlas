@@ -41,37 +41,70 @@ impl AtlasAppService {
         &self,
         record_keys: Vec<RecordKey>,
     ) -> AppServiceResult<Vec<atlas_app_model::RecordSummaryView>> {
+        self.record_summaries_at(record_keys, None)
+            .map(|(_, rows)| rows)
+    }
+
+    /// Bind body-free identities to the snapshot that supplied them.
+    pub fn record_summaries_at(
+        &self,
+        record_keys: Vec<RecordKey>,
+        expected_generation: Option<String>,
+    ) -> AppServiceResult<(String, Vec<atlas_app_model::RecordSummaryView>)> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            Ok(r.get_records(GetRecordsRequest {
-                record_keys: &record_keys,
-            })?
-            .records
-            .iter()
-            .map(|v| crate::projection::localized_summary_view(v, r))
-            .collect())
+            let generation = r.artifact_generation()?;
+            crate::definitions::check_generation(expected_generation.as_deref(), &generation)?;
+            let summaries = r
+                .get_records(GetRecordsRequest {
+                    record_keys: &record_keys,
+                })?
+                .records
+                .iter()
+                .map(|row| crate::projection::localized_summary_view(row, r))
+                .collect();
+            Ok((generation, summaries))
         })
     }
+
     pub fn resolve_record(
         &self,
         query: String,
         filter: Option<QueryPredicate>,
     ) -> AppServiceResult<Vec<atlas_app_model::RecordResolutionCandidateView>> {
+        self.resolve_record_with_generation(query, filter)
+            .map(|(_, rows)| rows)
+    }
+
+    pub fn resolve_record_with_generation(
+        &self,
+        query: String,
+        filter: Option<QueryPredicate>,
+    ) -> AppServiceResult<(String, Vec<atlas_app_model::RecordResolutionCandidateView>)> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            Ok(r.resolve_record(ResolveRecordRequest {
-                query: &query,
-                filter: filter.as_ref(),
-            })?
-            .into_iter()
-            .map(|v| crate::projection::resolution_view(v, r))
-            .collect())
+            let matches = r
+                .resolve_record(ResolveRecordRequest {
+                    query: &query,
+                    filter: filter.as_ref(),
+                })?
+                .into_iter()
+                .map(|v| crate::projection::resolution_view(v, r))
+                .collect();
+            Ok((r.artifact_generation()?, matches))
         })
     }
     pub fn resolve_record_ref(
         &self,
         record_ref: String,
         filter: Option<QueryPredicate>,
+        expected_generation: Option<String>,
     ) -> AppServiceResult<atlas_app_model::RecordRefResolutionView> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            if let Some(expected) = expected_generation.as_deref() {
+                crate::connection_scope::check_generation(
+                    Some(expected),
+                    &r.artifact_generation()?,
+                )?;
+            }
             Ok(
                 match r.resolve_record_ref(ResolveRecordRefRequest {
                     record_ref: &record_ref,
@@ -115,6 +148,22 @@ impl AtlasAppService {
                 .map(|(_, view)| view)
         })
     }
+    /// Return a citation's exact checked text alongside the selected reference.
+    pub fn record_read_at(
+        &self,
+        request: RecordDetailRequest,
+    ) -> AppServiceResult<(RecordDetailView, Option<String>)> {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            let generation = request.expected_artifact_generation.clone();
+            crate::definitions::check_generation(generation.as_deref(), &r.artifact_generation()?)?;
+            if request.source_fingerprint.as_deref().is_some_and(|supplied| supplied != r.source_fingerprint()) {
+                return Err(AppServiceError::invalid_request("The selected source fingerprint has changed. Reopen the record or search result."));
+            }
+            let selection = request.into_selection();
+            let loaded = LoadedRecordDetail::load(r, &selection)?;
+            loaded.project_with_excerpt(selection, None)
+        })
+    }
 }
 
 /// Decode the selected parent once, retaining it for workflows that compose runtime facts.
@@ -138,7 +187,16 @@ impl<'a> LoadedRecordDetail<'a> {
         request: RecordSelection,
         expected_artifact_generation: Option<&str>,
     ) -> AppServiceResult<(Self, RecordDetailView)> {
-        let key = validate_selection(r, &request)?;
+        let loaded = Self::load(r, &request)?;
+        let view = loaded.project(request, expected_artifact_generation)?;
+        Ok((loaded, view))
+    }
+
+    fn load(
+        r: &'a atlas_search::AtlasRetrievalService,
+        request: &RecordSelection,
+    ) -> AppServiceResult<Self> {
+        let key = validate_selection(r, request)?;
         let detail = r
             .get_record(GetRecordRequest {
                 record_key: &key,
@@ -150,12 +208,10 @@ impl<'a> LoadedRecordDetail<'a> {
                     format!("record `{key}` was not found"),
                 )
             })?;
-        let loaded = Self {
+        Ok(Self {
             retrieval: r,
             detail,
-        };
-        let view = loaded.project(request, expected_artifact_generation)?;
-        Ok((loaded, view))
+        })
     }
 
     pub(crate) fn project(
@@ -163,6 +219,16 @@ impl<'a> LoadedRecordDetail<'a> {
         request: RecordSelection,
         expected_artifact_generation: Option<&str>,
     ) -> AppServiceResult<RecordDetailView> {
+        self.project_with_excerpt(request, expected_artifact_generation)
+            .map(|(view, _)| view)
+    }
+
+    fn project_with_excerpt(
+        &self,
+        request: RecordSelection,
+        expected_artifact_generation: Option<&str>,
+    ) -> AppServiceResult<(RecordDetailView, Option<String>)> {
+        let mut excerpt = None;
         let r = self.retrieval;
         let detail = &self.detail;
         crate::definitions::check_generation(
@@ -312,9 +378,9 @@ impl<'a> LoadedRecordDetail<'a> {
                         ));
                     }
                 };
-                recover_source_passage(html, plain, address).map_err(|e| {
+                excerpt = Some(recover_source_passage(html, plain, address).map_err(|e| {
                     AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
-                })?;
+                })?);
                 if let (
                     atlas_app_model::PreparedFieldBodyView::Html { html, .. },
                     Some(canonical),
@@ -508,7 +574,7 @@ impl<'a> LoadedRecordDetail<'a> {
         if whole_document {
             crate::record_grants::attach(&detail.source, &mut view, r, grants_truncated)?;
         }
-        Ok(view)
+        Ok((view, excerpt))
     }
 }
 
