@@ -24,6 +24,8 @@
 @import "./styles/encounters.css";
 @import "./styles/parties.css";
 @import "./styles/character-workspace.css";
+@import "./styles/character-inventory.css";
+@import "./styles/character-progression.css";
 @import "./styles/party-edit.css";
 @import "./styles/detail.css";
 @import "./styles/responsive.css";

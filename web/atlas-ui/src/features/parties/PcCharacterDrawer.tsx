@@ -113,7 +113,11 @@ export function PcCharacterDrawer({
         }
       }}
       size="min(1080px, 100vw)"
-      title={<span id={titleId}>{doc?.name ?? name}</span>}
+      title={
+        <span id={titleId} className="pc-character-drawer__title">
+          {doc?.name ?? name}
+        </span>
+      }
       focusable={{ focusTriggerAfterClose: false }}
       classNames={{ root: "pc-character-drawer-root" }}
       styles={{

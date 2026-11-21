@@ -1540,16 +1540,46 @@ export type SheetGroupKind = typeof SheetGroupKind[keyof typeof SheetGroupKind];
 export const SheetGroupKind = {
   skills: 'skills',
   proficiencies: 'proficiencies',
+  weapons: 'weapons',
+  armor: 'armor',
+  gear: 'gear',
+  container: 'container',
+  coins: 'coins',
+  formulas: 'formulas',
+  advancement: 'advancement',
+  special_abilities: 'special_abilities',
+  ability_boosts: 'ability_boosts',
+} as const;
+
+export type SheetFactRole = typeof SheetFactRole[keyof typeof SheetFactRole];
+
+
+export const SheetFactRole = {
+  quantity: 'quantity',
+  state: 'state',
+  category: 'category',
+  choice: 'choice',
+  acquired_level: 'acquired_level',
+  primary: 'primary',
 } as const;
 
 export interface SheetFactView {
   label: string;
+  role?: SheetFactRole;
   value: string;
 }
+
+export type SheetRowKind = typeof SheetRowKind[keyof typeof SheetRowKind];
+
+
+export const SheetRowKind = {
+  container_metadata: 'container_metadata',
+} as const;
 
 export interface SheetRowView {
   ability_key?: string;
   facts: SheetFactView[];
+  kind?: SheetRowKind;
   label: string;
   record_key?: RecordKey;
   summary_help?: ReferenceHelpView;

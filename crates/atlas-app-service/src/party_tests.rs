@@ -1634,3 +1634,159 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
         Some(precise),
     );
 }
+
+#[test]
+fn character_progression_orders_levels_and_compares_repeated_feats_across_levels() {
+    use serde_json::json;
+    let (_directory, service) = pathbuilder_service();
+    let mut source = json!({"success":true,"build":{
+        "name":"Progression example","level":7,"specials":[],"spellCasters":[],
+        "feats":[
+            ["Repeated feat","First choice","Class Feat",10],
+            ["Repeated feat","Second choice","Skill Feat",2],
+            ["Another feat",null,"General Feat",2],
+            ["Starting feat",null,"Ancestry Feat",0]
+        ]
+    }});
+    let preview = service
+        .preview_pathbuilder_pc(&source.to_string(), None)
+        .unwrap();
+    let levels = &preview
+        .sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Progression)
+        .unwrap()
+        .groups;
+    assert_eq!(
+        levels
+            .iter()
+            .map(|group| group.label.as_str())
+            .collect::<Vec<_>>(),
+        ["Level 0", "Level 2", "Level 10"]
+    );
+    assert_eq!(
+        levels[1]
+            .rows
+            .iter()
+            .map(|row| row.label.as_str())
+            .collect::<Vec<_>>(),
+        ["Repeated feat", "Another feat"]
+    );
+    assert!(
+        levels
+            .iter()
+            .all(|group| group.kind == Some(SheetGroupKind::Advancement))
+    );
+    assert!(
+        levels[1].rows[0]
+            .facts
+            .iter()
+            .any(|fact| fact.role == Some(SheetFactRole::Choice) && fact.value == "Second choice")
+    );
+    let saved = service
+        .save_pathbuilder_pc(SavePathbuilderPcRequest {
+            request_id: "progression-layout".into(),
+            json: source.to_string(),
+            expected_artifact_generation: preview.artifact_generation,
+            character_key: None,
+            expected_character_revision: None,
+            party: None,
+            rule_links: Default::default(),
+        })
+        .unwrap();
+    source["build"]["feats"].as_array_mut().unwrap().reverse();
+    let reordered = service
+        .preview_pathbuilder_pc(&source.to_string(), Some(&saved.character_key))
+        .unwrap();
+    assert!(
+        !reordered
+            .changes
+            .unwrap()
+            .sections
+            .iter()
+            .any(|section| section.label == "Progression")
+    );
+    source["build"]["feats"][3][3] = json!(4);
+    let changed = service
+        .preview_pathbuilder_pc(&source.to_string(), Some(&saved.character_key))
+        .unwrap();
+    let changes = changed.changes.unwrap();
+    let progression = changes
+        .sections
+        .iter()
+        .find(|section| section.label == "Progression")
+        .unwrap();
+    assert_eq!(progression.changed, ["Feats · Repeated feat"]);
+    assert!(progression.added.is_empty() && progression.removed.is_empty());
+}
+
+#[test]
+fn character_inventory_distinguishes_container_metadata_and_retains_zero_and_unknown_state() {
+    use serde_json::json;
+    let (_directory, service) = pathbuilder_service();
+    let source = json!({"success":true,"build":{
+        "name":"Inventory example","level":7,"feats":[],"specials":[],"spellCasters":[],
+        "equipment":[["Container",0,"a","Custom investment state"],["Rope",2,"unknown","Not Invested"]],
+        "equipmentContainers":{
+            "a":{"containerName":"Backpack","backpack":false},
+            "b":{"containerName":"Backpack","bagOfHolding":false}
+        },
+        "weapons":[{"name":"Dagger","qty":0,"attack":0}],
+        "money":{"gp":0,"sp":0}
+    }});
+    let preview = service
+        .preview_pathbuilder_pc(&source.to_string(), None)
+        .unwrap();
+    let groups = &preview
+        .sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Inventory)
+        .unwrap()
+        .groups;
+    let container = groups
+        .iter()
+        .find(|group| group.container_id.as_deref() == Some("a"))
+        .unwrap();
+    assert_eq!(container.kind, Some(SheetGroupKind::Container));
+    assert_eq!(
+        container.rows[0].kind,
+        Some(SheetRowKind::ContainerMetadata)
+    );
+    assert_eq!(container.rows[0].facts[0].value, "No");
+    assert_eq!(container.rows[1].label, "Container");
+    assert!(container.rows[1].kind.is_none());
+    assert!(
+        container.rows[1]
+            .facts
+            .iter()
+            .any(|fact| fact.role == Some(SheetFactRole::Quantity) && fact.value == "0")
+    );
+    assert!(
+        container.rows[1]
+            .facts
+            .iter()
+            .any(|fact| fact.role == Some(SheetFactRole::State)
+                && fact.value == "Custom investment state")
+    );
+    let empty = groups
+        .iter()
+        .find(|group| group.container_id.as_deref() == Some("b"))
+        .unwrap();
+    assert_eq!(empty.rows.len(), 1);
+    assert_eq!(empty.label, "Backpack (2)");
+    assert!(
+        groups
+            .iter()
+            .any(|group| group.container_id.as_deref() == Some("unknown")
+                && group.rows[0].label == "Rope")
+    );
+    assert!(groups.iter().any(|group| {
+        group.kind == Some(SheetGroupKind::Coins)
+            && group
+                .rows
+                .iter()
+                .all(|row| row.summary_value.as_deref() == Some("0"))
+    }));
+}

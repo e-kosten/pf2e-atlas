@@ -1,0 +1,198 @@
+.character-inventory {
+  display: grid;
+  gap: var(--space-section);
+  max-inline-size: 80rem;
+  overflow-wrap: anywhere;
+}
+
+.character-inventory :is(h3, h4) {
+  margin: 0;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.character-inventory h3 {
+  font-size: var(--sheet-section-size);
+  margin-block-end: var(--space-group);
+}
+
+.character-inventory h4 {
+  font-size: 1.125rem;
+  min-inline-size: 0;
+}
+
+.character-inventory__coins > dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-group);
+  margin: 0;
+  padding-block-end: var(--space-section);
+  border-block-end: 1px solid var(--line);
+  max-inline-size: 42rem;
+}
+
+.character-inventory__coins dt {
+  color: var(--muted);
+  font-size: var(--sheet-detail-size);
+}
+
+.character-inventory__coins dd {
+  margin: var(--space-micro) 0 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.character-inventory__loadout,
+.character-inventory__storage,
+.character-inventory__formulas {
+  display: grid;
+  align-items: start;
+  gap: var(--space-section);
+}
+
+.character-inventory__formulas {
+  max-inline-size: 52rem;
+}
+
+.character-inventory__section {
+  container: inventory-group / inline-size;
+  min-inline-size: 0;
+}
+
+.character-inventory :is(ul, li) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.character-inventory__equipment > li {
+  display: grid;
+  gap: var(--space-group);
+  padding-block: var(--space-group);
+  border-block-start: 1px solid var(--line);
+}
+
+.character-inventory__item-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-control) var(--space-group);
+}
+
+.character-inventory__readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr));
+  gap: var(--space-control) var(--space-group);
+}
+
+.character-inventory__readouts > div {
+  display: block;
+}
+
+.character-inventory__readouts dd {
+  margin-block-start: var(--space-micro);
+  font-size: var(--sheet-body-size);
+  font-weight: 600;
+}
+
+.character-inventory__supporting {
+  padding-block-start: var(--space-control);
+  border-block-start: 1px solid var(--split);
+}
+
+.character-inventory__container-facts {
+  margin-block: 0 var(--space-group);
+}
+
+.character-inventory__gear > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: baseline;
+  gap: var(--space-micro) var(--space-group);
+  border-block-start: 1px solid var(--line);
+  padding-block: var(--space-control);
+}
+
+.character-inventory__gear > li > strong {
+  font-weight: 500;
+  min-inline-size: 0;
+}
+
+.character-inventory__quantity {
+  grid-column: 2;
+  justify-self: end;
+}
+
+.character-inventory__quantity dd {
+  min-inline-size: 2ch;
+  text-align: end;
+}
+
+.character-inventory__state {
+  grid-column: 1 / -1;
+}
+
+.character-inventory__gear-labels {
+  display: none;
+}
+
+.character-inventory__gear--formulas > li {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container inventory-group (min-width: 32rem) {
+  .character-inventory__gear-labels,
+  .character-inventory__gear:not(.character-inventory__gear--formulas) > li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 5rem 9rem;
+    column-gap: var(--space-group);
+  }
+
+  .character-inventory__gear-labels {
+    color: var(--muted);
+    font-size: var(--sheet-detail-size);
+    padding-block-end: var(--space-control);
+  }
+
+  .character-inventory__gear-labels > :nth-child(2) {
+    text-align: end;
+  }
+
+  .character-inventory__state {
+    grid-column: 3;
+  }
+
+  .character-inventory__gear
+    :is(.character-inventory__quantity, .character-inventory__state)
+    dt {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@container (min-width: 36rem) {
+  .character-inventory__coins > dl {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 52rem) {
+  .character-inventory__storage:has(> :nth-child(2)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(2 * var(--space-section));
+  }
+}
+
+@container (min-width: 64rem) {
+  .character-inventory__loadout:has(> :nth-child(2)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(2 * var(--space-section));
+  }
+}

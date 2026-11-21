@@ -9,6 +9,7 @@ use axum::http::{Method, Request, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 use tower::ServiceExt;
+mod character_sheet;
 mod definitions;
 mod fixture;
 mod read_abandonment_tests;
