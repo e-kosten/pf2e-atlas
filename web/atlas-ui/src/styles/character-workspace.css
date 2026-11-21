@@ -9,6 +9,7 @@
 }
 
 .character-workspace,
+.character-workspace__document,
 .character-import,
 .character-import-review {
   display: flex;
@@ -21,7 +22,19 @@
   block-size: 100%;
 }
 
-.character-workspace > :not(.character-sheet),
+.character-workspace > .directory-nav {
+  flex: none;
+  margin-block-end: var(--space-group);
+}
+
+.character-workspace__document {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  inline-size: min(100%, 77rem);
+  margin-inline: auto;
+}
+
+.character-workspace__document > :not(.character-sheet),
 .character-import-review > :not(.character-sheet) {
   flex: none;
 }
@@ -52,7 +65,7 @@
   .character-workspace {
     padding-block: var(--space-control);
   }
-  .character-workspace .character-directory-actions,
+  .character-workspace > .directory-nav,
   .character-workspace .character-heading {
     margin-block-end: var(--space-control);
   }
@@ -67,6 +80,7 @@
     overflow-y: auto;
   }
   .character-workspace,
+  .character-workspace__document,
   .character-workspace
     :is(
       .character-sheet,

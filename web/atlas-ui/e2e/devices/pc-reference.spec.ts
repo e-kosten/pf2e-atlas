@@ -448,6 +448,16 @@ test("an empty saved sheet imports into the same character and returns focus", a
   const { character_key } = await response.json();
   try {
     await page.goto(`/characters/${character_key}`);
+    const directories = page.getByRole("navigation", { name: "Encounter directories" });
+    await expect(directories.getByRole("link")).toHaveText([
+      "Encounters",
+      "Parties",
+      "Characters",
+    ]);
+    await expect(directories.getByRole("link", { name: "Characters" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     const opener = page.getByRole("button", {
       name: "Import from Pathbuilder",
       exact: true,

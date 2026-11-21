@@ -1,16 +1,3 @@
-.party-page {
-  inline-size: min(100%, 80rem);
-  min-inline-size: 0;
-  margin-inline: auto;
-  padding: var(--space-group) var(--space-section) var(--space-section);
-  overflow-wrap: anywhere;
-}
-.character-directory-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-control);
-  margin-block-end: var(--space-section);
-}
 .party-directory-back.ant-btn,
 .party-roster-loading {
   display: none;
@@ -287,9 +274,6 @@
   width: 100%;
 }
 @media (max-width: 767px) {
-  .party-page {
-    padding-inline: var(--space-group);
-  }
   .party-workspace {
     grid-template-columns: minmax(0, 1fr);
   }

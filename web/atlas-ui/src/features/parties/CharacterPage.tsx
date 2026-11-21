@@ -5,7 +5,7 @@ import { Ellipsis } from "lucide-react";
 import { useRef, useState } from "react";
 import { deleteCharacter } from "../../api/atlasApi";
 import { PcAbilityBrowser, type AbilityNavigation } from "./PcAbilityBrowser";
-import { charactersDestination, partiesDestination } from "../../app/destinations";
+import { charactersDestination } from "../../app/destinations";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -21,7 +21,7 @@ import {
   useCharacter,
   useSavedAbilityLink,
 } from "./characterQueries";
-import { AtlasButtonLink } from "../../app/AtlasLink";
+import { EncounterDirectoryNav } from "../encounters/EncounterDirectoryNav";
 import { PathbuilderImport } from "./PathbuilderImport";
 import type { PcReferenceView } from "../../generated/atlas";
 
@@ -35,30 +35,29 @@ export function CharacterPage({
   const query = useCharacter(characterKey);
   usePageTitle(query.data?.name ?? "Character");
   return (
-    <div className="party-page character-workspace">
-      <div className="character-directory-actions">
-        <AtlasButtonLink {...charactersDestination()}>Characters</AtlasButtonLink>
-        <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
+    <div className="directory-page character-workspace">
+      <EncounterDirectoryNav current="Characters" />
+      <div className="character-workspace__document">
+        {query.error && (
+          <ErrorNotice
+            title="Character could not load"
+            error={query.error}
+            action={<Button onClick={() => void query.refetch()}>Retry</Button>}
+          />
+        )}
+        {query.isPending && <LoadingStatus label="Loading character…" />}
+        {query.data && (
+          <CharacterDocument
+            key={characterKey}
+            character={query.data}
+            navigation={navigation}
+            refreshCharacter={async () =>
+              (await query.refetch()).data?.character_revision
+            }
+          />
+        )}
+        {query.data === null && <p>Character unavailable.</p>}
       </div>
-      {query.error && (
-        <ErrorNotice
-          title="Character could not load"
-          error={query.error}
-          action={<Button onClick={() => void query.refetch()}>Retry</Button>}
-        />
-      )}
-      {query.isPending && <LoadingStatus label="Loading character…" />}
-      {query.data && (
-        <CharacterDocument
-          key={characterKey}
-          character={query.data}
-          navigation={navigation}
-          refreshCharacter={async () =>
-            (await query.refetch()).data?.character_revision
-          }
-        />
-      )}
-      {query.data === null && <p>Character unavailable.</p>}
     </div>
   );
 }
