@@ -34,6 +34,8 @@ export async function refreshCharacters(client: QueryClient) {
     [
       "characters",
       "character",
+      "character-sheet",
+      "character-import-details",
       "parties",
       "pc-reference",
       "encounters",

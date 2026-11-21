@@ -1534,6 +1534,80 @@ export interface CharacterMutationView {
   character_key: string;
 }
 
+export type SheetGroupKind = typeof SheetGroupKind[keyof typeof SheetGroupKind];
+
+
+export const SheetGroupKind = {
+  skills: 'skills',
+  proficiencies: 'proficiencies',
+} as const;
+
+export interface SheetFactView {
+  label: string;
+  value: string;
+}
+
+export interface SheetRowView {
+  ability_key?: string;
+  facts: SheetFactView[];
+  label: string;
+  record_key?: RecordKey;
+  summary_help?: ReferenceHelpView;
+  summary_value?: string;
+}
+
+export interface SheetSpellView {
+  ability_key?: string;
+  /** @minimum 0 */
+  count: number;
+  label: string;
+}
+
+export interface SheetSpellRankView {
+  known: SheetSpellView[];
+  label: string;
+  prepared: SheetSpellView[];
+  slots?: number;
+}
+
+export interface SheetGroupView {
+  container_id?: string;
+  kind?: SheetGroupKind;
+  label: string;
+  rows: SheetRowView[];
+  spell_ranks?: SheetSpellRankView[];
+}
+
+export type SheetSectionKind = typeof SheetSectionKind[keyof typeof SheetSectionKind];
+
+
+export const SheetSectionKind = {
+  stats: 'stats',
+  progression: 'progression',
+  magic: 'magic',
+  inventory: 'inventory',
+  companions: 'companions',
+  proficiencies: 'proficiencies',
+} as const;
+
+export interface SheetSectionView {
+  groups: SheetGroupView[];
+  kind: SheetSectionKind;
+}
+
+export interface CharacterSheetView {
+  has_additional_details: boolean;
+  level: number;
+  name: string;
+  sections: SheetSectionView[];
+}
+
+export interface CharacterSheetResponse {
+  character_key: string;
+  character_revision: number;
+  sheet?: CharacterSheetView;
+}
+
 export interface CheckDetailsView {
   traits: RecordBadgeView[];
 }
@@ -4659,6 +4733,54 @@ export const HpLifecycleResolutionView = {
   keep_current_state: 'keep_current_state',
 } as const;
 
+export interface ImportSectionChangesView {
+  added: string[];
+  changed: string[];
+  label: string;
+  removed: string[];
+}
+
+export interface ImportChangesView {
+  additional_fields_changed: string[];
+  had_sheet: boolean;
+  removed_corrections: string[];
+  /** @minimum 0 */
+  retained_corrections: number;
+  sections: ImportSectionChangesView[];
+}
+
+export type ImportCollectionKind = typeof ImportCollectionKind[keyof typeof ImportCollectionKind];
+
+
+export const ImportCollectionKind = {
+  object: 'object',
+  array: 'array',
+} as const;
+
+export type ImportScalarKind = typeof ImportScalarKind[keyof typeof ImportScalarKind];
+
+
+export const ImportScalarKind = {
+  text: 'text',
+  number: 'number',
+  boolean: 'boolean',
+  source_fragment: 'source_fragment',
+} as const;
+
+export interface ImportFieldView {
+  children: ImportFieldView[];
+  collection?: ImportCollectionKind;
+  display_label?: string;
+  label: string;
+  scalar_kind?: ImportScalarKind;
+  value?: string;
+}
+
+export interface ImportDetailsView {
+  fields: ImportFieldView[];
+  previous_fields?: ImportFieldView[];
+}
+
 export interface InitiativeStatisticView {
   key: string;
   label: string;
@@ -4765,12 +4887,14 @@ export interface PathbuilderPreviewRequest {
 
 export interface PathbuilderPreviewView {
   artifact_generation: string;
+  changes?: ImportChangesView;
   character_revision?: number;
   level: number;
   name: string;
   previous_level?: number;
   previous_name?: string;
   sections: PcAbilitySectionView[];
+  sheet: CharacterSheetView;
 }
 
 export type PcAbilitySelection = {
@@ -4962,6 +5086,14 @@ export interface PreviewEncounterDifficultyRequest {
 export interface PreviewEncounterRecoveryRequest {
   action: EncounterRecoveryAction;
   expected_encounter_revision: number;
+}
+
+export interface PreviewImportDetailsRequest {
+  /** @nullable */
+  character_key?: string | null;
+  /** @nullable */
+  expected_character_revision?: number | null;
+  json: string;
 }
 
 export interface RecordDetailRequest {
@@ -5897,6 +6029,10 @@ export interface UpdateTurnResourcesRequest {
   turn_key?: string | null;
 }
 
+export type CharacterImportDetailsParams = {
+  expected_character_revision: number;
+};
+
 export type ConditionLifecycleActionsParams = {
   participant_key?: string;
   boundary_key?: string;
@@ -6038,6 +6174,41 @@ return fetchGenerated<PathbuilderPreviewView>(getPreviewPathbuilderPcUrl(),
 
 
 
+export const getPreviewImportDetailsUrl = () => {
+
+
+
+
+  return `/api/characters/pathbuilder/preview/details`
+}
+
+export const previewImportDetails = async (previewImportDetailsRequest: PreviewImportDetailsRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<ImportDetailsView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<ImportDetailsView>(getPreviewImportDetailsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(previewImportDetailsRequest)
+  }
+);}
+
+
+
 export const getDeleteCharacterUrl = (characterKey: string,) => {
 
 
@@ -6131,6 +6302,36 @@ return fetchGenerated<CharacterMutationView>(getUpdateCharacterUrl(characterKey)
 
 
 
+export const getCharacterImportDetailsUrl = (characterKey: string,
+    params: CharacterImportDetailsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/characters/${encodeURIComponent(String(characterKey))}/import-details?${stringifiedParams}` : `/api/characters/${encodeURIComponent(String(characterKey))}/import-details`
+}
+
+export const characterImportDetails = async (characterKey: string,
+    params: CharacterImportDetailsParams, options?: Parameters<typeof fetchGenerated>[1]): Promise<ImportDetailsView> => {
+
+  return fetchGenerated<ImportDetailsView>(getCharacterImportDetailsUrl(characterKey,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getSavePcAbilityLinkUrl = (characterKey: string,
     abilityKey: string,) => {
 
@@ -6164,6 +6365,27 @@ return fetchGenerated<PcReferenceView>(getSavePcAbilityLinkUrl(characterKey,abil
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(savePcAbilityLinkRequest)
+  }
+);}
+
+
+
+export const getCharacterSheetUrl = (characterKey: string,) => {
+
+
+
+
+  return `/api/characters/${encodeURIComponent(String(characterKey))}/sheet`
+}
+
+export const characterSheet = async (characterKey: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<CharacterSheetResponse> => {
+
+  return fetchGenerated<CharacterSheetResponse>(getCharacterSheetUrl(characterKey),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

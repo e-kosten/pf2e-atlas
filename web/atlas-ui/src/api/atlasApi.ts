@@ -881,6 +881,29 @@ export function getCharacter(characterKey: string, signal?: AbortSignal) {
   return http.character(characterKey, { signal });
 }
 
+export function getCharacterSheet(characterKey: string, signal?: AbortSignal) {
+  return http.characterSheet(characterKey, { signal });
+}
+
+export function getCharacterImportDetails(
+  characterKey: string,
+  revision: number,
+  signal?: AbortSignal,
+) {
+  return http.characterImportDetails(
+    characterKey,
+    { expected_character_revision: revision },
+    { signal },
+  );
+}
+
+export function getPreviewImportDetails(
+  request: import("../generated/atlas").PreviewImportDetailsRequest,
+  signal?: AbortSignal,
+) {
+  return http.previewImportDetails(checkRequest(request), { intent: "read", signal });
+}
+
 export function createCharacter(
   request: import("../generated/atlas").CreateCharacterRequest,
 ) {

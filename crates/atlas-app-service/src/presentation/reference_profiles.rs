@@ -19,21 +19,23 @@ fn labels<T: Serialize>(value: SourceFieldView<'_, &Vec<T>>) -> FactView<Vec<Str
     }
     result
 }
+pub(crate) fn attribute_label(value: &str) -> &str {
+    match value {
+        "str" => "Strength",
+        "dex" => "Dexterity",
+        "con" => "Constitution",
+        "int" => "Intelligence",
+        "wis" => "Wisdom",
+        "cha" => "Charisma",
+        label => label,
+    }
+}
 fn attribute_names(
     value: SourceFieldView<'_, &Vec<PhysicalSystemSourceApexAttribute>>,
 ) -> FactView<Vec<ReferenceValueView>> {
     let mut result = reference_identifiers(value);
     for value in result.value.iter_mut().flatten() {
-        value.label = match value.value.as_str() {
-            "str" => "Strength",
-            "dex" => "Dexterity",
-            "con" => "Constitution",
-            "int" => "Intelligence",
-            "wis" => "Wisdom",
-            "cha" => "Charisma",
-            _ => value.value.as_str(),
-        }
-        .to_owned();
+        value.label = attribute_label(&value.value).to_owned();
     }
     result
 }

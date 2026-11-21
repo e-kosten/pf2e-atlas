@@ -6,6 +6,7 @@ import {
   addEncounterCharacter,
   getEncounter,
   getParties,
+  getPreviewImportDetails,
   previewPathbuilderPc,
   savePathbuilderPc,
 } from "../../api/atlasApi";
@@ -17,15 +18,18 @@ import type {
   PcReferenceView,
   PathbuilderPreviewView,
   PartyView,
+  ImportChangesView,
 } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 import { refreshCharacters } from "./characterQueries";
+import { CharacterSheet } from "./CharacterSheet";
 import { PcAbilityBrowser, type AbilityLinkChange } from "./PcAbilityBrowser";
 
 type ImportReview = {
   view: PathbuilderPreviewView;
+  json: string;
   party?: PartyView;
   encounterRevision?: number;
 };
@@ -88,6 +92,7 @@ export function PathbuilderImport({
         throw new Error("This party is no longer available. Your export is retained.");
       return {
         view,
+        json,
         party: target,
         encounterRevision: encounter
           ? (await getEncounter(encounter.encounterKey)).revision
@@ -200,7 +205,7 @@ export function PathbuilderImport({
     (ability) => ability.manual && !ruleLinks[ability.ability_key],
   ).length;
   const commitLabel = character
-    ? "Refresh character"
+    ? "Update character"
     : encounter
       ? "Add to encounter"
       : party
@@ -209,7 +214,7 @@ export function PathbuilderImport({
   return (
     <AtlasModal
       open={!closing}
-      title={character ? `Refresh ${character.name}` : "Import from Pathbuilder"}
+      title={character ? "New import from Pathbuilder" : "Import from Pathbuilder"}
       width={reviewing ? 1060 : undefined}
       layout={reviewing ? "browse" : "form"}
       onCancel={() => setClosing(true)}
@@ -270,6 +275,9 @@ export function PathbuilderImport({
       >
         {!reviewing && (
           <div>
+            {character && (
+              <p>This import updates {character.name}’s saved build and abilities.</p>
+            )}
             <label htmlFor={textareaId}>Pathbuilder JSON</label>
             <Input.TextArea
               id={textareaId}
@@ -346,6 +354,19 @@ export function PathbuilderImport({
                     ` · Level ${draft.previous_level}`}
                 </p>
               )}
+            {draft.changes && (
+              <p>
+                {draft.changes.sections.length > 0
+                  ? `Changes in ${draft.changes.sections.length} sections. See Import summary for details.`
+                  : draft.changes.had_sheet
+                    ? draft.changes.additional_fields_changed.length > 0
+                      ? "Additional import details changed. See Import summary for details."
+                      : "No changes in the exported build."
+                    : "This import adds the first saved character sheet."}
+                {draft.changes.removed_corrections.length > 0 &&
+                  ` ${draft.changes.removed_corrections.length} saved ${draft.changes.removed_corrections.length === 1 ? "link" : "links"} will be removed.`}
+              </p>
+            )}
             {retainedManualCount > 0 && (
               <p>
                 {retainedManualCount} saved{" "}
@@ -358,28 +379,163 @@ export function PathbuilderImport({
             {linksExpired && (
               <p role="status">Atlas rules changed. Choose your draft links again.</p>
             )}
-            <PcAbilityBrowser
-              key={draft.artifact_generation}
+            <CharacterSheet
+              key={`${draft.artifact_generation}-${draft.character_revision ?? "new"}`}
               generation={draft.artifact_generation}
+              defaultTab="abilities"
+              sheet={draft.sheet}
               active={!closing}
-              onReviewImport={canReviewLink ? () => preview.mutate(text) : undefined}
-              doc={{ imported: true, sections }}
-              link={chooseLink}
-              linkErrorAction={
-                <Button
-                  loading={preview.isPending ? { delay: 500 } : false}
-                  disabled={!canReviewLink}
-                  onClick={() => preview.mutate(text)}
-                >
-                  Review latest changes
-                </Button>
+              abilitySections={sections}
+              priorDetailsChanged={Boolean(
+                draft.changes?.additional_fields_changed.length,
+              )}
+              draftDetails={(signal) =>
+                getPreviewImportDetails(
+                  {
+                    json: review.data!.json,
+                    character_key: character?.character_key,
+                    expected_character_revision: draft.character_revision,
+                  },
+                  signal,
+                )
               }
-              blocked={busy || uncertain || canReview || Boolean(review.error)}
-              review
+              reviewSummary={
+                <ImportSummary changes={draft.changes} sheet={draft.sheet} />
+              }
+              abilities={(available) => (
+                <PcAbilityBrowser
+                  generation={draft.artifact_generation}
+                  active={available && !closing}
+                  onReviewImport={
+                    canReviewLink ? () => preview.mutate(text) : undefined
+                  }
+                  doc={{ imported: true, sections }}
+                  link={chooseLink}
+                  linkErrorAction={
+                    <Button
+                      loading={preview.isPending ? { delay: 500 } : false}
+                      disabled={!canReviewLink}
+                      onClick={() => preview.mutate(text)}
+                    >
+                      Review latest changes
+                    </Button>
+                  }
+                  blocked={busy || uncertain || canReview || Boolean(review.error)}
+                  review
+                />
+              )}
             />
           </section>
         )}
       </div>
     </AtlasModal>
+  );
+}
+
+const summaryLabels = {
+  stats: "Stats",
+  progression: "Progression",
+  magic: "Magic",
+  inventory: "Inventory",
+  companions: "Companions",
+  proficiencies: "Proficiencies",
+} as const;
+
+function ImportSummary({
+  changes,
+  sheet,
+}: {
+  changes?: ImportChangesView;
+  sheet: PathbuilderPreviewView["sheet"];
+}) {
+  return (
+    <div className="character-import-summary">
+      {changes ? (
+        <>
+          {!changes.had_sheet && (
+            <p>
+              This character has no previous sheet to compare. The import adds the first
+              saved snapshot.
+            </p>
+          )}
+          {changes.had_sheet &&
+            changes.sections.length === 0 &&
+            changes.additional_fields_changed.length === 0 && (
+              <p>No changes in the exported build.</p>
+            )}
+          {changes.sections.map((section) => (
+            <section key={section.label}>
+              <h3>{section.label}</h3>
+              {(
+                [
+                  ["Added", section.added],
+                  ["Changed", section.changed],
+                  ["Removed", section.removed],
+                ] as const
+              ).map(
+                ([label, items]) =>
+                  items.length > 0 && (
+                    <details key={label}>
+                      <summary>
+                        {label} ({items.length})
+                      </summary>
+                      <ul>
+                        {items.map((item, index) => (
+                          <li key={`${item}-${index}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  ),
+              )}
+            </section>
+          ))}
+          {changes.removed_corrections.length > 0 && (
+            <section>
+              <h3>Corrected links to be removed</h3>
+              <ul>
+                {changes.removed_corrections.map((label, index) => (
+                  <li key={`${label}-${index}`}>{label}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {changes.additional_fields_changed.length > 0 && (
+            <details>
+              <summary>
+                Changed additional details ({changes.additional_fields_changed.length})
+              </summary>
+              <p>Open Additional import details to review the affected values.</p>
+              <ul>
+                {changes.additional_fields_changed.map((field) => (
+                  <li key={field}>{field}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
+      ) : (
+        <ul>
+          {sheet.sections
+            .filter((section) => section.groups.length > 0)
+            .map((section) => {
+              let entries = 0;
+              for (const group of section.groups) {
+                entries += group.rows.length;
+                for (const rank of group.spell_ranks ?? []) {
+                  for (const spell of [...rank.known, ...rank.prepared]) {
+                    entries += spell.count;
+                  }
+                }
+              }
+              return (
+                <li key={section.kind}>
+                  {summaryLabels[section.kind]} {entries}{" "}
+                  {entries === 1 ? "entry" : "entries"}
+                </li>
+              );
+            })}
+        </ul>
+      )}
+    </div>
   );
 }

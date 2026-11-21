@@ -17,61 +17,92 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
+import { DraftDiscardDialog, useDraftNavigation } from "./CharacterDraftNavigation";
 import { refreshCharacters } from "./characterQueries";
 import { useParties } from "./useParties";
 
 function NewParty({ onClose }: { onClose: () => void }) {
   const [form] = Form.useForm<{ name: string }>();
   const id = useId();
+  const [partyName, setPartyName] = useState("");
   const [closing, setClosing] = useState(false);
   const client = useQueryClient();
   const navigate = useNavigate();
   const paused = useSavedWritesPaused();
+  const inFlight = useRef<Promise<unknown> | null>(null);
+  const committed = useRef(false);
+  const dirty = () => !committed.current && Boolean(form.getFieldValue("name")?.trim());
+  const { blocker, waiting } = useDraftNavigation(dirty, () =>
+    committed.current ? null : inFlight.current,
+  );
   const save = useMutation({
     retry: false,
-    mutationFn: ({ name }: { name: string }) => createParty({ name, members: [] }),
+    mutationFn: ({ name }: { name: string }) =>
+      createParty({ name: name.trim(), members: [] }),
     onSuccess: async ({ party_key }) => {
       await refreshCharacters(client);
+      committed.current = true;
       setClosing(true);
-      await navigate(partyDestination(party_key));
+      if (waiting.current === 0) await navigate(partyDestination(party_key));
     },
   });
   const close = () => setClosing(true);
+  function submit(values: { name: string }) {
+    if (paused || inFlight.current) return;
+    inFlight.current = save
+      .mutateAsync(values)
+      .catch(() => undefined)
+      .finally(() => {
+        inFlight.current = null;
+      });
+  }
   return (
-    <AtlasModal
-      open={!closing}
-      afterClose={onClose}
-      title="New party"
-      okText="Create party"
-      onOk={() => form.submit()}
-      onCancel={close}
-      confirmDiscard={{ when: () => form.isFieldsTouched(), onDiscard: close }}
-      confirmLoading={save.isPending}
-      closable={!save.isPending}
-      keyboard={!save.isPending}
-      mask={{ closable: !save.isPending }}
-      okButtonProps={{ disabled: paused }}
-      cancelButtonProps={{ disabled: save.isPending }}
-    >
-      {save.error && (
-        <ErrorNotice title="Party could not be saved" error={save.error} />
-      )}
-      <Form
-        form={form}
-        name={id}
-        layout="vertical"
-        disabled={paused || save.isPending}
-        onFinish={(values) => save.mutate(values)}
+    <>
+      <AtlasModal
+        open={!closing}
+        afterClose={onClose}
+        title="New party"
+        okText="Create party"
+        onOk={() => form.submit()}
+        onCancel={close}
+        confirmDiscard={{ when: dirty, onDiscard: close }}
+        confirmLoading={save.isPending}
+        closable={!save.isPending}
+        keyboard={!save.isPending}
+        mask={{ closable: !save.isPending }}
+        okButtonProps={{ disabled: paused || !partyName?.trim() }}
+        cancelButtonProps={{ disabled: save.isPending }}
       >
-        <Form.Item
-          name="name"
-          label="Party name"
-          rules={[{ required: true, whitespace: true, message: "Enter a party name." }]}
+        {save.error && (
+          <ErrorNotice title="Party could not be saved" error={save.error} />
+        )}
+        <Form
+          form={form}
+          name={id}
+          layout="vertical"
+          disabled={paused || save.isPending}
+          onValuesChange={(_changed, all) => setPartyName(all.name)}
+          onFinish={submit}
         >
-          <Input maxLength={255} />
-        </Form.Item>
-      </Form>
-    </AtlasModal>
+          <Form.Item
+            name="name"
+            label="Party name"
+            rules={[
+              { required: true, whitespace: true, message: "Enter a party name." },
+            ]}
+          >
+            <Input maxLength={255} />
+          </Form.Item>
+        </Form>
+      </AtlasModal>
+      <DraftDiscardDialog
+        open={blocker.status === "blocked"}
+        title="Discard new party?"
+        description="The party name you entered will be discarded."
+        onKeep={() => blocker.reset?.()}
+        onDiscard={() => blocker.proceed?.()}
+      />
+    </>
   );
 }
 

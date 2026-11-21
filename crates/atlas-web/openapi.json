@@ -1526,6 +1526,52 @@
         ],
         "type": "object"
       },
+      "CharacterSheetResponse": {
+        "properties": {
+          "character_key": {
+            "type": "string"
+          },
+          "character_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sheet": {
+            "$ref": "#/components/schemas/CharacterSheetView"
+          }
+        },
+        "required": [
+          "character_key",
+          "character_revision"
+        ],
+        "type": "object"
+      },
+      "CharacterSheetView": {
+        "properties": {
+          "has_additional_details": {
+            "type": "boolean"
+          },
+          "level": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SheetSectionView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "level",
+          "has_additional_details",
+          "sections"
+        ],
+        "type": "object"
+      },
       "CharacterSummaryView": {
         "properties": {
           "character_key": {
@@ -11242,6 +11288,141 @@
         ],
         "type": "string"
       },
+      "ImportChangesView": {
+        "properties": {
+          "additional_fields_changed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "had_sheet": {
+            "type": "boolean"
+          },
+          "removed_corrections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "retained_corrections": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ImportSectionChangesView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "had_sheet",
+          "sections",
+          "removed_corrections",
+          "retained_corrections",
+          "additional_fields_changed"
+        ],
+        "type": "object"
+      },
+      "ImportCollectionKind": {
+        "enum": [
+          "object",
+          "array"
+        ],
+        "type": "string"
+      },
+      "ImportDetailsView": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ImportFieldView"
+            },
+            "type": "array"
+          },
+          "previous_fields": {
+            "items": {
+              "$ref": "#/components/schemas/ImportFieldView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "fields"
+        ],
+        "type": "object"
+      },
+      "ImportFieldView": {
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/ImportFieldView"
+            },
+            "type": "array"
+          },
+          "collection": {
+            "$ref": "#/components/schemas/ImportCollectionKind"
+          },
+          "display_label": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "scalar_kind": {
+            "$ref": "#/components/schemas/ImportScalarKind"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "children"
+        ],
+        "type": "object"
+      },
+      "ImportScalarKind": {
+        "enum": [
+          "text",
+          "number",
+          "boolean",
+          "source_fragment"
+        ],
+        "type": "string"
+      },
+      "ImportSectionChangesView": {
+        "properties": {
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "added",
+          "changed",
+          "removed"
+        ],
+        "type": "object"
+      },
       "InherentConditionView": {
         "properties": {
           "condition_ref": {
@@ -12002,6 +12183,9 @@
           "artifact_generation": {
             "type": "string"
           },
+          "changes": {
+            "$ref": "#/components/schemas/ImportChangesView"
+          },
           "character_revision": {
             "format": "int64",
             "type": "integer"
@@ -12025,12 +12209,16 @@
               "$ref": "#/components/schemas/PcAbilitySectionView"
             },
             "type": "array"
+          },
+          "sheet": {
+            "$ref": "#/components/schemas/CharacterSheetView"
           }
         },
         "required": [
           "name",
           "level",
           "artifact_generation",
+          "sheet",
           "sections"
         ],
         "type": "object"
@@ -13654,6 +13842,30 @@
         "required": [
           "expected_encounter_revision",
           "action"
+        ],
+        "type": "object"
+      },
+      "PreviewImportDetailsRequest": {
+        "properties": {
+          "character_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expected_character_revision": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "json": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "json"
         ],
         "type": "object"
       },
@@ -18318,6 +18530,165 @@
         ],
         "type": "object"
       },
+      "SheetFactView": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "SheetGroupKind": {
+        "enum": [
+          "skills",
+          "proficiencies"
+        ],
+        "type": "string"
+      },
+      "SheetGroupView": {
+        "properties": {
+          "container_id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SheetGroupKind"
+          },
+          "label": {
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SheetRowView"
+            },
+            "type": "array"
+          },
+          "spell_ranks": {
+            "items": {
+              "$ref": "#/components/schemas/SheetSpellRankView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "rows"
+        ],
+        "type": "object"
+      },
+      "SheetRowView": {
+        "properties": {
+          "ability_key": {
+            "type": "string"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/SheetFactView"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "record_key": {
+            "$ref": "#/components/schemas/RecordKey"
+          },
+          "summary_help": {
+            "$ref": "#/components/schemas/ReferenceHelpView"
+          },
+          "summary_value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "facts"
+        ],
+        "type": "object"
+      },
+      "SheetSectionKind": {
+        "enum": [
+          "stats",
+          "progression",
+          "magic",
+          "inventory",
+          "companions",
+          "proficiencies"
+        ],
+        "type": "string"
+      },
+      "SheetSectionView": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/SheetGroupView"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SheetSectionKind"
+          }
+        },
+        "required": [
+          "kind",
+          "groups"
+        ],
+        "type": "object"
+      },
+      "SheetSpellRankView": {
+        "properties": {
+          "known": {
+            "items": {
+              "$ref": "#/components/schemas/SheetSpellView"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "prepared": {
+            "items": {
+              "$ref": "#/components/schemas/SheetSpellView"
+            },
+            "type": "array"
+          },
+          "slots": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "known",
+          "prepared"
+        ],
+        "type": "object"
+      },
+      "SheetSpellView": {
+        "properties": {
+          "ability_key": {
+            "type": "string"
+          },
+          "count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "count"
+        ],
+        "type": "object"
+      },
       "ShieldReferenceView": {
         "properties": {
           "ac_bonus": {
@@ -21345,6 +21716,53 @@
         }
       }
     },
+    "/api/characters/pathbuilder/preview/details": {
+      "post": {
+        "operationId": "previewImportDetails",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewImportDetailsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDetailsView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
     "/api/characters/{character_key}": {
       "delete": {
         "operationId": "deleteCharacter",
@@ -21502,6 +21920,62 @@
         }
       }
     },
+    "/api/characters/{character_key}/import-details": {
+      "get": {
+        "operationId": "characterImportDetails",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "character_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_character_revision",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDetailsView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
     "/api/characters/{character_key}/reference/{ability_key}": {
       "patch": {
         "operationId": "savePcAbilityLink",
@@ -21539,6 +22013,53 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PcReferenceView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/characters/{character_key}/sheet": {
+      "get": {
+        "operationId": "characterSheet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "character_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterSheetResponse"
                 }
               }
             },

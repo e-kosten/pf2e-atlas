@@ -14,6 +14,15 @@ function exportedCharacter(name: string, level = 7) {
     build: {
       name,
       level,
+      keyability: "int",
+      abilities: { str: 10, dex: 16, con: 14, int: 18, wis: 12, cha: 8 },
+      attributes: { ancestryhp: 8, classhp: 6, bonushp: 0, bonushpPerLevel: 0 },
+      proficiencies: { stealth: 2, athletics: 0 },
+      equipment: [
+        ["Rope", 2, "Not Invested"],
+        ["Rope", 1, "bag", "Not Invested"],
+      ],
+      equipmentContainers: { bag: { containerName: "Backpack", backpack: true } },
       feats: [],
       specials: ["Darkvision", "Night sight"],
       spellCasters: [],
@@ -139,8 +148,39 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await activate(importer.getByRole("button", { name: "Link this rule" }), info);
     await expect(importer.getByRole("region", { name: "PC abilities" })).toBeVisible();
     await activate(importer.getByRole("button", { name: "Add to party" }), info);
-    await expect(page).toHaveURL(/\/characters\/[^/]+\/?$/);
-    characterKey = new URL(page.url()).pathname.split("/").filter(Boolean).at(-1)!;
+    await expect(page).toHaveURL(new RegExp(`/parties/${party.party_key}`));
+    const importedRow = page.getByRole("row").filter({ hasText: "Aster" });
+    const importedLink = importedRow.getByRole("link", { name: "Aster", exact: true });
+    const characterPath = await importedLink.getAttribute("href");
+    characterKey = characterPath!.split("/").filter(Boolean).at(-1)!;
+    await activate(importedLink, info);
+    await expect(page.getByRole("tab", { name: "Stats", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(page.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(page.getByText("Intelligence", { exact: true }).first()).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "Show details for Imported max HP" }),
+      info,
+    );
+    const breakdown = page.getByRole("dialog", {
+      name: "Show details for Imported max HP",
+    });
+    await expect(
+      breakdown.getByText("Constitution per level", { exact: true }),
+    ).toBeVisible();
+    await activate(breakdown.getByRole("button", { name: "Close explanation" }), info);
+    await activate(page.getByRole("tab", { name: "Inventory", exact: true }), info);
+    await expect(
+      page.getByRole("heading", { name: "Backpack", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("tabpanel", { name: "Inventory" })
+        .getByText("Rope", { exact: true }),
+    ).toHaveCount(2);
+    await activate(page.getByRole("tab", { name: "Abilities", exact: true }), info);
     const imported = (await (
       await page.request.get(`/api/characters/${characterKey}`)
     ).json()) as PcReferenceView;
@@ -330,6 +370,7 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await page.goto(`/parties/${second.party_key}`);
     await activate(page.getByRole("link", { name: "Aster", exact: true }), info);
     await expect(page).toHaveURL(new RegExp(`/characters/${characterKey}`));
+    await activate(page.getByRole("tab", { name: "Abilities", exact: true }), info);
     await expect(
       reference.getByRole("button", { name: "Night sight", exact: true }),
     ).toBeVisible();
@@ -356,10 +397,15 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       picker
         .getByRole("listitem")
         .filter({ hasText: "Aster" })
-        .getByRole("button", { name: "Add", exact: true }),
+        .getByRole("button", { name: /^Add Aster/ }),
       info,
     );
     await expect(page.locator("[data-participant-key]")).toHaveCount(1);
+    await expect(picker.getByRole("textbox", { name: "Find a character" })).toHaveValue(
+      "Aster",
+    );
+    await expect(picker.getByText("Aster added to the encounter.")).toBeVisible();
+    await activate(picker.getByRole("button", { name: "Done" }), info);
     if (info.project.use.hasTouch)
       await activate(
         page.locator("[data-participant-key]").filter({ hasText: "Aster" }),
@@ -434,6 +480,8 @@ test("encounter imports and manual PCs create reusable characters", async ({
     const drawer = page.getByRole("dialog", { name: importedName, exact: true });
     await expect(drawer).toBeVisible();
     await expect(drawer.getByRole("heading", { name: /^Features/ })).toBeVisible();
+    await activate(drawer.getByRole("tab", { name: "Stats", exact: true }), info);
+    await expect(drawer.getByText("Imported max HP", { exact: true })).toBeVisible();
     await expect(page.locator("[data-participant-key]")).toHaveCount(2);
     const index = await (await page.request.get("/api/characters")).json();
     created.push(
@@ -616,5 +664,41 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
   } finally {
     await deleteCharacters(page.request, keys);
     await deleteParties(page.request, first.party_key, second.party_key);
+  }
+});
+
+test("guards inline character drafts when leaving a party", async ({ page }, info) => {
+  const party = await createParty(page.request, `Draft review ${Date.now()}`);
+  try {
+    await page.goto("/parties");
+    await activate(page.locator(`a[href="/parties/${party.party_key}"]`), info);
+    const add = page.getByRole("button", { name: "Add PC", exact: true });
+    async function startDraft() {
+      await activate(add, info);
+      await activate(page.getByRole("menuitem", { name: "Enter manually" }), info);
+    }
+    await startDraft();
+    const editor = page.locator(".character-inline-editor");
+    const level = editor.getByLabel("Level", { exact: true });
+    await level.fill("invalid");
+    await page.evaluate(() => history.back());
+    const discard = page.getByRole("dialog", { name: "Discard new character?" });
+    await expect(discard).toBeVisible();
+    await activate(discard.getByRole("button", { name: "Keep editing" }), info);
+    await expect(discard).toBeHidden();
+    await expect(level).toHaveValue("invalid");
+    await level.fill(" ");
+    await activate(editor.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(editor).toBeHidden();
+    await expect(discard).toBeHidden();
+
+    await startDraft();
+    await editor.getByLabel("Name", { exact: true }).fill("A draft character");
+    await page.evaluate(() => history.back());
+    await expect(discard).toBeVisible();
+    await activate(discard.getByRole("button", { name: "Discard", exact: true }), info);
+    await expect(page).toHaveURL(/\/parties\/?$/);
+  } finally {
+    await deleteParties(page.request, party.party_key);
   }
 });

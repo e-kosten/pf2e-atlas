@@ -35,6 +35,7 @@ import { ActionCost } from "./ActionCost";
 import { sentenceCase } from "../ui/labels";
 import { activityAnchor, landOnActivity } from "./embeddedNavigation";
 import { useSourceOwnerSelection } from "./SourceSectionSelectionContext";
+import { SpellListRow } from "./SpellListRow";
 function qualifierText<T extends string | string[]>(
   fact: FactView<T>,
   patch = false,
@@ -1276,52 +1277,54 @@ function CastingSpells({
       {[...groups]
         .sort((a, b) => a[1].rank - b[1].rank)
         .map(([label, group]) => (
-          <div className="actor-casting__row" key={label}>
-            <strong>
-              {label} {entry && annotations?.rank(entry, group.rank)}
-            </strong>
-            <span>
-              {group.spells.map((spell, index) => {
-                const annotation = annotations?.spell(spell);
-                return (
-                  <span key={JSON.stringify(spell.navigation)}>
-                    {index > 0 && ", "}
-                    <Typography.Link
-                      className={
-                        isSourceOwnerSelected(spell.navigation)
-                          ? "source-owner-selected"
-                          : undefined
-                      }
-                      aria-label={
-                        annotation?.status
-                          ? `${spell.title}: ${annotation.status}`
-                          : undefined
-                      }
-                      style={annotation?.muted ? { color: "var(--muted)" } : undefined}
-                      href={destinationHref(
-                        recordDestination({
-                          recordKey: spell.navigation.record_key,
-                          selection: spell.navigation,
-                        }),
-                      )}
-                      onClick={(event) => {
-                        if (!isPrimaryActivation(event)) return;
-                        event.preventDefault();
-                        onReference(
-                          spell.navigation.record_key,
-                          event.currentTarget,
-                          spell.navigation,
-                        );
-                      }}
-                    >
-                      {spell.title}
-                    </Typography.Link>
-                    {annotation?.suffix && <> {annotation.suffix}</>}
-                  </span>
-                );
-              })}
-            </span>
-          </div>
+          <SpellListRow
+            key={label}
+            label={
+              <>
+                {label} {entry && annotations?.rank(entry, group.rank)}
+              </>
+            }
+          >
+            {group.spells.map((spell, index) => {
+              const annotation = annotations?.spell(spell);
+              return (
+                <span key={JSON.stringify(spell.navigation)}>
+                  {index > 0 && ", "}
+                  <Typography.Link
+                    className={
+                      isSourceOwnerSelected(spell.navigation)
+                        ? "source-owner-selected"
+                        : undefined
+                    }
+                    aria-label={
+                      annotation?.status
+                        ? `${spell.title}: ${annotation.status}`
+                        : undefined
+                    }
+                    style={annotation?.muted ? { color: "var(--muted)" } : undefined}
+                    href={destinationHref(
+                      recordDestination({
+                        recordKey: spell.navigation.record_key,
+                        selection: spell.navigation,
+                      }),
+                    )}
+                    onClick={(event) => {
+                      if (!isPrimaryActivation(event)) return;
+                      event.preventDefault();
+                      onReference(
+                        spell.navigation.record_key,
+                        event.currentTarget,
+                        spell.navigation,
+                      );
+                    }}
+                  >
+                    {spell.title}
+                  </Typography.Link>
+                  {annotation?.suffix && <> {annotation.suffix}</>}
+                </span>
+              );
+            })}
+          </SpellListRow>
         ))}
       {!spells.length && (
         <p className="muted">No spells could be matched to this entry.</p>

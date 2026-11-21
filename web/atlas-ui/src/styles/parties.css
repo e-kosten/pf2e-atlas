@@ -159,11 +159,11 @@
 .party-roster td:first-child {
   padding-inline-start: 0;
 }
-.party-roster-pane .party-roster th:not(:first-child) {
+.party-roster-pane .party-roster th:not(:nth-child(2)) {
   width: 1%;
   white-space: nowrap;
 }
-.party-roster-pane .party-roster td:not(:first-child) {
+.party-roster-pane .party-roster td:not(:nth-child(2)) {
   white-space: nowrap;
 }
 .party-roster-pane .party-roster td:last-child {
@@ -330,4 +330,40 @@
 .character-ability-section
   .ant-list-item:has(.character-ability-link[aria-current="true"]) {
   background: var(--selection-bg);
+}
+
+.party-roster__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.party-roster__drag-preview {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--selection-bg);
+  color: var(--selection-text);
+  padding: var(--space-control) var(--space-group);
+  overflow-wrap: anywhere;
+}
+
+.party-roster-pane .party-roster td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+
+.character-picker {
+  display: grid;
+  gap: var(--space-control);
+  min-inline-size: 0;
+}
+
+.character-picker__status {
+  color: var(--muted);
+  min-block-size: 1.5em;
+  margin: 0;
+}
+
+.character-picker__identity {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  padding-inline-end: var(--space-control);
 }

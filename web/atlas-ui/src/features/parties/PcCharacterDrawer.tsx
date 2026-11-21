@@ -9,6 +9,7 @@ import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasDrawer } from "../../shared/ui/overlays/AtlasDrawer";
 import { useCharacters, useSavedAbilityLink } from "./characterQueries";
+import { SavedCharacterSheet } from "./CharacterSheet";
 import { PcAbilityBrowser } from "./PcAbilityBrowser";
 
 type EncounterLocation = {
@@ -89,7 +90,13 @@ export function PcCharacterDrawer({
   const busy = save.isPending || attach.isPending;
   const associationOptions = characters.data?.characters.map((character) => ({
     value: character.character_key,
-    label: character.name,
+    label: [
+      character.name,
+      character.level !== undefined && `Level ${character.level}`,
+      ...character.parties.map((party) => party.name),
+    ]
+      .filter(Boolean)
+      .join(" · "),
   }));
   return (
     <AtlasDrawer
@@ -133,89 +140,89 @@ export function PcCharacterDrawer({
       {attach.error && (
         <ErrorNotice error={attach.error} title="Could not update character link" />
       )}
-      <PcAbilityBrowser
-        key={doc?.character_key}
-        active={!closing}
-        revision={doc?.character_revision}
-        doc={doc}
-        link={save}
-        blocked={paused || attach.isPending}
-        toolbar={
-          <>
-            {reference.isPending && <LoadingStatus label="Loading PC reference…" />}
-            {doc !== undefined && (
-              <Space wrap>
-                {doc && (
-                  <Typography.Text type="secondary">
-                    {doc.name}’s character reference
-                  </Typography.Text>
-                )}
-                <Button
-                  disabled={paused || busy}
-                  onClick={() => {
-                    setMemberKey(doc?.character_key);
-                    setEditingAssociation(!editingAssociation);
-                  }}
-                >
-                  {doc ? "Change character" : "Attach to character"}
-                </Button>
-                {doc && (
-                  <Button
-                    disabled={paused || busy}
-                    onClick={() =>
-                      attach.mutate({
-                        encounter: location,
-                        association: { kind: "detach" },
-                      })
-                    }
-                  >
-                    Detach
-                  </Button>
-                )}
-              </Space>
-            )}
-            {editingAssociation && (
-              <>
-                {characters.error && (
-                  <ErrorNotice
-                    error={characters.error}
-                    title="Could not load characters"
-                  />
-                )}
-                <Space wrap>
-                  <Select
-                    aria-label="Character"
-                    placeholder="Choose a character"
-                    options={associationOptions}
-                    value={memberKey}
-                    onChange={setMemberKey}
-                    loading={characters.isPending}
-                    style={{ minWidth: "14rem" }}
-                  />
-                  <Button
-                    type="primary"
-                    disabled={paused || !memberKey || busy}
-                    onClick={() => {
-                      if (memberKey)
-                        attach.mutate({
-                          encounter: location,
-                          association: { kind: "attach", character_key: memberKey },
-                        });
-                    }}
-                  >
-                    Attach
-                  </Button>
-                </Space>
-              </>
-            )}
+      <div className="pc-character-drawer__association">
+        {reference.isPending && <LoadingStatus label="Loading PC reference…" />}
+        {doc !== undefined && (
+          <Space wrap>
             {doc?.level !== undefined && (
-              <Space wrap>
-                <Typography.Text type="secondary">Level {doc.level}</Typography.Text>
-              </Space>
+              <Typography.Text type="secondary">Level {doc.level}</Typography.Text>
             )}
+            <Button
+              disabled={paused || busy}
+              onClick={() => {
+                setMemberKey(doc?.character_key);
+                setEditingAssociation(!editingAssociation);
+              }}
+            >
+              {doc ? "Change character" : "Attach to character"}
+            </Button>
+            {doc && (
+              <Button
+                disabled={paused || busy}
+                onClick={() =>
+                  attach.mutate({
+                    encounter: location,
+                    association: { kind: "detach" },
+                  })
+                }
+              >
+                Detach
+              </Button>
+            )}
+          </Space>
+        )}
+        {editingAssociation && (
+          <>
+            {characters.error && (
+              <ErrorNotice error={characters.error} title="Could not load characters" />
+            )}
+            <Space wrap>
+              <Select
+                aria-label="Character"
+                placeholder="Choose a character"
+                options={associationOptions}
+                value={memberKey}
+                onChange={setMemberKey}
+                loading={characters.isPending}
+                style={{ minWidth: "14rem" }}
+              />
+              <Button
+                type="primary"
+                disabled={paused || !memberKey || busy}
+                onClick={() => {
+                  if (memberKey)
+                    attach.mutate({
+                      encounter: location,
+                      association: { kind: "attach", character_key: memberKey },
+                    });
+                }}
+              >
+                Attach
+              </Button>
+            </Space>
           </>
-        }
-      />
+        )}
+      </div>
+      {doc && (
+        <SavedCharacterSheet
+          key={doc.character_key}
+          character={doc}
+          defaultTab="abilities"
+          refreshCharacter={async () =>
+            (await reference.refetch()).data?.character_revision
+          }
+          active={!closing}
+          abilities={(active) => (
+            <PcAbilityBrowser
+              active={active}
+              revision={doc.character_revision}
+              doc={doc}
+              link={save}
+              blocked={paused || attach.isPending}
+            />
+          )}
+        />
+      )}
     </AtlasDrawer>
   );
 }

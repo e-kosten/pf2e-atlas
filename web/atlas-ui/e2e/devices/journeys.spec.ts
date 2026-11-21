@@ -1506,12 +1506,14 @@ test("named parties add everyone directly and archive views stay separate", asyn
       );
       const entry = page.locator(".character-inline-editor");
       await entry.getByLabel("Name", { exact: true }).fill(pc);
-      await entry.getByRole("spinbutton", { name: "Level", exact: true }).fill("5");
+      await entry.getByLabel("Level", { exact: true }).fill("5");
       await activate(
         entry.getByRole("button", { name: "Add to party", exact: true }),
         info,
       );
-      await expect(page.getByRole("link", { name: pc, exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("table").getByRole("link", { name: pc, exact: true }),
+      ).toBeVisible();
     }
     await noPageOverflow(page);
     await activate(

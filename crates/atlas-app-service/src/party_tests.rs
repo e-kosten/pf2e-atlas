@@ -408,6 +408,26 @@ fn pathbuilder_service() -> (tempfile::TempDir, crate::AtlasAppService) {
             spell("spells", "testspell0000001"),
             spell("sf-spells", "testspell0000002"),
             record(
+                "classes",
+                "Item",
+                json!({"_id":"testclass0000001","type":"class","name":"Wizard","system":{}}),
+            ),
+            record(
+                "feats",
+                "Item",
+                json!({"_id":"testfeat00000003","type":"feat","name":"Wizard","system":{}}),
+            ),
+            record(
+                "backgrounds",
+                "Item",
+                json!({"_id":"testbackgr000001","type":"background","name":"Scholar","system":{}}),
+            ),
+            record(
+                "backgrounds",
+                "Item",
+                json!({"_id":"testbackgr000002","type":"background","name":"Scholar","system":{}}),
+            ),
+            record(
                 "feats",
                 "Item",
                 json!({"_id":"testfeat00000001","type":"feat","name":"Prepared Counterspell","system":{}}),
@@ -1096,7 +1116,6 @@ fn saved_pathbuilder_sheet_preserves_full_source_and_reads_known_fields_independ
         .unwrap()
         .unwrap();
     assert_eq!((sheet.name.as_str(), sheet.level), ("Example wizard", 7));
-    assert_eq!(sheet.xp, Value(0));
     let Value(proficiencies) = sheet.proficiencies else {
         panic!("missing proficiencies")
     };
@@ -1308,4 +1327,310 @@ fn legacy_pathbuilder_receipts_replay_without_replacing_the_saved_character() {
                 .is_none()
         );
     }
+}
+
+#[test]
+fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes() {
+    use atlas_app_model::{ImportFieldView, SheetSectionKind};
+    use serde_json::json;
+
+    let (_directory, service) = pathbuilder_service();
+    let source = json!({"success": true, "build": {
+        "name": "Example wizard", "level": 7, "keyability": "int",
+        "xp": 300, "alignment": "CG",
+        "class": "Wizard", "background": "Scholar", "ancestry": "Custom ancestry",
+        "languages": ["None selected", "Common"], "age": "Not set",
+        "abilities": {"str": 9, "dex": 14, "con": 16, "int": 19},
+        "attributes": {"ancestryhp": 8, "classhp": 6, "bonushp": 0, "bonushpPerLevel": 1},
+        "acTotal": {"acTotal": 22, "shieldBonus": null},
+        "proficiencies": {"arcana": 4, "athletics": 0, "classDC": 2, "computers": 0, "piloting": 0},
+        "lores": [["Academia", 2]],
+        "mods": {"Arcana": {"Item Bonus": 1}},
+        "equipment": [["Rope", 0, "a", "Not Invested"]],
+        "weapons": [{
+            "name":"Dagger","attack":12,"die":"d4","damageType":"P",
+            "qty":"two","extraDamage":[{"formula":"1d4","type":"fire","enabled":false}]
+        }],
+        "equipmentContainers": {
+            "a": {"containerName": "Backpack", "bagOfHolding": false},
+            "b": {"containerName": "Backpack"}
+        },
+        "feats": [["Test Heritage", null, "Heritage", 1], ["Untrained Improvisation", null, "General Feat", 3], ["Counterspell", null, "Class Feat", 2]],
+        "specials": [],
+        "spellCasters": [{
+            "name": "Wizard", "perDay": [5, 3], "spells": [],
+            "prepared": [{"spellLevel": 1, "list": ["Test Focus Spell", "Test Focus Spell"]}]
+        }],
+        "focusPoints": 0
+    }});
+    let full_source = |source: &serde_json::Value, precise: &str| {
+        format!(
+            r#"{{"future":{{"number":{precise},"duplicate":null,"duplicate":false}},"success":true,"build":{}}}"#,
+            source["build"]
+        )
+    };
+    let precise = "123456789012345678901234567890.012345678901";
+    let original = full_source(&source, precise);
+    let preview = service.preview_pathbuilder_pc(&original, None).unwrap();
+    let heritage = ability_by_label(&preview.sections, "Test Heritage")
+        .ability_key
+        .clone();
+    let counterspell = ability_by_label(&preview.sections, "Counterspell")
+        .ability_key
+        .clone();
+    let saved = service
+        .save_pathbuilder_pc(SavePathbuilderPcRequest {
+            request_id: "sheet-review-example".into(),
+            json: original,
+            expected_artifact_generation: preview.artifact_generation,
+            character_key: None,
+            expected_character_revision: None,
+            party: None,
+            rule_links: [
+                (heritage.clone(), "feats:testfeat00000001".parse().unwrap()),
+                (counterspell, "feats:testfeat00000002".parse().unwrap()),
+            ]
+            .into(),
+        })
+        .unwrap();
+    let current = service.character_sheet(&saved.character_key).unwrap();
+    let sheet = current.sheet.unwrap();
+    let rows = |kind| {
+        sheet
+            .sections
+            .iter()
+            .find(|section| section.kind == kind)
+            .unwrap()
+            .groups
+            .iter()
+            .flat_map(|group| &group.rows)
+            .collect::<Vec<_>>()
+    };
+    let stats = rows(SheetSectionKind::Stats);
+    let identity_row = |label| stats.iter().find(|row| row.label == label).unwrap();
+    let class_help = identity_row("Class").summary_help.as_ref().unwrap();
+    let atlas_app_model::ReferenceDestinationView::Record { navigation } = &class_help.destination
+    else {
+        panic!("expected the exact class record");
+    };
+    assert_eq!(navigation.record_key, "classes:testclass0000001");
+    assert!(identity_row("Background").summary_help.is_none());
+    assert!(identity_row("Ancestry").summary_help.is_none());
+
+    let fact = |label, fact| {
+        stats
+            .iter()
+            .find(|row| row.label == label)
+            .unwrap()
+            .facts
+            .iter()
+            .find(|value| value.label == fact)
+            .map(|value| value.value.as_str())
+    };
+    assert_eq!(fact("Imported max HP", "Max HP"), Some("78"));
+    assert_eq!(
+        stats
+            .iter()
+            .find(|row| row.label == "Key ability")
+            .unwrap()
+            .summary_value
+            .as_deref(),
+        Some("Intelligence")
+    );
+    assert_eq!(
+        rows(SheetSectionKind::Inventory)
+            .iter()
+            .find(|row| row.label == "Dagger")
+            .unwrap()
+            .facts
+            .iter()
+            .find(|fact| fact.label == "Damage type")
+            .unwrap()
+            .value,
+        "Piercing"
+    );
+    assert_eq!(fact("Strength", "Modifier"), Some("-1"));
+    let skills = sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Stats)
+        .unwrap()
+        .groups
+        .iter()
+        .find(|group| group.kind == Some(atlas_app_model::SheetGroupKind::Skills))
+        .unwrap();
+    assert_eq!(skills.rows[0].label, "Academia Lore");
+    assert_eq!(skills.rows[1].label, "Acrobatics");
+    assert_eq!(
+        identity_row("Acrobatics").summary_value.as_deref(),
+        Some("+2")
+    );
+    assert_eq!(fact("Acrobatics", "Rank"), Some("Unavailable"));
+    assert_eq!(
+        identity_row("Athletics").summary_value.as_deref(),
+        Some("-1")
+    );
+    assert_eq!(fact("Athletics", "Rank"), Some("Untrained"));
+    assert_eq!(fact("Athletics", "Ability modifier"), Some("-1"));
+    assert_eq!(fact("Athletics", "Proficiency"), None);
+    assert_eq!(fact("Athletics", "Base modifier"), None);
+    assert!(
+        !stats
+            .iter()
+            .any(|row| matches!(row.label.as_str(), "Age" | "XP" | "Alignment"))
+    );
+    assert_eq!(
+        stats
+            .iter()
+            .find(|row| row.label == "Languages")
+            .unwrap()
+            .summary_value
+            .as_deref(),
+        Some("Common")
+    );
+    assert_eq!(identity_row("Arcana").summary_value.as_deref(), Some("+15"));
+    assert_eq!(fact("Arcana", "Base modifier"), Some("+15"));
+    assert_eq!(fact("Arcana", "Ability modifier"), Some("+4"));
+    assert_eq!(fact("Arcana", "Item Bonus"), Some("+1"));
+    assert_eq!(fact("AC", "Shield bonus"), None);
+    let proficiencies = sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Proficiencies)
+        .unwrap()
+        .groups
+        .iter()
+        .find(|group| group.kind == Some(atlas_app_model::SheetGroupKind::Proficiencies))
+        .unwrap();
+    assert!(stats.iter().all(|row| row.label != "Class DC"));
+    assert_eq!(
+        proficiencies
+            .rows
+            .iter()
+            .map(|row| (row.label.as_str(), row.summary_value.as_deref()))
+            .collect::<Vec<_>>(),
+        [
+            ("Class DC", Some("Trained")),
+            ("Computers", Some("Untrained")),
+            ("Piloting", Some("Untrained")),
+        ],
+    );
+    assert!(rows(SheetSectionKind::Progression).iter().any(|row| {
+        row.label == "Test Heritage" && row.ability_key.as_deref() == Some(heritage.as_str())
+    }));
+    let magic = sheet
+        .sections
+        .iter()
+        .find(|section| section.kind == SheetSectionKind::Magic)
+        .unwrap();
+    let prepared = magic
+        .groups
+        .iter()
+        .flat_map(|group| &group.spell_ranks)
+        .flat_map(|rank| &rank.prepared)
+        .find(|spell| spell.label == "Test Focus Spell")
+        .unwrap();
+    assert_eq!(prepared.count, 2);
+
+    assert!(rows(SheetSectionKind::Inventory).iter().any(|row| {
+        row.label == "Rope"
+            && row
+                .facts
+                .iter()
+                .any(|fact| fact.label == "Quantity" && fact.value == "0")
+    }));
+    let details = service
+        .character_import_details(&saved.character_key, current.character_revision)
+        .unwrap();
+    let field = |fields: Vec<ImportFieldView>, label: &str| {
+        fields
+            .into_iter()
+            .find(|field| field.label == label)
+            .unwrap()
+    };
+    assert!(sheet.has_additional_details);
+    assert_eq!(
+        details
+            .fields
+            .iter()
+            .map(|field| field.label.as_str())
+            .collect::<Vec<_>>(),
+        ["weapons", "Export metadata"]
+    );
+    let weapons = field(details.fields.clone(), "weapons");
+    assert_eq!(weapons.children[0].label, "Dagger");
+    assert_eq!(
+        weapons.children[0]
+            .children
+            .iter()
+            .map(|field| field.label.as_str())
+            .collect::<Vec<_>>(),
+        ["extraDamage", "qty"],
+    );
+    let metadata = field(details.fields, "Export metadata");
+    let future = field(metadata.children, "future");
+    assert_eq!(future.children.len(), 2);
+    assert_eq!(future.children[0].value.as_deref(), Some(precise));
+    assert_eq!(future.children[1].value.as_deref(), Some("false"));
+    assert!(
+        service
+            .character_import_details(&saved.character_key, current.character_revision - 1)
+            .is_err()
+    );
+
+    let mut next = source;
+    next["build"]["equipment"][0][2] = json!("b");
+    next["build"]["spellCasters"][0]["prepared"][0]["list"][1] = json!("Replacement");
+    next["build"]["feats"].as_array_mut().unwrap().pop();
+    let weapon = next["build"]["weapons"][0].as_object_mut().unwrap();
+    weapon.remove("extraDamage");
+    weapon.remove("qty");
+    let incoming = next.to_string();
+    let review = service
+        .preview_pathbuilder_pc(&incoming, Some(&saved.character_key))
+        .unwrap();
+    let changes = review.changes.unwrap();
+    assert_eq!(changes.retained_corrections, 1);
+    assert_eq!(changes.removed_corrections, ["Counterspell"]);
+    assert!(ability_by_label(&review.sections, "Test Heritage").manual);
+    let inventory = changes
+        .sections
+        .iter()
+        .find(|section| section.label == "Inventory")
+        .unwrap();
+    assert_eq!(inventory.added, ["Backpack (2) · Rope"]);
+    assert_eq!(inventory.removed, ["Backpack (1) · Rope"]);
+    let magic = changes
+        .sections
+        .iter()
+        .find(|section| section.label == "Magic")
+        .unwrap();
+    assert_eq!(magic.added, ["Wizard · Replacement"]);
+    assert_eq!(magic.removed, ["Wizard · Test Focus Spell"]);
+    assert!(
+        changes
+            .additional_fields_changed
+            .contains(&"Export metadata · future".to_owned())
+    );
+    assert!(
+        changes
+            .additional_fields_changed
+            .contains(&"weapons".to_owned())
+    );
+    assert!(!review.sheet.has_additional_details);
+    let comparison = service
+        .preview_import_details(
+            &incoming,
+            Some(&saved.character_key),
+            review.character_revision,
+        )
+        .unwrap();
+    assert!(comparison.fields.is_empty());
+    let metadata = field(comparison.previous_fields.unwrap(), "Export metadata");
+    assert_eq!(
+        field(metadata.children, "future").children[0]
+            .value
+            .as_deref(),
+        Some(precise),
+    );
 }

@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+mod character_sheet;
 mod characters;
 mod encounter_characters;
 

@@ -1,5 +1,5 @@
 import { Button, Dropdown } from "antd";
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import type { PartyView } from "../../generated/atlas";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { CharacterEditor } from "./CharacterEditor";
@@ -10,9 +10,13 @@ export function AddCharacter({
   party,
   onSaved,
   onManual,
+  disabled = false,
+  triggerRef,
 }: {
   party?: PartyView;
-  onSaved: (key: string) => void;
+  onSaved?: (key: string) => void;
+  disabled?: boolean;
+  triggerRef?: Ref<HTMLButtonElement>;
   onManual?: () => void;
 }) {
   const paused = useSavedWritesPaused();
@@ -33,7 +37,7 @@ export function AddCharacter({
           },
         }}
       >
-        <Button type="primary" disabled={paused}>
+        <Button ref={triggerRef} type="primary" disabled={paused || disabled}>
           Add PC
         </Button>
       </Dropdown>
@@ -41,7 +45,7 @@ export function AddCharacter({
         <CharacterEditor
           party={party}
           onClose={() => setMode(undefined)}
-          onSaved={onSaved}
+          onSaved={(key) => onSaved?.(key)}
         />
       )}
       {mode === "pathbuilder" && (
@@ -49,7 +53,7 @@ export function AddCharacter({
           party={party}
           onClose={() => setMode(undefined)}
           onSaved={(key) => {
-            if (key) onSaved(key);
+            if (key) onSaved?.(key);
           }}
         />
       )}

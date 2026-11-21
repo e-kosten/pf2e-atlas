@@ -124,9 +124,11 @@ pub use remaster::{
     RemasterExplanationLinkView, RemasterInlinePartView, RemasterRelationshipView,
     RemasterRelationshipsView, RemasterSourceContextView,
 };
+mod character_sheet;
 mod equipment_family;
 mod graph;
 mod list;
+pub use character_sheet::*;
 mod pc_reference;
 pub use pc_reference::{
     EncounterPcAssociation, EncounterPcReferenceView, PathbuilderPreviewRequest,
