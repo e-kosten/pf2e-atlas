@@ -79,10 +79,12 @@ attribute rules and accepts `--seed` only with sole Random, generating it when
 omitted. Both adapters lower into the same typed contract.
 
 Candidate admission remains independent of order and page. The existing semantic
-policy tries 1,024/2,048/4,096 unit hits until the matching-root stopping target
-is met or the largest window is reached. The target of 200 roots is not a result
-cap. Every accepted root contributes; hybrid unions the complete lexical lane
-before ordering. Attribute or Random ordering then sorts the entire accepted
+policy tries windows of 1,024, 2,048 and 4,096 eligible occurrences. A short
+window exhausts the candidates because every selected native input has at least
+one eligible occurrence. A full window widens when it contains fewer than 200
+distinct roots and a larger window remains. Coverage reports the window used.
+Every accepted root contributes, including roots beyond the target of 200.
+Hybrid includes the complete lexical lane before ordering. Attribute or Random ordering then sorts the entire accepted
 set before paging, retaining its coverage and witnesses. The stateless workflow
 still reruns retrieval and does not promise a cross-request frozen candidate set.
 
@@ -128,7 +130,10 @@ request. Generation mismatch pauses paging. Explicit `Refresh results` cancels
 affected reference-dependent queries before removing data, advances the epoch and restarts
 at page1, retaining criteria and mutable drafts. Old page data cannot cross that
 transition. Exact embedded addresses are never rebound to a different ordinal.
-Similar preview reloads its actual owning detail before requesting a new generation.
+The record’s Similar tab resolves the selected record’s comparison sections and
+opens Search with that seed and its source options in the URL. Retry repeats the
+failed sections or ranking request. When the generation changes, the tab reloads
+its owning detail before requesting results for the new generation.
 
 Search and each picker use the shared browser `useReferenceGeneration` session
 for generation adoption, request eligibility and replacement. Criteria, navigation,
@@ -154,6 +159,10 @@ blocking closure keeps its permit until the actual work finishes. No ambient
 context, client-ID registry, new capability trait, SQL interruption or native
 inference abort is introduced. Durable mutations and their precommit reference
 reads stay uncancellable under ADR0048.
+
+An unclosed phrase or more than 16,384 bytes of lexical text is a query input
+error (HTTP 400), with a stable reason in the error details for browser recovery.
+Vector-only queries have no lexical phrase grammar.
 
 Text retrieval uses an exhaustive conversion of embedding errors. Empty input and token-budget overflow are invalid requests,
 HTTP400, with useful counts and a shortening instruction. Model/cache/inference

@@ -678,7 +678,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
     );
     assert_eq!(result.results.records[0].semantic_similarity, Some(1.0));
     assert!(!result.results.coverage.exhaustive);
-    assert_eq!(result.results.coverage.semantic_unit_window, Some(4096));
+    assert_eq!(result.results.coverage.semantic_unit_window, Some(1024));
     assert!(result.results.records.iter().all(|r| r.record.key != seed));
     let keys = [key("cccccccccccccccc")];
     let scoped = service
@@ -1201,7 +1201,8 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
         })
         .unwrap()
         .unwrap();
-    assert_eq!(result.results.coverage.semantic_unit_window, Some(4096));
+    assert_eq!(service.read_metrics().knn_queries, 2);
+    assert_eq!(result.results.coverage.semantic_unit_window, Some(2048));
     assert_eq!(result.results.records.len(), 2);
     assert_eq!(result.results.records[0].record.key, actor_key);
     assert_eq!(result.results.records[0].score, 1.0);

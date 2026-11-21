@@ -65,8 +65,7 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
     fn from(error: atlas_runtime::RuntimeError) -> Self {
         use atlas_runtime::RuntimeErrorKind;
         let code = match error.kind() {
-            RuntimeErrorKind::WorkspaceBusy
-            | RuntimeErrorKind::Search(SearchErrorKind::WorkspaceBusy) => {
+            RuntimeErrorKind::WorkspaceBusy => {
                 return Self::service_busy(error.to_string());
             }
             RuntimeErrorKind::WorkspaceMissing => AppErrorCode::SetupRequired,
@@ -82,7 +81,7 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
                     AppRecoverableAction::RefreshResults,
                 );
             }
-            RuntimeErrorKind::Search(kind) => search_error_code(*kind),
+            RuntimeErrorKind::Search(kind) => return search_app_error(*kind, error.to_string()),
             RuntimeErrorKind::UnsupportedSearchProfile
             | RuntimeErrorKind::RepoModeOutsideCheckout => AppErrorCode::InvalidRequest,
             RuntimeErrorKind::CurrentDirectoryUnavailable
@@ -172,11 +171,7 @@ impl From<LocalStateError> for AppServiceError {
 
 impl From<SearchError> for AppServiceError {
     fn from(error: SearchError) -> Self {
-        if error.kind() == SearchErrorKind::WorkspaceBusy {
-            return Self::service_busy(error.to_string());
-        }
-        let code = search_error_code(error.kind());
-        Self::new(code, error.to_string())
+        search_app_error(error.kind(), error.to_string())
     }
 }
 
@@ -186,10 +181,15 @@ impl From<atlas_domain::QueryError> for AppServiceError {
     }
 }
 
-fn search_error_code(kind: SearchErrorKind) -> AppErrorCode {
-    match kind {
+fn search_app_error(kind: SearchErrorKind, message: String) -> AppServiceError {
+    let code = match kind {
         SearchErrorKind::OperationCancelled => AppErrorCode::OperationCancelled,
-        SearchErrorKind::WorkspaceBusy => AppErrorCode::ServiceBusy,
+        SearchErrorKind::WorkspaceBusy => return AppServiceError::service_busy(message),
+        SearchErrorKind::InvalidLexicalQuery(reason) => {
+            return AppError::new(AppErrorCode::InvalidRequest, message)
+                .with_details(serde_json::json!({ "reason": reason }))
+                .into();
+        }
         SearchErrorKind::WorkspaceAccessFailed => AppErrorCode::WorkspaceAccessFailed,
         SearchErrorKind::IndexUnavailable => AppErrorCode::IndexUnavailable,
         SearchErrorKind::ArtifactContractViolation => AppErrorCode::ArtifactIncompatible,
@@ -198,5 +198,6 @@ fn search_error_code(kind: SearchErrorKind) -> AppErrorCode {
         SearchErrorKind::VectorReadinessRequired => AppErrorCode::VectorReadinessRequired,
         SearchErrorKind::EmbeddingUnavailable => AppErrorCode::EmbeddingModelUnavailable,
         SearchErrorKind::QueryFailed => AppErrorCode::QueryFailed,
-    }
+    };
+    AppServiceError::new(code, message)
 }

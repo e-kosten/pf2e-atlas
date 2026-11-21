@@ -69,11 +69,30 @@ export function isSharedFailure(error: unknown): boolean {
   );
 }
 
+export function lexicalInputExplanation(error: unknown): string | undefined {
+  const failure = appError(error);
+  const code = failure?.code;
+  const details = failure?.details;
+  if (
+    code === "invalid_request" &&
+    details &&
+    typeof details === "object" &&
+    "reason" in details
+  ) {
+    if (details.reason === "unclosed_phrase")
+      return "Add a closing quotation mark to finish the phrase.";
+    if (details.reason === "lexical_text_too_long")
+      return "Shorten the search text to 16,384 bytes or fewer.";
+  }
+}
+
 export function errorExplanation(error: unknown): string | undefined {
   if (error instanceof AtlasConnectionError)
     return error.write
       ? "The change could not be confirmed. Check the current values after reconnecting before trying again."
       : undefined;
+  const input = lexicalInputExplanation(error);
+  if (input) return input;
   const code = appError(error)?.code;
   return code && Object.prototype.hasOwnProperty.call(explanations, code)
     ? explanations[code]

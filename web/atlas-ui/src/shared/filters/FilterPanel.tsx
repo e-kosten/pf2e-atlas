@@ -143,6 +143,7 @@ export function FilterControls({
   layout = "panel",
   searchRowEnd,
   searchInputRef,
+  searchInputError,
   searchEntryKey,
   similarSearch,
   additionalFilters,
@@ -156,11 +157,13 @@ export function FilterControls({
   pane?: { narrow: boolean; summary: ReactNode };
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
+  searchInputError?: string;
   searchEntryKey?: number;
   similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
   children?: ReactNode;
 }) {
+  const searchErrorId = useId();
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
@@ -375,6 +378,7 @@ export function FilterControls({
       label={pane ? "Search this list" : undefined}
       placeholder={pane ? "Search this list…" : undefined}
       inputRef={searchInputRef}
+      errorId={searchInputError ? searchErrorId : undefined}
       query={search.query}
       similar={similarSearch}
       acceptedSubmission={workspace.acceptedSearchSubmission}
@@ -611,6 +615,11 @@ export function FilterControls({
                 {searchEntry}
                 {searchRowEnd}
               </PrimaryToolbar>
+            )}
+            {searchInputError && (
+              <Typography.Text id={searchErrorId} type="danger" role="alert">
+                {searchInputError}
+              </Typography.Text>
             )}
             <div className="filter-controls__criteria">{criteria}</div>
           </div>

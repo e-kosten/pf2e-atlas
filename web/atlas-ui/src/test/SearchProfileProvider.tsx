@@ -10,11 +10,13 @@ export function SearchProfileProvider({
   children,
   id = "bge-base",
   usable = true,
+  preferences = DEFAULT_SEARCH_PREFERENCES,
   resolveWorkspaceDefault,
 }: {
   children: ReactNode;
   id?: string;
   usable?: boolean;
+  preferences?: SearchProfileSelection["preferences"];
   resolveWorkspaceDefault?: SearchProfileSelection["resolveWorkspaceDefault"];
 }) {
   return (
@@ -32,7 +34,7 @@ export function SearchProfileProvider({
         resetLink: () => {},
         select: () => {},
         defaultId: "bge-base",
-        preferences: DEFAULT_SEARCH_PREFERENCES,
+        preferences,
         applyPreferences: () => true,
       }}
     >
