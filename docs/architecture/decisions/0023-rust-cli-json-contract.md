@@ -42,13 +42,12 @@ JSON payloads are written to stdout. Routine progress is not part of the JSON co
 
 ### Current search contract
 
-Browse, text and Similar JSON use the common app-service SearchResultsPage inside
-`data`. Rows contain records and attributable matches/reference evidence; top-level
-clause presentations, effective order, mode, profile, generation, page and coverage
-retain the same semantics as web search. Similar's seed is part of its mode summary.
-Summary-only browse payloads and separate Similar wrappers are replaced directly;
-there are no parallel compatibility aliases for rows or evidence. Canonical keys
-and checked source addresses remain machine identity, separate from human labels.
+Browse and text search project the shared SearchResultsPage into compact CLI
+rows with an attributable match, selected record navigation and executable
+follow-up arguments. Full detail includes the complete witness set. Similar
+retains its comparison evidence and seed. All use the service's ordering,
+profile, page, generation and coverage semantics. A continuation carries the
+original generation, predicate, workspace and sort seed.
 
 Relationship evidence identifies a predicate clause, not a positional constraint
 array. Only positive clauses in successful Boolean proofs contribute occurrences.
@@ -67,7 +66,7 @@ duplicates. There are no aggregate counts or redundant partial flag.
 Each result contains the original `input` and a `status` discriminator:
 
 - `ok`: `value` contains the source-backed CLI reading response or strict
-  resolution result (`total` and bounded `alternatives`).
+  resolution result (the unique selected record, match evidence and navigation).
 - `error`: `error` contains `code`, `message`, and optional `details`, `retryable`
   and `recoverable_action`, preserving the app error contract.
 - `unprocessed`: `reason: "prior_runtime_failure"` indicates that execution
@@ -86,21 +85,19 @@ Top-level and per-input app errors use the same `details` field; graph ambiguity
 provides `details.candidates`, while resolution provides `details.total` and
 `details.alternatives`. Recovery hints are preserved when supplied by app-service.
 
-CLI record values reuse app-service semantic facts with an explicit reading layout:
-`identity` describes the selected content (including effective rank-preview facts),
-`parent` is included only for embedded selections, and `selected` retains the
-exact navigation address. `content` holds `classification`, prepared `fields`,
-structured `body`, and `owned` navigation. Root identity is serialized once;
-there are no `record` or `presentation` aliases. Artifact generation and
-relationship evidence remain alongside these sections. This is CLI serialization
-policy, not a second source model; the web's internal reading DTO is unchanged.
-The `owned`/`owners` terminology is tracked separately under CF-04.
+CLI record values project the shared service facts according to summary, standard
+or full detail. Identity describes the selected content. Embedded selections
+retain their parent. The selected locator binds the whole navigation address to
+the artifact generation observed by that read. An explicit passage or field
+restricts the content at every detail level. A standard read supplies citable
+rules and facts. Full JSON gives access to the prepared fields, body and
+relationships of a whole-record read. Exact checked source remains available
+through `record source`.
 
-JSON record values are complete selected reference responses from app-service;
-explicit terminal `--detail` conflicts with `--json`. Human reading supports
-summary, standard and full. Source inspection uses `record source`; it is separate
-from the batch detail payload. ADR 0046 supersedes the historical normalized
-record and rich-content projection contracts.
+Saved-list batch commands retain their list identity, creation outcome and
+ordered item results even when every requested item fails. Their top-level
+status summarizes item outcomes. A successful transaction can create an empty
+list after all its item references miss.
 
 Readiness and validation commands are successful command executions when checks run, even when the artifact is invalid. `atlas index check --json` and `atlas index validate --json` return `status: "ok"` with `data.valid: false` for invalid artifacts and exit with code `3`. These diagnostic reports describe successful check execution; record batch statuses instead summarize their per-input outcomes.
 
@@ -119,6 +116,6 @@ The standard process exit classes are:
 - `2`: invalid user input
 - `3`: runtime, index, artifact, or environment failure
 
-Search, record retrieval, record resolution, graph, and future discovery commands should reuse the shared record/result DTOs instead of defining command-specific record fragments.
+Search, record retrieval, record resolution, graph, and future discovery commands project shared record/result facts into the requested CLI detail level.
 
 Batch presentation and exit policy belong to atlas-cli; shared envelope serialization belongs to atlas-cli-support. App-service retains ownership of record values and typed service errors.
