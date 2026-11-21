@@ -3,7 +3,7 @@ import { LoadingStatus } from "../LoadingStatus";
 import { useDismissOnReadingNavigation } from "../overlays/useDismissOnReadingNavigation";
 import { AtlasModal as Modal } from "../overlays/AtlasModal";
 import { ErrorNotice } from "../../feedback/ErrorNotice";
-import { useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import {
   Button,
   ConfigProvider,
@@ -27,7 +27,6 @@ import {
 } from "../../search/useReferenceGeneration";
 import { useReferenceQueryRetirement } from "../../queries/useReferenceQueryRetirement";
 import { SearchSettings } from "../../search/SearchSettings";
-import { similarityFromPreferences } from "../../search/similarityState";
 import { useSemanticRerunOwner } from "../../search/SemanticReadyNotice";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
 import { searchExecution } from "../../search/searchExecution";
@@ -35,9 +34,10 @@ import {
   assertKeywordSearch,
   assertSearchIdentity,
   sameSearchPageContext,
-  assertSimilarityIdentity,
 } from "../../search/searchIdentity";
 import type {
+  QueryPredicate,
+  SearchConnectionScope,
   RecordSummaryView,
   RecordNavigationView,
   RecordDetailView,
@@ -47,6 +47,7 @@ import type {
 import {
   DEFAULT_SEARCH_STATE,
   buildFilterDiscoveryContext,
+  buildSearchRequest,
   effectiveResultSort,
   normalizeSortTransition,
   type SearchFormState,
@@ -74,7 +75,8 @@ export type PickerSelection = {
 };
 
 export function SearchPickerModal<FormValues>({
-  buildRequest,
+  fixedFilter,
+  connectionScope,
   disabled = false,
   children,
   emptyPrompt,
@@ -99,7 +101,8 @@ export function SearchPickerModal<FormValues>({
   initialSelection,
   focusSearchOnOpen = false,
 }: {
-  buildRequest: (query: string) => SearchResultsRequest;
+  fixedFilter?: QueryPredicate;
+  connectionScope?: SearchConnectionScope;
   disabled?: boolean;
   children?:
     React.ReactNode | ((detail: RecordDetailView | undefined) => React.ReactNode);
@@ -172,38 +175,26 @@ export function SearchPickerModal<FormValues>({
   const pageNumber = paging.profile === profile.id ? paging.number : 1;
   if (paging.profile !== profile.id) setPaging({ profile: profile.id, number: 1 });
   const setPageNumber = (number: number) => setPaging({ profile: profile.id, number });
-  const base = buildRequest(search.query);
-  const execution = searchExecution(profile, base.criteria.kind);
+  const kind = search.query.trim() ? "text_search" : "list_records";
+  const execution = searchExecution(profile, kind);
   const filter =
-    base.criteria.filter && search.filter
-      ? { kind: "all_of" as const, children: [base.criteria.filter, search.filter] }
-      : (base.criteria.filter ?? search.filter);
-  const request: SearchResultsRequest = {
-    ...base,
-    ...(search.sort ? { sort: search.sort } : {}),
-    search_profile: execution.profile,
-    ranking: search.ranking ?? profile.preferences.ranking,
-    criteria:
-      base.criteria.kind === "similar_records"
-        ? {
-            ...base.criteria,
-            filter,
-            similarity:
-              search.similarity ??
-              base.criteria.similarity ??
-              similarityFromPreferences(profile.preferences.recordSimilarity),
-          }
-        : base.criteria.kind === "text_search"
-          ? {
-              ...base.criteria,
-              filter,
-              mode: execution.mode === "lexical" ? "lexical" : base.criteria.mode,
-              search_content: search.searchContent ?? base.criteria.search_content,
-            }
-          : { ...base.criteria, filter },
-    page: { number: pageNumber, size: search.pageSize },
-  };
-  const requestToken = JSON.stringify(request);
+    fixedFilter && search.filter
+      ? { kind: "all_of" as const, children: [fixedFilter, search.filter] }
+      : (fixedFilter ?? search.filter);
+  const request =
+    search.filterError || search.filterWasReset
+      ? undefined
+      : {
+          ...buildSearchRequest(
+            { ...search, filter },
+            pageNumber,
+            null,
+            execution.profile,
+            execution.mode,
+          ),
+          connection_scope: connectionScope,
+        };
+  const requestToken = JSON.stringify(request ?? null);
   const profileReady = execution.ready;
   const retrieval = useReferenceGeneration(requestToken, open && profileReady);
   const resetGeneration = retrieval.reset;
@@ -221,55 +212,49 @@ export function SearchPickerModal<FormValues>({
   const recordResults = useQuery<SearchResultsPage>({
     queryKey: resultsKey,
     meta: referenceQueryMeta,
-    enabled: open && profileReady && !retrieval.recovering && !search.filterError,
+    enabled: open && profileReady && !retrieval.recovering && !!request,
     staleTime: 20_000,
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[3] === retrieval.epoch &&
+      request &&
+      previousQuery?.queryKey[2] &&
+      previousQuery.queryKey[3] === retrieval.epoch &&
       previousQuery.queryKey[4] === retrieval.generation &&
       sameSearchPageContext(previousQuery.queryKey[2] as SearchResultsRequest, request)
         ? previous
         : undefined,
-    queryFn: async ({ signal }) => {
-      const ticket = retrieval.capture(signal);
-      const page = await searchPage(
-        {
-          ...request,
-          expected_artifact_generation:
-            search.similarityGeneration ?? retrieval.generation,
+    queryFn: !request
+      ? skipToken
+      : async ({ signal }) => {
+          const ticket = retrieval.capture(signal);
+          const page = await searchPage(
+            {
+              ...request,
+              expected_artifact_generation: retrieval.generation,
+            },
+            signal,
+          );
+          assertSearchIdentity(
+            page,
+            execution.profile,
+            retrieval.generation,
+            effectiveResultSort(search),
+          );
+          if (
+            request.criteria.kind === "text_search" &&
+            request.criteria.mode === "lexical"
+          )
+            assertKeywordSearch(page);
+          retrieval.adopt(ticket, page.artifact_generation, {
+            queryKey: resultsKeyForGeneration(page.artifact_generation),
+            data: page,
+          });
+          return page;
         },
-        signal,
-      );
-      assertSearchIdentity(
-        page,
-        execution.profile,
-        search.similarityGeneration ?? retrieval.generation,
-        effectiveResultSort({
-          sort: request.sort ?? undefined,
-          query: request.criteria.kind === "text_search" ? request.criteria.query : "",
-          similarSeed:
-            request.criteria.kind === "similar_records"
-              ? request.criteria.seed_record_key
-              : null,
-        }),
-      );
-      if (request.criteria.kind === "similar_records")
-        assertSimilarityIdentity(page, request.criteria.similarity ?? undefined);
-      if (
-        request.criteria.kind === "text_search" &&
-        request.criteria.mode === "lexical"
-      )
-        assertKeywordSearch(page);
-      retrieval.adopt(ticket, page.artifact_generation, {
-        queryKey: resultsKeyForGeneration(page.artifact_generation),
-        data: page,
-      });
-      return page;
-    },
   });
   // Scope classification belongs to the static parent context, not a direction's
   // transient result page. Retain this backend fact while different rows load.
   const scopeContext = JSON.stringify([
-    request.connection_scope?.parent,
+    connectionScope?.parent,
     retrieval.epoch,
     retrieval.generation,
   ]);
@@ -313,7 +298,7 @@ export function SearchPickerModal<FormValues>({
     open && !retrieval.recovering,
     retrieval.epoch,
     retrieval.generation ??
-      request.connection_scope?.parent.expected_artifact_generation ??
+      connectionScope?.parent.expected_artifact_generation ??
       null,
   );
   const selection = usePreparedReferenceSelection(
@@ -337,7 +322,7 @@ export function SearchPickerModal<FormValues>({
       execution.profile,
       retrieval.generation ?? undefined,
     ),
-    connection_scope: request.connection_scope,
+    connection_scope: connectionScope,
   };
   const discovery = useFilterDiscovery({
     context,
@@ -346,17 +331,15 @@ export function SearchPickerModal<FormValues>({
     catalogIdentity: [retrieval.epoch],
   });
   function refreshResults() {
-    if (request.connection_scope) {
+    if (connectionScope) {
       onCancel();
       return Promise.resolve();
     }
     return retrieval.refresh(() => setPageNumber(1));
   }
   function applySettings(next: SearchFormState) {
-    return retrieval.applyGeneration(next.similarityGeneration, () => {
-      setCriteria((current) => ({ ...current, search: next }));
-      setPageNumber(1);
-    });
+    setCriteria((current) => ({ ...current, search: next }));
+    setPageNumber(1);
   }
   const currentRows =
     recordResults.error && profileReady ? [] : (recordResults.data?.rows ?? []);
@@ -405,7 +388,7 @@ export function SearchPickerModal<FormValues>({
     <ReferenceSelectionStatus
       selection={selection}
       generationChangedAction={
-        request.connection_scope
+        connectionScope
           ? {
               label: "Close picker",
               message:
@@ -442,7 +425,7 @@ export function SearchPickerModal<FormValues>({
   }
   const rerunSemantic =
     !disabled &&
-    !request.connection_scope &&
+    !connectionScope &&
     !retrieval.recovering &&
     profile.keywordSearch &&
     profile.semanticDefault &&
@@ -577,48 +560,20 @@ export function SearchPickerModal<FormValues>({
                 />
               )}
               <FilterControls
-                includeLinks={!request.connection_scope}
+                includeLinks={!connectionScope}
                 searchInputRef={searchInput}
                 searchEntryKey={searchSession}
                 layout="toolbar"
                 searchRowEnd={
                   <SearchSettings
-                    seedTitle={
-                      recordResults.data?.mode.kind === "similar_records" &&
-                      request.criteria.kind === "similar_records" &&
-                      recordResults.data.mode.seed.record_key ===
-                        request.criteria.seed_record_key
-                        ? recordResults.data.mode.seed.title
-                        : undefined
-                    }
-                    search={
-                      request.criteria.kind === "similar_records"
-                        ? {
-                            ...search,
-                            similarity: request.criteria.similarity ?? undefined,
-                          }
-                        : search
-                    }
-                    seed={
-                      request.criteria.kind === "similar_records"
-                        ? {
-                            kind: "record",
-                            record_key: request.criteria.seed_record_key,
-                          }
-                        : null
-                    }
-                    generation={retrieval.generation}
-                    disabled={
-                      disabled ||
-                      (profile.keywordSearch &&
-                        request.criteria.kind === "similar_records")
-                    }
+                    search={search}
+                    disabled={disabled}
                     onApply={applySettings}
                   />
                 }
                 filterState={{
                   resultRequest: request,
-                  fixedFilter: base.criteria.filter,
+                  fixedFilter,
                   search,
                   acceptedSearchSubmission,
                   setSearch: (next, intent, searchSubmission) => {
@@ -635,7 +590,7 @@ export function SearchPickerModal<FormValues>({
                     if (
                       intent === "submit" &&
                       next.query.trim() &&
-                      !request.connection_scope &&
+                      !connectionScope &&
                       (inheritedProfile.resolveWorkspaceDefault ||
                         (profile.automaticKeyword && profile.semanticDefault))
                     ) {
@@ -648,10 +603,7 @@ export function SearchPickerModal<FormValues>({
                   filterEditor: discovery.filterEditor,
                   refreshFilterInformation: refreshResults,
                   filterApplicabilityCurrent: discovery.filterApplicabilityCurrent,
-                  filterCountsEnabled:
-                    discovery.filterCountsEnabled &&
-                    profileReady &&
-                    request.criteria.kind !== "similar_records",
+                  filterCountsEnabled: discovery.filterCountsEnabled && profileReady,
                   filterCountQueryKey: discovery.filterCountQueryKey,
                   filterDiscoveryContext: discovery.filterDiscoveryContext,
                   vocabularyScope: discovery.vocabularyScope,
@@ -662,17 +614,13 @@ export function SearchPickerModal<FormValues>({
                 {searchHeader?.(guidanceScope)}
               </FilterControls>
               <div className="reference-picker__feedback">
-                <SearchProfileNotice
-                  similar={request.criteria.kind === "similar_records"}
-                  showKeyword
-                  rerunSemantic={rerunSemantic}
-                />
+                <SearchProfileNotice showKeyword rerunSemantic={rerunSemantic} />
                 {recordResults.error && (
                   <ErrorNotice
                     error={recordResults.error}
                     title="Search failed"
                     description={
-                      generationChanged && request.connection_scope
+                      generationChanged && connectionScope
                         ? "The parent results changed. Close this picker, then refresh the parent results before reopening it."
                         : undefined
                     }
@@ -686,7 +634,7 @@ export function SearchPickerModal<FormValues>({
                         loading={recordResults.isFetching || retrieval.recovering}
                       >
                         {generationChanged
-                          ? request.connection_scope
+                          ? connectionScope
                             ? "Close picker"
                             : "Refresh results"
                           : "Retry search"}
@@ -704,7 +652,7 @@ export function SearchPickerModal<FormValues>({
                     : undefined
                 }
                 relationshipClauses={recordResults.data?.relationship_clauses}
-                filter={request.criteria.filter}
+                filter={filter}
                 generation={recordResults.data?.artifact_generation}
                 onRefreshResults={refreshResults}
                 loading={
