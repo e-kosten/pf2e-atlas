@@ -8,7 +8,7 @@ and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 ## Characters in global navigation
 
 The header now includes Characters after Encounters. On phones the four
-destinations fit in one row with tighter spacing. All ten desktop Chromium,
+destinations fit in one row with tighter spacing. On macOS, all ten desktop Chromium,
 phone Chromium and tablet WebKit references show the header, as do four
 phone WebKit references. The six phone WebKit frames with the header out of
 view kept their existing references.
@@ -24,6 +24,21 @@ character section hover adjustment was included in the ordinary comparison.
 | Comparison  | Frontend input | `aca3c88c0d2c15742936910554f646dd1ff27bf7916bd0d7f589e05ab490e556` |
 | Comparison  | Frontend index | `3900b6a2edf2a1cfaa12fb2eae8fe252e5a706fa37e0ac4914f7d3876e9d7273` |
 | Comparison  | Fixture        | `17283d58e075af4762eab886ff251378ca3e04af6255e7459f5329686edcb7e2` |
+
+The Ubuntu 24.04 x64 capture used Playwright 1.65.0 and CI run 44951176812’s
+verified fixture. Synthetic merge `49d136a97076d45fac1cbbb588828a66b80be4fb`
+contains PR head `0a02a4286cb3cc6b04e1cbe1197202be8f54d0da` and main
+`74a469b925720e17fdb200e777a953ac5583f85b`. All 12 capture scenarios passed.
+Review covered the new header text and the compact phone spacing. All ten
+desktop Chromium, phone Chromium and tablet WebKit frames changed, along with
+two phone WebKit reminder frames. The other eight phone WebKit references
+passed comparison. [Ubuntu capture 44951546970](https://github.com/e-kosten/pf2e-atlas/actions/runs/44951546970)
+
+| Linux build | File or input  | SHA-256                                                            |
+| ----------- | -------------- | ------------------------------------------------------------------ |
+| Capture     | Frontend input | `f5bdd41a21ad2eed90c3578469a83479d2ded5f893e8eba5fbccb1eb836a9575` |
+| Capture     | Frontend index | `cbb6a3e2977f795461df9a3bd800da8c263efe71ab02bd263790c4a8f53cf6ce` |
+| Capture     | Fixture        | `08d27ed0779b66049e364cd6d7919526bb8ef307190a3bf6e9521dfcc813dede` |
 
 ## Shared encounter turn action
 
