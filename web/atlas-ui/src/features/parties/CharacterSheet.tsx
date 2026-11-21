@@ -392,6 +392,15 @@ function SheetGroup({
   headingId?: string;
   children?: ReactNode;
 }) {
+  if (group.kind === "focus_pool") {
+    const points = group.rows[0]?.summary_value;
+    if (points === undefined) return null;
+    return (
+      <p className="character-magic__focus-pool">
+        <strong>{group.label}</strong> {points} {points === "1" ? "point" : "points"}
+      </p>
+    );
+  }
   const skills = group.kind === "skills";
   const aligned = skills || group.kind === "proficiencies";
   const compact =

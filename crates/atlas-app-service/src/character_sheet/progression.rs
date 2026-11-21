@@ -16,10 +16,18 @@ pub(super) fn groups(sheet: &PathbuilderSheet, keys: &AbilityKeys<'_>) -> Vec<Sh
             &mut facts,
             [(SheetFactRole::Choice, "Choice", feat.choice.clone())],
         );
+        if let Some(slot) = value(&feat.slot).filter(|slot| !slot.is_empty()) {
+            let mut fact = fact_value("Slot", slot);
+            if value(&feat.selection_kind).is_some_and(|kind| kind == "childChoice")
+                && let Some(detail) = value(&feat.selection_detail)
+            {
+                fact.display_value = separated_slot(slot, detail);
+            }
+            facts.push(fact);
+        }
         add_facts(
             &mut facts,
             [
-                ("Slot", shown(&feat.slot)),
                 (
                     "Selection",
                     source_label(&feat.selection_kind, feat_selection),
@@ -76,4 +84,11 @@ pub(super) fn groups(sheet: &PathbuilderSheet, keys: &AbilityKeys<'_>) -> Vec<Sh
         groups.push(boosts);
     }
     groups
+}
+
+// Some child choices append their separately supplied selection detail to the slot.
+fn separated_slot(slot: &str, detail: &str) -> Option<String> {
+    let prefix = slot.strip_suffix(detail)?;
+    (prefix.ends_with(char::is_alphanumeric) && detail.starts_with(char::is_alphanumeric))
+        .then(|| format!("{prefix} · {detail}"))
 }

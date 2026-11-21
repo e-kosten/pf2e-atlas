@@ -113,6 +113,115 @@ fn context_preserves_typed_availability_occurrences_and_exact_source() {
 }
 
 #[test]
+fn sheet_places_imported_stats_by_use_and_keeps_cli_section_membership() {
+    use atlas_app_model::{SheetGroupView, SheetSectionKind};
+
+    fn rows<'a>(groups: &'a [SheetGroupView], label: &str) -> Vec<(&'a str, &'a str)> {
+        groups
+            .iter()
+            .find(|group| group.label == label)
+            .unwrap()
+            .rows
+            .iter()
+            .map(|row| (row.label.as_str(), row.summary_value.as_deref().unwrap()))
+            .collect()
+    }
+
+    let (_directory, service) = pathbuilder_service();
+    let source = json!({"success": true, "build": {
+        "name": "Scholar", "level": 1, "feats": [], "specials": [], "spellCasters": [],
+        "keyability": "int", "abilities": {"dex": 10}, "background": "Cook",
+        "languages": ["None selected", "Common"], "size": 0, "age": "53",
+        "gender": "Woman", "deity": "Brigh", "resistances": ["Fire 5"],
+        "acTotal": {"acTotal": 14}
+    }});
+    let key = import_source(&service, source.to_string());
+    let sheet = service.character_sheet(&key).unwrap().sheet.unwrap();
+    let groups = &sheet
+        .sections
+        .iter()
+        .find(|s| s.kind == SheetSectionKind::Stats)
+        .unwrap()
+        .groups;
+    assert_eq!(
+        rows(groups, "Defenses & movement"),
+        [("AC", "14"), ("Resistances", "Fire 5")]
+    );
+    assert_eq!(
+        rows(groups, "Character details"),
+        [
+            ("Background", "Cook"),
+            ("Languages", "Common"),
+            ("Size", "0"),
+            ("Age", "53"),
+            ("Gender", "Woman"),
+            ("Deity", "Brigh"),
+        ]
+    );
+    assert_eq!(
+        rows(groups, "Ability scores"),
+        [("Dexterity", "10 (+0)"), ("Key ability", "Intelligence")]
+    );
+    assert!(
+        !groups
+            .iter()
+            .any(|group| group.label == "Background & details")
+    );
+
+    let context = service
+        .character_context(
+            &key,
+            CharacterContextRequest {
+                sections: vec![S::Identity, S::Statistics],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let identity = &context.sections[&S::Identity].presentation;
+    assert_eq!(
+        rows(identity, "Character details"),
+        [("Background", "Cook"), ("Key ability", "Intelligence")]
+    );
+    assert_eq!(
+        rows(identity, "Background & details"),
+        [
+            ("Languages", "Common"),
+            ("Resistances", "Fire 5"),
+            ("Size", "0"),
+            ("Age", "53"),
+            ("Gender", "Woman"),
+            ("Deity", "Brigh"),
+        ]
+    );
+    let statistics = &context.sections[&S::Statistics].presentation;
+    assert_eq!(
+        rows(statistics, "Ability scores"),
+        [("Dexterity", "10 (+0)")]
+    );
+    assert_eq!(rows(statistics, "Defenses & movement"), [("AC", "14")]);
+
+    let sparse = json!({"success": true, "build": {
+        "name": "Sparse", "level": 1, "feats": [], "specials": [], "spellCasters": [],
+        "keyability": "int"
+    }});
+    let preview = service
+        .preview_pathbuilder_pc(&sparse.to_string(), None)
+        .unwrap();
+    let groups = &preview
+        .sheet
+        .sections
+        .iter()
+        .find(|s| s.kind == SheetSectionKind::Stats)
+        .unwrap()
+        .groups;
+    assert_eq!(groups.len(), 1);
+    assert_eq!(
+        rows(groups, "Ability scores"),
+        [("Key ability", "Intelligence")]
+    );
+}
+
+#[test]
 fn current_identity_and_party_order_are_independent_of_imported_sheet() {
     let (_directory, service) = pathbuilder_service();
     let key = import_source(&service, pathbuilder_export(7));

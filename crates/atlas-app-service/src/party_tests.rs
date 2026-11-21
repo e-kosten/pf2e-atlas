@@ -1647,7 +1647,7 @@ fn character_progression_orders_levels_and_compares_repeated_feats_across_levels
         "feats":[
             ["Repeated feat","First choice","Class Feat",10],
             ["Repeated feat","Second choice","Skill Feat",2],
-            ["Another feat",null,"General Feat",2],
+            ["Another feat",null,"General Feat",2,"Class FeatHuman Feat 1","childChoice","Human Feat 1"],
             ["Starting feat",null,"Ancestry Feat",0]
         ]
     }});
@@ -1687,6 +1687,16 @@ fn character_progression_orders_levels_and_compares_repeated_feats_across_levels
             .iter()
             .any(|fact| fact.role == Some(SheetFactRole::Choice) && fact.value == "Second choice")
     );
+    let slot = levels[1].rows[1]
+        .facts
+        .iter()
+        .find(|fact| fact.label == "Slot")
+        .unwrap();
+    assert_eq!(slot.value, "Class FeatHuman Feat 1");
+    assert_eq!(
+        slot.display_value.as_deref(),
+        Some("Class Feat · Human Feat 1")
+    );
     let saved = service
         .save_pathbuilder_pc(SavePathbuilderPcRequest {
             request_id: "progression-layout".into(),
@@ -1710,6 +1720,8 @@ fn character_progression_orders_levels_and_compares_repeated_feats_across_levels
             .iter()
             .any(|section| section.label == "Progression")
     );
+    // A source correction can look identical after typesetting and must still compare as changed.
+    source["build"]["feats"][1][4] = json!("Class Feat · Human Feat 1");
     source["build"]["feats"][3][3] = json!(4);
     let changed = service
         .preview_pathbuilder_pc(&source.to_string(), Some(&saved.character_key))
@@ -1720,7 +1732,10 @@ fn character_progression_orders_levels_and_compares_repeated_feats_across_levels
         .iter()
         .find(|section| section.label == "Progression")
         .unwrap();
-    assert_eq!(progression.changed, ["Feats · Repeated feat"]);
+    assert_eq!(
+        progression.changed,
+        ["Feats · Another feat", "Feats · Repeated feat"]
+    );
     assert!(progression.added.is_empty() && progression.removed.is_empty());
 }
 

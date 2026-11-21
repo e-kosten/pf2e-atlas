@@ -1,5 +1,15 @@
-import type { SheetGroupView } from "../../generated/atlas";
+import { Switch } from "antd";
+import { useId, useState } from "react";
+import type {
+  SheetFactView,
+  SheetGroupView,
+  SheetRowView,
+} from "../../generated/atlas";
 import { SheetFacts, SheetLabel, type SheetPresentation } from "./CharacterSheetParts";
+
+function isSourceFact(fact: SheetFactView) {
+  return fact.role === undefined;
+}
 
 export function CharacterProgression({
   groups,
@@ -7,45 +17,41 @@ export function CharacterProgression({
 }: SheetPresentation & { groups: SheetGroupView[] }) {
   const levels = groups.filter((group) => group.kind === "advancement");
   const supporting = groups.filter((group) => group.kind !== "advancement");
+  const [showSources, setShowSources] = useState(false);
+  const switchId = useId();
+  const hasSources = levels.some((group) =>
+    group.rows.some((row) => row.facts.some(isSourceFact)),
+  );
   return (
     <div className="character-progression">
       {levels.length > 0 && (
-        <ol className="character-progression__levels">
-          {levels.map((group, index) => (
-            <li key={index}>
-              <section className="character-progression__level">
-                <h3>{group.label}</h3>
-                <ul className="character-progression__choices">
-                  {group.rows.map((row, index) => (
-                    <li key={index}>
-                      <div className="character-progression__choice-heading">
-                        <h4>
-                          <SheetLabel row={row} {...presentation} />
-                        </h4>
-                        <SheetFacts
-                          facts={row.facts.filter((fact) => fact.role === "category")}
-                          className="character-progression__category"
-                        />
-                      </div>
-                      <SheetFacts
-                        facts={row.facts.filter((fact) => fact.role === "choice")}
-                        className="character-progression__selected"
+        <div className="character-progression__advancement">
+          {hasSources && (
+            <label className="character-progression__source-control" htmlFor={switchId}>
+              <Switch id={switchId} checked={showSources} onChange={setShowSources} />
+              Show feat sources
+            </label>
+          )}
+          <ol className="character-progression__levels">
+            {levels.map((group, index) => (
+              <li key={index}>
+                <section className="character-progression__level">
+                  <h3>{group.label}</h3>
+                  <ul className="character-progression__choices">
+                    {group.rows.map((row, index) => (
+                      <FeatRow
+                        key={index}
+                        row={row}
+                        showSources={showSources}
+                        {...presentation}
                       />
-                      <SheetFacts
-                        facts={row.facts.filter(
-                          (fact) =>
-                            fact.role !== "acquired_level" &&
-                            fact.role !== "category" &&
-                            fact.role !== "choice",
-                        )}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            </li>
-          ))}
-        </ol>
+                    ))}
+                  </ul>
+                </section>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
       {supporting.length > 0 && (
         <div className="character-progression__support">
@@ -70,5 +76,30 @@ export function CharacterProgression({
         </div>
       )}
     </div>
+  );
+}
+
+function FeatRow({
+  row,
+  showSources,
+  ...presentation
+}: SheetPresentation & { row: SheetRowView; showSources: boolean }) {
+  const choice = row.facts.find((fact) => fact.role === "choice");
+  const category = row.facts.find((fact) => fact.role === "category");
+  return (
+    <li>
+      <div className="character-progression__choice-heading">
+        <h4>
+          <SheetLabel row={row} {...presentation} />
+          {choice && (
+            <span className="character-progression__selected"> ({choice.value})</span>
+          )}
+        </h4>
+        {category && (
+          <span className="character-progression__category">{category.value}</span>
+        )}
+      </div>
+      {showSources && <SheetFacts facts={row.facts.filter(isSourceFact)} />}
+    </li>
   );
 }

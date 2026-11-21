@@ -18551,6 +18551,9 @@
       },
       "SheetFactView": {
         "properties": {
+          "display_value": {
+            "type": "string"
+          },
           "label": {
             "type": "string"
           },
@@ -18576,6 +18579,7 @@
           "gear",
           "container",
           "coins",
+          "focus_pool",
           "formulas",
           "advancement",
           "special_abilities",

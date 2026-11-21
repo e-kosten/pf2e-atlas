@@ -65,6 +65,7 @@ pub enum SheetGroupKind {
     Gear,
     Container,
     Coins,
+    FocusPool,
     Formulas,
     Advancement,
     SpecialAbilities,
@@ -119,6 +120,9 @@ pub struct SheetRowView {
 pub struct SheetFactView {
     pub label: String,
     pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub display_value: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub role: Option<SheetFactRole>,

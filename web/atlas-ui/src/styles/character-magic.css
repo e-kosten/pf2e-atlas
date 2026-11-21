@@ -1,3 +1,9 @@
+.character-magic__focus-pool {
+  margin: 0;
+  font-size: var(--sheet-body-size);
+  font-variant-numeric: tabular-nums;
+}
+
 .character-magic__ranks {
   display: grid;
   margin-block-start: var(--space-control);

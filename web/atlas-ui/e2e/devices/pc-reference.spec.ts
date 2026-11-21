@@ -795,10 +795,26 @@ test("character sheet keeps formulas together and level choices across import, p
       name,
       level: 7,
       feats: [
-        ["Later feat", null, "Class Feat", 10],
-        ["Assurance", "Arcana", "Skill Feat", 2],
+        ["Later feat", null, "Class Feat", 10, "FutureFeat", "customChoice", "Feat"],
+        [
+          "Assurance",
+          "Arcana",
+          "Skill Feat",
+          2,
+          "Class FeatHuman Feat 1",
+          "childChoice",
+          "Human Feat 1",
+        ],
         ["Starting feat", null, "Ancestry Feat", 0],
-        ["Assurance", "Athletics", "Skill Feat", 2],
+        [
+          "Assurance",
+          "Athletics",
+          "Skill Feat",
+          2,
+          "Heritage Featversatile heritage",
+          "childChoice",
+          "Heritage Feat",
+        ],
       ],
       specials: ["Darkvision"],
       spellCasters: [],
@@ -849,8 +865,32 @@ test("character sheet keeps formulas together and level choices across import, p
       "Level 2",
       "Level 10",
     ]);
-    await expect(importer.getByText("Arcana", { exact: true })).toBeVisible();
-    await expect(importer.getByText("Athletics", { exact: true })).toBeVisible();
+    const progression = importer.getByRole("tabpanel", { name: "Progression" });
+    const arcana = progression
+      .getByRole("listitem")
+      .filter({ has: page.getByRole("heading", { name: "Assurance (Arcana)" }) })
+      .last();
+    await expect(arcana.getByText("Skill Feat", { exact: true })).toBeVisible();
+    await expect(progression.getByText("Type", { exact: true })).toHaveCount(0);
+    await expect(
+      progression.getByRole("heading", { name: "Assurance (Athletics)" }),
+    ).toBeVisible();
+    const switcher = progression.getByRole("switch", { name: "Show feat sources" });
+    await expect(switcher).not.toBeChecked();
+    await expect(progression.getByText("Slot", { exact: true })).toBeHidden();
+    if (info.project.use.hasTouch) await activate(switcher, info);
+    else await switcher.press("Space");
+    await expect(switcher).toBeChecked();
+    await expect(
+      arcana.getByText("Class Feat · Human Feat 1", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      progression.getByText("Heritage Featversatile heritage", { exact: true }),
+    ).toBeVisible();
+    await expect(progression.getByText("FutureFeat", { exact: true })).toBeVisible();
+    await noPageOverflow(page);
+    await activate(switcher, info);
+    await expect(progression.getByText("Slot", { exact: true })).toBeHidden();
     await activate(
       importer.getByRole("button", { name: "Add character", exact: true }),
       info,
@@ -929,7 +969,12 @@ test("character sheet keeps formulas together and level choices across import, p
       "Level 2",
       "Level 10",
     ]);
-    await expect(drawer.getByText("Arcana", { exact: true })).toBeVisible();
+    await expect(
+      drawer.getByRole("heading", { name: "Assurance (Arcana)" }),
+    ).toBeVisible();
+    await expect(
+      drawer.getByRole("switch", { name: "Show feat sources" }),
+    ).not.toBeChecked();
     await noPageOverflow(page);
   } finally {
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
@@ -945,6 +990,8 @@ test("Magic keeps the spell list readable and reveals preparations at their expo
     build: {
       name: "Caster with a borrowed spellbook",
       level: 7,
+      money: { gp: 0, sp: null },
+      focusPoints: 1,
       feats: [],
       specials: [],
       spellCasters: [
@@ -974,8 +1021,13 @@ test("Magic keeps the spell list readable and reveals preparations at their expo
   const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
   await importer.getByLabel("Pathbuilder JSON").fill(JSON.stringify(source));
   await activate(importer.getByRole("button", { name: "Continue", exact: true }), info);
+  await activate(importer.getByRole("tab", { name: "Inventory", exact: true }), info);
+  await expect(importer.getByRole("tabpanel", { name: "Inventory" })).toHaveText(
+    "Coins 0 gp",
+  );
   await activate(importer.getByRole("tab", { name: "Magic", exact: true }), info);
   const magic = importer.getByRole("tabpanel", { name: "Magic" });
+  await expect(magic.getByText("Focus pool 1 point", { exact: true })).toBeVisible();
   const snapshot = magic.getByRole("button", { name: "Prepared at export" });
   await expect(snapshot).toHaveAttribute("aria-expanded", "false");
   await expect(magic.getByText("Force Barrage", { exact: true })).toBeVisible();
