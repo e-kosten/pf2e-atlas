@@ -1430,7 +1430,7 @@ fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes()
             .find(|value| value.label == fact)
             .map(|value| value.value.as_str())
     };
-    assert_eq!(fact("Imported max HP", "Max HP"), Some("78"));
+    assert_eq!(fact("Max HP", "Max HP"), Some("78"));
     assert_eq!(
         stats
             .iter()

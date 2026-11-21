@@ -193,9 +193,10 @@ it("offers first import for an abilities-only character after the sheet has load
 });
 
 it.each([
-  { savedName: "Simon", savedLevel: 7, provenance: "Imported build" },
-  { savedName: "Alias", savedLevel: 8, provenance: "Imported build · Simon · Level 7" },
-  { savedName: "Simon", savedLevel: undefined, provenance: "Imported build · Level 7" },
+  { savedName: "Simon", savedLevel: 7, provenance: null },
+  { savedName: "Alias", savedLevel: 7, provenance: "Imported as Simon" },
+  { savedName: "Alias", savedLevel: 8, provenance: "Imported as Simon · Level 7" },
+  { savedName: "Simon", savedLevel: undefined, provenance: "Imported level 7" },
 ])(
   "shows imported identity differences for $savedName at level $savedLevel",
   async ({ savedName, savedLevel, provenance }) => {
@@ -206,11 +207,10 @@ it.each([
     });
     render(<Harness />);
     const stats = within(await screen.findByRole("tabpanel", { name: "Stats" }));
-    await waitFor(() =>
-      expect(stats.getByText(/^Imported build/)).toHaveTextContent(
-        new RegExp(`^${provenance}$`),
-      ),
-    );
+    await stats.findByText("This export has no stats to show.");
+    const attribution = stats.queryByText(/^Imported\b/);
+    if (provenance === null) expect(attribution).not.toBeInTheDocument();
+    else expect(attribution).toHaveTextContent(new RegExp(`^${provenance}$`));
   },
 );
 

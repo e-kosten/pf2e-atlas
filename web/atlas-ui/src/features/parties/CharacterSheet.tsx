@@ -257,23 +257,25 @@ export function CharacterSheet({
         </p>
       );
     const groups = sheet.sections.find((section) => section.kind === kind)?.groups;
+    const identityDiffers =
+      saved && (saved.name !== sheet.name || saved.level !== sheet.level);
     const hasSkills = groups?.some(
       (group) => group.kind === "skills" && group.rows.length > 0,
     );
     return (
       <>
-        {kind === "stats" && (saved || hasSkills) && (
+        {kind === "stats" && (identityDiffers || hasSkills) && (
           <div className="character-sheet__snapshot">
-            {saved && (
+            {identityDiffers && (
               <Typography.Text type="secondary">
-                Imported build
-                {saved.name !== sheet.name && (
+                {saved.name !== sheet.name ? (
                   <>
-                    {" "}
-                    · <strong>{sheet.name}</strong>
+                    Imported as <strong>{sheet.name}</strong>
+                    {saved.level !== sheet.level && <> · Level {sheet.level}</>}
                   </>
+                ) : (
+                  <>Imported level {sheet.level}</>
                 )}
-                {saved.level !== sheet.level && <> · Level {sheet.level}</>}
               </Typography.Text>
             )}
             {hasSkills && (

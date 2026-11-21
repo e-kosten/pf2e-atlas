@@ -167,15 +167,13 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       "aria-selected",
       "true",
     );
-    await expect(page.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(page.getByText("Max HP", { exact: true })).toBeVisible();
     await expect(page.getByText("Intelligence", { exact: true }).first()).toBeVisible();
-    await activate(
-      page.getByRole("button", { name: "Show details for Imported max HP" }),
-      info,
-    );
+    await activate(page.getByRole("button", { name: "Show details for Max HP" }), info);
     const breakdown = page.getByRole("dialog", {
-      name: "Show details for Imported max HP",
+      name: "Show details for Max HP",
     });
+    await expect(breakdown.getByText("64", { exact: true })).toBeVisible();
     await expect(
       breakdown.getByText("Constitution per level", { exact: true }),
     ).toBeVisible();
@@ -513,7 +511,7 @@ test("an empty saved sheet imports into the same character and returns focus", a
     );
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/characters/${character_key}/?$`));
-    await expect(page.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(page.getByText("Max HP", { exact: true })).toBeVisible();
     await expect(opener).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Character actions" })).toBeFocused();
   } finally {
@@ -565,7 +563,7 @@ test("encounter imports and manual PCs create reusable characters", async ({
     await expect(drawer).toBeVisible();
     await expect(drawer.getByRole("heading", { name: /^Features/ })).toBeVisible();
     await activate(drawer.getByRole("tab", { name: "Stats", exact: true }), info);
-    await expect(drawer.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("Max HP", { exact: true })).toBeVisible();
     await expect(page.locator("[data-participant-key]")).toHaveCount(2);
     const index = await (await page.request.get("/api/characters")).json();
     created.push(

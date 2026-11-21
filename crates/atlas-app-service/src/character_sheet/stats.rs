@@ -194,7 +194,7 @@ pub(super) fn categorized(
             ],
         );
         vitals.push(compact_row(
-            "Imported max HP",
+            "Max HP",
             Some(hp_facts[0].value.clone()),
             hp_facts,
         ));
