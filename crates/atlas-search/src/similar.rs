@@ -1,5 +1,7 @@
 use crate::{RecordScope, SearchPage, TextSearchResult};
-use atlas_domain::{QueryPredicate, RecordKey};
+use atlas_domain::{
+    QueryPredicate, RecordKey, SearchContentScope, SearchProfileId, SourceRecordSummary,
+};
 pub struct SimilarRecordRequest<'a> {
     pub content_scope: atlas_domain::SearchContentScope,
     pub sort: atlas_domain::ResultSort,
@@ -24,27 +26,13 @@ impl crate::AtlasRetrievalService {
             return Ok(None);
         };
         let search_profile = self.resolve_search_profile(request.search_profile, true)?;
-        let vector = self
-            .index
-            .seed_identity_vector(&search_profile, request.record_key)?
-            .ok_or_else(|| {
-                crate::SearchError::vector_readiness_required(
-                    "seed has no stored root identity vector; rebuild with embeddings",
-                )
-            })?;
-        let predicate = self.predicate(request.filter)?;
-        let (roots, window) = self.rank_candidates(crate::text::CandidateRequest {
-            content_scope: request.content_scope,
-            ranking: Default::default(),
-            search_profile: &search_profile,
-            text: "",
-            mode: crate::RetrievalMode::Vector,
-            query: &predicate,
-            scope: request.scope,
-
-            vector: Some(&vector.vector),
-            exclude: Some(request.record_key),
-        })?;
+        let (roots, window) = self.rank_similar_seed(
+            &seed,
+            &search_profile,
+            request.content_scope,
+            request.filter,
+            request.scope,
+        )?;
         let results = self.finish_results(
             &search_profile,
             roots,
@@ -54,5 +42,35 @@ impl crate::AtlasRetrievalService {
             request.sort,
         )?;
         Ok(Some(SimilarRecordResult { seed, results }))
+    }
+
+    pub(super) fn rank_similar_seed(
+        &self,
+        seed: &SourceRecordSummary,
+        profile: &SearchProfileId,
+        content_scope: SearchContentScope,
+        filter: Option<&QueryPredicate>,
+        scope: RecordScope<'_>,
+    ) -> Result<(Vec<crate::text::RankedRoot>, Option<usize>), crate::SearchError> {
+        let vector = self
+            .index
+            .seed_identity_vector(profile, &seed.key)?
+            .ok_or_else(|| {
+                crate::SearchError::vector_readiness_required(
+                    "seed has no stored root identity vector; rebuild with embeddings",
+                )
+            })?;
+        let predicate = self.predicate(filter)?;
+        self.rank_candidates(crate::text::CandidateRequest {
+            content_scope,
+            ranking: Default::default(),
+            search_profile: profile,
+            text: "",
+            mode: crate::RetrievalMode::Vector,
+            query: &predicate,
+            scope,
+            vector: Some(&vector.vector),
+            exclude: Some(&seed.key),
+        })
     }
 }

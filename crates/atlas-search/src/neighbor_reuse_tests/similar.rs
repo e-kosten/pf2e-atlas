@@ -221,13 +221,66 @@ fn warm_neighbors_do_not_bypass_missing_seeds_profiles_or_sort_validation() {
             .is_none()
     );
     let unsupported = SearchProfileId::new("unavailable");
+    for key in [&seed, &absent] {
+        let direct = service.similar_records(SimilarRecordRequest {
+            search_profile: Some(&unsupported),
+            ..record_request(key)
+        });
+        assert!(matches!(direct, Err(error) if error.is_vector_readiness_required()));
+    }
+
+    let missing = SimilaritySeed::Record { record_key: absent };
+    let configured = || ConfigurableSimilarRequest {
+        seed: &missing,
+        options: &SimilarityOptions::Baseline {},
+        source_sections: None,
+        content_scope: SearchContentScope::All,
+        search_profile: Some(&unsupported),
+        filter: None,
+        scope: RecordScope::All,
+        page: SearchPage::default(),
+        sort: ResultSort::Relevance {},
+        cancelled: None,
+    };
     assert!(
         service
-            .similar_records(SimilarRecordRequest {
-                search_profile: Some(&unsupported),
-                ..record_request(&seed)
+            .configurable_similar(configured())
+            .unwrap()
+            .is_none()
+    );
+    let invalid_options = SimilarityOptions::Passages {
+        decay: -1.0,
+        parts: None,
+        candidate_parts: Default::default(),
+    };
+    for invalid in [
+        ConfigurableSimilarRequest {
+            options: &invalid_options,
+            ..configured()
+        },
+        ConfigurableSimilarRequest {
+            sort: ResultSort::SavedOrder {},
+            ..configured()
+        },
+        ConfigurableSimilarRequest {
+            source_sections: Some(atlas_domain::SimilaritySourceSections::All),
+            ..configured()
+        },
+    ] {
+        assert_eq!(
+            service.configurable_similar(invalid).unwrap_err().kind(),
+            SearchErrorKind::InvalidOptions
+        );
+    }
+    assert_eq!(
+        service
+            .configurable_similar(ConfigurableSimilarRequest {
+                cancelled: Some(&|| true),
+                ..configured()
             })
-            .is_err()
+            .unwrap_err()
+            .kind(),
+        SearchErrorKind::OperationCancelled,
     );
     assert!(
         service

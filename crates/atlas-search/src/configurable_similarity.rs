@@ -95,7 +95,7 @@ pub struct ConfigurableSimilarRequest<'a> {
 }
 #[derive(Debug)]
 pub struct ConfigurableSimilarResult {
-    pub seed: SimilaritySeed,
+    pub seed: atlas_domain::SourceRecordSummary,
     pub results: TextSearchResult,
     pub evidence: Vec<(RecordKey, SimilarityEvidence)>,
     pub effective: SimilarityOptions,
@@ -287,28 +287,23 @@ impl crate::AtlasRetrievalService {
                 request.source_sections,
             )?)
         };
-        let found = match request.seed {
-            SimilaritySeed::Record { record_key } => self.index.read_summary(record_key)?.is_some(),
-        };
-        if !found {
+        let SimilaritySeed::Record { record_key } = request.seed;
+        let Some(seed) = self.index.read_summary(record_key)? else {
             return Ok(None);
-        }
+        };
+        let profile = self.resolve_search_profile(request.search_profile, true)?;
         if matches!(request.options, SimilarityOptions::Baseline {}) {
-            let results = match request.seed {
-                SimilaritySeed::Record { record_key } => self
-                    .similar_records(crate::SimilarRecordRequest {
-                        sort: request.sort,
-                        search_profile: request.search_profile,
-                        record_key,
-                        filter: request.filter,
-                        scope: request.scope,
-                        content_scope: request.content_scope,
-                        page: request.page,
-                    })?
-                    .map(|result| result.results),
-            };
-            return Ok(results.map(|results| ConfigurableSimilarResult {
-                seed: request.seed.clone(),
+            let (roots, window) = self.rank_similar_seed(
+                &seed,
+                &profile,
+                request.content_scope,
+                request.filter,
+                request.scope,
+            )?;
+            let results =
+                self.finish_results(&profile, roots, request.page, true, window, request.sort)?;
+            return Ok(Some(ConfigurableSimilarResult {
+                seed,
                 results,
                 evidence: vec![],
                 effective: request.options.clone(),
@@ -331,7 +326,6 @@ impl crate::AtlasRetrievalService {
                 candidate_keys: None,
             }));
         }
-        let profile = self.resolve_search_profile(request.search_profile, true)?;
         let inventory = self.index.similarity_parts(request.seed, Some(&profile))?;
         let Some(source_sections) = source_sections else {
             return Err(SearchError::artifact_contract_violation(
@@ -354,16 +348,14 @@ impl crate::AtlasRetrievalService {
             .any(|component| component.is_identity() && selected.contains(component.selector()));
         let candidate_identity =
             source_identity || request.content_scope == SearchContentScope::Core;
-        let mut seed_units = match request.seed {
-            SimilaritySeed::Record { record_key } => self.index.selected_similarity_units(
-                &profile,
-                std::slice::from_ref(record_key),
-                Some(&selected.iter().cloned().collect::<Vec<_>>()),
-                SearchContentScope::All,
-                source_identity,
-                MAX_SEED_UNITS,
-            )?,
-        };
+        let mut seed_units = self.index.selected_similarity_units(
+            &profile,
+            std::slice::from_ref(&seed.key),
+            Some(&selected.iter().cloned().collect::<Vec<_>>()),
+            SearchContentScope::All,
+            source_identity,
+            MAX_SEED_UNITS,
+        )?;
         seed_units.retain(|unit| selected.contains(unit.component.selector()));
         if selected.iter().any(|selector| {
             !seed_units
@@ -397,9 +389,6 @@ impl crate::AtlasRetrievalService {
             .collect::<HashMap<_, _>>();
         let mode = request.options.candidate_parts();
         let predicate = self.predicate(request.filter)?;
-        let exclude = match request.seed {
-            SimilaritySeed::Record { record_key } => Some(record_key),
-        };
         let mut diagnostics = SimilarityDiagnostics {
             seed_units: seed_units.len(),
             ..Default::default()
@@ -478,7 +467,7 @@ impl crate::AtlasRetrievalService {
                 vector: &vector,
                 query: &predicate,
                 keys: request.scope.keys(),
-                exclude,
+                exclude: Some(&seed.key),
                 comparison_key: role,
                 content_scope: request.content_scope,
                 include_identity: candidate_identity,
@@ -686,7 +675,7 @@ impl crate::AtlasRetrievalService {
             Some(hydration_started.elapsed().as_secs_f64() * 1000.0);
         diagnostics.timings.total_ms = Some(started.elapsed().as_secs_f64() * 1000.0);
         Ok(Some(ConfigurableSimilarResult {
-            seed: request.seed.clone(),
+            seed,
             results,
             evidence,
             effective: request.options.clone(),
