@@ -593,6 +593,83 @@ test("encounter imports and manual PCs create reusable characters", async ({
   }
 });
 
+test("party drag tracks the pointer and shows the reordered row on release @engine", async ({
+  page,
+}) => {
+  const name = "Tamsin the Lantern Keeper of the Northern Watch";
+  const names = [name, "Bram"];
+  const keys: string[] = [];
+  let party: PartyView | undefined;
+  try {
+    for (const character of names) {
+      const response = await page.request.post("/api/characters", {
+        data: { request_id: crypto.randomUUID(), name: character, level: 7 },
+      });
+      expect(response.ok()).toBe(true);
+      keys.push((await response.json()).character_key);
+    }
+    const created = await page.request.post("/api/parties", {
+      data: {
+        name: `Party drag ${Date.now()}`,
+        members: keys.map((character_key) => ({
+          character_key,
+          expected_character_revision: 0,
+        })),
+      },
+    });
+    expect(created.ok()).toBe(true);
+    party = (await created.json()) as PartyView;
+    await page.goto(`/parties/${party.party_key}`);
+
+    const handle = page.getByRole("button", { name: `Reorder ${name}`, exact: true });
+    const row = page.getByRole("row").filter({ has: handle });
+    const target = page.getByRole("button", { name: "Reorder Bram", exact: true });
+    const roster = page.getByRole("table");
+    const order = roster.getByRole("link");
+    await expect(order).toHaveText(names);
+    const source = (await row.boundingBox())!;
+    const from = (await handle.boundingBox())!;
+    const to = (await target.boundingBox())!;
+    const start = {
+      x: Math.round(from.x + from.width / 2),
+      y: Math.round(from.y + from.height / 2),
+    };
+    const end = { x: start.x + 12, y: Math.round(to.y + to.height / 2) };
+    const preview = page.locator(".party-roster__drag-preview");
+
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 12 });
+    await expect
+      .poll(async () => (await preview.boundingBox())?.y)
+      .toBeCloseTo(source.y + end.y - start.y, 0);
+    const dragged = (await preview.boundingBox())!;
+    expect(dragged.x).toBeCloseTo(source.x + end.x - start.x, 0);
+    expect(dragged.height).toBeCloseTo(source.height, 0);
+    expect(Math.abs(dragged.y + dragged.height / 2 - end.y)).toBeLessThanOrEqual(1);
+
+    await page.mouse.up();
+    // Inspect the handoff in the first painted frames, before a drop animation could end.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+    expect(await preview.count()).toBe(0);
+    expect(await row.evaluate((element) => getComputedStyle(element).opacity)).toBe(
+      "1",
+    );
+    await expect(order).toHaveText(["Bram", name]);
+    await expect(roster).toHaveAttribute("aria-busy", "false");
+    await page.reload();
+    await expect(order).toHaveText(["Bram", name]);
+  } finally {
+    if (party) await deleteParties(page.request, party.party_key);
+    await deleteCharacters(page.request, keys);
+  }
+});
+
 test("party edit tasks preserve keyboard drafts and update shared characters explicitly", async ({
   page,
   browserName,
