@@ -3,18 +3,12 @@ import { Button, Input, Space, Typography } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo, useRef, useState } from "react";
 import {
-  addEncounterCharacter,
-  getEncounter,
   getParties,
   getPreviewImportDetails,
   previewPathbuilderPc,
   savePathbuilderPc,
 } from "../../api/atlasApi";
 import type {
-  AddEncounterCharacterRequest,
-  CharacterMutationView,
-  EncounterCharacterMutationView,
-  SavePathbuilderPcRequest,
   PcReferenceView,
   PathbuilderPreviewView,
   PartyView,
@@ -31,27 +25,18 @@ type ImportReview = {
   view: PathbuilderPreviewView;
   json: string;
   party?: PartyView;
-  encounterRevision?: number;
 };
-
-type ImportWrite =
-  | { encounterKey: string; request: AddEncounterCharacterRequest }
-  | { encounterKey?: never; request: SavePathbuilderPcRequest };
 
 export function PathbuilderImport({
   party,
   character,
-  encounter,
   onClose,
   onSaved,
-  onEncounterAdded,
 }: {
   party?: PartyView;
   character?: PcReferenceView;
-  encounter?: { encounterKey: string; revision: number };
   onClose: () => void;
   onSaved?: (key?: string) => void;
-  onEncounterAdded?: (result: { characterKey: string; participantKey: string }) => void;
 }) {
   const textareaId = useId();
   const [requestId] = useState(() => crypto.randomUUID());
@@ -94,9 +79,6 @@ export function PathbuilderImport({
         view,
         json,
         party: target,
-        encounterRevision: encounter
-          ? (await getEncounter(encounter.encounterKey)).revision
-          : undefined,
       };
     },
     onSuccess: (next) => {
@@ -116,22 +98,12 @@ export function PathbuilderImport({
   });
   const save = useMutation({
     retry: false,
-    mutationFn: (
-      write: ImportWrite,
-    ): Promise<CharacterMutationView | EncounterCharacterMutationView> =>
-      write.encounterKey !== undefined
-        ? addEncounterCharacter(write.encounterKey, write.request)
-        : savePathbuilderPc(write.request),
+    mutationFn: savePathbuilderPc,
     onError: () => void refreshCharacters(client),
     onSuccess: async (saved) => {
       await refreshCharacters(client);
       if (!saved.available) return;
       setClosing(true);
-      if ("participant_key" in saved)
-        onEncounterAdded?.({
-          characterKey: saved.character_key,
-          participantKey: saved.participant_key,
-        });
       onSaved?.(saved.character_key);
     },
   });
@@ -154,29 +126,16 @@ export function PathbuilderImport({
         ? Object.fromEntries(links.map(([key, link]) => [key, link.key]))
         : undefined,
     };
-    if (encounter) {
-      save.mutate({
-        encounterKey: encounter.encounterKey,
-        request: {
-          request_id: requestId,
-          expected_encounter_revision: reviewed.encounterRevision!,
-          source: { ...fields, kind: "pathbuilder" },
-        },
-      });
-    } else {
-      save.mutate({
-        request: {
-          ...fields,
-          request_id: requestId,
-          character_key: character?.character_key,
-          expected_character_revision: reviewed.view.character_revision,
-          party: reviewed.party && {
-            party_key: reviewed.party.party_key,
-            expected_revision: reviewed.party.revision,
-          },
-        },
-      });
-    }
+    save.mutate({
+      ...fields,
+      request_id: requestId,
+      character_key: character?.character_key,
+      expected_character_revision: reviewed.view.character_revision,
+      party: reviewed.party && {
+        party_key: reviewed.party.party_key,
+        expected_revision: reviewed.party.revision,
+      },
+    });
   }
   const draft = review.data?.view;
   const sections = useMemo(
@@ -206,11 +165,9 @@ export function PathbuilderImport({
   ).length;
   const commitLabel = character
     ? "Update character"
-    : encounter
-      ? "Add to encounter"
-      : party
-        ? "Add to party"
-        : "Add character";
+    : party
+      ? "Add to party"
+      : "Add character";
   return (
     <AtlasModal
       open={!closing}

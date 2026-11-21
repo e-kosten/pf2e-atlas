@@ -91,7 +91,6 @@ it("replays a manual PC addition unchanged after a lost response and refreshed e
     <EncounterPcAdd encounter={{ encounterKey: "e", revision: 4 }} onClose={vi.fn()} />,
     context,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Enter manually" }));
   fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New PC" } });
   fireEvent.click(screen.getByRole("button", { name: "Add to encounter" }));
   await screen.findByRole("button", { name: "Retry to confirm" });

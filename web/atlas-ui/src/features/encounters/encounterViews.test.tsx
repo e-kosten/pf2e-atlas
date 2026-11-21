@@ -1417,9 +1417,8 @@ describe("encounter views", () => {
       expect(screen.getByRole("button", { name: "Add participants" })).toBeEnabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Enter manually" }));
     const add = await screen.findByRole("dialog", { name: "Add PC" });
-    fireEvent.click(within(add).getByRole("button", { name: "Enter manually" }));
     const previousId = within(add).getByLabelText("Name").id;
     fireEvent.click(within(add).getByRole("button", { name: "Cancel" }));
     fireEvent.click(await screen.findByRole("button", { name: "Encounter actions" }));
@@ -3379,9 +3378,8 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Add participants" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Enter manually" }));
     const dialog = await screen.findByRole("dialog", { name: "Add PC" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     fireEvent.change(within(dialog).getByLabelText("Name"), {
       target: { value: "Mira" },
     });
@@ -3454,9 +3452,8 @@ describe("encounter views", () => {
       ).not.toBeDisabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Enter manually" }));
     const dialog = await screen.findByRole("dialog", { name: "Add PC" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     const name = within(dialog).getByLabelText("Name");
     fireEvent.change(name, { target: { value: "My PC" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add to encounter" }));

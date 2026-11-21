@@ -7,6 +7,7 @@ import {
   InitiativeEntryEditor,
   type InitiativeEntryFields,
 } from "./InitiativeEntryEditor";
+import { CharacterPicker } from "../parties/CharacterPicker";
 import { EncounterPcAdd } from "../parties/EncounterPcAdd";
 import { Button, Dropdown, Form, InputNumber, Tooltip, Typography } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
@@ -19,7 +20,7 @@ import type {
   EncounterParticipantView,
   UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
-import { EncounterAddMenu } from "./EncounterAddMenu";
+import { EncounterAddMenu, type EncounterPcAddMode } from "./EncounterAddMenu";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { InitiativeValueField } from "./InitiativeValueField";
 import { InitiativePopover } from "./InitiativeRollModal";
@@ -122,7 +123,8 @@ export function EncounterRosterPane({
   const [committedAdd, setCommittedAdd] = useState<string | null>(null);
   const pendingFormReset = useRef({ record: false });
   const [recordOpen, setRecordOpen] = useState(false);
-  const [pcOpen, setPcOpen] = useState(false);
+  const [pcAddMode, setPcAddMode] = useState<EncounterPcAddMode>();
+  const PcAddDialog = pcAddMode === "existing" ? CharacterPicker : EncounterPcAdd;
   const [entryOpen, setEntryOpen] = useState(false);
   const entryOpener = useRef<HTMLElement | null>(null);
   const roster = useRef<HTMLElement>(null);
@@ -452,9 +454,7 @@ export function EncounterRosterPane({
                   }
                 : undefined
             }
-            onAddPc={() => {
-              setPcOpen(true);
-            }}
+            onAddPc={setPcAddMode}
           />
           {onRollInitiative && (
             <Button
@@ -607,13 +607,13 @@ export function EncounterRosterPane({
           })}
         />
       )}
-      {pcOpen && encounterSummary && (
-        <EncounterPcAdd
+      {pcAddMode && encounterSummary && (
+        <PcAddDialog
           encounter={{
             encounterKey: encounterSummary.encounter_key,
             revision: encounterRevision,
           }}
-          onClose={() => setPcOpen(false)}
+          onClose={() => setPcAddMode(undefined)}
         />
       )}
     </section>
