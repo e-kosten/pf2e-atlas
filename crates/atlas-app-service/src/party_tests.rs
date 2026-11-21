@@ -1309,3 +1309,213 @@ fn legacy_pathbuilder_receipts_replay_without_replacing_the_saved_character() {
         );
     }
 }
+
+#[test]
+fn character_sheet_review_preserves_occurrences_and_detects_same_count_changes() {
+    use atlas_app_model::{ImportFieldView, SheetSectionKind};
+    use serde_json::json;
+
+    let (_directory, service) = pathbuilder_service();
+    let source = json!({"success": true, "build": {
+        "name": "Example wizard", "level": 7, "keyability": "int",
+        "languages": ["None selected", "Common"], "age": "Not set",
+        "abilities": {"str": 9, "con": 16, "int": 19},
+        "attributes": {"ancestryhp": 8, "classhp": 6, "bonushp": 0, "bonushpPerLevel": 1},
+        "acTotal": {"acTotal": 22, "shieldBonus": null},
+        "proficiencies": {"arcana": 4, "athletics": 0},
+        "mods": {"Arcana": {"Item Bonus": 1}},
+        "equipment": [["Rope", 0, "a", "Not Invested"]],
+        "weapons": [{"name":"Dagger","attack":12,"die":"d4","damageType":"P"}],
+        "equipmentContainers": {
+            "a": {"containerName": "Backpack", "bagOfHolding": false},
+            "b": {"containerName": "Backpack"}
+        },
+        "feats": [["Test Heritage", null, "Heritage", 1], ["Untrained Improvisation", null, "General Feat", 3], ["Counterspell", null, "Class Feat", 2]],
+        "specials": [],
+        "spellCasters": [{
+            "name": "Wizard", "perDay": [5, 3], "spells": [],
+            "prepared": [{"spellLevel": 1, "list": ["Test Focus Spell", "Test Focus Spell"]}]
+        }],
+        "focusPoints": 0
+    }});
+    let full_source = |source: &serde_json::Value, precise: &str| {
+        format!(
+            r#"{{"future":{{"number":{precise},"duplicate":null,"duplicate":false}},"success":true,"build":{}}}"#,
+            source["build"]
+        )
+    };
+    let precise = "123456789012345678901234567890.012345678901";
+    let original = full_source(&source, precise);
+    let preview = service.preview_pathbuilder_pc(&original, None).unwrap();
+    let heritage = ability_by_label(&preview.sections, "Test Heritage")
+        .ability_key
+        .clone();
+    let counterspell = ability_by_label(&preview.sections, "Counterspell")
+        .ability_key
+        .clone();
+    let saved = service
+        .save_pathbuilder_pc(SavePathbuilderPcRequest {
+            request_id: "sheet-review-example".into(),
+            json: original,
+            expected_artifact_generation: preview.artifact_generation,
+            character_key: None,
+            expected_character_revision: None,
+            party: None,
+            rule_links: [
+                (heritage.clone(), "feats:testfeat00000001".parse().unwrap()),
+                (counterspell, "feats:testfeat00000002".parse().unwrap()),
+            ]
+            .into(),
+        })
+        .unwrap();
+    let current = service.character_sheet(&saved.character_key).unwrap();
+    let sheet = current.sheet.unwrap();
+    let rows = |kind| {
+        sheet
+            .sections
+            .iter()
+            .find(|section| section.kind == kind)
+            .unwrap()
+            .groups
+            .iter()
+            .flat_map(|group| &group.rows)
+            .collect::<Vec<_>>()
+    };
+    let stats = rows(SheetSectionKind::Stats);
+    let fact = |label, fact| {
+        stats
+            .iter()
+            .find(|row| row.label == label)
+            .unwrap()
+            .facts
+            .iter()
+            .find(|value| value.label == fact)
+            .map(|value| value.value.as_str())
+    };
+    assert_eq!(fact("Imported max HP", "Max HP"), Some("78"));
+    assert_eq!(
+        stats
+            .iter()
+            .find(|row| row.label == "Key ability")
+            .unwrap()
+            .summary_value
+            .as_deref(),
+        Some("Intelligence")
+    );
+    assert_eq!(
+        rows(SheetSectionKind::Inventory)
+            .iter()
+            .find(|row| row.label == "Dagger")
+            .unwrap()
+            .facts
+            .iter()
+            .find(|fact| fact.label == "Damage type")
+            .unwrap()
+            .value,
+        "Piercing"
+    );
+    assert_eq!(fact("Strength", "Modifier"), Some("-1"));
+    assert_eq!(fact("Athletics", "Rank"), Some("Untrained"));
+    assert_eq!(fact("Athletics", "Ability modifier"), Some("-1"));
+    assert_eq!(fact("Athletics", "Proficiency"), None);
+    assert_eq!(fact("Athletics", "Base modifier"), None);
+    assert!(!stats.iter().any(|row| row.label == "Age"));
+    assert_eq!(
+        stats
+            .iter()
+            .find(|row| row.label == "Languages")
+            .unwrap()
+            .summary_value
+            .as_deref(),
+        Some("Common")
+    );
+    assert_eq!(fact("Arcana", "Base modifier"), Some("+15"));
+    assert_eq!(fact("Arcana", "Item Bonus"), Some("+1"));
+    assert_eq!(fact("AC", "Shield bonus"), None);
+    assert!(rows(SheetSectionKind::Progression).iter().any(|row| {
+        row.label == "Test Heritage" && row.ability_key.as_deref() == Some(heritage.as_str())
+    }));
+    assert_eq!(
+        rows(SheetSectionKind::Magic)
+            .iter()
+            .filter(|row| row.label == "Test Focus Spell")
+            .count(),
+        2
+    );
+    assert!(rows(SheetSectionKind::Inventory).iter().any(|row| {
+        row.label == "Rope"
+            && row
+                .facts
+                .iter()
+                .any(|fact| fact.label == "Quantity" && fact.value == "0")
+    }));
+    let details = service
+        .character_import_details(&saved.character_key, current.character_revision)
+        .unwrap();
+    let field = |fields: Vec<ImportFieldView>, label: &str| {
+        fields
+            .into_iter()
+            .find(|field| field.label == label)
+            .unwrap()
+    };
+    let future = field(details.fields, "future");
+    assert_eq!(future.children[0].value.as_deref(), Some(precise));
+    assert_eq!(future.children[1].value.as_deref(), Some("null"));
+    assert_eq!(future.children[2].value.as_deref(), Some("false"));
+    assert!(
+        service
+            .character_import_details(&saved.character_key, current.character_revision - 1)
+            .is_err()
+    );
+
+    let mut next = source;
+    next["build"]["equipment"][0][2] = json!("b");
+    next["build"]["spellCasters"][0]["prepared"][0]["list"][1] = json!("Replacement");
+    next["build"]["feats"].as_array_mut().unwrap().pop();
+    let incoming = full_source(&next, "9");
+    let review = service
+        .preview_pathbuilder_pc(&incoming, Some(&saved.character_key))
+        .unwrap();
+    let changes = review.changes.unwrap();
+    assert_eq!(changes.retained_corrections, 1);
+    assert_eq!(changes.removed_corrections, ["Counterspell"]);
+    assert!(ability_by_label(&review.sections, "Test Heritage").manual);
+    let inventory = changes
+        .sections
+        .iter()
+        .find(|section| section.label == "Inventory")
+        .unwrap();
+    assert_eq!(inventory.added, ["Backpack (2) · Rope"]);
+    assert_eq!(inventory.removed, ["Backpack (1) · Rope"]);
+    let magic = changes
+        .sections
+        .iter()
+        .find(|section| section.label == "Magic")
+        .unwrap();
+    assert_eq!(magic.added, ["Wizard · Replacement"]);
+    assert_eq!(magic.removed, ["Wizard · Test Focus Spell"]);
+    assert!(
+        changes
+            .additional_fields_changed
+            .contains(&"future".to_owned())
+    );
+    let comparison = service
+        .preview_import_details(
+            &incoming,
+            Some(&saved.character_key),
+            review.character_revision,
+        )
+        .unwrap();
+    assert_eq!(
+        field(comparison.fields, "future").children[0]
+            .value
+            .as_deref(),
+        Some("9")
+    );
+    assert_eq!(
+        field(comparison.previous_fields.unwrap(), "future").children[0]
+            .value
+            .as_deref(),
+        Some(precise)
+    );
+}

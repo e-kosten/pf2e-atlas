@@ -343,7 +343,7 @@ impl AtlasAppService {
     }
 }
 
-fn read_sheet(source: &str) -> AppServiceResult<PathbuilderSheet> {
+pub(crate) fn read_sheet(source: &str) -> AppServiceResult<PathbuilderSheet> {
     let invalid =
         || AppServiceError::invalid_request("Could not read the saved Pathbuilder export.");
     let Export { build } = serde_json::from_str::<Export<'_>>(source).map_err(|_| invalid())?;

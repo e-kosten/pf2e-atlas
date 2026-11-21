@@ -20,6 +20,8 @@ impl AtlasAppService {
         character_key: Option<&str>,
     ) -> AppServiceResult<PathbuilderPreviewView> {
         let mut character = pathbuilder::preview(json)?;
+        let parsed = crate::pathbuilder_sheet::read_sheet(json)?;
+        let json = character_key.map(|_| json.to_owned());
         let character_key = character_key.map(str::to_owned);
         self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
             let previous = character_key
@@ -31,10 +33,37 @@ impl AtlasAppService {
             let character_revision = previous.as_ref().map(|pc: &Character| pc.revision);
             let previous_name = previous.as_ref().map(|pc| pc.name.clone());
             let previous_level = previous.as_ref().and_then(|pc| pc.level);
-            if let Some(previous) = previous {
-                preserve_choices(previous.reference, &mut character.reference);
-            }
+            let source = previous
+                .as_ref()
+                .map(|previous| {
+                    session
+                        .local_state()?
+                        .characters()
+                        .pathbuilder_source(&previous.character_key)
+                        .map_err(AppServiceError::from)
+                })
+                .transpose()?
+                .flatten();
+            let previous_reference = previous.and_then(|character| character.reference);
+            preserve_choices(previous_reference.clone(), &mut character.reference);
             resolve(session.retrieval(), &mut character.reference)?;
+            let sheet = crate::character_sheet::project_sheet(
+                &parsed,
+                Some(&character.reference),
+                Some(session.retrieval()),
+            )?;
+            let changes = json
+                .as_deref()
+                .map(|json| {
+                    crate::character_sheet::compare_imports(
+                        json,
+                        &sheet,
+                        &character.reference,
+                        source.as_ref().map(|source| source.json()),
+                        previous_reference.as_ref(),
+                    )
+                })
+                .transpose()?;
             let records = session.retrieval().get_records(GetRecordsRequest {
                 record_keys: &keys(&character.reference),
             })?;
@@ -45,6 +74,8 @@ impl AtlasAppService {
                 name: character.name,
                 level: character.level,
                 artifact_generation: session.generation()?,
+                sheet,
+                changes,
                 sections: ability_sections(character.reference, records.records),
             })
         })
@@ -94,7 +125,7 @@ impl AtlasAppService {
                 if let Some(key) = &refresh_key {
                     let expected = refresh_revision.ok_or_else(|| {
                         AppServiceError::invalid_request(
-                            "Review the character before refreshing it.",
+                            "Review the character before importing a new build.",
                         )
                     })?;
                     let previous = session
@@ -118,11 +149,13 @@ impl AtlasAppService {
             let saved = if let Some(key) = &request.character_key {
                 if request.party.is_some() {
                     return Err(AppServiceError::invalid_request(
-                        "Refresh the character separately from party membership.",
+                        "Import the new build separately from party membership.",
                     ));
                 }
                 let expected = request.expected_character_revision.ok_or_else(|| {
-                    AppServiceError::invalid_request("Review the character before refreshing it.")
+                    AppServiceError::invalid_request(
+                        "Review the character before importing a new build.",
+                    )
                 })?;
                 characters.update_imported(
                     key,

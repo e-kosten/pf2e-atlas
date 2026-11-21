@@ -12,6 +12,7 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
+import { SavedCharacterSheet } from "./CharacterSheet";
 import { CharacterEditor } from "./CharacterEditor";
 import { CharacterMemberships } from "./CharactersPage";
 import {
@@ -52,6 +53,9 @@ export function CharacterPage({
           key={characterKey}
           character={query.data}
           navigation={navigation}
+          refreshCharacter={async () =>
+            (await query.refetch()).data?.character_revision
+          }
         />
       )}
       {query.data === null && <p>Character unavailable.</p>}
@@ -62,8 +66,10 @@ export function CharacterPage({
 function CharacterDocument({
   character,
   navigation,
+  refreshCharacter,
 }: {
   character: PcReferenceView;
+  refreshCharacter: () => Promise<number | undefined>;
   navigation: AbilityNavigation;
 }) {
   const actions = useRef<HTMLButtonElement>(null);
@@ -112,9 +118,7 @@ function CharacterDocument({
                 Edit name and level
               </Button>
               <Button type="text" disabled={paused} onClick={() => show("import")}>
-                {character.imported
-                  ? "Refresh from Pathbuilder"
-                  : "Import from Pathbuilder"}
+                New import from Pathbuilder
               </Button>
               <DangerActionButton
                 type="text"
@@ -143,12 +147,21 @@ function CharacterDocument({
           />
         </Popover>
       </header>
-      <PcAbilityBrowser
-        navigation={navigation}
-        doc={character}
-        revision={character.character_revision}
-        link={link}
-        blocked={paused}
+      <SavedCharacterSheet
+        character={character}
+        defaultTab="stats"
+        refreshCharacter={refreshCharacter}
+        abilityRoute={{ active: Boolean(navigation.view), close: navigation.close }}
+        abilities={(active) => (
+          <PcAbilityBrowser
+            navigation={navigation}
+            doc={character}
+            revision={character.character_revision}
+            link={link}
+            blocked={paused}
+            active={active}
+          />
+        )}
       />
       {edit?.mode === "edit" && (
         <CharacterEditor

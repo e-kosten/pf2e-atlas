@@ -28,6 +28,7 @@ import { PathbuilderImport } from "./PathbuilderImport";
 
 const api = vi.hoisted(() => ({
   getCharacter: vi.fn(),
+  getCharacterSheet: vi.fn(),
   getEncounterPcReference: vi.fn(),
   searchPage: vi.fn(),
   getRecordDetail: vi.fn(),
@@ -134,6 +135,11 @@ function Harness({
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getCharacter.mockResolvedValue(character);
+  api.getCharacterSheet.mockResolvedValue({
+    character_key: character.character_key,
+    character_revision: character.character_revision,
+    sheet: { name: character.name, level: character.level, sections: [] },
+  });
   api.getEncounterPcReference.mockResolvedValue({ reference: character });
   api.getRecordDetail.mockResolvedValue(detailFixture(recordKey, recordTitle));
 });
@@ -141,6 +147,10 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
+
+async function openAbilities() {
+  fireEvent.click(await screen.findByRole("tab", { name: "Abilities" }));
+}
 
 it("keeps the linking task visible through preparing, loading, populated and empty searches", async () => {
   let finish!: (value: SearchResultsPage) => void;
@@ -150,6 +160,7 @@ it("keeps the linking task visible through preparing, loading, populated and emp
     }),
   );
   const view = render(<Harness ready={false} />);
+  await openAbilities();
   fireEvent.click(
     await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
   );
@@ -190,6 +201,7 @@ it("retries a failed rule search in place and restores the ability filter and op
     .mockRejectedValueOnce(new Error("Offline"))
     .mockResolvedValueOnce(page());
   render(<Harness />);
+  await openAbilities();
   const filter = await screen.findByRole("textbox", { name: "Find an ability" });
   fireEvent.change(filter, { target: { value: "Companion" } });
   const opener = screen.getByRole("button", {
@@ -226,6 +238,7 @@ it("keeps the current rule and footer mounted until the next result is prepared"
     });
   });
   render(<Harness />);
+  await openAbilities();
   fireEvent.click(
     await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
   );
@@ -277,6 +290,7 @@ it.each(["character page", "encounter drawer"])(
         ) : undefined}
       </Harness>,
     );
+    if (host === "character page") await openAbilities();
     fireEvent.click(
       await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
     );
@@ -317,6 +331,7 @@ it.each(["character page", "encounter drawer"])(
 it("does not announce a cached empty result as final while its refresh is pending", async () => {
   api.searchPage.mockResolvedValueOnce(page(0));
   render(<Harness />);
+  await openAbilities();
   const opener = await screen.findByRole("button", {
     name: "Search for Mature Animal Companion",
   });
@@ -347,6 +362,7 @@ it.each(["cancel", "retry", "new generation"] as const)(
     const draft: PathbuilderPreviewView = {
       ...character,
       level: 7,
+      sheet: { name: character.name, level: 7, sections: [] },
       sections: [{ kind: "feat", label: "Feats", abilities: [ambiguous] }],
       artifact_generation: "test-generation",
     };
@@ -444,6 +460,7 @@ it("keeps rule review from replacing an unconfirmed import request", async () =>
   api.previewPathbuilderPc.mockResolvedValue({
     name: character.name,
     level: 7,
+    sheet: { name: character.name, level: 7, sections: [] },
     sections: character.sections,
     artifact_generation: "older-generation",
   });

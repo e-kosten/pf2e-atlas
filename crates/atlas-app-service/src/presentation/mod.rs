@@ -10,6 +10,7 @@ pub(crate) mod reference_help;
 #[cfg(test)]
 mod reference_help_tests;
 mod reference_profiles;
+pub(crate) use reference_profiles::attribute_label;
 mod skill_qualification;
 mod spell;
 mod spell_changes;

@@ -25,6 +25,10 @@ pub struct PathbuilderPreviewView {
     pub name: String,
     pub level: i64,
     pub artifact_generation: String,
+    pub sheet: crate::CharacterSheetView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub changes: Option<crate::ImportChangesView>,
     pub sections: Vec<PcAbilitySectionView>,
 }
 

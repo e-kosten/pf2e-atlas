@@ -1,7 +1,8 @@
 import { isUnconfirmedMutation } from "../../api/apiError";
-import { Button, Form, Input, InputNumber, Space } from "antd";
+import { Button, Form, Input, Space } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import {
   createCharacter,
   getCharacter,
@@ -16,11 +17,18 @@ import type {
 } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
-import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
+import { DraftDiscardDialog, useDraftNavigation } from "./CharacterDraftNavigation";
 import { refreshCharacters } from "./characterQueries";
 
-type Fields = { name: string; level?: number | null };
+type Fields = { name: string; level?: string };
+
+function parseLevel(raw: string | undefined) {
+  const text = raw?.trim();
+  if (!text) return undefined;
+  const level = Number(text);
+  return /^\d+$/.test(text) && level >= 1 && level <= 20 ? level : "invalid";
+}
 type CharacterWrite =
   | { characterKey: string; request: UpdateCharacterRequest }
   | { characterKey?: never; request: CreateCharacterRequest };
@@ -49,7 +57,10 @@ export function CharacterEditor({
   );
   const [partyRevision, setPartyRevision] = useState(party?.revision);
   const nameInput = useRef<React.ComponentRef<typeof Input>>(null);
-  const discard = useConfirmDangerAction();
+  const inFlight = useRef<Promise<unknown> | null>(null);
+  const committed = useRef(false);
+  const initial = { name: character?.name ?? "", level: character?.level?.toString() };
+  const [fields, setFields] = useState<Fields>(initial);
   useLayoutEffect(() => {
     if (inline) nameInput.current?.focus({ preventScroll: true });
   }, [inline]);
@@ -79,22 +90,48 @@ export function CharacterEditor({
     onSuccess: async (saved) => {
       await refreshCharacters(client);
       if (!saved.available) return;
+      committed.current = true;
       setClosing(true);
       onSaved(saved.character_key);
     },
   });
+  const baseline = review.data?.character ?? character;
+  const hasChanges = (draft: Fields) =>
+    (draft.name ?? "").trim() !== (baseline?.name ?? "").trim() ||
+    parseLevel(draft.level) !== baseline?.level;
+  const dirty = () => !committed.current && hasChanges(form.getFieldsValue());
+  const changed = hasChanges(fields);
+  const pending = () => (committed.current ? null : inFlight.current);
+  const { blocker } = useDraftNavigation(dirty, pending);
+  const leaving = blocker.status === "blocked";
+  useTabCloseGuard(() =>
+    inline ? (pending() ? "pending" : dirty() ? "dirty" : undefined) : undefined,
+  );
   const uncertain = Boolean(save.error && isUnconfirmedMutation(save.error));
   const blocked = save.isPending || review.isPending || paused;
   const canReview = Boolean(save.error && !isUnconfirmedMutation(save.error));
+  function write(request: CharacterWrite) {
+    if (inFlight.current) return;
+    inFlight.current = save
+      .mutateAsync(request)
+      .catch(() => undefined)
+      .finally(() => {
+        inFlight.current = null;
+      });
+  }
   function saveDraft({ name, level }: Fields) {
-    const fields = { name, level: level ?? undefined };
+    if (blocked || canReview) return;
+    const parsed = parseLevel(level);
+    if (parsed === "invalid") return;
+    const fields = { name: name.trim(), level: parsed };
+    if (baseline?.name === fields.name && baseline.level === fields.level) return;
     if (character) {
-      save.mutate({
+      write({
         characterKey: character.character_key,
         request: { ...fields, expected_revision: characterRevision! },
       });
     } else {
-      save.mutate({
+      write({
         request: {
           ...fields,
           request_id: requestId,
@@ -107,7 +144,7 @@ export function CharacterEditor({
     }
   }
   function submit() {
-    if (uncertain && save.variables) save.mutate(save.variables);
+    if (uncertain && save.variables) write(save.variables);
     else form.submit();
   }
   const close = () => setClosing(true);
@@ -116,8 +153,9 @@ export function CharacterEditor({
       name={id}
       form={form}
       layout="vertical"
-      initialValues={{ name: character?.name ?? "", level: character?.level }}
+      initialValues={initial}
       disabled={blocked || uncertain}
+      onValuesChange={(_changed, all) => setFields(all)}
       onFinish={saveDraft}
     >
       {save.error && (
@@ -174,12 +212,33 @@ export function CharacterEditor({
         label="Level"
         name="level"
         rules={[
-          { type: "integer", min: 1, max: 20, message: "Use a level from 1 to 20." },
+          {
+            validator: (_rule, raw?: string) =>
+              parseLevel(raw) === "invalid"
+                ? Promise.reject(new Error("Use a level from 1 to 20."))
+                : Promise.resolve(),
+          },
         ]}
       >
-        <InputNumber min={1} max={20} placeholder="—" />
+        <Input inputMode="numeric" placeholder="—" />
       </Form.Item>
     </Form>
+  );
+  const [confirmInline, setConfirmInline] = useState(false);
+  const discard = (
+    <DraftDiscardDialog
+      open={confirmInline || leaving}
+      title={character ? "Discard character edits?" : "Discard new character?"}
+      description="The name and level you entered will be discarded."
+      onKeep={() => {
+        if (leaving) blocker.reset();
+        setConfirmInline(false);
+      }}
+      onDiscard={() => {
+        if (leaving) blocker.proceed();
+        else onClose();
+      }}
+    />
   );
   if (inline)
     return (
@@ -189,56 +248,55 @@ export function CharacterEditor({
         <Space>
           <Button
             disabled={blocked}
-            onClick={() => {
-              if (form.isFieldsTouched())
-                discard.confirm({
-                  title: "Discard new character?",
-                  content: "The name and level you entered will be discarded.",
-                  okText: "Discard",
-                  onConfirm: onClose,
-                });
-              else onClose();
-            }}
+            onClick={() => (dirty() ? setConfirmInline(true) : onClose())}
           >
             Cancel
           </Button>
           <Button
             type="primary"
-            disabled={blocked || canReview}
+            disabled={blocked || canReview || (!uncertain && !fields.name.trim())}
             loading={save.isPending}
             onClick={submit}
           >
             {uncertain ? "Retry to confirm" : "Add to party"}
           </Button>
         </Space>
-        {discard.dialog}
+        {discard}
       </section>
     );
   return (
-    <AtlasModal
-      open={!closing}
-      title={character ? `Edit ${character.name}` : "New character"}
-      afterClose={onClose}
-      onCancel={close}
-      confirmDiscard={{ when: () => form.isFieldsTouched(), onDiscard: close }}
-      closable={!save.isPending}
-      keyboard={!save.isPending}
-      mask={{ closable: !save.isPending }}
-      onOk={submit}
-      okText={
-        uncertain
-          ? "Retry to confirm"
-          : character
-            ? "Save changes"
-            : party
-              ? "Add to party"
-              : "Add character"
-      }
-      okButtonProps={{ disabled: blocked || canReview }}
-      cancelButtonProps={{ disabled: save.isPending }}
-      confirmLoading={save.isPending}
-    >
-      {content}
-    </AtlasModal>
+    <>
+      <AtlasModal
+        open={!closing}
+        title={character ? `Edit ${character.name}` : "New character"}
+        afterClose={onClose}
+        onCancel={close}
+        confirmDiscard={{ when: dirty, onDiscard: close }}
+        closable={!save.isPending}
+        keyboard={!save.isPending}
+        mask={{ closable: !save.isPending }}
+        onOk={submit}
+        okText={
+          uncertain
+            ? "Retry to confirm"
+            : character
+              ? "Save changes"
+              : party
+                ? "Add to party"
+                : "Add character"
+        }
+        okButtonProps={{
+          disabled:
+            blocked ||
+            canReview ||
+            (!uncertain && (character ? !changed : !fields.name.trim())),
+        }}
+        cancelButtonProps={{ disabled: save.isPending }}
+        confirmLoading={save.isPending}
+      >
+        {content}
+      </AtlasModal>
+      {discard}
+    </>
   );
 }

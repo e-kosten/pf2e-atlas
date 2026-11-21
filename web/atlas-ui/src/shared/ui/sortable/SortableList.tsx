@@ -129,11 +129,13 @@ export function useSortableList<T>({
 }
 
 export function SortableRow({
+  as: Element = "div",
   id,
   disabled,
   children,
   ...props
-}: Omit<HTMLAttributes<HTMLDivElement>, "children" | "id"> & {
+}: Omit<HTMLAttributes<HTMLElement>, "children" | "id"> & {
+  as?: "div" | "tr";
   id: string;
   disabled: boolean;
   children: (bindings: DragHandleBindings) => ReactNode;
@@ -148,7 +150,7 @@ export function SortableRow({
     isDragging,
   } = useSortable({ id, disabled });
   return (
-    <div
+    <Element
       {...props}
       ref={setNodeRef}
       data-sortable-key={id}
@@ -160,6 +162,6 @@ export function SortableRow({
       }}
     >
       {children({ attributes, listeners, setActivatorNodeRef })}
-    </div>
+    </Element>
   );
 }

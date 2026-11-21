@@ -5,7 +5,10 @@ use crate::{
 use atlas_app_model::*;
 use axum::{
     Json,
-    extract::{Path, State, rejection::JsonRejection},
+    extract::{
+        Path, Query, State,
+        rejection::{JsonRejection, QueryRejection},
+    },
     response::IntoResponse,
 };
 #[utoipa::path(get, path="/api/characters",operation_id="characters",responses((status=200,description="Successful response",body=CharacterIndexView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
@@ -73,6 +76,62 @@ pub(crate) async fn add_encounter_character(
     Ok(Json(
         call_service(state, move || {
             service.add_encounter_character(&key, request)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(get, path="/api/characters/{character_key}/sheet",operation_id="characterSheet",params(("character_key"=String,Path)), responses((status=200,description="Successful response",body=CharacterSheetResponse),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
+pub(crate) async fn character_sheet(
+    State(state): State<AtlasWebState>,
+    Path(key): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.character_sheet(&key)).await?,
+    ))
+}
+
+#[derive(serde::Deserialize)]
+pub(crate) struct ImportDetailsRevision {
+    expected_character_revision: i64,
+}
+
+#[utoipa::path(get, path="/api/characters/{character_key}/import-details",operation_id="characterImportDetails",params(("character_key"=String,Path),("expected_character_revision"=i64,Query)), responses((status=200,description="Successful response",body=ImportDetailsView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
+pub(crate) async fn character_import_details(
+    State(state): State<AtlasWebState>,
+    Path(key): Path<String>,
+    query: Result<Query<ImportDetailsRevision>, QueryRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Query(query) = query.map_err(|_| {
+        WebError(AppError::new(
+            AppErrorCode::InvalidRequest,
+            "Supply the reviewed character revision.",
+        ))
+    })?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.character_import_details(&key, query.expected_character_revision)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(post, path="/api/characters/pathbuilder/preview/details",operation_id="previewImportDetails",request_body=PreviewImportDetailsRequest, responses((status=200,description="Successful response",body=ImportDetailsView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
+pub(crate) async fn preview_import_details(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<PreviewImportDetailsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.preview_import_details(
+                &request.json,
+                request.character_key.as_deref(),
+                request.expected_character_revision,
+            )
         })
         .await?,
     ))

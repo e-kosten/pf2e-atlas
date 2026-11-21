@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
   addEncounterCharacter: vi.fn(),
   previewPathbuilderPc: vi.fn(),
   savePathbuilderPc: vi.fn(),
+  updateParty: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
@@ -130,7 +131,7 @@ it("replays an existing character addition using its originally reviewed revisio
     />,
     context,
   );
-  fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Add Aster/ }));
   await screen.findByRole("button", { name: "Retry to confirm" });
   context.client.setQueryData(["characters"], {
     characters: [{ ...character, revision: 3 }],
@@ -146,6 +147,97 @@ it("replays an existing character addition using its originally reviewed revisio
   expect(api.addEncounterCharacter.mock.calls[1]).toEqual(
     api.addEncounterCharacter.mock.calls[0],
   );
+});
+
+it("retries only the roster read after a confirmed add, then starts a new request", async () => {
+  const character = {
+    character_key: "c",
+    name: "Aster",
+    revision: 2,
+    imported: false,
+    parties: [],
+  };
+  api.getCharacters.mockResolvedValue({ characters: [character] });
+  api.addEncounterCharacter.mockResolvedValue({
+    encounter_key: "e",
+    character_key: "c",
+    participant_key: "p",
+    available: true,
+  });
+  api.getEncounter
+    .mockRejectedValueOnce(new Error("Roster read interrupted"))
+    .mockResolvedValue({ revision: 6 });
+  const closed = vi.fn();
+  render(
+    <CharacterPicker encounter={{ encounterKey: "e", revision: 4 }} onClose={closed} />,
+    setup(),
+  );
+  const add = await screen.findByRole("button", { name: /^Add Aster/ });
+  fireEvent.click(add);
+  await screen.findByText("Updated encounter could not load");
+  expect(add).toBeDisabled();
+  expect(api.addEncounterCharacter).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Aster added to the encounter.")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(add).toBeEnabled());
+  expect(api.addEncounterCharacter).toHaveBeenCalledTimes(1);
+  fireEvent.click(add);
+  await screen.findByText("Added 2 times");
+  const [first, second] = api.addEncounterCharacter.mock.calls.map((call) => call[1]);
+  expect(second.expected_encounter_revision).toBe(6);
+  expect(second.request_id).not.toBe(first.request_id);
+  expect(closed).not.toHaveBeenCalled();
+});
+
+it("keeps the party picker open and reviews a lost membership response without replay", async () => {
+  const aster = {
+    character_key: "c",
+    name: "Aster",
+    revision: 3,
+    level: 7,
+    imported: true,
+    parties: [],
+  };
+  const bram = {
+    character_key: "d",
+    name: "Bram",
+    revision: 8,
+    level: 5,
+    imported: false,
+    parties: [],
+  };
+  const party = { party_key: "p", revision: 4, name: "Campaign", members: [] };
+  const revised = {
+    ...party,
+    revision: 5,
+    members: [{ ...aster, character_revision: aster.revision }],
+  };
+  api.getCharacters.mockResolvedValue({ characters: [aster, bram] });
+  api.getParties.mockResolvedValue({ parties: [revised] });
+  api.updateParty.mockRejectedValueOnce(new Error("Response lost")).mockResolvedValue({
+    ...revised,
+    revision: 6,
+    members: [...revised.members, { ...bram, character_revision: bram.revision }],
+  });
+  const closed = vi.fn();
+  render(<CharacterPicker party={party} onClose={closed} />, setup());
+  fireEvent.click(await screen.findByRole("button", { name: /^Add Aster/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Review latest changes" }));
+  await screen.findByText("Aster is in the party.");
+  expect(api.updateParty).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: /^Add Aster/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /^Add Bram/ }));
+  await screen.findByText("Bram added to Campaign.");
+  expect(api.updateParty).toHaveBeenLastCalledWith("p", {
+    name: "Campaign",
+    expected_revision: 5,
+    members: [
+      { character_key: "c", expected_character_revision: 3 },
+      { character_key: "d", expected_character_revision: 8 },
+    ],
+  });
+  expect(closed).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Done" })).toBeEnabled();
 });
 
 it("reviews retained rule corrections and refreshes a stale revision without losing the import", async () => {
@@ -164,6 +256,7 @@ it("reviews retained rule corrections and refreshes a stale revision without los
     name: "Aster",
     level: 7,
     artifact_generation: "generation",
+    sheet: { name: "Aster", level: 7, sections: [] },
     character_revision: 2,
     previous_name: "Aster",
     previous_level: 7,
@@ -199,12 +292,12 @@ it("reviews retained rule corrections and refreshes a stale revision without los
   await screen.findByText("1 saved link retained");
   expect(api.previewPathbuilderPc).toHaveBeenCalledWith("{}", "c");
   expect(screen.getByText("Counterspell (Prepared)")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Refresh character" }));
+  fireEvent.click(screen.getByRole("button", { name: "Update character" }));
   fireEvent.click(await screen.findByRole("button", { name: "Review latest changes" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Refresh character" })).toBeEnabled(),
+    expect(screen.getByRole("button", { name: "Update character" })).toBeEnabled(),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Refresh character" }));
+  fireEvent.click(screen.getByRole("button", { name: "Update character" }));
   await waitFor(() => expect(saved).toHaveBeenCalledWith("c"));
   expect(api.savePathbuilderPc.mock.calls[0][0].expected_character_revision).toBe(2);
   expect(api.savePathbuilderPc.mock.calls[1][0]).toEqual(
@@ -221,6 +314,7 @@ it("keeps importer cancellation disabled until the submitted save finishes", asy
     name: "Aster",
     level: 7,
     artifact_generation: "g",
+    sheet: { name: "Aster", level: 7, sections: [] },
     sections: [],
   });
   let finish!: (value: { character_key: string; available: boolean }) => void;
