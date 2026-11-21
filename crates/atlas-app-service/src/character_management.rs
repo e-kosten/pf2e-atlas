@@ -1,8 +1,7 @@
 //! Small saved edits over the existing guarded character and party workflows.
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
-    CharacterLevelUpdate, CharacterMutationView, PartyMemberInput, PartyView,
-    UpdateCharacterRequest, UpdatePartyRequest,
+    CharacterLevelUpdate, CharacterMutationView, PartyMemberInput, PartyView, UpdatePartyRequest,
 };
 use std::collections::HashSet;
 
@@ -14,19 +13,18 @@ impl AtlasAppService {
         name: Option<String>,
         level: Option<Option<i64>>,
     ) -> AppServiceResult<CharacterMutationView> {
-        let current = self.with_state(|s| {
-            Ok(s.local_state()?
-                .characters()
-                .get_at_revision(key, revision)?)
-        })?;
-        self.update_character(
-            key,
-            UpdateCharacterRequest {
-                expected_revision: revision,
-                name: name.unwrap_or(current.name),
-                level: level.unwrap_or(current.level),
-            },
-        )
+        self.with_write(|session| {
+            session.local_state()?.characters().update_metadata(
+                key,
+                revision,
+                name.as_deref(),
+                level,
+            )?;
+            Ok(CharacterMutationView {
+                character_key: key.into(),
+                available: true,
+            })
+        })
     }
 
     pub fn edit_party_name(

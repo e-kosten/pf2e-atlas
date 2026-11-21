@@ -149,6 +149,98 @@ fn current_identity_and_party_order_are_independent_of_imported_sheet() {
 }
 
 #[test]
+fn metadata_edits_preserve_import_bytes_and_distinguish_omitted_and_cleared_levels() {
+    let (_directory, service) = pathbuilder_service();
+    let key = import_source(&service, pathbuilder_export(7));
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let schema = atlas_runtime::WORKSPACE_SCHEMA_VERSION;
+    let write = workspace.write(schema).unwrap();
+    // Valid JSON retained from an older writer need not use today's encoding.
+    write.connection().execute(
+        "UPDATE characters SET reference_payload=' ' || reference_payload WHERE character_key=?1",
+        [&key],
+    ).unwrap();
+    write.commit().unwrap();
+    let saved_bytes = || -> (String, String) {
+        workspace.read(schema).unwrap().connection().query_row(
+            "SELECT reference_payload,pathbuilder_source FROM characters WHERE character_key=?1",
+            [&key],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap()
+    };
+    let original = saved_bytes();
+
+    let receipt = service
+        .edit_character_metadata(&key, 0, Some(" Current name ".into()), None)
+        .unwrap();
+    assert!(receipt.available);
+    assert_eq!(receipt.character_key, key);
+    let renamed = service.character(&key).unwrap();
+    assert_eq!(renamed.name, "Current name");
+    assert_eq!(renamed.level, Some(7));
+
+    service
+        .edit_character_metadata(&key, renamed.character_revision, None, Some(None))
+        .unwrap();
+    let cleared = service.character(&key).unwrap();
+    assert_eq!(cleared.name, "Current name");
+    assert_eq!(cleared.level, None);
+
+    service
+        .update_character(
+            &key,
+            UpdateCharacterRequest {
+                expected_revision: cleared.character_revision,
+                name: cleared.name.clone(),
+                level: cleared.level,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        service.character(&key).unwrap().character_revision,
+        cleared.character_revision + 1
+    );
+    assert_eq!(saved_bytes(), original);
+}
+
+#[test]
+fn damaged_reference_rejects_metadata_edits_before_stale_revision_or_invalid_fields() {
+    let (_directory, service) = service();
+    let pc = character(&service, "Original", None);
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let schema = atlas_runtime::WORKSPACE_SCHEMA_VERSION;
+    let write = workspace.write(schema).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE characters SET reference_payload='{}' WHERE character_key=?1",
+            [&pc.character_key],
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let error = service
+        .edit_character_metadata(
+            &pc.character_key,
+            pc.character_revision + 1,
+            Some("".into()),
+            Some(Some(21)),
+        )
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::InvalidRequest);
+    assert!(
+        error.message.contains("missing field `abilities`"),
+        "{}",
+        error.message
+    );
+    let stored = service.characters().unwrap().characters.pop().unwrap();
+    assert_eq!(stored.name, pc.name);
+    assert_eq!(stored.level, pc.level);
+    assert_eq!(stored.revision, pc.character_revision);
+}
+
+#[test]
 fn reviewed_import_checks_exact_source_before_writing_and_preview_is_read_only() {
     let (_directory, service) = pathbuilder_service();
     let original = pathbuilder_export(7);

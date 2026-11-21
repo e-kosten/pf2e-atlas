@@ -52,18 +52,12 @@ impl AtlasAppService {
         key: &str,
         request: UpdateCharacterRequest,
     ) -> AppServiceResult<CharacterMutationView> {
-        self.with_write(|session| {
-            let characters = session.local_state()?.characters();
-            let existing = characters.get_at_revision(key, request.expected_revision)?;
-            characters.update(
-                key,
-                request.expected_revision,
-                &request.name,
-                request.level,
-                existing.reference.as_ref(),
-            )?;
-            creation_view(&characters, key)
-        })
+        self.edit_character_metadata(
+            key,
+            request.expected_revision,
+            Some(request.name),
+            Some(request.level),
+        )
     }
     pub fn delete_character(
         &self,
