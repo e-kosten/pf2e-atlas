@@ -102,6 +102,9 @@ enum EncounterCommand {
         encounter: String,
         #[arg(long, add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
         record: String,
+        /// Reuse this ID and the canonical encounter key to retry one intended addition.
+        #[arg(long)]
+        request_id: Option<String>,
         #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=50))]
         quantity: u32,
         #[arg(long, value_enum)]
@@ -139,7 +142,9 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
     let json = args.json;
     let retrieval_mode = if matches!(
         &args.command,
-        EncounterCommand::Export { .. } | EncounterCommand::Import { .. }
+        EncounterCommand::Add { .. }
+            | EncounterCommand::Export { .. }
+            | EncounterCommand::Import { .. }
     ) {
         atlas_app_service::AppServiceRetrievalMode::OnDemandSavedWorkspace
     } else {
@@ -357,6 +362,7 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
         EncounterCommand::Add {
             encounter,
             record,
+            request_id,
             quantity,
             adjustment,
             initiative,
@@ -364,6 +370,11 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             let view = view!(service.add_encounter_record_participant(
                 &encounter,
                 AddEncounterRecordParticipantRequest {
+                    request_id: request_id.unwrap_or_else(|| {
+                        uuid::Builder::from_random_bytes(rand::random())
+                            .into_uuid()
+                            .to_string()
+                    }),
                     creature_scenario: None,
                     record_ref: record,
                     quantity,

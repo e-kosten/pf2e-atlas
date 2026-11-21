@@ -5,6 +5,7 @@ import { Button, Form, theme } from "antd";
 import type { FormInstance } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type {
+  AddEncounterRecordParticipantRequest,
   CreatureScenarioContext,
   EncounterDifficultyAddition,
   EncounterParticipantVariantView,
@@ -63,6 +64,17 @@ export function encounterRecordAddition(
     };
   }
   return addition;
+}
+
+export function recordAdditionRequest({
+  participant_variant,
+  ...addition
+}: EncounterDifficultyAddition): AddEncounterRecordParticipantRequest {
+  return {
+    ...addition,
+    request_id: crypto.randomUUID(),
+    ...(participant_variant === null ? {} : { participant_variant }),
+  };
 }
 
 /** Footer-only projection: no reference editor and no speculative saved participants. */

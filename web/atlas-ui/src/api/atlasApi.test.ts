@@ -513,6 +513,7 @@ describe("source-backed API transport", () => {
       method: "POST",
       call: () =>
         addEncounterRecordParticipant("test", {
+          request_id: "goblin-batch",
           record_ref: "actors:ghoul",
           quantity: 2,
         }),

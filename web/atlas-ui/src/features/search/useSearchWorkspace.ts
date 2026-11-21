@@ -1,5 +1,9 @@
 import { useAtlasRouter } from "../../app/router";
-import { userErrorMessage, isSharedFailure } from "../../shared/feedback/errorMessages";
+import {
+  userErrorMessage,
+  isSharedFailure,
+  lexicalInputExplanation,
+} from "../../shared/feedback/errorMessages";
 import {
   failedFilterTransport,
   searchPage as urlSearchPage,
@@ -13,13 +17,11 @@ import {
   useMemo,
   useReducer,
   useRef,
-  useState,
 } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
 import type { WorkspaceSearchDefault } from "../../shared/search/SearchProfileContext";
 import { searchExecution } from "../../shared/search/searchExecution";
-import { similarityPartsQueryOptions } from "../../shared/search/similarityQueries";
 import {
   useReferenceGeneration,
   useReferenceGenerationAdoption,
@@ -29,7 +31,6 @@ import {
   assertKeywordSearch,
   assertSearchIdentity,
   assertSimilarityIdentity,
-  assertSimilarityInventoryIdentity,
 } from "../../shared/search/searchIdentity";
 import type {
   FilterEditorView,
@@ -78,11 +79,6 @@ import {
   DEFAULT_SEARCH_PREFERENCES,
   type SearchPreferences,
 } from "../../shared/search/searchPreferences";
-import {
-  hasCoreSourcePreference,
-  preferredSourceSections,
-  similarityFromPreferences,
-} from "../../shared/search/similarityState";
 import {
   isArtifactGenerationChanged,
   referenceQueryMeta,
@@ -137,6 +133,7 @@ export type SearchWorkspaceState = {
   vocabularyScope: import("../../generated/atlas").FilterVocabularyScope;
   filterDiscoveryError: string | null;
   errorMessage: string | null;
+  searchInputError?: string;
   resultsFailed?: boolean;
   refresh: () => void;
   rerunSemantic?: () => void;
@@ -195,18 +192,13 @@ export function useSearchWorkspace({
     (preferences) => initialWorkspaceInteractionState(preferences, atlasRouter),
   );
   const { search, selectedRecordKey, activeSearch } = interaction;
-  const queryClient = useQueryClient();
-  const seedPreparation = useRef(0);
-  const [preparingSeed, setPreparingSeed] = useState(false);
-  const [sourcePreparationError, setSourcePreparationError] = useState<string | null>(
-    null,
+  const searchVersion = useRef(0);
+  useEffect(
+    () => () => {
+      searchVersion.current += 1;
+    },
+    [enabled],
   );
-  if (!enabled && preparingSeed) setPreparingSeed(false);
-  useEffect(() => {
-    return () => {
-      seedPreparation.current += 1;
-    };
-  }, [enabled]);
   const location = useRouterState({ select: (state) => state.location });
   const previousProfile = useRef(searchProfile);
   const profileChanged =
@@ -317,9 +309,7 @@ export function useSearchWorkspace({
     const criteriaChanged =
       previousUrlCriteria.current !== incomingCriteria || resetChanged;
     if (criteriaChanged) {
-      seedPreparation.current += 1;
-      setPreparingSeed(false);
-      setSourcePreparationError(null);
+      searchVersion.current += 1;
     }
     previousUrlCriteria.current = incomingCriteria;
     // Decoding fills an omitted ranking; that alone must not commit a local edit.
@@ -637,81 +627,15 @@ export function useSearchWorkspace({
     next: SearchFormState,
     intent: SearchUpdateIntent = "edit",
     submission?: SearchSubmission,
-  ) {
-    const version = ++seedPreparation.current;
-    setSourcePreparationError(null);
-    setPreparingSeed(false);
-    if (next.similarSeed !== search.similarSeed && next.similarSeed) {
-      const nextSeed = next.similarSeed;
-      const preferences = searchPreferences.recordSimilarity;
-      next = {
-        ...next,
-        sourceSections: preferences.method === "baseline" ? undefined : "all",
-      };
-      if (
-        preferences.method !== "baseline" &&
-        hasCoreSourcePreference(searchPreferences) &&
-        searchProfile !== null
-      ) {
-        const seed = { kind: "record" as const, record_key: nextSeed };
-        const nextSearch = next;
-        const generation = retrieval.generation;
-        const ticket = retrieval.capture();
-        setPreparingSeed(true);
-        void queryClient
-          .fetchQuery(similarityPartsQueryOptions(seed, searchProfile, generation))
-          .then((inventory) => {
-            const current = retrieval.current(ticket);
-            if (version !== seedPreparation.current || !current) return;
-            assertSimilarityInventoryIdentity(
-              inventory,
-              seed,
-              searchProfile,
-              current.generation,
-            );
-            retrieval.adopt(ticket, inventory.artifact_generation);
-            commitSearch(
-              {
-                ...nextSearch,
-                sourceSections: preferredSourceSections(
-                  searchPreferences,
-                  inventory.core.family,
-                ),
-              },
-              intent,
-              submission,
-            );
-          })
-          .catch((error: unknown) => {
-            if (version === seedPreparation.current)
-              setSourcePreparationError(
-                error instanceof Error
-                  ? error.message
-                  : "Unable to load source sections. Choose this record again.",
-              );
-          })
-          .finally(() => {
-            if (version === seedPreparation.current) setPreparingSeed(false);
-          });
-        return;
-      }
-    }
-    commitSearch(next, intent, submission);
-  }
-  function commitSearch(
-    next: SearchFormState,
-    intent: SearchUpdateIntent,
-    submission?: SearchSubmission,
     rerunSemantic = false,
   ) {
-    if (next.similarSeed !== search.similarSeed)
+    searchVersion.current += 1;
+    if (!next.similarSeed && search.similarSeed)
       next = {
         ...next,
-        similarity: next.similarSeed
-          ? similarityFromPreferences(searchPreferences.recordSimilarity)
-          : undefined,
+        similarity: undefined,
         similarityGeneration: undefined,
-        sourceSections: next.similarSeed ? (next.sourceSections ?? "all") : undefined,
+        sourceSections: undefined,
       };
     // A submitted canonical address is navigation, independent of search eligibility.
     const recordKey = next.query.trim();
@@ -771,17 +695,17 @@ export function useSearchWorkspace({
       !next.filterError &&
       resolveWorkspaceDefault
     ) {
-      const submission = seedPreparation.current;
+      const submission = searchVersion.current;
       const href = atlasRouter.latestLocation.href;
       void resolveWorkspaceDefault().then((current) => {
         if (
-          submission !== seedPreparation.current ||
+          submission !== searchVersion.current ||
           href !== atlasRouter.latestLocation.href
         )
           return;
         const apply = () => {
           if (
-            submission !== seedPreparation.current ||
+            submission !== searchVersion.current ||
             href !== atlasRouter.latestLocation.href
           )
             return;
@@ -822,7 +746,11 @@ export function useSearchWorkspace({
       !resetPending &&
       !activeSearchReady &&
       hasExecutableSearch(activeSearch));
-  const errorMessage = sourcePreparationError ?? messageFromError(resultsQuery.error);
+  const searchInputError =
+    activeSearchExecutionToken === searchExecutionToken
+      ? lexicalInputExplanation(resultsQuery.error)
+      : undefined;
+  const errorMessage = searchInputError ? null : messageFromError(resultsQuery.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const resultsRefreshing =
     canRunResultSearch &&
@@ -842,15 +770,10 @@ export function useSearchWorkspace({
       !retrieval.recovering &&
       resultsQuery.data?.page.mode.kind === "text_search" &&
       resultsQuery.data.page.mode.mode === "lexical"
-        ? () => {
-            seedPreparation.current += 1;
-            commitSearch(search, "submit", undefined, true);
-          }
+        ? () => setSearch(search, "submit", undefined, true)
         : undefined,
     applySettings: async (next, profile) => {
-      seedPreparation.current += 1;
-      setPreparingSeed(false);
-      setSourcePreparationError(null);
+      searchVersion.current += 1;
       const committed = normalizeSortTransition(search, next);
       const nextGeneration = committed.similarityGeneration;
       await retrieval.applyGeneration(nextGeneration, () => {
@@ -910,12 +833,13 @@ export function useSearchWorkspace({
       searchReady &&
       hasExecutableSearch(search) &&
       (resultsQuery.isLoading || searchDebouncing),
-    resultsRefreshing: resultsRefreshing || preparingSeed,
+    resultsRefreshing,
     resultsPaused,
     resultsRecovering: retrieval.recovering,
     refreshResults,
     filterDiscoveryLoading: filterDiscovery.loading,
     errorMessage,
+    searchInputError,
     resultsFailed: !!resultsQuery.error,
     refresh: () => {
       if (!enabled) {

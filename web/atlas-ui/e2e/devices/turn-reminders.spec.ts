@@ -689,6 +689,7 @@ test("real turn counts retain explanations and guard an explicit action", async 
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
+            request_id: crypto.randomUUID(),
             record_ref: "browser-actors:sentinel00000001",
             quantity: 1,
             initiative: -1,
@@ -700,6 +701,7 @@ test("real turn counts retain explanations and guard an explicit action", async 
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
+            request_id: crypto.randomUUID(),
             record_ref: "browser-hazards:hazard0000000001",
             quantity: 1,
           },

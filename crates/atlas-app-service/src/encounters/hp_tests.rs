@@ -348,6 +348,17 @@ fn exact_corrections_preserve_outliers_availability_and_maximum_intent() {
             atlas_local_state::ParticipantHpOrigin::Explicit
         )
     );
+    for amount in ["1", "0"] {
+        let healed = apply(
+            &f.worker,
+            &key,
+            &p,
+            EncounterHpAction::Heal {
+                amount: amount.into(),
+            },
+        );
+        assert_eq!((healed.current_hp, healed.max_hp), (Some(100), Some(15)));
+    }
     let unknown_max = apply(
         &f.worker,
         &key,
@@ -543,6 +554,7 @@ fn hp_receipt_does_not_depend_on_postcommit_reference_hydration() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
@@ -586,6 +598,7 @@ fn derived_maximum_reuses_existing_deficit_policy() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
@@ -678,6 +691,7 @@ fn same_value_exact_current_correction_marks_derived_hp_edited() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
@@ -859,6 +873,7 @@ fn omitted_atomic_fields_preserve_derived_provenance_and_supplied_same_values_ma
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),

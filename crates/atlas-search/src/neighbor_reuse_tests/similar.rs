@@ -84,10 +84,10 @@ fn record_preview_full_page_and_sort_reuse_exact_windows_for_both_profiles_and_c
                 assert_eq!(json!(actual.seed), json!(expected.seed));
                 assert_eq!(signature(&actual.results), signature(&expected.results));
                 assert!(actual.results.records.iter().all(|r| r.record.key != key));
-                assert_eq!(cold.read_metrics().knn_queries, 3);
+                assert_eq!(cold.read_metrics().knn_queries, 1);
                 assert_eq!(
                     cached.read_metrics().knn_queries,
-                    if i == 0 { 3 } else { 0 }
+                    if i == 0 { 1 } else { 0 }
                 );
             }
         }
@@ -137,10 +137,10 @@ fn equal_record_vectors_keep_distinct_exclusions_in_native_identity() {
         );
         assert_eq!(
             service.read_metrics().knn_queries,
-            if i < 2 { 3 } else { 0 }
+            if i < 2 { 1 } else { 0 }
         );
     }
-    assert_eq!(store.stats().ready_entries, 6);
+    assert_eq!(store.stats().ready_entries, 2);
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn similar_predicate_changes_miss_and_successful_empty_windows_can_hit() {
         assert_eq!(actual.results.records.is_empty(), filter.is_some());
         assert_eq!(
             service.read_metrics().knn_queries,
-            if i < 2 { 3 } else { 0 }
+            if i < 2 { 1 } else { 0 }
         );
     }
 }

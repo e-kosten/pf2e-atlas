@@ -27,6 +27,13 @@ import type {
   SearchResultsPage,
 } from "../../generated/atlas";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
+import { AtlasConnectionError } from "../../api/availability";
+import { similarityPartsFixture } from "../../test/similarityFixtures";
+import { DEFAULT_SEARCH_PREFERENCES } from "../search/searchPreferences";
+import type {
+  SimilarityPartsRequest,
+  SimilarityPartsView,
+} from "../../generated/atlas";
 import { AtlasApiError } from "../../api/atlasApi";
 import { useRecordDetail } from "./useRecordDetail";
 import { RelatedRecords } from "./RelatedRecords";
@@ -37,6 +44,7 @@ import {
 } from "../filters/searchState";
 
 const api = vi.hoisted(() => ({
+  getSimilarityParts: vi.fn(),
   getRelatedRecords: vi.fn(),
   searchPage: vi.fn(),
   getRecordDetail: vi.fn(),
@@ -168,7 +176,9 @@ function page(
           similarity: {
             options: request.criteria.similarity,
             source_sections:
-              request.criteria.similarity.method === "baseline" ? null : "all",
+              request.criteria.similarity.method === "baseline"
+                ? null
+                : (request.criteria.source_sections ?? "all"),
             search_content: "all",
             candidate_identity: request.criteria.similarity.method === "baseline",
             core_recipe: null,
@@ -196,7 +206,10 @@ function page(
     artifact_generation: request.expected_artifact_generation ?? "test-generation",
     mode:
       request.criteria.kind === "similar_records"
-        ? { kind: "similar_records", seed: summaryFixture("actors:seed") }
+        ? {
+            kind: "similar_records",
+            seed: summaryFixture(request.criteria.seed_record_key),
+          }
         : { kind: "list_records" },
     rows,
     relationship_clauses: [],
@@ -516,6 +529,141 @@ it("uses the current tab's Search URL for Similar previews and their Search hand
       "search_content",
     ),
   ).toBe("core");
+});
+
+function renderCorePreview() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const reload = vi.fn();
+  const content = (key: string) => (
+    <RouterTestContext>
+      <QueryClientProvider client={client}>
+        <SearchProfileProvider
+          preferences={{
+            ...DEFAULT_SEARCH_PREFERENCES,
+            sourceSectionsByFamily: { hazard: "core" },
+          }}
+        >
+          <RelatedRecords
+            detail={detailFixture(key, key)}
+            onReference={vi.fn()}
+            onReload={reload}
+          />
+        </SearchProfileProvider>
+      </QueryClientProvider>
+    </RouterTestContext>
+  );
+  const view = render(content("hazards:b"));
+  return { client, reload, selectRecord: (key: string) => view.rerender(content(key)) };
+}
+
+function requestedInventory(request: SimilarityPartsRequest): SimilarityPartsView {
+  return {
+    ...similarityPartsFixture(request.expected_artifact_generation ?? undefined),
+    seed: request.seed,
+  };
+}
+
+it("retries the selected record’s comparison sections and opens Search with its Core options", async () => {
+  api.getSimilarityParts.mockRejectedValue(new Error("Internal fixture detail"));
+  renderCorePreview();
+  await selectTab("Similar");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Couldn’t load comparison sections",
+  );
+  expect(screen.queryByText(/Internal fixture detail/)).toBeNull();
+  expect(
+    api.searchPage.mock.calls.some(([r]) => r.criteria.kind === "similar_records"),
+  ).toBe(false);
+  const callsBeforeRetry = api.getSimilarityParts.mock.calls.length;
+  api.getSimilarityParts.mockImplementation(requestedInventory);
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await screen.findByText("No similar records found.");
+  const request = {
+    seed: { kind: "record", record_key: "hazards:b" },
+    search_profile: "bge-base",
+    expected_artifact_generation: detailFixture("hazards:b").artifact_generation,
+  };
+  expect(api.getSimilarityParts).toHaveBeenCalledTimes(callsBeforeRetry + 1);
+  for (const [attempt] of api.getSimilarityParts.mock.calls)
+    expect(attempt).toEqual(request);
+  const href = screen
+    .getByRole("link", { name: "Search similar records" })
+    .getAttribute("href")!;
+  expect(
+    decodeSearchStateFromParams(new URL(href, location.origin).searchParams),
+  ).toMatchObject({
+    similarSeed: "hazards:b",
+    sourceSections: "core",
+    similarity: { method: "passages" },
+  });
+});
+
+it("keeps the newly selected record when an older comparison-sections retry finishes late", async () => {
+  let finish!: () => void;
+  api.getSimilarityParts.mockRejectedValue(new Error("Failed"));
+  const view = renderCorePreview();
+  await selectTab("Similar");
+  const retry = await screen.findByRole("button", { name: "Retry" });
+  api.getSimilarityParts
+    .mockImplementationOnce(
+      (request: SimilarityPartsRequest) =>
+        new Promise<SimilarityPartsView>((resolve) => {
+          finish = () => resolve(requestedInventory(request));
+        }),
+    )
+    .mockImplementation(requestedInventory);
+  fireEvent.click(retry);
+  await waitFor(() => expect(finish).toBeTypeOf("function"));
+  view.selectRecord("hazards:c");
+  await screen.findByText("No similar records found.");
+  await act(async () => finish());
+  expect(
+    api.searchPage.mock.calls.flatMap(([r]) =>
+      r.criteria.kind === "similar_records" ? [r.criteria.seed_record_key] : [],
+    ),
+  ).toEqual(["hazards:c"]);
+  const href = screen
+    .getByRole("link", { name: "Search similar records" })
+    .getAttribute("href")!;
+  expect(new URL(href, location.origin).searchParams.get("similar")).toBe("hazards:c");
+});
+
+it("retires stale preview results and reloads the owning detail on an inventory generation change", async () => {
+  api.getSimilarityParts.mockImplementation(requestedInventory);
+  const view = renderCorePreview();
+  await selectTab("Similar");
+  expect(await screen.findByText("No similar records found.")).toBeVisible();
+  api.getSimilarityParts.mockImplementation((r: SimilarityPartsRequest) => ({
+    ...requestedInventory(r),
+    artifact_generation: "new-generation",
+  }));
+  await act(async () => {
+    await view.client.invalidateQueries({ queryKey: ["similarity-parts"] });
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Reload record" }));
+  expect(view.reload).toHaveBeenCalledOnce();
+  expect(screen.queryByText("No similar records found.")).toBeNull();
+  expect(screen.queryByRole("link", { name: "Search similar records" })).toBeNull();
+});
+
+it.each([
+  new AtlasConnectionError(false, new Error("Offline")),
+  new AtlasApiError(409, "Reference unavailable", {
+    code: "artifact_incompatible",
+    message: "Internal diagnostic",
+  }),
+])("leaves shared comparison-sections failures to the shell", async (error) => {
+  api.getSimilarityParts.mockRejectedValue(error);
+  const view = renderCorePreview();
+  await selectTab("Similar");
+  await waitFor(() =>
+    expect(
+      view.client.getQueryCache().find({ queryKey: ["similarity-parts"], exact: false })
+        ?.state.error,
+    ).toBe(error),
+  );
+  expect(screen.queryByText("Couldn’t load comparison sections")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
 });
 
 it("rejects late Similar responses from the previous model and updates the Search handoff", async () => {

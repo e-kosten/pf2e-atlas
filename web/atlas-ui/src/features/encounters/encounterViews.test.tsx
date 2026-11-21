@@ -2333,6 +2333,7 @@ describe("encounter views", () => {
       expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith(
         "encounter_ambush",
         {
+          request_id: expect.any(String),
           record_ref: "actors:goblin",
           quantity: 2,
           participant_variant: "elite",
@@ -2345,6 +2346,9 @@ describe("encounter views", () => {
     expect(search).toHaveValue("goblin");
     expect(within(dialog).getByText("Added 2 × Goblin Warrior.")).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
+    apiMocks.addEncounterRecordParticipant.mockRejectedValueOnce(
+      new Error("Lost response"),
+    );
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "3" },
     });
@@ -2353,11 +2357,24 @@ describe("encounter views", () => {
       expect(apiMocks.addEncounterRecordParticipant).toHaveBeenLastCalledWith(
         "encounter_ambush",
         {
+          request_id: expect.any(String),
           record_ref: "actors:goblin",
           quantity: 3,
         },
       ),
     );
+    const retry = await within(dialog).findByRole("button", {
+      name: "Retry to confirm",
+    });
+    expect(within(dialog).getByRole("button", { name: "Add" })).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText("Quantity"), {
+      target: { value: "4" },
+    });
+    fireEvent.click(retry);
+    await within(dialog).findByText("Added 3 × Goblin Warrior.");
+    const attempts = apiMocks.addEncounterRecordParticipant.mock.calls;
+    expect(attempts[0][1].request_id).not.toEqual(attempts[1][1].request_id);
+    expect(attempts[2]).toEqual(attempts[1]);
     await waitFor(() =>
       expect(within(dialog).getByRole("button", { name: "Done" })).toBeEnabled(),
     );

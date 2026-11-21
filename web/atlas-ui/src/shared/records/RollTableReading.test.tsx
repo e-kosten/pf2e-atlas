@@ -102,3 +102,49 @@ it("reads a batch of complete table text and opens its checked reference in plac
     cursor: null,
   });
 });
+
+it.each([
+  ["missing", "1d6", "Table results unavailable", false],
+  ["null", "1d6", "Table results unavailable", false],
+  ["invalid", "1d6", "Table results unavailable", false],
+  ["value", "1d6", "No results.", true],
+  ["value", null, "No results.", false],
+] as const)(
+  "distinguishes %s results with formula %s",
+  async (availability, formula, emptyText, canRoll) => {
+    const parent: RecordNavigationView = {
+      record_key: "tables:incomplete",
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    };
+    api.getEmbeddedReading.mockResolvedValue({
+      artifact_generation: "generation",
+      parent,
+      availability,
+      entries: [],
+      next: null,
+    });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RollTableReading
+          selection={parent}
+          context={{ generation: "generation", parent }}
+          onReference={vi.fn()}
+          table={{
+            roll_note: "Rolls may repeat.",
+            formula: formula ? knownFact(formula) : unavailableFact("missing"),
+            results:
+              availability === "value" ? knownFact([]) : unavailableFact(availability),
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(emptyText)).toBeVisible();
+    const roll = screen.getByRole("button", { name: "Roll" });
+    if (canRoll) expect(roll).toBeEnabled();
+    else expect(roll).toBeDisabled();
+    if (!formula) expect(screen.getByText("Roll formula unavailable")).toBeVisible();
+  },
+);

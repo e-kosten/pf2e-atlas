@@ -102,6 +102,7 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
             .add_encounter_record_participant(
                 &encounter.slug,
                 AddEncounterRecordParticipantRequest {
+                    request_id: crate::test_support::next_request_id(),
                     creature_scenario: None,
                     record_ref: key.into(),
                     quantity: 1,
@@ -167,6 +168,7 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 record_ref: "actors:dddddddddddddddd".into(),
                 quantity: 1,
@@ -475,6 +477,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 record_ref: "actors:elite00000000000".into(),
                 quantity: 2,
@@ -524,6 +527,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 record_ref: low_addition.record_ref,
                 quantity: low_addition.quantity,
@@ -757,6 +761,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
         f.worker.add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 record_ref: base.into(),
                 quantity: 1,
                 initiative: None,

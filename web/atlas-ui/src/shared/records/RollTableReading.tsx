@@ -74,6 +74,7 @@ export function RollTableReading({
   }, []);
   const entries = reading.data?.pages.flatMap((page) => page.entries) ?? [];
   const rows = table.results.value ?? [];
+  const availability = reading.data?.pages[0]?.availability ?? table.results.state;
   const matches = result?.matches ?? [];
   const data = entries.map((entry) => ({
     entry,
@@ -90,6 +91,7 @@ export function RollTableReading({
         })}
         artifactGeneration={context.generation}
         formula={table.formula.value}
+        resultsAvailable={availability === "value"}
         rollNote={table.roll_note}
         onResult={receiveResult}
       />
@@ -116,8 +118,12 @@ export function RollTableReading({
             <LoadingStatus label="Loading results…" />
           ) : reading.isError ? (
             "Results unavailable"
+          ) : availability === "value" ? (
+            <Typography.Text type="secondary">No results.</Typography.Text>
           ) : (
-            "No results."
+            <Typography.Text type="secondary">
+              Table results unavailable
+            </Typography.Text>
           ),
         }}
         loading={{ spinning: reading.isFetching && entries.length === 0, delay: 300 }}

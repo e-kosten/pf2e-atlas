@@ -85,6 +85,7 @@ impl EncounterDocument {
         let mut turn_requests = BTreeMap::new();
         let mut boundaries = BTreeSet::new();
         let mut event_requests = BTreeSet::new();
+        let mut record_additions = BTreeSet::new();
         for row in &self.receipts {
             if row.request_id.is_empty()
                 || row.request_id.len() > 128
@@ -96,6 +97,13 @@ impl EncounterDocument {
                 )));
             }
             match &row.outcome {
+                ReceiptOutcome::RecordAddition => {
+                    require_unique(
+                        &mut record_additions,
+                        &row.request_id,
+                        "record addition request",
+                    )?;
+                }
                 ReceiptOutcome::Turn { boundary_key } => {
                     require_unique(&mut boundaries, boundary_key, "turn boundary")?;
                     if turn_requests
@@ -421,10 +429,17 @@ impl Identities {
             rewrite(&mut row.request_id, &self.requests);
         }
         for row in &mut document.receipts {
-            rewrite(&mut row.request_id, &self.requests);
             match &mut row.outcome {
-                ReceiptOutcome::Turn { boundary_key } => track(&mut self.boundaries, boundary_key),
-                ReceiptOutcome::Event { receipt } => self.event(receipt),
+                // Addition IDs remain opaque even if a turn used the same spelling.
+                ReceiptOutcome::RecordAddition => {}
+                ReceiptOutcome::Turn { boundary_key } => {
+                    rewrite(&mut row.request_id, &self.requests);
+                    track(&mut self.boundaries, boundary_key);
+                }
+                ReceiptOutcome::Event { receipt } => {
+                    rewrite(&mut row.request_id, &self.requests);
+                    self.event(receipt);
+                }
             }
         }
         if let Some(row) = &mut document.outgoing {

@@ -88,14 +88,56 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                 let actual = cached.search_text(request()).unwrap();
                 let expected = cold.search_text(request()).unwrap();
                 assert_eq!(signature(&actual), signature(&expected));
-                assert_eq!(cold.read_metrics().knn_queries, 3);
+                assert_eq!(cold.read_metrics().knn_queries, 1);
                 assert_eq!(
                     cached.read_metrics().knn_queries,
-                    if i == 0 { 3 } else { 0 }
+                    if i == 0 { 1 } else { 0 }
                 );
             }
         }
     }
+}
+
+#[test]
+fn a_short_semantic_window_keeps_the_prior_final_windows_members_and_witnesses() {
+    let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
+    drop(service);
+    let text = "\"Ember"; // Vector-only input has no lexical phrase grammar.
+    let mut service = open(&artifact.path(), None, "bge-base", text, 0);
+    let mut request = TextSearchRequest::new(text, SearchPage::default());
+    request.mode = RetrievalMode::Vector;
+    let actual = service.search_text(request).unwrap();
+    assert_eq!(service.read_metrics().knn_queries, 1);
+    assert_eq!(actual.coverage.semantic_unit_window, Some(1024));
+    assert!(!actual.coverage.exhaustive);
+    let profile = service.default_search_profile();
+    let mut vector = vec![0.; 768];
+    vector[0] = 1.;
+    let prior_hits = service
+        .index
+        .vector_candidates(atlas_index::SourceVectorCandidateRequest {
+            profile,
+            vector: &vector,
+            query: &service.predicate(None).unwrap(),
+            keys: None,
+            exclude: None,
+            content_scope: SearchContentScope::All,
+            limit: 4096,
+        })
+        .unwrap();
+    let expected = service
+        .finish_results(
+            profile,
+            crate::text::semantic_roots(prior_hits),
+            SearchPage::default(),
+            true,
+            Some(4096),
+            ResultSort::Relevance {},
+        )
+        .unwrap();
+    let mut prior = signature(&expected);
+    prior["coverage"]["semantic_unit_window"] = json!(1024);
+    assert_eq!(signature(&actual), prior);
 }
 
 #[test]
@@ -123,7 +165,7 @@ fn text_vector_predicate_and_core_changes_miss_and_empty_results_hit() {
             let result = service.search_text(request).unwrap();
             assert_eq!(
                 service.read_metrics().knn_queries,
-                if repeat == 0 { 3 } else { 0 }
+                if repeat == 0 { 1 } else { 0 }
             );
             if filter == 1 {
                 assert!(result.records.is_empty());
@@ -143,7 +185,7 @@ fn explicit_key_scopes_and_discovery_do_not_retain_native_windows() {
         let mut request = TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
         request.scope = RecordScope::Keys(&keys);
         service.search_text(request).unwrap();
-        assert_eq!(service.read_metrics().knn_queries, 3);
+        assert_eq!(service.read_metrics().knn_queries, 1);
         service.reset_read_metrics();
         let outcome = service
             .discover_filter_values(DiscoverFilterValuesRequest {
@@ -204,7 +246,7 @@ fn same_context_publication_invalidates_windows_across_reopened_services() {
             SearchPage::first(2).unwrap(),
         ))
         .unwrap();
-    assert_eq!(new.read_metrics().knn_queries, 3);
+    assert_eq!(new.read_metrics().knn_queries, 1);
     let mut cold = open(&artifact.path(), None, "bge-base", "Ember", 0);
     let expected = cold
         .search_text(TextSearchRequest::new(
@@ -446,9 +488,9 @@ fn duplicate_and_distinct_requests_execute_native_misses_on_independent_readers(
             })
             .collect::<Vec<_>>();
         for worker in workers {
-            assert_eq!(worker.join().unwrap(), 3);
+            assert_eq!(worker.join().unwrap(), 1);
         }
-        assert_eq!(store.stats().ready_entries, if distinct { 6 } else { 3 });
+        assert_eq!(store.stats().ready_entries, if distinct { 2 } else { 1 });
         assert!(store.stats().peak_bytes <= 16 * 1024 * 1024);
     }
 }

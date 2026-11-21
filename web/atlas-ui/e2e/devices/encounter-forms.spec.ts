@@ -536,6 +536,7 @@ test("life status stays compact and stable while saving, without replacing the s
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
+            request_id: crypto.randomUUID(),
             record_ref: "browser-actors:sentinel00000001",
             quantity: 1,
           },

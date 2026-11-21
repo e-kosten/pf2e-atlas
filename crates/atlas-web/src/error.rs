@@ -62,6 +62,7 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::PartyConflict
         | AppErrorCode::SavedEditConflict
         | AppErrorCode::SavedListAlreadyExists
+        | AppErrorCode::EncounterAdditionConflict
         | AppErrorCode::EncounterTurnConflict
         | AppErrorCode::EncounterParticipantConflict
         | AppErrorCode::EncounterAlreadyExists

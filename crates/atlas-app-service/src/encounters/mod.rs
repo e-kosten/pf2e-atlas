@@ -16,6 +16,8 @@ pub(crate) mod mechanics;
 mod outgoing_turns;
 mod projection;
 mod record_addition;
+#[cfg(test)]
+mod record_addition_tests;
 mod recovery;
 #[cfg(test)]
 mod recovery_tests;

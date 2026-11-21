@@ -19,6 +19,13 @@ impl RetrievalMode {
     pub(crate) fn uses_fts(self) -> bool {
         matches!(self, Self::Fts | Self::Hybrid)
     }
+    /// Report lexical input errors before Hybrid starts query inference.
+    pub fn validate_input_before_inference(self, text: &str) -> Result<(), crate::SearchError> {
+        if self == Self::Hybrid {
+            atlas_index::validate_lexical_text(text).map_err(atlas_index::IndexError::from)?;
+        }
+        Ok(())
+    }
     pub fn uses_vector(self) -> bool {
         matches!(self, Self::Vector | Self::Hybrid)
     }
@@ -261,8 +268,9 @@ impl AtlasRetrievalService {
                 limit: window,
             };
             let hits = self.native_vector_candidates(input, request.text)?;
+            let exhausted = hits.len() < window;
             let roots = semantic_roots(hits);
-            if roots.len() >= TARGET_ROOTS || window == 4096 {
+            if exhausted || roots.len() >= TARGET_ROOTS || window == 4096 {
                 return Ok((roots, window));
             }
         }

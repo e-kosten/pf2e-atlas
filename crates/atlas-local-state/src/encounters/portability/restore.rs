@@ -84,6 +84,7 @@ pub(super) fn write_document(
     }
     for row in &document.receipts {
         let (family, boundary, payload) = match &row.outcome {
+            ReceiptOutcome::RecordAddition => ("record_addition", None, None),
             ReceiptOutcome::Turn { boundary_key } => ("turn", Some(boundary_key), None),
             ReceiptOutcome::Event { receipt } => {
                 ("event", None, Some(receipt_codec::encode(receipt)?))

@@ -686,6 +686,9 @@ pub struct EncounterParticipantConditionView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AddEncounterRecordParticipantRequest {
+    /// Reuse this ID and canonical encounter key only to retry the same addition.
+    #[cfg_attr(feature = "openapi", schema(min_length = 1, max_length = 128))]
+    pub request_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub creature_scenario: Option<CreatureScenarioContext>,

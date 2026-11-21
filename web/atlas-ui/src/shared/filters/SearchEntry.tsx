@@ -23,6 +23,7 @@ export function SearchEntry({
   placeholder = "Name or description…",
   similar,
   inputRef,
+  errorId,
 }: {
   query: string;
   onSearch: (query: string, submission: SearchSubmission) => void;
@@ -32,6 +33,7 @@ export function SearchEntry({
   placeholder?: string;
   similar?: SimilarSearchCriterion;
   inputRef?: RefObject<InputRef | null>;
+  errorId?: string;
 }) {
   const { token } = theme.useToken();
   const [field] = useState(() => ({}));
@@ -125,6 +127,8 @@ export function SearchEntry({
       ref={input}
       className="reference-search-entry"
       aria-label={label}
+      aria-invalid={errorId && value === query ? true : undefined}
+      aria-describedby={value === query ? errorId : undefined}
       placeholder={placeholder}
       autoComplete="off"
       disabled={disabled}

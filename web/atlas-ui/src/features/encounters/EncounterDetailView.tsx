@@ -464,6 +464,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
             filterHeaderActions={difficulty && <EncounterDifficulty {...difficulty} />}
             filter={
               <EncounterRosterPane
+                key={encounter.data.encounter.encounter_key}
                 pending={mutations.pending}
                 encounterSummary={encounterSummary ?? undefined}
                 encounterRevision={encounter.data.revision}
@@ -498,8 +499,12 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                   encounter.data?.current_turn_participant_key ?? null
                 }
                 loading={encounter.isLoading}
-                onAddRecord={async (request) => {
-                  const result = await mutations.run({ kind: "add-record", request });
+                onAddRecord={async (encounterKey, request) => {
+                  const result = await mutations.run({
+                    kind: "add-record",
+                    encounterKey,
+                    request,
+                  });
                   return result.active && result.refreshed;
                 }}
                 onAddParty={async (request) => {

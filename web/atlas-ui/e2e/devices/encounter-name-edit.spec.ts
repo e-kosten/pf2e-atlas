@@ -29,6 +29,7 @@ for (const width of [1440, 390, 320]) {
         (
           await page.request.post(`${path}/participants/record`, {
             data: {
+              request_id: crypto.randomUUID(),
               record_ref: record.record_key,
               quantity: 1,
               initiative: 17,

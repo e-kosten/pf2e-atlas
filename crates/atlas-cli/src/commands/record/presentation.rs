@@ -155,24 +155,28 @@ pub(super) fn render_record(
                 .map_or_else(|| "Price".into(), |value| format!("Price per {value}"));
             fact(&mut out, &price_label, &body.price, |price| {
                 let coins = [
-                    ("pp", &price.pp),
-                    ("gp", &price.gp),
-                    ("sp", &price.sp),
-                    ("cp", &price.cp),
+                    ("pp", "platinum", &price.pp),
+                    ("gp", "gold", &price.gp),
+                    ("sp", "silver", &price.sp),
+                    ("cp", "copper", &price.cp),
                 ]
                 .into_iter()
-                .filter(|(_, value)| {
+                .filter(|(_, _, value)| {
                     !matches!(
                         value.state,
                         QueryFieldState::Missing | QueryFieldState::NotApplicable
                     )
                 })
-                .map(|(unit, value)| format!("{} {unit}", number_text(value, false, "")))
+                .map(|(unit, name, value)| match value.state {
+                    QueryFieldState::Null => format!("{name} not specified"),
+                    QueryFieldState::Invalid => format!("{name} value unreadable"),
+                    _ => format!("{} {unit}", number_text(value, false, "")),
+                })
                 .collect::<Vec<_>>();
                 if coins.is_empty() {
                     "Empty".into()
                 } else {
-                    coins.join(", ")
+                    coins.join(" · ")
                 }
             });
             if body.price_per.state != QueryFieldState::Value

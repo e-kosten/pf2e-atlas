@@ -1,6 +1,17 @@
 use thiserror::Error;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LexicalQueryError {
+    #[error("Add a closing quotation mark to finish the phrase.")]
+    UnclosedPhrase,
+    #[error("Shorten the search text to 16,384 bytes or fewer.")]
+    LexicalTextTooLong,
+}
+
 #[derive(Debug, Error)]
 pub enum IndexError {
+    #[error(transparent)]
+    LexicalQuery(#[from] LexicalQueryError),
     #[error("similarity resource limit: {0}")]
     Limit(String),
     #[error("artifact unavailable: {0}")]

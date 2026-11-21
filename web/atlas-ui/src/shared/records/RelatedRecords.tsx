@@ -159,11 +159,13 @@ export function RelatedRecords(props: ExploreProps) {
 }
 
 function QueryError({
+  title = "Unable to load connections",
   error,
   retry,
   onReload,
   reloadLabel = "Reload record",
 }: {
+  title?: string;
   error: Error;
   retry: () => void;
   onReload?: () => void;
@@ -176,7 +178,7 @@ function QueryError({
   return (
     <ErrorNotice
       error={error}
-      title="Unable to load connections"
+      title={title}
       action={
         <Button
           size="small"
@@ -700,11 +702,13 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
     ),
     enabled: needsFamily && profile.id !== null && profile.storedVectors,
   });
+  const inventoryGenerationChanged = isArtifactGenerationChanged(seedInventory.error);
+  const inventory = inventoryGenerationChanged ? undefined : seedInventory.data;
   const sourceSections =
     similarity.method === "baseline"
       ? undefined
-      : seedInventory.data
-        ? preferredSourceSections(profile.preferences, seedInventory.data.core.family)
+      : inventory
+        ? preferredSourceSections(profile.preferences, inventory.core.family)
         : "all";
   const searchLocation = currentSearchLocation(atlasRouter);
   const currentSearch =
@@ -731,7 +735,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
     enabled:
       profile.id !== null &&
       profile.storedVectors &&
-      (!needsFamily || seedInventory.data !== undefined),
+      (!needsFamily || inventory !== undefined),
     staleTime: Infinity,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
@@ -753,11 +757,15 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       assertSearchIdentity(page, profile.id, detail.artifact_generation, {
         kind: "relevance",
       });
+      if (page.mode.kind !== "similar_records" || page.mode.seed.record_key !== seed)
+        throw new Error("The similar records do not match this source.");
       assertSimilarityIdentity(page, similarity, sourceSections, searchContent);
       return page;
     },
   });
-  const data = isArtifactGenerationChanged(similar.error) ? undefined : similar.data;
+  const changedGeneration =
+    inventoryGenerationChanged || isArtifactGenerationChanged(similar.error);
+  const data = changedGeneration ? undefined : similar.data;
   const previewError = seedInventory.error ?? similar.error;
   const route = searchDestination({
     selectedRecordKey: null,
@@ -780,7 +788,9 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       <ExploreSearchAction
         route={route}
         summary="Top matches"
-        disabled={profile.keywordSearch || (needsFamily && !seedInventory.data)}
+        disabled={
+          profile.keywordSearch || changedGeneration || (needsFamily && !inventory)
+        }
       >
         Search similar records
       </ExploreSearchAction>
@@ -797,6 +807,11 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       )}
       {previewError && (
         <QueryError
+          title={
+            seedInventory.error
+              ? "Couldn’t load comparison sections"
+              : "Couldn’t load similar records"
+          }
           error={previewError}
           retry={() =>
             void (seedInventory.error ? seedInventory.refetch() : similar.refetch())

@@ -1432,6 +1432,7 @@ describe("AtlasApp routing", () => {
         compatible ? "enc_ambush" : "list_research",
         compatible
           ? {
+              request_id: expect.any(String),
               record_ref: linkedKey,
               quantity: 2,
               ...(kind === "creature" ? { participant_variant: "weak" } : {}),

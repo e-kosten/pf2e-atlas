@@ -726,9 +726,16 @@
           },
           "record_ref": {
             "type": "string"
+          },
+          "request_id": {
+            "description": "Reuse this ID and canonical encounter key only to retry the same addition.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
           }
         },
         "required": [
+          "request_id",
           "record_ref",
           "quantity"
         ],
@@ -1061,6 +1068,7 @@
           "encounter_participant_not_found",
           "encounter_participant_conflict",
           "encounter_turn_conflict",
+          "encounter_addition_conflict",
           "artifact_generation_changed",
           "filter_invalid",
           "filter_field_invalid",

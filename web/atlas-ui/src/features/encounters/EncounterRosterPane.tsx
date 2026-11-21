@@ -1,5 +1,6 @@
 import type { ReorderPlacement } from "../../generated/atlas";
 import { EncounterRecordAdjustment } from "./EncounterRecordAdjustment";
+import { isUnconfirmedMutation } from "../../api/apiError";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { encounterStatusLabels } from "./encounterStatus";
 import {
@@ -32,6 +33,7 @@ import type { EncounterDifficultyProps } from "./EncounterDifficulty";
 import {
   EncounterAddDifficulty,
   encounterRecordAddition,
+  recordAdditionRequest,
   encounterPreviewBasis,
   type PreparedCreatureAddition,
   type EncounterRecordAddForm as AddRecordForm,
@@ -75,7 +77,10 @@ export function EncounterRosterPane({
   removingKey: string | null;
   removeError?: { participantKey: string; message: string };
   loading: boolean;
-  onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
+  onAddRecord: (
+    encounterKey: string,
+    request: AddEncounterRecordParticipantRequest,
+  ) => Promise<boolean>;
   onAddParty: (
     request: import("../../generated/atlas").AddEncounterPartyRequest,
   ) => Promise<void>;
@@ -143,20 +148,27 @@ export function EncounterRosterPane({
   const previewBasis = difficulty
     ? encounterPreviewBasis(difficulty.encounterKey, difficulty.revision)
     : undefined;
+  const currentAddition = () =>
+    selectedRecordKey
+      ? encounterRecordAddition(
+          selectedRecordKey,
+          selectedIsCreature,
+          recordForm,
+          scenario,
+          preparedCreature,
+          previewBasis,
+        )
+      : null;
   const waitingForCreaturePreview = Boolean(
-    recordOpen &&
-    difficulty &&
-    scenario &&
-    selectedRecordKey &&
-    !encounterRecordAddition(
-      selectedRecordKey,
-      selectedIsCreature,
-      recordForm,
-      scenario,
-      preparedCreature,
-      previewBasis,
-    ).creature_scenario?.expected,
+    scenario && !currentAddition()?.creature_scenario?.expected,
   );
+  const [unconfirmed, setUnconfirmed] = useState<{
+    encounterKey: string;
+    request: AddEncounterRecordParticipantRequest;
+    receipt: string;
+    title: string;
+  } | null>(null);
+  const adding = useRef(false);
   useEffect(() => {
     if (disabled) return;
     if (pendingFormReset.current.record) {
@@ -168,25 +180,29 @@ export function EncounterRosterPane({
     }
   }, [disabled, committedAdd, recordForm, defaultAdjustment]);
   const addRecord = async () => {
-    if (disabled || waitingForCreaturePreview || !candidate) return;
-    const { record_ref, quantity, participant_variant, creature_scenario } =
-      encounterRecordAddition(
-        candidate.record.record_key,
-        selectedIsCreature,
-        recordForm,
-        scenario,
-        preparedCreature,
-      );
-    const receipt = `Added ${quantity} × ${candidate.record.title}.`;
+    if (disabled || adding.current) return;
+    const addition = currentAddition();
+    const attempt =
+      unconfirmed ??
+      (addition &&
+      candidate &&
+      encounterSummary &&
+      (!scenario || addition.creature_scenario?.expected)
+        ? {
+            encounterKey: encounterSummary.encounter_key,
+            request: recordAdditionRequest(addition),
+            title: candidate.record.title,
+            receipt: `Added ${addition.quantity} × ${candidate.record.title}.`,
+          }
+        : null);
+    if (!attempt) return;
+    const { receipt } = attempt;
+    adding.current = true;
     setCommittedAdd(null);
     setAdded("");
     try {
-      const saved = await onAddRecord({
-        record_ref,
-        quantity,
-        ...(creature_scenario ? { creature_scenario } : {}),
-        ...(participant_variant === null ? {} : { participant_variant }),
-      });
+      const saved = await onAddRecord(attempt.encounterKey, attempt.request);
+      setUnconfirmed(null);
       if (saved) {
         setAdded(receipt);
         recordForm.setFields([
@@ -197,8 +213,10 @@ export function EncounterRosterPane({
         pendingFormReset.current.record = true;
         setCommittedAdd(receipt);
       }
-    } catch {
-      /* The owner displays the failure; retain the form and selection. */
+    } catch (error) {
+      setUnconfirmed(isUnconfirmedMutation(error) ? attempt : null);
+    } finally {
+      adding.current = false;
     }
   };
   const renderParticipant = (participant: EncounterParticipantView) => {
@@ -479,7 +497,11 @@ export function EncounterRosterPane({
         form={recordForm}
         disabled={disabled}
         okButtonProps={{
-          disabled: disabled || waitingForCreaturePreview || !selectedRecordKey,
+          disabled:
+            disabled ||
+            Boolean(unconfirmed) ||
+            waitingForCreaturePreview ||
+            !selectedRecordKey,
           loading: disabled,
         }}
         onCancel={() => setRecordOpen(false)}
@@ -522,10 +544,27 @@ export function EncounterRosterPane({
           ) : undefined
         }
         status={
-          (recovery || error || added || (!disabled && committedAdd)) && (
+          (recovery ||
+            error ||
+            unconfirmed ||
+            added ||
+            (!disabled && committedAdd)) && (
             <>
               {recovery}
-              {error && (
+              {unconfirmed && (
+                <ErrorNotice
+                  error={error}
+                  title="Addition could not be confirmed"
+                  outcome="uncertain"
+                  description={`Confirm the original addition of ${unconfirmed.request.quantity} × ${unconfirmed.title}.`}
+                  action={
+                    <Button disabled={disabled} onClick={() => void addRecord()}>
+                      Retry to confirm
+                    </Button>
+                  }
+                />
+              )}
+              {error && !unconfirmed && (
                 <ErrorNotice
                   error={error}
                   title="Participant could not be added"

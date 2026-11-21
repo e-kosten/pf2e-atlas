@@ -47,6 +47,7 @@ fn resting_creature(extra_items: Vec<serde_json::Value>) -> (FixtureWorker, Enco
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
@@ -372,6 +373,7 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
             .add_encounter_record_participant(
                 &key,
                 AddEncounterRecordParticipantRequest {
+                    request_id: crate::test_support::next_request_id(),
                     creature_scenario: None,
                     participant_variant: None,
                     record_ref: "Test Creature 1".into(),

@@ -109,7 +109,7 @@ pub use discovery::{
     QueryCountsRequest, QueryFacetContext, QueryValueCountsRequest, QueryValuesRequest,
     QueryVocabularyRequest, facet_base_query, validate_value_counts, validate_value_discovery,
 };
-pub use error::IndexError;
+pub use error::{IndexError, LexicalQueryError};
 pub use input::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, EXPECTED_SOURCE_KIND,
     IndexBuildPack, LEXICAL_SELECTION_VERSION, LOCALIZATION_POLICY_VERSION,
@@ -130,6 +130,7 @@ pub use read_content::{
 pub use read_units::{
     SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,
     SourceLexicalRootHit, SourceRemasterPair, SourceVectorCandidateRequest, SourceVectorHit,
+    validate_lexical_text,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use reader::SourceReadMetrics;

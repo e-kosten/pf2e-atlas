@@ -86,7 +86,7 @@ fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
         value: None,
         adjustment: None,
     };
-    let physical = PhysicalPresentationView {
+    let mut physical = PhysicalPresentationView {
         base_type: FactView {
             state: QueryFieldState::Missing,
             value: None,
@@ -125,14 +125,29 @@ fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
         }),
     };
     let output = render_record(
+        &detail(RecordBodyView::PhysicalReference(Box::new(
+            physical.clone(),
+        ))),
+        TerminalDetail::Standard,
+        80,
+    )
+    .unwrap();
+    assert!(output.contains("Price: 0 gp · silver not specified · copper value unreadable"));
+    assert!(output.contains("Bulk: 0"));
+    assert!(!output.contains("Usage:"));
+    physical.price = known(PhysicalPriceView {
+        pp: numeric(0),
+        gp: numeric(3),
+        sp: numeric(2),
+        cp: numeric(0),
+    });
+    let output = render_record(
         &detail(RecordBodyView::PhysicalReference(Box::new(physical))),
         TerminalDetail::Standard,
         80,
     )
     .unwrap();
-    assert!(output.contains("Price: 0 gp, [null] sp, [invalid] cp"));
-    assert!(output.contains("Bulk: 0"));
-    assert!(!output.contains("Usage:"));
+    assert!(output.contains("Price: 0 pp · 3 gp · 2 sp · 0 cp"));
     for state in [
         QueryFieldState::Missing,
         QueryFieldState::Null,
