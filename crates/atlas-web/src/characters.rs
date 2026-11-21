@@ -15,9 +15,8 @@ use axum::{
 pub(crate) async fn characters(
     State(state): State<AtlasWebState>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.characters()).await?,
+        call_service(state, move |service| service.characters()).await?,
     ))
 }
 #[utoipa::path(post, path="/api/characters",operation_id="createCharacter",request_body=CreateCharacterRequest,responses((status=200,description="Successful response",body=CharacterMutationView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
@@ -26,9 +25,8 @@ pub(crate) async fn create_character(
     payload: Result<Json<CreateCharacterRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.create_character(request)).await?,
+        call_service(state, move |service| service.create_character(request)).await?,
     ))
 }
 #[utoipa::path(get, path="/api/characters/{character_key}",operation_id="character",params(("character_key"=String,Path)), responses((status=200,description="Successful response",body=PcReferenceView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
@@ -36,9 +34,8 @@ pub(crate) async fn character(
     State(state): State<AtlasWebState>,
     Path(key): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.character(&key)).await?,
+        call_service(state, move |service| service.character(&key)).await?,
     ))
 }
 #[utoipa::path(patch, path="/api/characters/{character_key}",operation_id="updateCharacter",params(("character_key"=String,Path)), request_body=UpdateCharacterRequest,responses((status=200,description="Successful response",body=CharacterMutationView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
@@ -48,9 +45,11 @@ pub(crate) async fn update_character(
     payload: Result<Json<UpdateCharacterRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.update_character(&key, request)).await?,
+        call_service(state, move |service| {
+            service.update_character(&key, request)
+        })
+        .await?,
     ))
 }
 #[utoipa::path(delete, path="/api/characters/{character_key}",operation_id="deleteCharacter",params(("character_key"=String,Path)), request_body=DeleteCharacterRequest,responses((status=200,description="Successful response",body=CharacterMutationView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
@@ -60,9 +59,11 @@ pub(crate) async fn delete_character(
     payload: Result<Json<DeleteCharacterRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.delete_character(&key, request)).await?,
+        call_service(state, move |service| {
+            service.delete_character(&key, request)
+        })
+        .await?,
     ))
 }
 #[utoipa::path(post, path="/api/encounters/{encounter_ref}/participants/character",operation_id="addEncounterCharacter",params(("encounter_ref"=String,Path)), request_body=AddEncounterCharacterRequest,responses((status=200,description="Successful response",body=EncounterCharacterMutationView),(status=409,description="Application or browser contract conflict",body=crate::error::ConflictResponse),(status="default",description="Atlas error",body=AppError)))]
@@ -72,9 +73,8 @@ pub(crate) async fn add_encounter_character(
     payload: Result<Json<AddEncounterCharacterRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.add_encounter_character(&key, request)
         })
         .await?,
@@ -86,9 +86,8 @@ pub(crate) async fn character_sheet(
     State(state): State<AtlasWebState>,
     Path(key): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.character_sheet(&key)).await?,
+        call_service(state, move |service| service.character_sheet(&key)).await?,
     ))
 }
 
@@ -109,9 +108,8 @@ pub(crate) async fn character_import_details(
             "Supply the reviewed character revision.",
         ))
     })?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.character_import_details(&key, query.expected_character_revision)
         })
         .await?,
@@ -124,9 +122,8 @@ pub(crate) async fn preview_import_details(
     payload: Result<Json<PreviewImportDetailsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_import_details(
                 &request.json,
                 request.character_key.as_deref(),

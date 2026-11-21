@@ -21,9 +21,8 @@ pub(crate) async fn preview_pathbuilder_pc(
     payload: Result<Json<PathbuilderPreviewRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_pathbuilder_pc(&request.json, request.character_key.as_deref())
         })
         .await?,
@@ -39,9 +38,8 @@ pub(crate) async fn save_pathbuilder_pc(
     payload: Result<Json<SavePathbuilderPcRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.save_pathbuilder_pc(request)).await?,
+        call_service(state, move |service| service.save_pathbuilder_pc(request)).await?,
     ))
 }
 #[utoipa::path(patch, path = "/api/characters/{character_key}/reference/{ability_key}", operation_id = "savePcAbilityLink", params(("character_key" = String, Path), ("ability_key" = String, Path)), request_body = SavePcAbilityLinkRequest,
@@ -54,9 +52,8 @@ pub(crate) async fn save_pc_ability_link(
     payload: Result<Json<SavePcAbilityLinkRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.save_pc_ability_link(&character_key, &ability_key, request)
         })
         .await?,
@@ -71,9 +68,8 @@ pub(crate) async fn encounter_pc_reference(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.encounter_pc_reference(&encounter_ref, &participant_key)
         })
         .await?,
@@ -90,9 +86,8 @@ pub(crate) async fn set_encounter_pc_reference(
     payload: Result<Json<SetEncounterPcReferenceRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.set_encounter_pc_reference(&encounter_ref, &participant_key, request)
         })
         .await?,

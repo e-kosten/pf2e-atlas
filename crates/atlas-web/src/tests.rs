@@ -530,7 +530,7 @@ async fn app_errors_preserve_their_identity_and_details_in_http_responses() {
 #[tokio::test]
 async fn call_service_preserves_successful_result() {
     let fixture = Fixture::without_reference();
-    let value = call_service(fixture.state(64), || Ok::<_, AppServiceError>("ready"))
+    let value = call_service(fixture.state(64), |_| Ok::<_, AppServiceError>("ready"))
         .await
         .expect("successful app-service call should pass through");
 
@@ -540,7 +540,7 @@ async fn call_service_preserves_successful_result() {
 #[tokio::test]
 async fn call_service_maps_service_error_to_http_envelope() {
     let fixture = Fixture::without_reference();
-    let error = call_service(fixture.state(64), || {
+    let error = call_service(fixture.state(64), |_| {
         Err::<(), _>(AppServiceError::new(
             AppErrorCode::ArtifactGenerationChanged,
             "changed",
@@ -565,7 +565,7 @@ async fn call_service_maps_service_error_to_http_envelope() {
 #[tokio::test]
 async fn call_service_maps_panic_to_internal_error() {
     let fixture = Fixture::without_reference();
-    let error = call_service(fixture.state(64), || -> Result<(), AppServiceError> {
+    let error = call_service(fixture.state(64), |_| -> Result<(), AppServiceError> {
         panic!("simulated app-service panic");
     })
     .await
