@@ -84,7 +84,7 @@ pub(crate) enum Command {
     Encounters(commands::encounters::EncountersArgs),
     #[command(about = "Read character builds, equipment and rule links; manage saved PCs")]
     Characters(commands::characters::args::CharactersArgs),
-    #[command(about = "Manage party rosters and read actual party planning context")]
+    #[command(about = "Manage party rosters and inspect members’ builds and equipment.")]
     Parties(commands::parties::PartiesArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
     Agent(AgentArgs),

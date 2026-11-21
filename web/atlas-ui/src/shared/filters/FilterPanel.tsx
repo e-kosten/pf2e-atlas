@@ -726,6 +726,9 @@ function CommonFilter({
             title={field.label}
             content={
               <Space orientation="vertical" style={{ width: "100%" }}>
+                {field.help && (
+                  <Typography.Text type="secondary">{field.help}</Typography.Text>
+                )}
                 <CommonRange
                   field={field}
                   range={range ?? ["", ""]}

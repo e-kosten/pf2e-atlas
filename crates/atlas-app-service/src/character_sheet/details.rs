@@ -63,15 +63,15 @@ impl AtlasAppService {
 pub(crate) fn compare_imports(
     incoming_json: &str,
     incoming: &CharacterSheetView,
+    incoming_source: &PathbuilderSheet,
     reference: &PcReference,
     previous_json: Option<&str>,
     previous_reference: Option<&PcReference>,
 ) -> AppServiceResult<ImportChangesView> {
-    let before = previous_json
-        .map(|raw| project_sheet(raw, previous_reference, None))
-        .transpose()?;
     let mut sections = Vec::new();
-    if let Some(before) = &before {
+    if let Some(previous_json) = previous_json {
+        let previous_source = read_sheet(previous_json)?;
+        let before = project_sheet(previous_json, &previous_source, previous_reference, None)?;
         let incoming_name = &incoming.name;
         let incoming_level = incoming.level;
         for (previous, incoming) in before.sections.iter().zip(&incoming.sections) {
@@ -97,6 +97,11 @@ pub(crate) fn compare_imports(
             } else {
                 compare_section(previous, incoming)
             };
+            if incoming.kind == SheetSectionKind::Inventory {
+                changes
+                    .changed
+                    .extend(container_renames(&previous_source, incoming_source));
+            }
             if incoming.kind == SheetSectionKind::Stats {
                 if &before.name != incoming_name {
                     changes.changed.push("Imported name".into());
@@ -170,7 +175,7 @@ pub(crate) fn compare_imports(
         }
     }
     Ok(ImportChangesView {
-        had_sheet: before.is_some(),
+        had_sheet: previous_json.is_some(),
         sections,
         removed_corrections,
         retained_corrections,
@@ -179,6 +184,24 @@ pub(crate) fn compare_imports(
             .transpose()?
             .unwrap_or_default(),
     })
+}
+
+fn container_renames(previous: &PathbuilderSheet, incoming: &PathbuilderSheet) -> Vec<String> {
+    let Some(previous) = value(&previous.equipment_containers) else {
+        return Vec::new();
+    };
+    value(&incoming.equipment_containers)
+        .into_iter()
+        .flatten()
+        .filter_map(|(id, container)| {
+            let before = name(
+                &value(previous.get(id)?)?.container_name,
+                "Unnamed container",
+            );
+            let after = name(&value(container)?.container_name, "Unnamed container");
+            (before != after).then(|| format!("Container · {before} → {after}"))
+        })
+        .collect()
 }
 
 fn insert_changes(

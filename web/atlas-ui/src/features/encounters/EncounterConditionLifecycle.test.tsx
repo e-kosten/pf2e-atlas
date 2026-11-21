@@ -248,7 +248,11 @@ it("uses the server's Stunned loss and retains the row until the result closes",
   });
   await waitFor(() => expect(screen.queryByTestId("condition-row")).toBeNull());
 });
-it("uses the damage event's Confused scope without asking for qualifying facts or sources", async () => {
+it.each([
+  ["Roll · DC 11", { kind: "roll" }],
+  ["Success", { kind: "table_degree", degree: "success" }],
+  ["Failure", { kind: "table_degree", degree: "failure" }],
+] as const)("uses the damage event's Confused scope for %s", async (button, check) => {
   const onApply = setup(
     option({
       kind: "confused_damage_recovery",
@@ -261,14 +265,14 @@ it("uses the damage event's Confused scope without asking for qualifying facts o
   await open();
   expect(screen.getByText(/After damage from an attack or spell/)).toBeVisible();
   expect(screen.queryByRole("combobox")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Roll · DC 11" }));
+  fireEvent.click(screen.getByRole("button", { name: button }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
         action: {
           kind: "confused_damage_recovery",
           consequence_key: "damage",
-          check: { kind: "roll" },
+          check,
         },
       }),
     ),

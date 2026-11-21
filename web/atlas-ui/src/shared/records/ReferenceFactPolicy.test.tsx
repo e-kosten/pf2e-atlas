@@ -169,10 +169,20 @@ describe("reference fact reading policy", () => {
       <RecordPresentation presentation={presentation} onReference={vi.fn()} />,
     );
     expect(screen.getByText("Price").parentElement).toHaveTextContent(
-      "0 gp, [null] sp, [invalid] cp",
+      "0 gp · silver not specified · copper value unreadable",
     );
     expect(screen.queryByText("Usage")).toBeNull();
     if (presentation.body.kind !== "physical_reference") throw new Error("fixture");
+    presentation.body.value.price = knownFact({
+      pp: numberFact(0),
+      gp: numberFact(3),
+      sp: numberFact(2),
+      cp: numberFact(0),
+    });
+    rerender(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
+    expect(screen.getByText("Price").parentElement).toHaveTextContent(
+      /^Price 3 gp · 2 sp$/,
+    );
     presentation.body.value.price = knownFact({
       pp: absent,
       gp: absent,
@@ -209,7 +219,7 @@ describe("reference fact reading policy", () => {
     if (presentation.body.kind !== "roll_table") throw new Error("fixture");
     presentation.body.value.results = unavailableFact("missing");
     rerender(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
-    expect(screen.getByText("Results").parentElement).toHaveTextContent("—");
+    expect(screen.getByText("Table results unavailable")).toBeVisible();
     presentation.body = {
       kind: "table_result",
       value: {

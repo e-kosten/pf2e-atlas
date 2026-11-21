@@ -27,6 +27,9 @@ impl<'a> PartiesRead<'a> {
     pub fn list(&self) -> LocalStateResult<Vec<Party>> {
         storage::list(self.connection, self.owner_id)
     }
+    pub fn candidates(&self, reference: &str) -> LocalStateResult<Vec<crate::CharacterParty>> {
+        storage::candidates(self.connection, self.owner_id, reference)
+    }
     pub fn get(&self, key: &str) -> LocalStateResult<Party> {
         storage::get(self.connection, self.owner_id, key)?
             .ok_or_else(|| LocalStateError::PartyNotFound(key.into()))

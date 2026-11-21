@@ -183,6 +183,7 @@ it("keeps table roll guidance behind an accessible information button", async ()
         }}
         artifactGeneration="test"
         formula="1d6"
+        resultsAvailable
         rollNote="Rolls may repeat."
         onResult={() => {}}
       />

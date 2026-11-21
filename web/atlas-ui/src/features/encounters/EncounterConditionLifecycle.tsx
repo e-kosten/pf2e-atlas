@@ -403,34 +403,30 @@ function RecoveryContent({
               Roll{check.dc === null ? "" : ` · DC ${check.dc}`}
             </Button>
           )}
-          {option.kind !== "confused_damage_recovery" && (
-            <>
-              <p>Rolled at the table</p>
-              <Space wrap>
-                {(option.kind === "dying_recovery"
-                  ? ([
-                      "critical_success",
-                      "success",
-                      "failure",
-                      "critical_failure",
-                    ] as const)
-                  : (["success", "critical_success"] as const)
-                ).map((degree) => (
-                  <Button
-                    key={degree}
-                    disabled={blocked}
-                    onClick={() =>
-                      void apply(withCheck({ kind: "table_degree", degree }))
-                    }
-                  >
-                    {degree
-                      .replace(/_/g, " ")
-                      .replace(/^./, (value) => value.toUpperCase())}
-                  </Button>
-                ))}
-              </Space>
-            </>
-          )}
+          <p>Rolled at the table</p>
+          <Space wrap>
+            {(option.kind === "dying_recovery"
+              ? ([
+                  "critical_success",
+                  "success",
+                  "failure",
+                  "critical_failure",
+                ] as const)
+              : option.kind === "confused_damage_recovery"
+                ? (["success", "failure"] as const)
+                : (["success", "critical_success"] as const)
+            ).map((degree) => (
+              <Button
+                key={degree}
+                disabled={blocked}
+                onClick={() => void apply(withCheck({ kind: "table_degree", degree }))}
+              >
+                {degree
+                  .replace(/_/g, " ")
+                  .replace(/^./, (value) => value.toUpperCase())}
+              </Button>
+            ))}
+          </Space>
         </>
       )}
       {option.kind === "frightened_end_turn" && (
