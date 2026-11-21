@@ -36,6 +36,8 @@
 
 .character-import-review > h4.ant-typography {
   margin-block: 0 var(--space-control);
+  font-size: 1.5rem;
+  line-height: 1.3;
 }
 
 .character-import-review > p {
@@ -98,6 +100,30 @@
   min-inline-size: 0;
 }
 
+.character-sheet {
+  --sheet-body-size: 1rem;
+  --sheet-detail-size: 0.875rem;
+  --sheet-section-size: 1.25rem;
+  font-size: var(--sheet-body-size);
+  line-height: 1.5;
+}
+
+.character-heading h1 {
+  font-size: clamp(1.75rem, 2.4vw, 2rem);
+  letter-spacing: -0.025em;
+}
+
+.pc-character-drawer__title {
+  font-size: 1.5rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.character-sheet :is(a.ant-typography, .ant-typography:not(button)) {
+  font-size: inherit;
+  line-height: inherit;
+}
+
 .character-sheet .ant-tabs-nav {
   margin-block-end: var(--space-control);
 }
@@ -121,7 +147,7 @@
   min-inline-size: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: var(--space-control) var(--space-control) var(--space-group) 0;
+  padding: var(--space-group) var(--space-control) var(--space-section) 0;
 }
 
 .character-sheet__snapshot {
@@ -146,8 +172,10 @@
 
 .character-sheet__groups h3,
 .character-import-summary h3 {
-  margin: 0 0 var(--space-control);
-  font-size: 1rem;
+  margin: 0 0 var(--space-group);
+  font-size: var(--sheet-section-size, 1.25rem);
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .character-sheet__rows,
@@ -167,6 +195,8 @@
   flex-wrap: wrap;
   gap: var(--space-control) var(--space-group);
   margin: 0;
+  font-size: var(--sheet-detail-size, 0.875rem);
+  line-height: 1.5;
 }
 
 .character-sheet__values > div {
@@ -214,6 +244,12 @@
 
 .character-sheet__groups .record-fact-list > div {
   min-inline-size: 0;
+}
+
+.character-sheet__groups--stats .record-fact-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: var(--space-control) var(--space-group);
 }
 
 .value-explanation .character-sheet__values {
@@ -266,6 +302,21 @@
 .character-sheet__spell-slots {
   color: var(--muted);
   font-weight: 400;
+}
+
+.character-sheet .character-ability-section h3 {
+  font-size: var(--sheet-section-size);
+  line-height: 1.3;
+}
+
+.character-sheet .character-ability-link {
+  font-size: var(--sheet-body-size);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.character-sheet .character-secondary {
+  font-size: var(--sheet-detail-size);
 }
 
 .character-sheet__groups--magic .actor-casting__rows {

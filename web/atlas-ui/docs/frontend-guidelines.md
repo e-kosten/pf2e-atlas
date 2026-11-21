@@ -2041,6 +2041,24 @@ complete class progression from these arrays. A short price/bulk/usage group doe
 not need a table. Compact table rows suit short progression values; prose-heavy
 roll tables need more cell spacing. Keep source-authored tables as tables.
 
+### Character sheets
+
+Saved character pages, encounter PC drawers and import review share the character
+sheet renderers. Choose layout from Rust-projected group kinds and fact roles;
+keep source interpretation and acquisition-level grouping in the app service.
+Inventory separates equipment, carried gear and containers, coins, and formulas.
+Keep all formula groups together below carried equipment. Container metadata
+belongs with its heading, distinct from actual items with the same name.
+Progression pairs each supplied acquisition level with its feats and choices,
+with special abilities and ability boosts in separate supporting sections.
+
+Use the available pane width for reflow. A single equipment or storage group
+fills its track; reserve a second column only when there is content for it.
+Keep quantity and state labels readable when ledger rows stack on narrow panes.
+Sheet reading text uses a relative 16px main/14px detail scale with stronger
+section headings; links inherit their local text size and Ant controls keep
+their standard sizing.
+
 ### Inline checks and areas
 
 Prepared `@Check` and `@Template` content reads as ordinary rules text. Render the

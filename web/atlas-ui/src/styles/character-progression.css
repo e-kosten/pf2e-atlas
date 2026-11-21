@@ -1,0 +1,103 @@
+.character-progression {
+  display: grid;
+  align-items: start;
+  gap: calc(2 * var(--space-section));
+  max-inline-size: 80rem;
+  overflow-wrap: anywhere;
+}
+
+.character-progression :is(ul, ol, li) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.character-progression :is(h3, h4) {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.character-progression h3 {
+  font-size: var(--sheet-section-size);
+}
+
+.character-progression h4 {
+  font-size: 1.125rem;
+  min-inline-size: 0;
+}
+
+.character-progression__level {
+  display: grid;
+  gap: var(--space-group);
+  border-block-start: 1px solid var(--line);
+  padding-block: var(--space-group) var(--space-section);
+}
+
+.character-progression__level > h3 {
+  color: var(--heading-color);
+}
+
+.character-progression__choices > li {
+  display: grid;
+  gap: var(--space-control);
+}
+
+.character-progression__choices > li + li {
+  margin-block-start: var(--space-section);
+}
+
+.character-progression__choice-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-micro) var(--space-group);
+}
+
+.character-progression__category {
+  color: var(--muted);
+}
+
+.character-progression__selected dd {
+  font-size: var(--sheet-body-size);
+  font-weight: 500;
+}
+
+.character-progression__support {
+  display: grid;
+  gap: var(--space-section);
+}
+
+.character-progression__support h3 {
+  margin-block-end: var(--space-group);
+}
+
+.character-progression__support-rows > li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-micro) var(--space-group);
+  border-block-start: 1px solid var(--line);
+  padding-block: var(--space-control);
+}
+
+.character-progression__support-rows > li > strong {
+  font-weight: 500;
+}
+
+@container (min-width: 36rem) {
+  .character-progression__level {
+    grid-template-columns: 7rem minmax(0, 1fr);
+    column-gap: var(--space-section);
+  }
+}
+
+@container (min-width: 64rem) {
+  .character-progression:has(> .character-progression__levels):has(
+      > .character-progression__support
+    ) {
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.45fr);
+  }
+}

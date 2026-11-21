@@ -702,3 +702,155 @@ test("guards inline character drafts when leaving a party", async ({ page }, inf
     await deleteParties(page.request, party.party_key);
   }
 });
+
+test("character sheet keeps formulas together and level choices across import, page and drawer", async ({
+  page,
+}, info) => {
+  const name = `Sheet layout ${info.project.name} ${Date.now()}`;
+  const source = JSON.stringify({
+    success: true,
+    build: {
+      name,
+      level: 7,
+      feats: [
+        ["Later feat", null, "Class Feat", 10],
+        ["Assurance", "Arcana", "Skill Feat", 2],
+        ["Starting feat", null, "Ancestry Feat", 0],
+        ["Assurance", "Athletics", "Skill Feat", 2],
+      ],
+      specials: ["Darkvision"],
+      spellCasters: [],
+      weapons: [{ name: "Dagger", attack: 0, qty: 0, die: "d4", damageType: "P" }],
+      equipment: [
+        ["Rope", 2, "Not Invested"],
+        ["Container", 0, "0", "Custom state"],
+      ],
+      equipmentContainers: {
+        "0": { containerName: "Backpack", backpack: false },
+        empty: { containerName: "Backpack", bagOfHolding: false },
+      },
+      formula: [
+        { type: "wandering chef", known: ["Iron Wine"] },
+        { type: "other", known: ["Iron Wine", "Mender's Soup"] },
+      ],
+    },
+  });
+  let characterKey: string | undefined;
+  const encounter = await createEncounter(page.request, name);
+  try {
+    await page.goto("/characters");
+    await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+    await activate(page.getByRole("menuitem", { name: "From Pathbuilder" }), info);
+    const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
+    await importer.getByLabel("Pathbuilder JSON").fill(source);
+    await activate(
+      importer.getByRole("button", { name: "Continue", exact: true }),
+      info,
+    );
+    await activate(importer.getByRole("tab", { name: "Inventory", exact: true }), info);
+    await expect(
+      importer.getByRole("heading", { name: "Backpack (2)", exact: true }),
+    ).toBeVisible();
+    await expect(importer.getByText("Container", { exact: true })).toHaveCount(1);
+    await expect(
+      importer.getByRole("heading", {
+        name: "Known formulas · Wandering chef",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await activate(
+      importer.getByRole("tab", { name: "Progression", exact: true }),
+      info,
+    );
+    await expect(importer.getByRole("heading", { name: /^Level / })).toHaveText([
+      "Level 0",
+      "Level 2",
+      "Level 10",
+    ]);
+    await expect(importer.getByText("Arcana", { exact: true })).toBeVisible();
+    await expect(importer.getByText("Athletics", { exact: true })).toBeVisible();
+    await activate(
+      importer.getByRole("button", { name: "Add character", exact: true }),
+      info,
+    );
+    await expect(page).toHaveURL(/\/characters\/character_/);
+    characterKey = new URL(page.url()).pathname.split("/").at(-1)!;
+    await activate(page.getByRole("tab", { name: "Inventory", exact: true }), info);
+    const inventory = page.getByRole("tabpanel", { name: "Inventory" });
+    const gear = inventory
+      .getByRole("heading", { name: "Backpack (2)", exact: true })
+      .locator("..");
+    const chef = inventory
+      .getByRole("heading", { name: "Known formulas · Wandering chef", exact: true })
+      .locator("..");
+    const other = inventory
+      .getByRole("heading", { name: "Known formulas · Other", exact: true })
+      .locator("..");
+    const gearBox = (await gear.boundingBox())!;
+    const chefBox = (await chef.boundingBox())!;
+    const otherBox = (await other.boundingBox())!;
+    expect(chefBox.y).toBeGreaterThanOrEqual(gearBox.y + gearBox.height);
+    expect(otherBox.y).toBeGreaterThanOrEqual(chefBox.y + chefBox.height);
+    expect(Math.abs(chefBox.x - otherBox.x)).toBeLessThan(1);
+    await expect(inventory.getByText("Iron Wine", { exact: true })).toHaveCount(2);
+    await expect(inventory.getByText("Custom state", { exact: true })).toBeVisible();
+    const weapon = inventory
+      .getByRole("heading", { name: "Weapons", exact: true })
+      .locator("..");
+    const width = await weapon.evaluate((node) => ({
+      group: node.clientWidth,
+      available: node.parentElement!.clientWidth,
+    }));
+    expect(width.group).toBe(width.available);
+    await noPageOverflow(page);
+    await activate(page.getByRole("tab", { name: "Progression", exact: true }), info);
+    await expect(
+      page
+        .getByRole("tabpanel", { name: "Progression" })
+        .getByRole("heading", { name: /^Level / }),
+    ).toHaveText(["Level 0", "Level 2", "Level 10"]);
+    const character = (await (
+      await page.request.get(`/api/characters/${characterKey}`)
+    ).json()) as PcReferenceView;
+    const currentEncounter = await (
+      await page.request.get(`/api/encounters/${encounter.encounter_key}`)
+    ).json();
+    const added = await page.request.post(
+      `/api/encounters/${encounter.encounter_key}/participants/character`,
+      {
+        data: {
+          request_id: crypto.randomUUID(),
+          expected_encounter_revision: currentEncounter.revision,
+          source: {
+            kind: "existing",
+            character_key: characterKey,
+            expected_character_revision: character.character_revision,
+          },
+        },
+      },
+    );
+    expect(added.ok()).toBe(true);
+    await page.goto(`/encounters/${encounter.slug}`);
+    if (info.project.use.hasTouch)
+      await activate(
+        page.locator("[data-participant-key]").filter({ hasText: name }),
+        info,
+      );
+    await activate(page.getByRole("button", { name: "View PC reference" }), info);
+    const drawer = page.getByRole("dialog", { name, exact: true });
+    await activate(drawer.getByRole("tab", { name: "Inventory", exact: true }), info);
+    await expect(drawer.getByText("Custom state", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("Iron Wine", { exact: true })).toHaveCount(2);
+    await activate(drawer.getByRole("tab", { name: "Progression", exact: true }), info);
+    await expect(drawer.getByRole("heading", { name: /^Level / })).toHaveText([
+      "Level 0",
+      "Level 2",
+      "Level 10",
+    ]);
+    await expect(drawer.getByText("Arcana", { exact: true })).toBeVisible();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+    if (characterKey) await deleteCharacters(page.request, [characterKey]);
+  }
+});

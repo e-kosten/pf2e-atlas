@@ -203,13 +203,14 @@ fn compare_section(
         for group in &section.groups {
             for row in &group.rows {
                 let container = group.container_id.as_deref();
-                let group_key = if container.is_some() {
-                    ""
+                let display = if group.kind == Some(SheetGroupKind::Advancement) {
+                    "Feats"
                 } else {
                     &group.label
                 };
+                let group_key = if container.is_some() { "" } else { display };
                 rows.entry((container, group_key, &row.label))
-                    .or_insert_with(|| (&group.label, Vec::new()))
+                    .or_insert_with(|| (display, Vec::new()))
                     .1
                     .push((row.summary_value.as_deref(), &row.facts));
             }

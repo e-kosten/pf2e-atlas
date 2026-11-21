@@ -8,7 +8,6 @@ import type {
   ImportFieldView,
   PcAbilitySectionView,
   PcReferenceView,
-  SheetFactView,
   SheetGroupView,
   SheetRowView,
   SheetSectionKind,
@@ -23,6 +22,10 @@ import { FactRow } from "../../shared/records/presentationFacts";
 import { ValueExplanation } from "../../shared/ui/ValueExplanation";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
+
+import { CharacterInventory } from "./CharacterInventory";
+import { CharacterProgression } from "./CharacterProgression";
+import { SheetFacts, SheetLabel } from "./CharacterSheetParts";
 
 type SheetTab = SheetSectionKind | "abilities" | "details" | "review";
 const sectionLabels: Record<SheetSectionKind, string> = {
@@ -294,6 +297,12 @@ function SheetGroups({
   links: Map<string, string | undefined>;
   generation?: string;
 }) {
+  if (kind === "inventory")
+    return <CharacterInventory groups={groups} links={links} generation={generation} />;
+  if (kind === "progression")
+    return (
+      <CharacterProgression groups={groups} links={links} generation={generation} />
+    );
   const skills = groups.find((group) => group.kind === "skills");
   return (
     <div className={`character-sheet__groups character-sheet__groups--${kind}`}>
@@ -332,10 +341,7 @@ function SheetGroup({
   const compact =
     !aligned && group.rows.every((row) => row.summary_value !== undefined);
   const items = group.rows.map((row, index) => {
-    const recordKey = row.ability_key ? links.get(row.ability_key) : row.record_key;
-    const content = (
-      <SheetRow row={row} recordKey={recordKey} generation={generation} />
-    );
+    const content = <SheetRow row={row} links={links} generation={generation} />;
     const key = `${row.label}-${index}`;
     return compact ? <div key={key}>{content}</div> : <li key={key}>{content}</li>;
   });
@@ -435,28 +441,14 @@ function SheetCastingRank({
 
 function SheetRow({
   row,
-  recordKey,
+  links,
   generation,
 }: {
   row: SheetRowView;
-  recordKey?: string;
+  links: Map<string, string | undefined>;
   generation?: string;
 }) {
-  const label = (
-    <ReferenceHelpLink
-      help={
-        recordKey
-          ? {
-              definition_key: null,
-              destination: { kind: "record", navigation: rootNavigation(recordKey) },
-            }
-          : null
-      }
-      generation={generation}
-    >
-      {row.label}
-    </ReferenceHelpLink>
-  );
+  const label = <SheetLabel row={row} links={links} generation={generation} />;
   if (row.summary_value !== undefined) {
     const hasDetails =
       row.facts.length > 1 ||
@@ -484,19 +476,6 @@ function SheetRow({
       <strong>{label}</strong>
       {row.facts.length > 0 && <SheetFacts facts={row.facts} />}
     </>
-  );
-}
-
-function SheetFacts({ facts }: { facts: SheetFactView[] }) {
-  return (
-    <dl className="character-sheet__values">
-      {facts.map((fact, index) => (
-        <div key={`${fact.label}-${index}`}>
-          <dt>{fact.label}</dt>
-          <dd>{fact.value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
