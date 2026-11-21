@@ -23,6 +23,8 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "agent",
         "completions",
         "encounters",
+        "characters",
+        "parties",
     ] {
         assert!(root.contains(name));
     }
@@ -80,6 +82,35 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
     assert!(help(&["record", "source"]).contains("embedded documents"));
     assert!(help(&["filters", "fields"]).contains("operators"));
     assert!(!help(&["similar"]).contains("--weight"));
+}
+
+#[test]
+fn character_details_are_one_section_selecting_read_command() {
+    let commands = help(&["characters"]);
+    let names = commands
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .collect::<Vec<_>>();
+    assert!(names.contains(&"show"));
+    for separate in ["sheet", "equipment", "abilities", "source"] {
+        assert!(!names.contains(&separate));
+    }
+    let show = help(&["characters", "show"]);
+    for flag in [
+        "--section",
+        "--needs-review",
+        "--ability-kind",
+        "--query",
+        "--output",
+        "--json",
+    ] {
+        assert!(show.contains(flag));
+    }
+    for section in ["equipment", "money", "spellcasting", "source"] {
+        assert!(show.contains(section));
+    }
+    assert!(help(&["encounters", "add-party"]).contains("--member"));
+    assert!(help(&["encounters", "add-character"]).contains("--expected-character-revision"));
 }
 
 #[test]

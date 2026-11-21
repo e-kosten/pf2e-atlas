@@ -27,7 +27,7 @@ fn completions_register_live_bash_completion_and_offer_product_commands() {
         .lines()
         .map(|line| line.split(':').next().unwrap())
         .collect::<Vec<_>>();
-    for name in ["record", "search", "setup"] {
+    for name in ["record", "search", "setup", "characters", "parties"] {
         assert!(candidates.contains(&name));
     }
     assert_eq!(candidates.contains(&"web"), cfg!(feature = "web"));
