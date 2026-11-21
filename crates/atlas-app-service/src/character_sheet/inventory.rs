@@ -54,6 +54,17 @@ pub(super) fn groups(
     sheet: &PathbuilderSheet,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<Vec<SheetGroupView>> {
+    Ok(categorized(sheet, retrieval)?
+        .into_iter()
+        .map(|(_, group)| group)
+        .collect())
+}
+
+pub(super) fn categorized(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+) -> AppServiceResult<Vec<(atlas_app_model::CharacterSection, SheetGroupView)>> {
+    use atlas_app_model::CharacterSection;
     let mut links = ItemLinks {
         retrieval,
         matches: HashMap::new(),
@@ -201,8 +212,13 @@ pub(super) fn groups(
         groups[index].rows.push(item);
     }
 
+    let has_gear = groups.iter().any(|group| !group.rows.is_empty());
+    let mut categorized: Vec<_> = groups
+        .into_iter()
+        .map(|group| (CharacterSection::Equipment, group))
+        .collect();
     if let Some(money) = value(&sheet.money).filter(|money| {
-        groups.iter().any(|group| !group.rows.is_empty())
+        has_gear
             || [&money.pp, &money.gp, &money.sp, &money.cp]
                 .into_iter()
                 .filter_map(value)
@@ -218,7 +234,7 @@ pub(super) fn groups(
                 ("Copper (cp)", shown(&money.cp)),
             ],
         );
-        groups.push(summary("Coins", facts));
+        categorized.push((CharacterSection::Money, summary("Coins", facts)));
     }
     for formulas in values(&sheet.formula) {
         let mut known = Vec::new();
@@ -233,9 +249,9 @@ pub(super) fn groups(
                 || "Known formulas".into(),
                 |kind| format!("Known formulas · {}", sentence_case(kind)),
             );
-        groups.push(group(label, known));
+        categorized.push((CharacterSection::Crafting, group(label, known)));
     }
-    Ok(groups)
+    Ok(categorized)
 }
 
 fn damage_type(value: &str) -> &str {

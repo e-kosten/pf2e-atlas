@@ -89,6 +89,17 @@ pub(super) fn groups(
     sheet: &PathbuilderSheet,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<Vec<SheetGroupView>> {
+    Ok(categorized(sheet, retrieval)?
+        .into_iter()
+        .map(|(_, group)| group)
+        .collect())
+}
+
+pub(super) fn categorized(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+) -> AppServiceResult<Vec<(atlas_app_model::CharacterSection, SheetGroupView)>> {
+    use atlas_app_model::CharacterSection::{Identity, Statistics};
     let mut background = Vec::new();
     let languages: Vec<_> = values(&sheet.languages)
         .filter(|language| !language.trim().eq_ignore_ascii_case("None selected"))
@@ -249,13 +260,13 @@ pub(super) fn groups(
     let mut skills = group("Skills", skills);
     skills.kind = Some(SheetGroupKind::Skills);
     Ok(vec![
-        identity(sheet, retrieval)?,
-        group("Defenses & movement", vitals),
-        group("Perception & saves", saves),
-        group("Ability scores", scores),
-        summary("Background & details", background),
-        skills,
-        group("Other exported bonuses", other_bonuses),
+        (Identity, identity(sheet, retrieval)?),
+        (Statistics, group("Defenses & movement", vitals)),
+        (Statistics, group("Perception & saves", saves)),
+        (Statistics, group("Ability scores", scores)),
+        (Identity, summary("Background & details", background)),
+        (Statistics, skills),
+        (Statistics, group("Other exported bonuses", other_bonuses)),
     ])
 }
 

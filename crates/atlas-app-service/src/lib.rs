@@ -1,4 +1,6 @@
 #![deny(unsafe_code)]
+mod character_context;
+mod character_management;
 mod character_sheet;
 mod characters;
 mod encounter_characters;
@@ -61,7 +63,9 @@ mod source_consumer_tests;
 #[cfg(test)]
 mod test_support;
 
-pub use completions::{complete_record_keys, complete_saved_list_slugs};
+pub use completions::{
+    complete_character_keys, complete_party_keys, complete_record_keys, complete_saved_list_slugs,
+};
 pub use encounters::portability::EncounterImportReport;
 pub use error::{AppServiceError, AppServiceResult};
 pub use filters::{CliFilterValuesRequest, RawFilterCountsRequest};
