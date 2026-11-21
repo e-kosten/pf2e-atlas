@@ -266,7 +266,11 @@ pub(crate) async fn add_encounter_record_participant(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     Ok(Json(
         call_service(state, move |service| {
-            service.add_encounter_record_participant(&encounter_ref, request)
+            service
+                .add_encounter_record_participant(&encounter_ref, request)
+                .map(|result| atlas_app_model::EncounterMutationView {
+                    encounter_key: result.encounter_key,
+                })
         })
         .await?,
     ))

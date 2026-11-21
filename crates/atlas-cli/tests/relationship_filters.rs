@@ -17,7 +17,7 @@ impl Fixture {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../scratch/cli-tests")
             .join(format!(
-                "relationship-{}-{}",
+                "GM's relationship {}-{}",
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             ));
@@ -47,7 +47,7 @@ impl Fixture {
             ),
             (
                 "actors/guard",
-                json!({"_id":"guard00000000000","name":"Fixture Guard","type":"npc","system":{"details":{"level":{"value":2}},"traits":{"value":["humanoid"]}},"items":[{"_id":"owned00000000000","name":"Guard Armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.armor00000000000"},"system":{"description":{"value":format!("<p>{armor} {stunned}</p>")}}}]}),
+                json!({"_id":"guard00000000000","name":"Fixture Guard","type":"npc","system":{"details":{"level":{"value":2}},"traits":{"value":["humanoid"]}},"items":[{"_id":"owned00000000000","name":"Guard Armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.armor00000000000"},"system":{"description":{"value":format!("<p>{armor} {stunned} {armor} {armor} {armor}</p>")}}}]}),
             ),
             (
                 "actors/scout",
@@ -397,7 +397,7 @@ fn occurrence_pages_require_generation_and_relevant_positive_proof() {
         .unwrap();
     assert_armor_destination(&row["relationship_evidence"][0]["occurrences"][0]);
 
-    let detail = fixture.data(&["record", "get", scout, "--json"]);
+    let detail = fixture.data(&["record", "get", scout, "--detail", "full", "--json"]);
     assert_armor_destination(&detail["results"][0]["value"]["relationships"][0]);
 
     let graph = fixture.data(&["graph", "links", scout, "--json"]);
@@ -411,6 +411,8 @@ fn occurrence_pages_require_generation_and_relevant_positive_proof() {
             "Fixture Armor",
             "--artifact-generation",
             "stale",
+            "--links-to",
+            "An old name now gone",
             "--json",
         ],
         false,
@@ -432,6 +434,113 @@ fn occurrence_pages_require_generation_and_relevant_positive_proof() {
     );
     let negative: Value = serde_json::from_slice(&negative.stdout).unwrap();
     assert_eq!(negative["error"]["code"], "filter_invalid");
+}
+
+// Execute the argument vector exactly as returned. Adding the fixture's path here
+// would hide a continuation that accidentally selects the user's global workspace.
+fn follow(args: &Value) -> Value {
+    let args: Vec<_> = args
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|arg| arg.as_str().unwrap())
+        .collect();
+    assert_eq!(args[0], "atlas");
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(&args[1..])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{args:?}: {} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    response["data"].clone()
+}
+
+#[test]
+fn followups_reopen_exact_hits_and_continue_seeded_and_multiclause_pages() {
+    let f = Fixture::new();
+    let first = f.data(&[
+        "search",
+        "Fixture",
+        "--retrieval",
+        "fts",
+        "--links-to",
+        "Fixture Armor",
+        "--sort",
+        "random",
+        "--limit",
+        "1",
+        "--json",
+    ]);
+    let second = follow(&first["next_args"]);
+    assert_eq!(first["artifact_generation"], second["artifact_generation"]);
+    assert_eq!(first["sort"], second["sort"]);
+    assert_eq!(second["page"]["number"], 2);
+    assert_ne!(
+        first["rows"][0]["record"]["record_key"],
+        second["rows"][0]["record"]["record_key"]
+    );
+    let selected = follow(&first["rows"][0]["open_args"]);
+    assert_eq!(selected["results"][0]["status"], "ok");
+
+    let guarded = f.data(&[
+        "search",
+        "--links-to",
+        "Fixture Armor",
+        "--links-to",
+        "Fixture Stunned",
+        "--json",
+    ]);
+    let row = &guarded["rows"][0];
+    let proof = row["relationship_evidence"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["next_args"].is_array())
+        .unwrap();
+    let more = follow(&proof["next_args"]);
+    assert_eq!(more["clause"]["clause_id"], proof["clause_id"]);
+    assert_eq!(more["page"]["number"], 2);
+    assert_eq!(more["page"]["total"], proof["page"]["total"]);
+
+    let edges = f.data(&["graph", "links", "Fixture Guard", "--json"]);
+    assert_eq!(edges["backlinks"]["enabled"], false);
+    let provenance = edges["outgoing"]["occurrences"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["kind"] == "CompendiumProvenance")
+        .unwrap();
+    assert_eq!(provenance["owner_title"], "Fixture Guard");
+    assert_eq!(provenance["source_title"], "Guard Armor");
+    assert_eq!(provenance["target_title"], "Fixture Armor");
+    let text = f.command(&["graph", "links", "Fixture Guard"], false);
+    let text = String::from_utf8(text.stdout).unwrap();
+    assert!(
+        text.contains("Fixture Guard / Guard Armor → Fixture Armor (compendium source"),
+        "{text}"
+    );
+
+    let stale = f.command(
+        &[
+            "search",
+            "Fixture",
+            "--artifact-generation",
+            "stale",
+            "--links-to",
+            "An old name now gone",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(stale.status.code(), Some(3));
+    let response: Value = serde_json::from_slice(&stale.stdout).unwrap();
+    assert_eq!(response["error"]["code"], "artifact_generation_changed");
+    assert_eq!(response["error"]["recoverable_action"], "refresh_results");
 }
 
 #[test]
@@ -483,6 +592,8 @@ fn contextual_discovery_retains_link_constraints_and_saved_membership() {
             "Fixture Armor",
             "--artifact-generation",
             "stale",
+            "--links-to",
+            "An old name now gone",
             "--json",
         ],
         false,

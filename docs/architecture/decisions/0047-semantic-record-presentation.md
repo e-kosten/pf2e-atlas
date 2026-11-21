@@ -129,8 +129,9 @@ standard reads the selected reference with inline actor abilities and compact
 spell rosters. Full expands supported owned documents with their parent context,
 including spells, journal pages and table results, without following graph links.
 Explicit field or passage selections remain focused rather than expanding the
-surrounding record. `record get --json` returns the complete selected Atlas detail
-DTO; explicit human `--detail` and `--json` conflict. `record source` separately
+surrounding record. JSON supports the same detail selectors. Standard projects
+readable rules and semantic facts. Full retains prepared fields and detailed
+semantics for the selection. `record source` separately
 exports the entire root's checked Foundry DTO, including embedded documents,
 retained additional fields, invalid members and presence/union tags, with source
 path/hash and codec identity. It reads the existing artifact through retrieval

@@ -22,7 +22,17 @@ pub(crate) struct RollArgs {
 }
 
 pub(crate) fn run_roll(args: RollArgs) -> Result<ExitCode, String> {
-    let outcome = atlas_dice::roll(&args.formula).map_err(|error| error.to_string())?;
+    let outcome = match atlas_dice::roll(&args.formula) {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            return super::product::command_error(
+                args.json,
+                "invalid_dice_formula",
+                error.to_string(),
+                2,
+            );
+        }
+    };
     if args.json {
         write_json_data(outcome)?;
     } else {
@@ -31,7 +41,7 @@ pub(crate) fn run_roll(args: RollArgs) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn render_roll(outcome: &RollOutcome) -> String {
+pub(super) fn render_roll(outcome: &RollOutcome) -> String {
     format!(
         "{} = {}\n  {}",
         outcome.formula,

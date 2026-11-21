@@ -156,12 +156,15 @@ fn archived_lists_survive_workspace_recovery_and_can_be_restored_from_the_cli() 
         let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
             .arg("lists")
             .args(args)
+            .arg("--json")
             .arg("--index")
             .arg(&workspace)
             .output()
             .unwrap();
         assert!(output.status.success(), "{output:?}");
-        serde_json::from_slice::<Value>(&output.stdout).unwrap()
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["status"], "ok");
+        response["data"].clone()
     };
     assert_eq!(lists(&["list"])["lists"], serde_json::json!([]));
     let archived = lists(&["list", "--include-archived"]);

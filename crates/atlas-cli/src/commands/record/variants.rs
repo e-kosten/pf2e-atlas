@@ -22,14 +22,39 @@ pub(crate) fn run(o: VariantsOptions) -> Result<ExitCode, String> {
         Ok(value) => value,
         Err(error) => return report_app_error(error.into_app_error(), o.json),
     };
-    let data = serde_json::json!({"label":"Suggested variants","availability":r});
     if o.json {
-        write_json_data(data)?;
+        write_json_data(serde_json::json!({"label":"Suggested variants","availability":r}))?;
     } else {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?
-        );
+        use atlas_app_model::RelatedCategoryView;
+        match r {
+            RelatedCategoryView::Content { content } => {
+                println!("Suggested variants for {}", content.seed.title);
+                for variant in content.variants {
+                    println!("  {} ({})", variant.title, variant.record_key);
+                    for evidence in content
+                        .evidence
+                        .iter()
+                        .filter(|e| e.record_key == variant.record_key)
+                    {
+                        println!(
+                            "    {} · {} · {}",
+                            evidence.naming_convention, evidence.qualifier, evidence.compatibility
+                        );
+                    }
+                }
+                if content.ambiguous {
+                    println!("Multiple naming groups are possible.");
+                }
+                if content.truncated {
+                    println!("Additional variants were omitted.");
+                }
+            }
+            RelatedCategoryView::Empty => println!("No suggested variants."),
+            RelatedCategoryView::Unavailable { reason } => {
+                println!("Suggested variants unavailable: {reason}")
+            }
+            RelatedCategoryView::Error { error } => return report_app_error(error, false),
+        }
     }
     Ok(ExitCode::SUCCESS)
 }

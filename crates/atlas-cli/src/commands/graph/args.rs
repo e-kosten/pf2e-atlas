@@ -25,6 +25,13 @@ pub(crate) enum GraphCommand {
     after_help = "Repeat the search's complete filter and artifact generation. Use --clause-id from its relationship summaries when it has multiple positive link conditions.\nExample:\n  atlas graph occurrences PACK:ID --links-to 'Leather Armor' --artifact-generation GENERATION --page 2 --json"
 )]
 pub(crate) struct GraphOccurrencesOptions {
+    #[arg(
+        long,
+        value_enum,
+        default_value = "standard",
+        help = "Choose compact evidence or full reference details"
+    )]
+    pub(crate) detail: super::super::followup::EvidenceDetail,
     #[arg(help = "Canonical key of a returned search result")]
     pub(crate) result_record_key: String,
     #[command(flatten)]
@@ -57,6 +64,13 @@ pub(crate) struct GraphOccurrencesOptions {
     after_help = "Examples:\n  atlas graph links actionspf2e:1kGNdIIhuglAjIp9\n  atlas graph links \"Demoralize\" --backlinks 4 --json\n  atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --outgoing 0 --backlinks 8 --json"
 )]
 pub(crate) struct GraphLinksOptions {
+    #[arg(
+        long,
+        value_enum,
+        default_value = "standard",
+        help = "Choose compact evidence or full reference details"
+    )]
+    pub(crate) detail: super::super::followup::EvidenceDetail,
     #[arg(help = "Seed record key or strict resolvable record name")]
     pub(crate) record_ref: String,
     #[arg(long, default_value_t = 64, value_parser = parse_graph_limit, help = "Maximum outgoing neighbor records to include, 0-1024")]

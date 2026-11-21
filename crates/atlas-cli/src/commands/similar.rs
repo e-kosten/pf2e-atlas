@@ -43,7 +43,10 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             o.json,
         );
     }
-    let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
+    let sort = match super::result_order::requested_sort(&o.sort, o.seed) {
+        Ok(sort) => sort,
+        Err(message) => return super::product::command_error(o.json, "invalid_input", message, 2),
+    };
     let service = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
@@ -54,18 +57,29 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         Ok(service) => service,
         Err(error) => return report_app_error(error, o.json),
     };
+    let resolve_error = |error| {
+        report_app_error(
+            recovery::enrich(error, &recovery::command(&o, None), !o.parts.is_empty()),
+            o.json,
+        )
+    };
     let filter = if o.list_parts {
         None
     } else {
-        match resolve_filter(&o.filter_options, &service) {
+        match resolve_filter(
+            &o.filter_options,
+            &service,
+            o.artifact_generation.as_deref(),
+        ) {
             Ok(filter) => filter,
-            Err(error) => return report_app_error(error, o.json),
+            Err(error) => return resolve_error(error),
         }
     };
-    let record_key = match resolve_reference(&service, &o.record_ref) {
-        Ok(record_key) => record_key,
-        Err(error) => return report_app_error(error, o.json),
-    };
+    let record_key =
+        match resolve_reference(&service, &o.record_ref, o.artifact_generation.as_deref()) {
+            Ok(record_key) => record_key,
+            Err(error) => return resolve_error(error),
+        };
     let seed = SimilaritySeed::Record {
         record_key: record_key.clone(),
     };

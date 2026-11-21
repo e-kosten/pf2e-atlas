@@ -111,8 +111,22 @@ impl AbilityKindArg {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+pub(crate) enum SheetDetail {
+    #[default]
+    Standard,
+    Full,
+}
+
 #[derive(Debug, Default, Args)]
 pub(crate) struct SelectionOptions {
+    #[arg(
+        long,
+        value_enum,
+        default_value_t,
+        help = "Use full to inspect every imported field and its availability"
+    )]
+    pub detail: SheetDetail,
     #[arg(
         long = "section",
         value_enum,
@@ -137,14 +151,17 @@ pub(crate) struct SelectionOptions {
     pub query: Option<String>,
 }
 impl SelectionOptions {
-    pub fn request(&self) -> Result<CharacterContextRequest, String> {
+    pub fn request(&self) -> Result<CharacterContextRequest, AppError> {
         let mut sections: Vec<_> = self.sections.iter().copied().map(Into::into).collect();
         sections.sort();
         sections.dedup();
         if (self.needs_review || self.ability_kind.is_some() || self.query.is_some())
             && sections != [CharacterSection::Abilities]
         {
-            return Err("Ability filters require only --section abilities.".into());
+            return Err(AppError::new(
+                atlas_app_model::AppErrorCode::InvalidRequest,
+                "Ability filters require only --section abilities.",
+            ));
         }
         Ok(CharacterContextRequest {
             sections,
@@ -157,21 +174,30 @@ impl SelectionOptions {
     }
 }
 
+pub(crate) fn respond_json<T: Serialize>(result: AppServiceResult<T>) -> Result<ExitCode, String> {
+    match result {
+        Ok(value) => {
+            write_json_data(value)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Err(error) => super::product::report_app_error(error.into_app_error(), true),
+    }
+}
+
 pub(crate) fn respond<T: Serialize>(
     result: AppServiceResult<T>,
     json: bool,
     human: impl FnOnce(&T) -> String,
 ) -> Result<ExitCode, String> {
+    if json {
+        return respond_json(result);
+    }
     match result {
         Ok(view) => {
-            if json {
-                write_json_data(&view)?;
-            } else {
-                write_text(&human(&view))?;
-            }
+            write_text(&human(&view))?;
             Ok(ExitCode::SUCCESS)
         }
-        Err(error) => super::product::report_app_error(error.into_app_error(), json),
+        Err(error) => super::product::report_app_error(error.into_app_error(), false),
     }
 }
 
@@ -187,29 +213,43 @@ pub(crate) fn write_bytes(bytes: &[u8]) -> Result<(), String> {
     }
 }
 
-pub(crate) fn read_export(path: &Path) -> Result<String, String> {
+pub(crate) fn read_export(path: &Path) -> io::Result<String> {
     const LIMIT: u64 = 512 * 1024;
     let mut reader: Box<dyn Read> = if path == Path::new("-") {
         if io::stdin().is_terminal() {
-            return Err("Pipe a Pathbuilder export into '-' or pass its JSON file path.".into());
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Pipe a Pathbuilder export into '-' or pass its JSON file path.",
+            ));
         }
         Box::new(io::stdin())
     } else {
-        Box::new(File::open(path).map_err(|e| format!("{}: {e}", path.display()))?)
+        Box::new(
+            File::open(path)
+                .map_err(|e| io::Error::new(e.kind(), format!("{}: {e}", path.display())))?,
+        )
     };
     let mut bytes = Vec::new();
     reader
         .by_ref()
         .take(LIMIT + 1)
         .read_to_end(&mut bytes)
-        .map_err(|e| format!("Could not read {}: {e}", path.display()))?;
+        .map_err(|e| io::Error::new(e.kind(), format!("Could not read {}: {e}", path.display())))?;
     if bytes.len() as u64 > LIMIT {
-        return Err("The Pathbuilder export exceeds 512 KiB.".into());
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "The Pathbuilder export exceeds 512 KiB.",
+        ));
     }
-    String::from_utf8(bytes).map_err(|_| "The Pathbuilder export must be UTF-8 JSON.".into())
+    String::from_utf8(bytes).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "The Pathbuilder export must be UTF-8 JSON.",
+        )
+    })
 }
 
-pub(crate) fn write_new_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn write_new_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -221,5 +261,14 @@ pub(crate) fn write_new_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
         staged.persist_noclobber(path).map_err(|e| e.error)?;
         Ok(())
     };
-    write().map_err(|e| format!("{}: {e}", path.display()))
+    write().map_err(|e| io::Error::new(e.kind(), format!("{}: {e}", path.display())))
+}
+
+pub(crate) fn file_error(json: bool, error: io::Error) -> Result<ExitCode, String> {
+    let (code, exit) = match error.kind() {
+        io::ErrorKind::InvalidInput | io::ErrorKind::InvalidData => ("invalid_input", 2),
+        io::ErrorKind::AlreadyExists => ("destination_exists", 2),
+        _ => ("file_access_failed", 3),
+    };
+    super::product::command_error(json, code, error.to_string(), exit)
 }

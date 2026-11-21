@@ -32,9 +32,20 @@ pages. It does not open every linked record. For a spell, `record get SPELL_KEY
 --rank 5` previews its facts at that rank without spending resources; a creature's
 included spells keep their own casting details.
 
-`--json` returns the complete selected entry and cannot be combined with explicit
-`--detail`. See [source data](#inspect-source-data) for information beyond Atlas's
-usual presentation.
+Use the same detail options with `--json`. Standard returns readable rules
+and facts with a source and a reusable address. Summary returns identity. Full
+includes the detailed semantic facts and prepared fields. Select a specific
+question with repeatable sections:
+
+```bash
+atlas record get PACK:ID --section defenses --section strikes --json
+```
+
+Sections also include rules, abilities and spellcasting. Creature references
+lead with combat statistics. A unique name from `record resolve` gives its
+selected key even with `--alternatives 0`. Use that key, or open the exact
+[returned navigation](#inspect-a-matching-passage). For the checked source
+record, see [source data](#inspect-source-data).
 
 ## Search and browse
 
@@ -198,7 +209,7 @@ atlas lists import undead-research.json --id undead-copy --json
 ```
 
 The v2 export preserves saved item order, keys, notes, and snapshots. It can be
-written without loading reference records. Import accepts v2 files. A new list
+written to a new file without loading reference records. An existing output file is preserved. Import accepts v2 files. A new list
 imported from one of these files starts active. Use a full workspace backup to
 carry archive status between workspaces.
 
@@ -214,7 +225,9 @@ atlas lists edit undead-research --restore
 Creation generates a unique slug from the name. Use `--slug` to choose a slug explicitly. An explicit collision fails. Use `lists add` to extend an existing list. Batches report
 added, already present and failed inputs. Valid entries are saved together; a failed
 input gives a nonzero exit. If every input fails resolution, a new list is empty.
-A storage failure rolls back the complete action.
+A storage failure rolls back the complete action. A mixed JSON result reports
+`partial`. All items failing reports `error`. Check `data.created` and the
+returned list key before retrying just the failed inputs with `lists add`.
 
 Notes belong to one entry in one list and survive updates and export/import.
 Copy the canonical key from `lists show`, then set or clear its note:
@@ -246,8 +259,7 @@ candidates. Use stable keys for edits.
 
 `characters show` returns all interpreted details by default. Select identity,
 statistics, proficiencies, character-options, abilities, spellcasting, equipment,
-money, crafting or companions with repeated `--section` options. Focused text
-output shows the selected fields; JSON retains their values and availability.
+money, crafting or companions with repeated `--section` options. Focused text keeps each selected section grouped, including equipment by container. Use `--detail full` to inspect all imported fields.
 `parties context` uses the same selectors and reads the ordered roster and each
 member's details together.
 
@@ -257,12 +269,12 @@ does not update the statistics in an older export. `source_state` distinguishes
 an available complete export, an older rules-only import (`reference_only`), and
 a manual PC (`no_import`). Re-import rules-only PCs to obtain their loadouts.
 
-The machine fields under `sections.SECTION.fields` use `state` values `value`,
-`missing`, `null` and `unrecognized`. Read `value` only when its state is `value`.
-Zero, false and an empty list are supplied values. Lists retain their original
-entries, including repeated gear or prepared spells. Equipment keeps quantities,
-container IDs, customization and exported investment strings; `record_links`
-provides unique automatic base-item matches where available.
+Standard JSON gives typed values under `sections.SECTION.fields`. An omitted
+field means the export did not supply it. Explicit null, zero, false and an
+empty list retain their distinct meanings. Unrecognized values are tagged.
+Equipment groups show stacks, containers and available rule links. Use
+`--detail full --json` to inspect the original interpreted field structure and
+its explicit availability at every level.
 
 For loot planning, read equipment with money, proficiencies and casting. Resolve
 uncertain names, inspect candidate item rules, and save recommendations with
@@ -371,11 +383,24 @@ atlas encounters list
 atlas encounters show garden-sentries --party-level 7 --party-size 4
 ```
 
+To compare an addition before saving it, preview it against the same party:
+
+```bash
+atlas encounters preview garden-sentries --record PACK:ID --quantity 2 --adjustment weak --party-level 7 --party-size 4
+```
+
+The result compares current and projected difficulty, opposition XP and award
+per PC. Level and size report their individual sources. `encounters show` includes
+GM notes, initiative, revision and the current roster. Use `--participant KEY`
+for one participant's details or `--detail full` for the complete encounter.
+
 Each `encounters add` invocation generates a new request ID. For a script that
 may retry after losing the response, copy `data.encounter.encounter_key` from
 `encounters show garden-sentries --json` and generate a UUID for this intended
 addition. Retry with that key, UUID and the same options, even if the encounter
-is renamed. A new ID adds another batch.
+is renamed. A new ID adds another batch. A fresh mutation returns the exact ordered
+participant keys. On replay, `already_committed` confirms the original addition
+and `participant_keys` is null because its receipt only records the intent.
 
 ```bash
 atlas encounters add ENCOUNTER_KEY --record PACK:ID --quantity 2 --request-id UUID
@@ -441,6 +466,16 @@ atlas roll -- '-1d6+10'
 
 `kh`/`kl` keep high/low dice. JSON retains individual results, kept/dropped states
 and intermediate totals. Quote expressions containing shell operators.
+
+To roll a published table from your workspace, supply its key or exact name:
+
+```bash
+atlas record roll-table TABLE_KEY --json
+```
+
+The result includes the table, the actual roll and each matching entry with its
+navigation. A gap can produce no matching entries. Overlapping ranges can produce
+several. Invalid ranges are reported separately.
 
 ## Back up and restore saved workspace data
 
@@ -546,16 +581,32 @@ It works without the original source checkout.
 
 ### Inspect a matching passage
 
-To open the exact passage that matched, copy the navigation values from a search
-result into these placeholders:
+Pass a search row's `navigation` object as one argument. A process runner can
+use the returned `open_args` array directly.
 
 ```bash
-atlas record get PACK:ID --embedded-path 'EMBEDDED_PATH_JSON' --field /system/description/value --passage 'PASSAGE_ADDRESS_JSON' --json
+atlas record get --navigation 'RETURNED_NAVIGATION_JSON' --json
 ```
 
-Include `--source-fingerprint` when the returned navigation supplies one. Do not
-invent IDs or passage ranges. Navigation values can become stale after a reference
-update; rerun the search to get a current address.
+For example, to read the best match for a rules question from Python:
+
+```python
+import json
+import subprocess
+
+search = subprocess.run(
+    ["atlas", "search", "Treat Wounds", "--limit", "1", "--json"],
+    check=True, capture_output=True, text=True,
+)
+rows = json.loads(search.stdout)["data"]["rows"]
+if rows:
+    opened = subprocess.run(rows[0]["open_args"], capture_output=True, text=True)
+    print(opened.stdout)
+```
+
+The argument array includes the executable, selected workspace and output mode.
+The locator preserves the root or child address, field, passage, rank and
+generation. After a reference update, rerun the search for a fresh locator.
 
 ### Filter discovery details
 
@@ -642,11 +693,12 @@ convenience flags.
 
 ### Search JSON and occurrence paging
 
-Browse, text search and Similar JSON return a search page in `data`: `rows`,
-`page`, `relationship_clauses`, `coverage`, `mode`, ordering and generation.
-Each row contains its record, text witnesses and `relationship_evidence`. Counts
-describe distinct containing records. Meaning-based results retain their limited
-Top matches coverage.
+Browse and text search return rows, pagination, distinct-root coverage, ordering,
+profile and artifact generation. The default shows the best available match per
+row. Use `--detail full` for every returned witness. Each row has an executable
+`open_args` array. Page and relationship `next_args` retain the original filter,
+workspace, seed and generation. Similar keeps its comparison evidence. Semantic
+counts describe the bounded candidate window.
 
 Positive link conditions have clause IDs, limited occurrence previews and separate
 occurrence totals. Negative conditions and OR branches that did not match do not

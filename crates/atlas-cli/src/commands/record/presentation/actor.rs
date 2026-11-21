@@ -9,17 +9,16 @@ use atlas_app_model::{
 };
 use atlas_domain::QueryFieldState;
 
-pub(super) fn render(
+pub(in crate::commands::record) fn render(
     out: &mut String,
     actor: &ActorPresentationView,
-    primary_defenses: bool,
-    saves: bool,
+    hazard: Option<&atlas_app_model::HazardPresentationView>,
     reading: &[EmbeddedReadingEntryView],
     width: super::TerminalLayout,
     detail: TerminalDetail,
 ) -> Result<(), String> {
+    defenses(out, actor, hazard);
     optional_text(out, "Size", &actor.size);
-    optional_number(out, "Hardness", &actor.hardness, false, "");
     number(out, "Perception", &actor.perception, true, "");
     optional_text(out, "Perception details", &actor.perception_details);
     fact(out, "Senses", &actor.senses, |senses| {
@@ -91,56 +90,6 @@ pub(super) fn render(
         }
     }
     line(out, "");
-    if primary_defenses {
-        defense(
-            out,
-            "AC",
-            &actor.armor_class,
-            &actor.defense_notes.armor_class,
-            false,
-        );
-        defense(
-            out,
-            "HP",
-            &actor.maximum_hp,
-            &actor.defense_notes.hit_points,
-            false,
-        );
-    } else {
-        optional_text(out, "AC details", &actor.defense_notes.armor_class);
-        optional_text(out, "HP details", &actor.defense_notes.hit_points);
-    }
-    if saves {
-        defense(
-            out,
-            "Fortitude",
-            &actor.saves.fortitude,
-            &actor.defense_notes.fortitude,
-            true,
-        );
-        defense(
-            out,
-            "Reflex",
-            &actor.saves.reflex,
-            &actor.defense_notes.reflex,
-            true,
-        );
-        defense(
-            out,
-            "Will",
-            &actor.saves.will,
-            &actor.defense_notes.will,
-            true,
-        );
-    } else {
-        optional_text(out, "Fortitude details", &actor.defense_notes.fortitude);
-        optional_text(out, "Reflex details", &actor.defense_notes.reflex);
-        optional_text(out, "Will details", &actor.defense_notes.will);
-    }
-    optional_text(out, "All saves", &actor.defense_notes.all_saves);
-    iwr(out, "Immunities", &actor.immunities);
-    iwr(out, "Weaknesses", &actor.weaknesses);
-    iwr(out, "Resistances", &actor.resistances);
     line(out, "");
     optional_text(out, "Movement details", &actor.movement_details);
     optional_number(out, "Speed", &actor.land_speed, false, " feet");
@@ -172,7 +121,7 @@ pub(super) fn render(
             continue;
         }
         if kind == ActorActivityKindView::CastingEntry {
-            spellcasting(out, activities);
+            spellcasting(out, activities, true);
             continue;
         }
         let group = activities
@@ -200,7 +149,76 @@ pub(super) fn render(
     Ok(())
 }
 
-pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, show_identity: bool) {
+pub(in crate::commands::record) fn defenses(
+    out: &mut String,
+    actor: &ActorPresentationView,
+    hazard: Option<&atlas_app_model::HazardPresentationView>,
+) {
+    if hazard.is_none_or(|h| h.defense_block.value != Some(false)) {
+        defense(
+            out,
+            "AC",
+            &actor.armor_class,
+            &actor.defense_notes.armor_class,
+            false,
+        );
+        defense(
+            out,
+            "HP",
+            &actor.maximum_hp,
+            &actor.defense_notes.hit_points,
+            false,
+        );
+        if let Some(hazard) = hazard {
+            optional_number(out, "Broken Threshold", &hazard.broken_threshold, false, "");
+            number(out, "Hardness", &hazard.hardness, false, "");
+        } else {
+            optional_number(out, "Hardness", &actor.hardness, false, "");
+        }
+    } else {
+        line(out, "No primary defenses.");
+        optional_text(out, "AC details", &actor.defense_notes.armor_class);
+        optional_text(out, "HP details", &actor.defense_notes.hit_points);
+    }
+    if hazard.is_none_or(|h| h.show_saves) {
+        defense(
+            out,
+            "Fortitude",
+            &actor.saves.fortitude,
+            &actor.defense_notes.fortitude,
+            true,
+        );
+        defense(
+            out,
+            "Reflex",
+            &actor.saves.reflex,
+            &actor.defense_notes.reflex,
+            true,
+        );
+        defense(
+            out,
+            "Will",
+            &actor.saves.will,
+            &actor.defense_notes.will,
+            true,
+        );
+    } else {
+        line(out, "No saving throws.");
+        optional_text(out, "Fortitude details", &actor.defense_notes.fortitude);
+        optional_text(out, "Reflex details", &actor.defense_notes.reflex);
+        optional_text(out, "Will details", &actor.defense_notes.will);
+    }
+    optional_text(out, "All saves", &actor.defense_notes.all_saves);
+    iwr(out, "Immunities", &actor.immunities);
+    iwr(out, "Weaknesses", &actor.weaknesses);
+    iwr(out, "Resistances", &actor.resistances);
+}
+
+pub(in crate::commands::record) fn activity_facts(
+    out: &mut String,
+    activity: &ActorActivityView,
+    show_identity: bool,
+) {
     if let Some(effect) = &activity.spell_effect {
         super::effect::statistics(out, effect);
     }
@@ -343,12 +361,16 @@ pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, sho
     }
 }
 
-fn spellcasting(out: &mut String, activities: &[ActorActivityView]) {
+pub(in crate::commands::record) fn spellcasting(
+    out: &mut String,
+    activities: &[ActorActivityView],
+    heading: bool,
+) {
     let entries = activities
         .iter()
         .filter(|a| a.kind == ActorActivityKindView::CastingEntry)
         .collect::<Vec<_>>();
-    if !entries.is_empty() {
+    if heading && !entries.is_empty() {
         line(out, "\nSpellcasting");
     }
     for entry in &entries {

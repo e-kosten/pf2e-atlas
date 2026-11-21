@@ -10,10 +10,10 @@ use atlas_app_model::{
 };
 use atlas_domain::QueryFieldState;
 
-mod actor;
+pub(super) mod actor;
 mod effect;
 mod reference_profiles;
-mod spell;
+pub(super) mod spell;
 
 pub(super) fn render_record(
     record: &RecordDetailView,
@@ -23,7 +23,16 @@ pub(super) fn render_record(
 ) -> Result<String, String> {
     let mut out = String::new();
     let presentation = &record.presentation;
-    identity(&mut out, &presentation.identity);
+    selected_identity(&mut out, record);
+    if record.selected.field.is_some() {
+        for field in &presentation.content {
+            content_field(&mut out, field, width, true)?;
+        }
+        return Ok(out);
+    }
+    if detail == TerminalDetail::Summary || record.selected.passage.is_some() {
+        return Ok(out);
+    }
     out.push_str(&crate::commands::remaster_presentation::lines(
         &record.remaster_relationships,
     ));
@@ -31,12 +40,6 @@ pub(super) fn render_record(
         out.push_str(&crate::commands::remaster_presentation::source_context(
             context,
         ));
-    }
-    if !record.selected.owners.is_empty() {
-        line(&mut out, format!("From {}", record.record.title));
-    }
-    if detail == TerminalDetail::Summary {
-        return Ok(out);
     }
     if let Some(canonical) = &record.canonical_record {
         line(
@@ -64,15 +67,31 @@ pub(super) fn render_record(
             line(&mut out, format!("Named creatures · {names}"));
         }
     }
-    if record.selected.field.is_some() {
-        for field in &presentation.content {
-            content_field(&mut out, field, width, true)?;
+    if detail == TerminalDetail::Full {
+        if let Some(family) = &record.creature_family {
+            line(
+                &mut out,
+                format!("Creature family: {} ({})", family.name, family.id),
+            );
         }
-        return Ok(out);
+        if let Some(family) = &record.equipment_family {
+            line(
+                &mut out,
+                format!("Equipment family: {} ({})", family.name, family.id),
+            );
+        }
+        if let Some(adjustment) = &record.encounter_adjustment {
+            line(
+                &mut out,
+                format!("Default encounter adjustment: {adjustment:?}"),
+            );
+        }
     }
     render_prerequisites(&mut out, &presentation.content, width)?;
     line(&mut out, "");
-    for field in presentation.content.iter().filter(|field| is_intro(field)) {
+    for field in presentation.content.iter().filter(|field| {
+        is_intro(field) && !matches!(presentation.body, RecordBodyView::Creature(_))
+    }) {
         content_field(
             &mut out,
             field,
@@ -82,48 +101,8 @@ pub(super) fn render_record(
     }
     line(&mut out, "");
     match &presentation.body {
-        RecordBodyView::Creature(body) => {
-            if presentation.identity.level_label.is_none() {
-                number(&mut out, "Level", &body.level, false, "");
-            }
-            actor::render(&mut out, body, true, true, reading, width, detail)?;
-        }
-        RecordBodyView::Hazard(body) => {
-            if presentation.identity.level_label.is_none() {
-                number(&mut out, "Level", &body.actor.level, false, "");
-            }
-            fact(&mut out, "Hazard", &body.complex, |v| {
-                if *v { "Complex" } else { "Simple" }.into()
-            });
-            line(&mut out, "\nDetection");
-            number(&mut out, "Stealth", &body.stealth, true, "");
-            optional_number(&mut out, "Detection DC", &body.detection_dc, false, "");
-            for field in presentation.content.iter().filter(|f| f.role == "stealth") {
-                content_field(&mut out, field, width, false)?;
-            }
-            for field in presentation.content.iter().filter(|f| f.role == "disable") {
-                content_field(&mut out, field, width, true)?;
-            }
-            let defenses = known_value(&body.defense_block) != Some(&false);
-            if defenses {
-                optional_number(
-                    &mut out,
-                    "Broken Threshold",
-                    &body.broken_threshold,
-                    false,
-                    "",
-                );
-                number(&mut out, "Hardness", &body.hardness, false, "");
-            }
-            actor::render(
-                &mut out,
-                &body.actor,
-                defenses,
-                body.show_saves,
-                reading,
-                width,
-                detail,
-            )?;
+        RecordBodyView::Creature(_) | RecordBodyView::Hazard(_) => {
+            render_actor(&mut out, presentation, reading, width, detail)?;
         }
         RecordBodyView::Spell(body) => {
             if presentation.identity.level_label.is_none() {
@@ -310,7 +289,7 @@ pub(super) fn render_record(
     }
     for field in presentation.content.iter().filter(|field| {
         !(field.role == "prerequisite"
-            || is_intro(field)
+            || (is_intro(field) && !matches!(presentation.body, RecordBodyView::Creature(_)))
             || matches!(presentation.body, RecordBodyView::Hazard(_))
                 && matches!(field.role.as_str(), "stealth" | "disable"))
     }) {
@@ -388,11 +367,48 @@ pub(super) fn render_record(
     }))
 }
 
+pub(super) fn render_actor(
+    out: &mut String,
+    presentation: &atlas_app_model::RecordPresentationView,
+    reading: &[EmbeddedReadingEntryView],
+    width: TerminalLayout,
+    detail: TerminalDetail,
+) -> Result<(), String> {
+    match &presentation.body {
+        RecordBodyView::Creature(body) => {
+            if presentation.identity.level_label.is_none() {
+                number(out, "Level", &body.level, false, "");
+            }
+            actor::render(out, body, None, reading, width, detail)?;
+        }
+        RecordBodyView::Hazard(body) => {
+            if presentation.identity.level_label.is_none() {
+                number(out, "Level", &body.actor.level, false, "");
+            }
+            fact(out, "Hazard", &body.complex, |v| {
+                if *v { "Complex" } else { "Simple" }.into()
+            });
+            line(out, "\nDetection");
+            number(out, "Stealth", &body.stealth, true, "");
+            optional_number(out, "Detection DC", &body.detection_dc, false, "");
+            for field in presentation.content.iter().filter(|f| f.role == "stealth") {
+                content_field(out, field, width, false)?;
+            }
+            for field in presentation.content.iter().filter(|f| f.role == "disable") {
+                content_field(out, field, width, true)?;
+            }
+            actor::render(out, &body.actor, Some(body), reading, width, detail)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn is_intro(field: &PreparedContentFieldView) -> bool {
     matches!(field.role.as_str(), "description" | "notes" | "biography")
 }
 
-fn content_field(
+pub(super) fn content_field(
     out: &mut String,
     field: &PreparedContentFieldView,
     width: TerminalLayout,
@@ -450,6 +466,19 @@ fn content_field(
     }
     line(out, rendered.trim_end());
     Ok(())
+}
+
+pub(super) fn selected_identity(out: &mut String, record: &RecordDetailView) {
+    identity(out, &record.presentation.identity);
+    if !record.selected.owners.is_empty() {
+        line(
+            out,
+            format!(
+                "From {} ({})",
+                record.record.title, record.record.record_key
+            ),
+        );
+    }
 }
 
 pub(super) fn identity(out: &mut String, identity: &RecordSummaryView) {

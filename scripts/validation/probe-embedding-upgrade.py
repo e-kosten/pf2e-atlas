@@ -18,6 +18,7 @@ import time
 import tempfile
 import zipfile
 from contextlib import closing
+from functools import cache as memoize
 
 ROOT = Path(__file__).resolve().parents[2]
 PROFILES = ("bge-base", "embeddinggemma")
@@ -79,10 +80,18 @@ def build(executable, source, index, cache, evidence, profiles):
     ], evidence)
 
 
+@memoize
+def witness_options(executable):
+    """Historical binaries always return all witnesses. Newer clients select them explicitly."""
+    help_text = subprocess.check_output([str(executable), "search", "--help"], text=True, timeout=30)
+    return ("--detail", "full") if re.search(r"^\s*--detail\b", help_text, re.MULTILINE) else ()
+
+
 def search(executable, index, cache, profile, query, evidence):
     result = invoke(executable, [
         "search", query, "--index", index, "--embedding-cache-path", cache,
         "--search-profile", profile, "--retrieval", "vector", "--limit", "5",
+        *witness_options(executable),
     ], evidence)
     rows = [[row["record"]["record_key"], [
         [match["navigation"], match["semantic_similarity"]]

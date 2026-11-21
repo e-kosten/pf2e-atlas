@@ -22,6 +22,8 @@ pub(crate) enum RecordCommand {
     Source(RecordSourceOptions),
     /// Read a trait or vocabulary definition by exact key.
     Definition(super::definition::DefinitionOptions),
+    /// Roll a published table by exact name, record key or reviewed navigation.
+    RollTable(Box<RollTableOptions>),
     /// Show suggested variants with naming evidence.
     Variants(VariantsOptions),
 }
@@ -32,16 +34,19 @@ pub(crate) enum RecordCommand {
 pub(crate) struct RecordGetOptions {
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=10), help = "Preview a spell at this rank")]
     pub(crate) rank: Option<u8>,
-    #[arg(required=true,num_args=1..,help="Foundry keys in pack:id form")]
+    #[arg(required_unless_present="navigation",num_args=1..,help="Foundry keys in pack:id form")]
     pub(crate) keys: Vec<String>,
     #[arg(
         long,
         value_enum,
         default_value = "standard",
-        conflicts_with = "json",
-        help = "Human detail: summary identity, standard reference, or full expanded embedded entries; conflicts with --json"
+        help = "Summary identity, standard reference, or full reference detail"
     )]
     pub(crate) detail: TerminalDetail,
+    #[arg(long, value_enum, conflicts_with_all=["field","passage"], help="Select a reference section; repeat to combine")]
+    pub(crate) section: Vec<RecordSection>,
+    #[arg(long, value_parser=parse_navigation, conflicts_with_all=["keys","owners","rank","field","passage","source_fingerprint"], help="Open an exact generation-bound navigation object returned by Atlas")]
+    pub(crate) navigation: Option<Box<super::navigation::Locator>>,
     #[arg(long="embedded-path",help="Checked embedded path JSON from a search witness",value_parser=parse_owners)]
     pub(crate) owners: Option<OwnerChainArgument>,
     #[arg(long, help = "Selected field path, relative to the selected document")]
@@ -59,7 +64,7 @@ pub(crate) struct RecordGetOptions {
     pub(crate) path_mode: CliPathMode,
     #[arg(
         long,
-        help = "Emit the complete selected Atlas reference response; use record source for the Foundry DTO"
+        help = "Emit the selected reference as JSON; use record source for the checked Foundry DTO"
     )]
     pub(crate) json: bool,
 }
@@ -90,7 +95,7 @@ pub(crate) struct RecordResolveOptions {
     #[arg(
         long,
         default_value_t = 5,
-        help = "Maximum strict matches to display per input; total reports the full match count"
+        help = "Maximum candidates for ambiguous names; a unique match is always returned"
     )]
     pub(crate) alternatives: usize,
     #[arg(long, help = "Override the SQLite workspace path")]
@@ -131,4 +136,48 @@ pub(crate) struct VariantsOptions {
     pub(crate) path_mode: CliPathMode,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct RollTableOptions {
+    #[arg(
+        required_unless_present = "navigation",
+        conflicts_with = "navigation",
+        help = "Canonical table key or exact name"
+    )]
+    pub(crate) record_ref: Option<String>,
+    #[arg(long, value_parser=parse_navigation, help="Reviewed table navigation from a record or search result")]
+    pub(crate) navigation: Option<Box<super::navigation::Locator>>,
+    #[arg(long, help = "Override the SQLite workspace path")]
+    pub(crate) index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t=CliPathMode::Global)]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long)]
+    pub(crate) json: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RecordSection {
+    Rules,
+    Defenses,
+    Strikes,
+    Abilities,
+    Spellcasting,
+}
+
+impl RecordSection {
+    pub(super) fn name(self) -> &'static str {
+        match self {
+            Self::Rules => "rules",
+            Self::Defenses => "defenses",
+            Self::Strikes => "strikes",
+            Self::Abilities => "abilities",
+            Self::Spellcasting => "spellcasting",
+        }
+    }
+}
+
+fn parse_navigation(text: &str) -> Result<Box<super::navigation::Locator>, String> {
+    super::navigation::Locator::parse(text).map(Box::new)
 }

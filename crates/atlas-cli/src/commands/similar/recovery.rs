@@ -51,11 +51,7 @@ pub(super) fn command(options: &SimilarOptions, seed: Option<&SimilaritySeed>) -
     if options.json {
         words.push("--json".into());
     }
-    words
-        .iter()
-        .map(|word| shell_literal(word))
-        .collect::<Vec<_>>()
-        .join(" ")
+    crate::commands::followup::shell_command(&words)
 }
 
 pub(super) fn enrich(mut error: AppError, rediscovery: &str, explicit_parts: bool) -> AppError {
@@ -72,22 +68,6 @@ pub(super) fn enrich(mut error: AppError, rediscovery: &str, explicit_parts: boo
 fn append_command(error: &mut AppError, command: &str) {
     error.message.push_str("\nRediscover sections: ");
     error.message.push_str(command);
-}
-
-// PowerShell on Windows; POSIX shells on other supported hosts.
-fn shell_literal(value: &str) -> String {
-    if !value.is_empty()
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || b"_./:-".contains(&byte))
-    {
-        return value.to_owned();
-    }
-    #[cfg(windows)]
-    let escaped = value.replace('\'', "''");
-    #[cfg(not(windows))]
-    let escaped = value.replace('\'', "'\"'\"'");
-    format!("'{escaped}'")
 }
 
 #[cfg(test)]

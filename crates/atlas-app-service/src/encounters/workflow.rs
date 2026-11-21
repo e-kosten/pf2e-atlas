@@ -121,6 +121,15 @@ impl AtlasAppService {
     }
 
     pub fn encounter(&self, encounter_ref: &str) -> AppServiceResult<EncounterDetailView> {
+        self.encounter_with_reference(encounter_ref, Default::default())
+    }
+
+    /// Project temporary party inputs in the same read as the encounter roster and stats.
+    pub fn encounter_with_reference(
+        &self,
+        encounter_ref: &str,
+        overrides: atlas_app_model::EncounterDifficultyReferenceInput,
+    ) -> AppServiceResult<EncounterDetailView> {
         let encounter_ref = encounter_ref.to_owned();
         self.with_saved_detail(
             atlas_runtime::AtlasRuntime::record_detail_read,
@@ -138,7 +147,11 @@ impl AtlasAppService {
                 });
                 Ok((detail, linked))
             },
-            |detail, reference| {
+            move |mut detail, reference| {
+                detail.encounter.difficulty_reference = super::difficulty::with_overrides(
+                    detail.encounter.difficulty_reference,
+                    overrides,
+                )?;
                 let reference_error = match reference {
                     Ok(Some(session)) => {
                         return encounter_detail_view(
@@ -336,7 +349,7 @@ impl AtlasAppService {
         &self,
         encounter_ref: &str,
         request: AddEncounterRecordParticipantRequest,
-    ) -> AppServiceResult<EncounterMutationView> {
+    ) -> AppServiceResult<atlas_app_model::EncounterRecordAdditionResult> {
         let intent = serde_json::json!({
             "record_ref": request.record_ref,
             "quantity": request.quantity,
@@ -354,25 +367,36 @@ impl AtlasAppService {
             )?;
             Ok((receipt, committed))
         })?;
-        if !committed {
-            let request_id = request.request_id.clone();
-            if let Err(error) =
-                self.commit_record_addition(&receipt.encounter_key, request, &intent)
-            {
-                // Another writer may have committed the same intent while this
-                // caller was resolving its source against an older generation.
-                let committed = self.with_state(|session| {
-                    Ok(session
-                        .local_state()?
-                        .encounters()
-                        .record_addition_committed(&receipt.encounter_key, &request_id, &intent)?)
-                })?;
-                if !committed {
-                    return Err(error);
+        let request_id = request.request_id.clone();
+        let participant_keys = if committed {
+            None
+        } else {
+            match self.commit_record_addition(&receipt.encounter_key, request, &intent) {
+                Ok(keys) => keys,
+                Err(error) => {
+                    // A concurrent writer can commit the intent while this read resolves its record.
+                    let committed = self.with_state(|session| {
+                        Ok(session
+                            .local_state()?
+                            .encounters()
+                            .record_addition_committed(
+                                &receipt.encounter_key,
+                                &request_id,
+                                &intent,
+                            )?)
+                    })?;
+                    if !committed {
+                        return Err(error);
+                    }
+                    None
                 }
             }
-        }
-        Ok(receipt)
+        };
+        Ok(atlas_app_model::EncounterRecordAdditionResult {
+            encounter_key: receipt.encounter_key,
+            request_id,
+            participant_keys,
+        })
     }
 
     fn commit_record_addition(
@@ -380,7 +404,7 @@ impl AtlasAppService {
         encounter_key: &str,
         request: AddEncounterRecordParticipantRequest,
         intent: &serde_json::Value,
-    ) -> AppServiceResult<()> {
+    ) -> AppServiceResult<Option<Vec<String>>> {
         let record_ref = request.record_ref.clone();
         let expected = request
             .creature_scenario
@@ -430,7 +454,7 @@ impl AtlasAppService {
         self.with_write(|session| {
             let store = session.local_state()?.encounters();
             if store.record_addition_committed(encounter_key, &request.request_id, intent)? {
-                return Ok(());
+                return Ok(None);
             }
             session.require_reference_revision(revision)?;
             let added = store.add_participants(encounter_key, participants)?;
@@ -456,7 +480,8 @@ impl AtlasAppService {
                     }
                 }
             }
-            Ok(store.save_record_addition_receipt(encounter_key, &request.request_id, intent)?)
+            store.save_record_addition_receipt(encounter_key, &request.request_id, intent)?;
+            Ok(Some(added.into_iter().map(|p| p.participant_key).collect()))
         })
     }
 

@@ -193,6 +193,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "unicode-width",
  "ureq",
  "uuid",
  "winapi-util",

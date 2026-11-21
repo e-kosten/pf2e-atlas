@@ -1,6 +1,6 @@
 pub(crate) mod args;
 pub(crate) mod output;
-use super::saved_workspace::{read_export, respond, write_new_file};
+use super::saved_workspace::{file_error, read_export, respond, write_new_file};
 use args::*;
 use atlas_app_model::*;
 use atlas_app_service::AtlasAppService;
@@ -9,18 +9,32 @@ use std::{collections::BTreeMap, process::ExitCode};
 pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
     let json = args.workspace.json;
     let selection = match &args.command {
-        CharacterCommand::Show {
-            selection, output, ..
-        } => {
-            let request = selection.request()?;
-            if output.is_some() && request.sections != [CharacterSection::Source] {
-                return Err("--output requires only --section source.".into());
+        CharacterCommand::Show { selection, .. } | CharacterCommand::Preview { selection, .. } => {
+            match selection.request() {
+                Ok(request) => Some(request),
+                Err(error) => return super::product::report_app_error(error, json),
             }
-            Some(request)
         }
-        CharacterCommand::Preview { selection, .. } => Some(selection.request()?),
         _ => None,
     };
+    if matches!(
+        &args.command,
+        CharacterCommand::Show {
+            output: Some(_),
+            ..
+        }
+    ) && selection
+        .as_ref()
+        .is_none_or(|r| r.sections != [CharacterSection::Source])
+    {
+        return super::product::report_app_error(
+            AppError::new(
+                AppErrorCode::InvalidRequest,
+                "--output requires only --section source.",
+            ),
+            json,
+        );
+    }
     let service = match args.workspace.connect() {
         Ok(s) => s,
         Err(e) => return super::product::report_app_error(e, json),
@@ -70,7 +84,9 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
                         json,
                     );
                 };
-                write_new_file(&destination, source.as_bytes())?;
+                if let Err(error) = write_new_file(&destination, source.as_bytes()) {
+                    return file_error(json, error);
+                }
                 respond(
                     Ok(
                         serde_json::json!({"character_key":view.character.character_key,"character_revision":view.character.revision,"output":destination}),
@@ -78,10 +94,12 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
                     json,
                     |_| format!("Wrote original export to {}\n", destination.display()),
                 )
+            } else if json && options.detail == super::saved_workspace::SheetDetail::Standard {
+                super::saved_workspace::respond_json(
+                    result.map(|view| output::compact_character(&view)),
+                )
             } else {
-                respond(result, json, |view| {
-                    output::character(view, !options.sections.is_empty())
-                })
+                respond(result, json, |view| output::character(view, &options))
             }
         }
         CharacterCommand::Create(options) => {
@@ -127,7 +145,10 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
             character,
             selection: options,
         } => {
-            let source = read_export(&input)?;
+            let source = match read_export(&input) {
+                Ok(source) => source,
+                Err(error) => return file_error(json, error),
+            };
             respond(
                 service.preview_character_import(
                     &source,
@@ -135,14 +156,17 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
                     selection.unwrap_or_default(),
                 ),
                 json,
-                |view| output::preview(view, !options.sections.is_empty()),
+                |view| output::preview(view, options.detail),
             )
         }
         CharacterCommand::Import(options) => {
             let party = party_target(options.party, options.expected_party_revision)?;
             import(
                 &service,
-                read_export(&options.input)?,
+                match read_export(&options.input) {
+                    Ok(source) => source,
+                    Err(error) => return file_error(json, error),
+                },
                 options.review,
                 options.request_id,
                 None,
@@ -160,7 +184,10 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
             // Refresh is revision guarded; the existing service does not write creation receipts here.
             import(
                 &service,
-                read_export(&input)?,
+                match read_export(&input) {
+                    Ok(source) => source,
+                    Err(error) => return file_error(json, error),
+                },
                 review,
                 String::new(),
                 Some(character),
@@ -179,8 +206,11 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
                 }
                 _ if options.automatic => PcAbilitySelection::Automatic,
                 _ => {
-                    return Err(
+                    return super::product::command_error(
+                        json,
+                        "invalid_input",
                         "Choose --record with --expected-generation, or --automatic.".into(),
+                        2,
                     );
                 }
             };
@@ -247,7 +277,12 @@ fn import(
     let mut rule_links = BTreeMap::new();
     for RuleLink(ability, record) in review.links {
         if rule_links.insert(ability, record).is_some() {
-            return Err("A rule-link ability was supplied twice.".into());
+            return super::product::command_error(
+                json,
+                "invalid_input",
+                "A rule-link ability was supplied twice.".into(),
+                2,
+            );
         }
     }
     respond(

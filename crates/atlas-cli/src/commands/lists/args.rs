@@ -126,7 +126,7 @@ pub(crate) struct ListAddOptions {
 pub(crate) struct ListExportOptions {
     #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
-    #[arg(long, help = "Write the export JSON document to this path")]
+    #[arg(long, help = "Write the export JSON document to a new file")]
     pub(crate) output: Option<PathBuf>,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,

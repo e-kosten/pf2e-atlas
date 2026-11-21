@@ -21,11 +21,10 @@ compile to the same shared predicate. `filters fields` exposes types, operators,
 applicability, units and closed choices; `filters values` exposes samples and
 availability counts. Unsupported syntax fails before execution.
 
-Search returns root summaries and up to three source-attributed witnesses.
+Search returns root summaries and the best available source-attributed witness. Use `--detail full` for the full witness set.
 Semantic counts describe bounded candidate windows. Names resolve strictly with
 verified alias evidence. Embedded definitions retain their parent keys and checked
-embedded-path/field/passage addresses. `record get --embedded-path JSON --field PATH --passage
-JSON` focuses a returned witness. Terminal prose is formatted from sanitized HTML
+embedded-path/field/passage addresses. `record get --navigation JSON` opens the exact generation-bound selection. Terminal prose is formatted from sanitized HTML
 at read time with html2text; no terminal document is stored in SQLite.
 
 Use `index build --locale LOCALE` to set the preparation/search locale (English by

@@ -32,10 +32,10 @@ pub use encounter_recovery::{
 };
 mod encounter_difficulty;
 pub use encounter_difficulty::{
-    EncounterDifficultyAddition, EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
-    EncounterDifficultyReferenceInput, EncounterDifficultyReferenceView,
-    EncounterDifficultyRuleView, EncounterDifficultyView, PreviewEncounterDifficultyRequest,
-    SetEncounterDifficultyRequest,
+    EncounterDifficultyAddition, EncounterDifficultyBudgetView, EncounterDifficultyComparison,
+    EncounterDifficultyOpponentView, EncounterDifficultyReferenceInput,
+    EncounterDifficultyReferenceView, EncounterDifficultyRuleView, EncounterDifficultyView,
+    PreviewEncounterDifficultyRequest, SetEncounterDifficultyRequest,
 };
 mod encounter_ability_state;
 pub use encounter_ability_state::{
@@ -184,11 +184,12 @@ pub use encounter::{
     EncounterHpValueInput, EncounterIndexView, EncounterMutationView,
     EncounterNextTurnUnavailableReason, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterReferenceRequest,
-    EncounterSpellAction, EncounterSpellRankView, EncounterSpellResourceScope,
-    EncounterSpellResourceView, EncounterSpellView, EncounterSpellcastingView, EncounterStatusView,
-    EncounterSummaryView, EncounterTurnBoundaryView, EncounterTurnReminderView,
-    EncounterTurnReviewView, InherentConditionView, InherentConditionsView, PreparedCreatureChoice,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterRecordAdditionResult,
+    EncounterReferenceRequest, EncounterSpellAction, EncounterSpellRankView,
+    EncounterSpellResourceScope, EncounterSpellResourceView, EncounterSpellView,
+    EncounterSpellcastingView, EncounterStatusView, EncounterSummaryView,
+    EncounterTurnBoundaryView, EncounterTurnReminderView, EncounterTurnReviewView,
+    InherentConditionView, InherentConditionsView, PreparedCreatureChoice,
     ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
     RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
     StatModifierTypeView, StatModifierView, UpdateEncounterParticipantConditionRequest,

@@ -110,7 +110,10 @@ struct LevelOptions {
 pub(crate) fn run(args: PartiesArgs) -> Result<ExitCode, String> {
     let json = args.workspace.json;
     let request = if let PartyCommand::Context { selection, .. } = &args.command {
-        Some(selection.request()?)
+        match selection.request() {
+            Ok(request) => Some(request),
+            Err(error) => return super::product::report_app_error(error, json),
+        }
     } else {
         None
     };
@@ -137,10 +140,16 @@ pub(crate) fn run(args: PartiesArgs) -> Result<ExitCode, String> {
                 .collect()
         }),
         PartyCommand::Show { party } => respond(service.party_roster(&party), json, roster),
-        PartyCommand::Context { party, selection } => respond(
-            service.party_context(&party, request.unwrap_or_default()),
-            json,
-            |view| {
+        PartyCommand::Context { party, selection } => {
+            let result = service.party_context(&party, request.unwrap_or_default());
+            if json && selection.detail == super::saved_workspace::SheetDetail::Standard {
+                return super::saved_workspace::respond_json(result.map(|party| serde_json::json!({
+                    "party_key": party.party_key, "name": party.name, "revision": party.revision,
+                    "selected_sections": party.selected_sections,
+                    "members": party.members.iter().map(super::characters::output::compact_character).collect::<Vec<_>>()
+                })));
+            }
+            respond(result, json, |view| {
                 let mut text = format!(
                     "{} · {} characters\n{}  revision {}\n\n",
                     view.name,
@@ -149,15 +158,12 @@ pub(crate) fn run(args: PartiesArgs) -> Result<ExitCode, String> {
                     view.revision
                 );
                 for member in &view.members {
-                    text.push_str(&super::characters::output::character(
-                        member,
-                        !selection.sections.is_empty(),
-                    ));
+                    text.push_str(&super::characters::output::character(member, &selection));
                     text.push('\n');
                 }
                 text
-            },
-        ),
+            })
+        }
         PartyCommand::Create { name, members } => respond(
             service.create_party(CreatePartyRequest {
                 name,

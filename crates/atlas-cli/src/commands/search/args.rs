@@ -12,6 +12,13 @@ pub(crate) struct SearchOptions {
     #[arg(
         long,
         value_enum,
+        default_value = "standard",
+        help = "Choose compact evidence or full reference details"
+    )]
+    pub(crate) detail: super::super::followup::EvidenceDetail,
+    #[arg(
+        long,
+        value_enum,
         requires = "query",
         conflicts_with = "print_filter",
         help = "Search all content or only Core sections chosen for each record kind (default all)"
@@ -60,6 +67,12 @@ pub(crate) struct SearchOptions {
         help = "Print the validated shared predicate without opening an artifact"
     )]
     pub(crate) print_filter: bool,
+    #[arg(
+        long,
+        conflicts_with = "print_filter",
+        help = "Read only the artifact generation from the previous search page"
+    )]
+    pub(crate) artifact_generation: Option<String>,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
 }

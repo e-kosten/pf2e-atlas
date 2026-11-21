@@ -60,7 +60,7 @@ fn invalid_formula_returns_json_error_and_nonzero_status() {
     assert_eq!(output.status.code(), Some(2));
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(json["status"], "error");
-    assert_eq!(json["error"]["code"], "command_failed");
+    assert_eq!(json["error"]["code"], "invalid_dice_formula");
     assert!(
         json["error"]["message"]
             .as_str()

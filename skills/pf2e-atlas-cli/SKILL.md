@@ -132,35 +132,36 @@ Keys are Foundry `pack:id` identities. Strict resolution accepts authored names,
 normalized names and verified aliases, preserving their evidence. Ambiguous
 resolution requires choosing the intended record; use its returned key in later
 commands. Name similarity and Suggested variants do not establish identity.
-`record resolve --alternatives N` limits displayed strict matches, while `total`
-retains their full count.
+A unique match returns `value.selected` and a generation-bound `value.navigation`.
+`--alternatives N` controls how many ambiguous candidates are displayed.
+Use the published title, edition and pack to disambiguate. Preserve the total.
 
-`content.body` contains semantic creature, hazard, spell, activity, physical,
-table, or content facts. Read each fact's availability before using its value.
-Spell heightening and forms describe authored changes; `record get --rank` previews
-supported rank changes but does not execute a form or spend resources. Embedded
-spells retain their local casting context and customizations.
-Form and fixed-heightening changes are sparse authored overrides of the base;
-an omitted member is not an unavailable full form. Explicit null clears remain
-distinct from omitted members. Read casting-entry attack/DC and Lore modifiers
-from their typed activity facts rather than reconstructing them from prose.
+Use `record get --detail summary --json` for identity, standard for a readable
+reference, and `--detail full --json` for the selected record's detailed
+semantic body, prepared fields and relationships. Full human output expands
+supported embedded entries. For a specific question, request only the sections
+needed (rules, defenses, strikes, abilities or spellcasting):
 
-In a successful `record get` result, read `value.identity` for the selected
-content's identity, `value.selected` for its exact navigation, and `value.content`
-for text `fields`, structured `body`, classification and embedded navigation.
-`value.parent` appears only for embedded selections and identifies the containing
-record. Do not mistake the parent for the selected spell or ability. Rank previews
-use effective identity/facts. There are no `record` or `presentation` aliases.
+```sh
+atlas record get PACK:ID --section defenses --section strikes --json
+atlas record get --navigation 'RETURNED_NAVIGATION_JSON' --json
+```
 
-For a compact root heading, use `atlas record get PACK:ID --detail summary`.
-This terminal path reads body-free summaries. Selected-child summaries identify
-the child from its parent snapshot. `--json` returns the complete selected Atlas
-reference response and conflicts with explicit `--detail`. The default `--detail standard`
-reads the main reference with inline actor abilities and compact spell rosters.
-Use `--detail full` to also read supported embedded documents, such as spells,
-journal pages and roll-table results. It expands embedded content, not graph links.
-An explicit `--field` or `--passage` keeps human output focused on that selection
-at every human detail level. To inspect source information outside Atlas's
+Copy the navigation object exactly. It binds the selected root or child, spell
+rank, field, passage and source fingerprint to its artifact generation. Refresh
+the original lookup when that selection is stale. In each successful result
+`value.identity` identifies the selection and `value.selected` can reopen it.
+Keep the containing record distinct when citing an embedded spell or ability.
+A field or passage request contains only the selected content, even at full detail.
+Use the reported publication for attribution and a desktop record link to open
+the root in Atlas.
+
+Read typed availability before using a value. Spell heightening and forms
+describe authored changes. `--rank` previews supported changes at that rank.
+Sparse overrides retain the distinction between an omitted member and an explicit
+null. Embedded spells keep their casting entry's attack, DC and customizations.
+
+To inspect source information outside Atlas's
 presentation, use `atlas record source PACK:ID --json`. It exports the root's
 complete checked Foundry DTO and embedded documents, with codec identity and
 source path/hash. Presence tags and retained invalid/additional members are part
@@ -270,29 +271,18 @@ A lexical-only workspace needs `--retrieval fts` for text queries.
 The Name and identity method uses the seed's stored root identity vector; Passage matches and Content average use the selected source components. Similar filters constrain
 candidates, not seed resolution; resolve an ambiguous seed separately.
 Similar also accepts `--page` and `--limit` for stateless result pages.
-Browse, text search and Similar JSON share `data.rows` (record, matches,
-relationship_evidence), `data.page`, `data.relationship_clauses`, `data.coverage`,
-`data.mode`, ordering and artifact generation. Do not read the retired search
-`results`/`pagination` shapes or Similar's former nested `results` wrapper.
-Semantic/hybrid candidate windows are bounded: report the
-returned coverage and count basis honestly, never describe them as an exhaustive
-corpus census. Result scores are retrieval evidence, not probabilities. Inspect
-up to three supplied root, embedded-item or passage witnesses before explaining why
-a result matched.
+Browse and text search return `data.rows`, `page`, `coverage`, ordering, profile
+and artifact generation. The default supplies the best available witness and
+relationship evidence. Use `search --detail full` for all returned witnesses and
+ranking detail. Similar retains its comparison evidence and `--explain` option.
+Report bounded semantic and hybrid counts with their coverage and count basis.
 
-A named affliction may live within a creature or effect. Atlas preserves its
-parent identity and provides an embedded_path/field/passage address. Use the exact
-returned address to focus detail:
-
-```sh
-atlas record get PACK:ID --embedded-path 'EMBEDDED_PATH_JSON' --field /system/description/value --passage 'PASSAGE_ADDRESS_JSON' --json
-```
-
-Copy embedded-path and passage JSON from a returned witness. If its navigation contains
-`source_fingerprint`, also pass `--source-fingerprint` with that exact value;
-snapshot-local embedded documents become stale when the artifact changes. Do not invent embedded IDs,
-byte ranges or synthetic affliction record keys. GM prose and check DCs are included
-by the artifact policy; unavailable source fields stay unknown instead of zero.
+Each search row supplies `open_args` to read its exact selection. `next_args`
+on the page or on relationship evidence continues that result. Pass the argument
+array directly to a process runner to preserve workspace paths, filters and the
+generation. If a named affliction lives inside a creature, this opens the
+embedded passage. Use the supplied locator when a question needs another
+section of that selection. GM prose and check DCs follow the artifact policy.
 
 ## Filter discovery
 
@@ -422,14 +412,15 @@ Use already resolved keys when names are ambiguous. Existing ids fail without
 changing the list; use `lists add` for later batches. Batch receipts preserve input
 order and report added/already-present/failed results. Any failed input exits
 nonzero while valid entries are saved; an all-miss create leaves an empty list.
-System errors roll back creation and additions together. A batch can return
-`status: "ok"` with failed items and exit 1; inspect `data.failed_count` and each
-item outcome. `lists add` accepts positional refs, repeated `--record` inputs and
+Transaction failures roll back creation and additions together. Mixed item
+outcomes give `status: "partial"`. If every item failed, `status` is `error`.
+Read `data.created` and `data.list_key` even after a nonzero exit. Correct the
+inputs in `data.retry_inputs` and retry them with `lists add` against that list. `lists add` accepts positional refs, repeated `--record` inputs and
 `--stdin` (one ref per line); `--note` applies to each added record.
 `lists note <ID> <KEY> --text <TEXT>` edits a note; `--clear` removes it, including
 for unavailable entries.
 
-`lists export` writes portable JSON to stdout unless `--output PATH` is supplied.
+`lists export` writes portable JSON to stdout. With `--output PATH`, choose a new file.
 Importing an existing id fails unless `--replace` is explicitly requested.
 Use `lists edit ID` for name, description, tags or id changes. To hide a list
 without deleting it, use `lists edit ID --archive`; discover it with
@@ -463,10 +454,13 @@ Read `data.character` for current canonical metadata/revision and
 `data.imported_identity` for the export's name/level. `source_state` distinguishes
 `available`, `reference_only` (re-import required for sheet/loadout), and
 `no_import`. Selected sections are explicit; omitted sections are not missing
-facts. `sections.SECTION.fields` contains typed `state: value` facts with a
-`value`, or `missing`, `null`, `unrecognized` without a value. Check each level,
-including list entries. Preserve zero, false, known-empty lists, duplicate gear,
-prepared spell occurrences, container IDs and source investment strings. Shared
+facts. In standard JSON, `sections.SECTION.fields` uses native numbers, booleans,
+lists and objects. Omitted field names mean the export supplied no value.
+Explicit null, empty lists, zero and false retain their JSON meanings.
+Unrecognized values carry a state tag. Equipment groups associate each item
+and rule key with its container. Keep repeated stacks and prepared spells.
+Use `--detail full` for all imported fields with explicit availability at
+each level. Shared
 sheet summaries may derive numbers from the imported build; these are separate
 from source facts and current encounter state. Metadata edits do not recalculate
 an older imported build.
@@ -564,6 +558,21 @@ atlas encounters export garden-sentries --output garden-sentries.json
 atlas encounters import garden-sentries.json --slug garden-sentries-copy --json
 ```
 
+For a what-if question, run a read-only preview first:
+
+```sh
+atlas encounters preview garden-sentries --record PACK:ID --quantity 2 --adjustment weak --party-level 7 --party-size 4 --json
+```
+
+Compare the current and projected difficulty against the same party. Level and
+size each report whether they came from preview flags, a saved reference, the
+roster or an unknown input. `encounters show` includes the note and compact
+roster. Use `--participant KEY` for one expanded participant or `--detail full`
+for the entire encounter. For an addition, choose a request ID before the first
+write and reuse the canonical encounter key, request ID and same inputs on a
+retry. Fresh replies return participant keys. An already-committed reply has
+`participant_keys: null`; the original receipt confirms the addition.
+
 Use a resolved creature or hazard key for `--record`. Each copy gets its own
 participant entry. `--adjustment` accepts `normal`, `elite` or `weak` for
 creatures. Omission uses the creature's known adjustment, defaulting to Normal
@@ -643,7 +652,10 @@ atlas roll '(2d6+4)*2' --json
 `kh`/`kl` keep high/low dice. Quote formulas; put `--` before a formula beginning
 with a minus sign. JSON retains individual dice and kept/dropped states. Report
 the actual returned roll; these commands do not spend resources, deal damage or
-change initiative. Roll-table and encounter actions are available in the web UI.
+change initiative. For a published table, use `atlas record roll-table TABLE_KEY --json` or its strict
+name. Report the actual roll and every matching entry with its source. Mention gaps
+and invalid ranges when present. Linked entries are references. Running the
+encounter and applying its effects remain interactive web actions.
 
 Use `atlas-dev` only for developer diagnostics: `source load`, `source analyze`,
 `source audit-paths`, `index inspect` and `index record`. These commands are a
