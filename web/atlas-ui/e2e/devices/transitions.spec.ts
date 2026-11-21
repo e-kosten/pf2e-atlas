@@ -98,24 +98,33 @@ test("320 CSS pixel reflow keeps keyboard filters, results and the reader operab
   // or browser text-enlargement evidence; those require the documented visual pass.
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto(`/search?filter=${creatureFilter}`);
+  const filters = page.getByRole("button", { name: "Filters (1)", exact: true });
   const kind = page.getByRole("button", { name: "Edit Kind filter", exact: true });
   await page.keyboard.press("Tab");
   // Walk native tab order rather than proving only programmatic focusability.
   for (
     let step = 0;
-    step < 20 && !(await kind.evaluate((node) => node === document.activeElement));
+    step < 20 && !(await filters.evaluate((node) => node === document.activeElement));
     step++
   ) {
     await page.keyboard.press("Tab");
   }
+  await expect(filters).toBeFocused();
+  await expect(kind).toBeHidden();
+  await page.keyboard.press("Enter");
+  await expect(filters).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Tab");
   await expect(kind).toBeFocused();
   await page.keyboard.press("Enter");
   const drawer = page.getByRole("dialog", { name: "Kind", exact: true });
   await expect(drawer).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(kind).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(filters).toBeFocused();
   const row = page.locator(`[data-record-key="${sentinel}"]`);
-  await row.click();
+  await row.press("Enter");
+  await expect(page).toHaveURL(/\/search\/records\//);
   await expect(
     page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
   ).toBeVisible();
@@ -155,6 +164,7 @@ test("short landscape filter popovers keep their footer reachable by pointer", a
 }) => {
   await page.setViewportSize({ width: 844, height: 390 });
   await page.goto("/search");
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await page.getByRole("button", { name: "Edit Traits filter", exact: true }).click();
   const menu = page.getByRole("dialog", { name: "Traits choices", exact: true });
   const footer = menu.getByRole("checkbox", { name: "Show all values" });

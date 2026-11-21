@@ -8,10 +8,11 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
 import { listsDestination } from "../../app/destinations";
 import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
-import { Button, Dropdown, Typography } from "antd";
+import { Button, Typography } from "antd";
+import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
 import { useRef, useState } from "react";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
-import { ArrowLeft, Ellipsis } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { SavedListSummaryView } from "../../generated/atlas";
 export function ListBrowseHeader({
   error,
@@ -85,33 +86,21 @@ export function ListBrowseHeader({
                 identity={list.list_key}
                 title={list.name}
                 actions={(copy) => (
-                  <Dropdown
-                    trigger={["click"]}
-                    menu={{
-                      items: [
-                        { key: "edit", label: "Edit list", disabled: paused },
-                        ...(!editing && copy
-                          ? [{ key: "copy", label: "Copy link" }]
-                          : []),
-                      ],
-                      onClick: ({ key }) => {
-                        const opener = actionsTrigger.current;
-                        opener?.focus({ preventScroll: true });
-                        if (key === "edit" && opener) onEdit(opener);
-                        if (key === "copy") copy?.();
-                      },
+                  <EntityActionsMenu
+                    label="List actions"
+                    trigger={actionsTrigger}
+                    loading={editPreparing}
+                    items={[
+                      { key: "edit", label: "Edit list", disabled: paused },
+                      ...(!editing && copy
+                        ? [{ key: "copy", label: "Copy link" }]
+                        : []),
+                    ]}
+                    onAction={(key, opener) => {
+                      if (key === "edit") onEdit(opener);
+                      if (key === "copy") copy?.();
                     }}
-                  >
-                    <Button
-                      ref={actionsTrigger}
-                      type="text"
-                      className="list-context-secondary"
-                      aria-label="List actions"
-                      aria-busy={editPreparing}
-                      loading={editPreparing ? { delay: 200 } : false}
-                      icon={<Ellipsis size={18} aria-hidden="true" />}
-                    />
-                  </Dropdown>
+                  />
                 )}
               />
               <Button type="primary" disabled={paused} onClick={onAddRecords}>

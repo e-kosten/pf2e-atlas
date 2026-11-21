@@ -22,6 +22,7 @@ export function BrowseReader({
   reading,
   recordActions,
   readerStatus,
+  readerEmptyMessage,
   readerContext,
   onReaderClose,
   onClearSelection,
@@ -45,6 +46,7 @@ export function BrowseReader({
   readerContext?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
+  readerEmptyMessage?: string | null;
   onReaderClose?: () => void;
   onClearSelection?: () => void;
   clearSelectionDisabled?: boolean;
@@ -240,6 +242,7 @@ export function BrowseReader({
   );
   const reader = (
     <ReferenceReader
+      emptyMessage={readerEmptyMessage}
       reading={reading}
       selectedRecordKey={selectedRecordKey}
       recordActions={recordActions}

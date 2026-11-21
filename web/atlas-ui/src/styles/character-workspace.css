@@ -101,37 +101,37 @@
   }
 }
 
-/* When fixed headers would consume the pane, scroll the whole character page. */
-@media (max-width: 767px) and (max-height: 520px) {
-  .atlas-app:has(.character-workspace) > .atlas-app__content {
-    overflow-y: auto;
-  }
-  .character-workspace,
-  .character-workspace__document,
-  .character-workspace
-    :is(
-      .character-sheet,
-      .character-sheet__pane,
-      .character-sheet .ant-tabs-body-holder,
-      .character-sheet .ant-tabs-body,
-      .character-sheet .ant-tabs-content-active,
-      .pc-ability-browser,
-      .pc-ability-browser__list,
-      .ability-rule-picker,
-      .reference-browser,
-      .reference-reader-column,
-      .reference-reader,
-      .reference-results,
-      .reference-reader__scroll,
-      .reference-results__scroll
-    ) {
-    flex: none;
-    height: auto;
-    overflow: visible;
-  }
-  .character-workspace .reference-browser__pane {
-    position: static;
-  }
+/* The saved workspace transfers scrolling when its fixed chrome is too tall. */
+.atlas-app:has(.character-workspace[data-scroll-page]) > .atlas-app__content {
+  overflow-y: auto;
+}
+
+.character-workspace[data-scroll-page],
+.character-workspace[data-scroll-page] .character-workspace__document,
+.character-workspace[data-scroll-page]
+  :is(
+    .character-sheet,
+    .character-sheet__pane,
+    .character-sheet .ant-tabs-body-holder,
+    .character-sheet .ant-tabs-body,
+    .character-sheet .ant-tabs-content-active,
+    .pc-ability-browser,
+    .pc-ability-browser__list,
+    .ability-rule-picker,
+    .reference-browser,
+    .reference-reader-column,
+    .reference-reader,
+    .reference-results,
+    .reference-reader__scroll,
+    .reference-results__scroll
+  ) {
+  flex: none;
+  height: auto;
+  overflow: visible;
+}
+
+.character-workspace[data-scroll-page] .reference-browser__pane {
+  position: static;
 }
 
 .character-sheet,

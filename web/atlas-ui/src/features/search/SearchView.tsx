@@ -86,6 +86,7 @@ export function SearchView({
           filterState={workspace}
           searchInputError={workspace.searchInputError}
           layout="toolbar"
+          collapseToolbar
           similarSearch={
             workspace.search.similarSeed
               ? {
@@ -149,6 +150,8 @@ export function SearchView({
         )}
         <ReferenceBrowser
           searchCards
+          previewOnEnter
+          showReaderPrompt={Boolean(workspace.resultPage?.rows.length)}
           emptyMessage={
             failed
               ? null

@@ -1,6 +1,6 @@
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { activate, landedSearch, noPageOverflow } from "./reading";
+import { activate, landedSearch, noPageOverflow, showSearchFilters } from "./reading";
 
 async function selectParagraph(page: Page, reading: Locator, info: TestInfo) {
   const paragraph = reading
@@ -108,6 +108,7 @@ test("linked-preview search preserves the reader in a new tab and closes it for 
 
 test("selected-text search leaves a retained Links picker", async ({ page }, info) => {
   await page.goto("/search");
+  await showSearchFilters(page, info);
   await activate(page.getByRole("button", { name: "Links", exact: true }), info);
   const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
   await expect(picker).toBeVisible();

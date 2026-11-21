@@ -2,11 +2,12 @@ import { Button } from "antd";
 import { useNavigate } from "@tanstack/react-router";
 import { AtlasLink } from "../../app/AtlasLink";
 import { characterDestination, partyDestination } from "../../app/destinations";
-import type { CharacterPartyView } from "../../generated/atlas";
+import type { CharacterPartyView, CharacterSummaryView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { LoadingStatus } from "../../shared/ui/LoadingStatus";
-import { DirectoryHeader } from "../../shared/ui/pages/EntityIndexPage";
+import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
+import { IndexTable } from "../../shared/ui/tables/IndexTable";
+import type { TableProps } from "antd";
 import { CharacterSectionNav } from "./CharacterSectionNav";
 import { AddCharacter } from "./AddCharacter";
 import { useCharacters } from "./characterQueries";
@@ -25,56 +26,91 @@ export function CharacterMemberships({ parties }: { parties: CharacterPartyView[
   );
 }
 
+function CharacterName({ character }: { character: CharacterSummaryView }) {
+  return (
+    <AtlasLink
+      className="index-row-link__title"
+      {...characterDestination(character.character_key)}
+    >
+      {character.name}
+    </AtlasLink>
+  );
+}
+
+const columns: TableProps<CharacterSummaryView>["columns"] = [
+  {
+    title: "Character",
+    key: "name",
+    render: (_, character) => <CharacterName character={character} />,
+  },
+  {
+    title: "Level",
+    dataIndex: "level",
+    width: 88,
+    render: (level?: number) => level ?? "—",
+  },
+  {
+    title: "Parties",
+    key: "parties",
+    width: "35%",
+    render: (_, character) => <CharacterMemberships parties={character.parties} />,
+  },
+];
+
+const compactColumns: NonNullable<TableProps<CharacterSummaryView>["columns"]> = [
+  {
+    title: "Character",
+    key: "name",
+    render: (_, character) => (
+      <div className="index-row-summary">
+        <CharacterName character={character} />
+        <div className="index-row-summary__facts">
+          {character.level != null && <span>Level {character.level}</span>}
+          <CharacterMemberships parties={character.parties} />
+        </div>
+      </div>
+    ),
+  },
+];
+
 export function CharactersPage() {
   usePageTitle("Characters");
   const query = useCharacters();
   const navigate = useNavigate();
   return (
-    <main className="directory-page">
-      <DirectoryHeader
-        title="Characters"
-        navigation={<CharacterSectionNav current="All characters" />}
-        actions={
-          <AddCharacter onSaved={(key) => void navigate(characterDestination(key))} />
-        }
-      />
+    <EntityIndexPage
+      className="characters-index-view"
+      title="Characters"
+      navigation={<CharacterSectionNav current="All characters" />}
+      actions={
+        <AddCharacter onSaved={(key) => void navigate(characterDestination(key))} />
+      }
+    >
       {query.error && (
         <ErrorNotice
-          title="Characters could not load"
+          title={
+            query.data ? "Characters could not refresh" : "Characters could not load"
+          }
           error={query.error}
           action={<Button onClick={() => void query.refetch()}>Retry</Button>}
         />
       )}
-      {query.isPending && <LoadingStatus label="Loading characters…" />}
-      {query.data &&
-        (query.data.characters.length ? (
-          <table className="party-roster">
-            <thead>
-              <tr>
-                <th>Character</th>
-                <th>Level</th>
-                <th>Parties</th>
-              </tr>
-            </thead>
-            <tbody>
-              {query.data.characters.map((character) => (
-                <tr key={character.character_key}>
-                  <td>
-                    <AtlasLink {...characterDestination(character.character_key)}>
-                      {character.name}
-                    </AtlasLink>
-                  </td>
-                  <td>{character.level ?? "—"}</td>
-                  <td>
-                    <CharacterMemberships parties={character.parties} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No saved characters yet.</p>
-        ))}
-    </main>
+      <IndexTable
+        rowKey={(character) => character.character_key}
+        onActivateRow={(character) =>
+          void navigate(characterDestination(character.character_key))
+        }
+        columns={columns}
+        compact={{ below: 520, columns: compactColumns }}
+        dataSource={query.data?.characters ?? []}
+        loading={query.isFetching}
+        locale={{
+          emptyText:
+            query.isPending || (query.error && !query.data)
+              ? null
+              : "No saved characters yet. Add a PC to get started.",
+        }}
+      />
+    </EntityIndexPage>
   );
 }

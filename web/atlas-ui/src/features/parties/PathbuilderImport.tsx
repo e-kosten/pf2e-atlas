@@ -384,6 +384,7 @@ export function PathbuilderImport({
               key={`${draft.artifact_generation}-${draft.character_revision ?? "new"}`}
               generation={draft.artifact_generation}
               defaultTab="abilities"
+              headingLevel={draft.level}
               sheet={draft.sheet}
               active={!closing}
               abilitySections={sections}

@@ -5,12 +5,28 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ComponentPropsWithRef,
   type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
+
+export function FilterDisclosureButton({
+  count,
+  ...props
+}: ComponentPropsWithRef<typeof Button> & { count: number }) {
+  return (
+    <Button
+      {...props}
+      icon={<FilterOutlined aria-hidden="true" />}
+      data-applied={count > 0}
+    >
+      {count ? `Filters (${count})` : "Filters"}
+    </Button>
+  );
+}
 
 export function FilterDisclosure({
   narrow,
@@ -159,14 +175,13 @@ export function FilterDisclosure({
         <div className="pane-filter-anchor" ref={anchor}>
           <PrimaryToolbar className="filter-controls__search-row">
             {searchEntry}
-            <Button
+            <FilterDisclosureButton
               ref={trigger}
               className="pane-filter-trigger"
-              icon={<FilterOutlined aria-hidden="true" />}
+              count={count}
               aria-expanded={open}
               aria-haspopup="dialog"
               aria-controls={open ? panelId : undefined}
-              data-applied={count > 0}
               onClick={(event) => {
                 event.stopPropagation();
                 if (open) close();
@@ -176,9 +191,7 @@ export function FilterDisclosure({
                 }
               }}
               onKeyDown={escape}
-            >
-              {count ? `Filters (${count})` : "Filters"}
-            </Button>
+            />
           </PrimaryToolbar>
           {summary}
         </div>

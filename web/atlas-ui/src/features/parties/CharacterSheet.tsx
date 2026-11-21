@@ -39,6 +39,7 @@ const sectionLabels: Record<SheetSectionKind, string> = {
 
 export function SavedCharacterSheet({
   character,
+  headingLevel,
   defaultTab,
   emptySheetAction,
   abilityRoute,
@@ -47,6 +48,7 @@ export function SavedCharacterSheet({
   refreshCharacter,
 }: {
   character: PcReferenceView;
+  headingLevel?: number;
   emptySheetAction?: ReactNode;
   refreshCharacter: () => Promise<number | undefined>;
   defaultTab: "stats" | "abilities";
@@ -57,6 +59,7 @@ export function SavedCharacterSheet({
   return (
     <CharacterSheet
       defaultTab={defaultTab}
+      headingLevel={headingLevel}
       abilityRoute={abilityRoute}
       abilitySections={character.sections}
       abilities={(visible) => abilities(visible && active)}
@@ -70,6 +73,7 @@ export function SavedCharacterSheet({
 
 export function CharacterSheet({
   defaultTab,
+  headingLevel,
   emptySheetAction,
   abilityRoute,
   abilitySections,
@@ -84,6 +88,7 @@ export function CharacterSheet({
   refreshCharacter,
 }: {
   defaultTab: "stats" | "abilities";
+  headingLevel?: number;
   abilityRoute?: { active: boolean; close: () => void };
   abilitySections: PcAbilitySectionView[];
   abilities: (active: boolean) => ReactNode;
@@ -213,7 +218,7 @@ export function CharacterSheet({
           <div className="character-sheet__snapshot">
             {saved && saved.name !== sheet.name && <strong>{sheet.name}</strong>}
             <Typography.Text type="secondary">
-              Imported build · Level {sheet.level}
+              Imported build{sheet.level !== headingLevel && ` · Level ${sheet.level}`}
             </Typography.Text>
           </div>
         )}

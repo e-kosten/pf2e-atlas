@@ -170,7 +170,9 @@ it("updates only selected characters during level review", async () => {
     "/characters/pc-a",
   );
   fireEvent.click(screen.getByRole("button", { name: "Party actions" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Set character levels…" }),
+  );
   const dialog = await screen.findByRole("dialog", { name: "Set character levels" });
   expect(await within(dialog).findByRole("checkbox", { name: "Aster" })).toBeChecked();
   expect(within(dialog).getByText("Level 5")).toBeVisible();
@@ -202,7 +204,9 @@ it("reviews a concurrent roster change before retrying retained level and charac
     .mockResolvedValue({ party_key: "party" });
   render(<PartyPage partyKey="party" />, { wrapper });
   fireEvent.click(await screen.findByRole("button", { name: "Party actions" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Set character levels…" }));
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Set character levels…" }),
+  );
   const dialog = within(
     await screen.findByRole("dialog", { name: "Set character levels" }),
   );
@@ -257,7 +261,7 @@ it("reviews the saved name and current roster while retaining a separate rename 
   api.updateParty.mockRejectedValueOnce(new AtlasApiError(409, "The party changed."));
   render(<PartyPage partyKey="party" />, { wrapper });
   fireEvent.click(await screen.findByRole("button", { name: "Party actions" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Rename party" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Rename party" }));
   const dialog = within(await screen.findByRole("dialog", { name: "Rename party" }));
   const input = dialog.getByRole("textbox", { name: "Party name" });
   expect(dialog.queryByRole("spinbutton")).toBeNull();

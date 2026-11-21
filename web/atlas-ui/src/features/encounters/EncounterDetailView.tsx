@@ -1,3 +1,4 @@
+import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
 import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -11,8 +12,8 @@ import { encountersDestination } from "../../app/destinations";
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Dropdown, Grid, Spin } from "antd";
-import { Ellipsis, Play } from "lucide-react";
+import { Button, Grid, Spin } from "antd";
+import { Play } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounterConditionDefinitions } from "../../api/atlasApi";
 import { useEncounterStrike } from "./useEncounterStrike";
@@ -58,7 +59,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
   const removedParticipantFocus = useRef<{
     key: string;
     index: number;
-    opener: Element | null;
+    actions: Element | null;
   } | null>(null);
   const focusDestination = useRef<"participant" | "roster" | null>(null);
   const followAfterRefresh = useRef(false);
@@ -129,7 +130,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
     // another control while the write or its canonical refresh was pending.
     if (
       document.activeElement !== document.body &&
-      document.activeElement !== removal.opener
+      !removal.actions?.contains(document.activeElement)
     )
       return;
     const neighbor = participants[Math.min(removal.index, participants.length - 1)];
@@ -335,7 +336,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
         ref={host}
         onFocusCapture={(event) => {
           const removal = removedParticipantFocus.current;
-          if (removal && event.target !== removal.opener)
+          if (removal && !removal.actions?.contains(event.target))
             removedParticipantFocus.current = null;
         }}
         className={`encounter-detail-view${participantOpen ? " encounter-detail-view--participant" : ""}`}
@@ -351,45 +352,36 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                   identity={encounterSummary.encounter_key}
                   title={encounterSummary.name}
                   actions={(copy) => (
-                    <Dropdown
-                      trigger={["click"]}
-                      menu={{
-                        items: [
-                          { key: "edit", label: "Edit encounter", disabled },
-                          ...(copy && !editEncounterOpen && !onCloseDirectEditor
-                            ? [{ key: "copy", label: "Copy link" }]
-                            : []),
-                          { type: "divider" },
-                          { key: "rest", label: "Rest overnight", disabled },
-                          { key: "reset", label: "Reset encounter", disabled },
-                        ],
-                        onClick: ({ key }) => {
-                          settingsTrigger.current?.focus({ preventScroll: true });
-                          recoveryTrigger.current = settingsTrigger.current;
-                          if (key === "copy") {
-                            copy?.();
-                          } else if (key === "edit") {
-                            if (encounterKey) {
-                              mutations.clearSettingsError();
-                              editing.begin(encounterKey, settingsTrigger.current);
-                            }
-                          } else
-                            setRecoveryMode(
-                              key === "rest" ? "rest_overnight" : "reset_encounter",
-                            );
-                        },
+                    <EntityActionsMenu
+                      label="Encounter actions"
+                      trigger={settingsTrigger}
+                      disabled={disabled}
+                      loading={preparingSettings}
+                      items={[
+                        { key: "edit", label: "Edit encounter", disabled },
+                        ...(copy && !editEncounterOpen && !onCloseDirectEditor
+                          ? [{ key: "copy", label: "Copy link" }]
+                          : []),
+                        { type: "divider" },
+                        { key: "rest", label: "Rest overnight", disabled },
+                        { key: "reset", label: "Reset encounter", disabled },
+                      ]}
+                      onAction={(key, opener) => {
+                        recoveryTrigger.current = opener;
+                        if (key === "copy") {
+                          copy?.();
+                        } else if (key === "edit") {
+                          if (encounterKey) {
+                            mutations.clearSettingsError();
+                            editing.begin(encounterKey, opener);
+                          }
+                        } else {
+                          setRecoveryMode(
+                            key === "rest" ? "rest_overnight" : "reset_encounter",
+                          );
+                        }
                       }}
-                    >
-                      <Button
-                        type="text"
-                        ref={settingsTrigger}
-                        aria-label="Encounter actions"
-                        disabled={disabled}
-                        aria-busy={preparingSettings}
-                        loading={preparingSettings ? { delay: 200 } : false}
-                        icon={<Ellipsis size={18} aria-hidden="true" />}
-                      />
-                    </Dropdown>
+                    />
                   )}
                 />
               )
@@ -550,7 +542,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                   turnReview.data?.next_turn_unavailable_reason ===
                   "no_initiative_participants"
                 }
-                onRemove={(participant) => {
+                onRemove={(participant, opener) => {
                   if (removedParticipantFocus.current) return;
                   setRemovalKey(participant.participant_key);
                   removedParticipantFocus.current = {
@@ -558,7 +550,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                     index: encounter.data!.participants.findIndex(
                       (p) => p.participant_key === participant.participant_key,
                     ),
-                    opener: document.activeElement,
+                    actions: opener.closest(".encounter-roster__actions"),
                   };
                   void mutations
                     .run({

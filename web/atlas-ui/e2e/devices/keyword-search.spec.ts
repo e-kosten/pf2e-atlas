@@ -1,6 +1,12 @@
 import type { Page, Request } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { activate, creatureFilter, noPageOverflow, sentinel } from "./reading";
+import {
+  activate,
+  creatureFilter,
+  noPageOverflow,
+  showSearchFilters,
+  sentinel,
+} from "./reading";
 
 test("a records-only workspace supports Search, trait browse and the list picker", async ({
   page,
@@ -19,6 +25,7 @@ test("a records-only workspace supports Search, trait browse and the list picker
   const next = page.getByRole("button", { name: "Next page", exact: true });
   await activate(next, info);
   await expect(page.getByRole("textbox", { name: "Current page" })).toHaveValue("2");
+  await showSearchFilters(page, info);
   const kind = page.getByRole("button", { name: "Edit Kind filter", exact: true });
   const counts = page.waitForResponse((candidate) =>
     candidate.url().endsWith("/api/filters/counts"),
@@ -72,6 +79,7 @@ test("a records-only workspace supports Search, trait browse and the list picker
     page.getByRole("link", { name: "Search records with this trait" }),
     info,
   );
+  await showSearchFilters(page, info);
   await expect(page.getByRole("button", { name: "Edit Traits filter" })).toBeVisible();
   await expect(page.locator("[data-record-key]").first()).toBeVisible();
 

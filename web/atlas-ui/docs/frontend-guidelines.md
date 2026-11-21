@@ -308,6 +308,8 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `overlays/AtlasModal.tsx` and `overlays/AtlasDrawer.tsx`: ordinary overlays that
   keep shared recovery reachable within the active focus boundary.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
+- `actions/EntityActionsMenu.tsx`: entity-header action menus with shared keyboard
+  entry, dismissal and focus handoff.
 - `InlineIconButton`, `InlineIconLink` and `InlineContext`: text-adjacent context actions and their wrapping. See [Inline context actions](#inline-context-actions).
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
 - `actions/useConfirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
@@ -341,7 +343,8 @@ list-name and local include/exclude tag filters and preserves its position on re
 `ChoicePicker` for the interaction without manufacturing backend filter metadata.
 On narrow screens, show results or the reader and preserve the initiating row's focus and position on return.
 Collection indexes reuse `EntityIndexPage` and `IndexTable`, with common insets,
-wrapping toolbars, navigation actions and date formatting. Keep table overflow
+wrapping toolbars, navigation actions and date formatting. The table surface
+grows with its rows and scrolls locally when it reaches the available height. Keep table overflow
 inside its container and record names readable. Loading, an empty collection,
 filtered emptiness and a failed read are distinct states; preserve existing data
 on failed refresh and provide local Retry.
@@ -448,7 +451,9 @@ The shared owner aligns controls at the top, with consistent gaps and responsive
 wrapping. Feature composition supplies meaningful widths: let search shrink
 before a primary action wraps, and use a full search row on phone where needed.
 Toolbar filter selections occupy their shared applied-filter area instead of
-extending beneath individual triggers. Standalone choice controls may keep values
+extending beneath individual triggers. Compact Search exposes the same criteria
+through Filters with the applied count. Keep the query and search settings
+reachable while the disclosure is closed. Standalone choice controls may keep values
 beneath their trigger without centering neighboring controls against that group. Verify actual input, selector and button
 alignment together at wide, intermediate and phone widths in both themes.
 
@@ -456,7 +461,9 @@ Lists, Encounters, Parties and Characters use the shared directory header. Align
 title and primary action with the directory body. The main Characters link opens the character directory. Within
 that section, keep All characters and Parties in the same order and position across
 both directories, saved sheets and selected parties. Highlight Characters in the
-main navigation on all of these routes. The encounter runner keeps its combat toolbar. Use the toolbar below a directory heading for filters or archive
+main navigation on all of these routes. On a compact selected-party view, put
+the roster identity and Add PC ahead of the roster. Keep New party in the
+directory view. The encounter runner keeps its combat toolbar. Use the toolbar below a directory heading for filters or archive
 views.
 
 When an index has insufficient width for its detailed columns, keep the linked name,
@@ -1126,9 +1133,9 @@ Saved-list attribute and Random orders are temporary, preserve drafts, and disab
 drag reordering. Render supplied unit-price labels verbatim in existing row
 metadata whenever any attribute rule orders by price.
 
-The whole result summary previews on ordinary click or Space. Arrow/j/k move
-focus without changing selection; Enter opens the full reference in the same tab.
-Keep native hrefs and modified clicks. Results contain scan metadata and wrapping
+Search and saved-list result summaries preview on ordinary activation by click,
+tap, Enter or Space. Arrow/j/k move focus without changing selection. Keep native
+hrefs, modified clicks and the reader's Open full page link. Results contain scan metadata and wrapping
 traits; rarity is separate metadata. Never dump matched content into the row.
 Main search results open the selected record reader. Its SearchMatchContext shows
 query matches, similarity section/role contributions and paired seed/result excerpts,

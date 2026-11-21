@@ -504,7 +504,18 @@ test("an empty saved sheet imports into the same character and returns focus", a
     await expect(page).toHaveURL(new RegExp(`/characters/${character_key}/?$`));
     await expect(page.getByText("Imported max HP", { exact: true })).toBeVisible();
     await expect(opener).toHaveCount(0);
+    await expect(page.getByText("Imported build", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Imported build · Level 7", { exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Character actions" })).toBeFocused();
+    await page.setViewportSize({ width: 390, height: 740 });
+    await page.goto("/characters");
+    const row = page.getByRole("row", { name: new RegExp(name) });
+    await expect(row.getByRole("link", { name, exact: true })).toHaveCSS(
+      "text-align",
+      "start",
+    );
   } finally {
     await deleteCharacters(page.request, [character_key]);
   }
@@ -636,7 +647,7 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
     const actions = page.getByRole("button", { name: "Party actions", exact: true });
     await activate(actions, info);
     await activate(
-      page.getByRole("button", { name: "Rename party", exact: true }),
+      page.getByRole("menuitem", { name: "Rename party", exact: true }),
       info,
     );
     const rename = page.getByRole("dialog", { name: "Rename party", exact: true });
@@ -649,7 +660,7 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
     await expect(actions).toBeFocused();
     await activate(actions, info);
     await activate(
-      page.getByRole("button", { name: "Set character levels…", exact: true }),
+      page.getByRole("menuitem", { name: "Set character levels…", exact: true }),
       info,
     );
     const levels = page.getByRole("dialog", {
@@ -688,7 +699,7 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
     await expect(actions).toBeFocused();
     await activate(actions, info);
     await activate(
-      page.getByRole("button", { name: "Set character levels…", exact: true }),
+      page.getByRole("menuitem", { name: "Set character levels…", exact: true }),
       info,
     );
     await target.fill("7");
@@ -699,7 +710,7 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
     await expect(levels).toBeHidden();
     await activate(actions, info);
     await activate(
-      page.getByRole("button", { name: "Set character levels…", exact: true }),
+      page.getByRole("menuitem", { name: "Set character levels…", exact: true }),
       info,
     );
     await target.fill("8");
@@ -725,7 +736,7 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
     expect(shared.members[0].level).toBe(8);
     await activate(actions, info);
     await activate(
-      page.getByRole("button", { name: "Rename party", exact: true }),
+      page.getByRole("menuitem", { name: "Rename party", exact: true }),
       info,
     );
     await partyName.fill(`${name} renamed`);

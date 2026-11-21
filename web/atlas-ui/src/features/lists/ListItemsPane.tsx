@@ -88,6 +88,7 @@ export function ListItemsPane({
           <RecordBrowseSummary
             record={item.record}
             searchCard
+            previewOnEnter
             href={itemHref?.(item.record_key)}
             selected={selected}
             onPreview={() => onSelect(item.record_key)}
@@ -155,7 +156,7 @@ export function ListItemsPane({
               ? "Saved records unavailable"
               : filtered
                 ? "No saved records match these filters"
-                : "No saved records. Add records from search."
+                : "No saved records. Choose Add records to get started."
           }
         />
       ) : filtered ? (

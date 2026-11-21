@@ -45,6 +45,8 @@
 }
 
 .entity-index-page__table {
+  align-self: start;
+  max-block-size: 100%;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);

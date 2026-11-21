@@ -212,6 +212,7 @@ export function PcCharacterDrawer({
           key={doc.character_key}
           character={doc}
           defaultTab="abilities"
+          headingLevel={doc.level}
           refreshCharacter={async () =>
             (await reference.refetch()).data?.character_revision
           }

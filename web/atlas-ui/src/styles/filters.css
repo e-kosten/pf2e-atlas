@@ -420,6 +420,32 @@
   gap: var(--space-control);
 }
 
+.filter-controls__disclosure.ant-btn {
+  display: none;
+}
+
+@media (max-width: 767px), (max-height: 520px) {
+  .filter-toolbar--collapsible > .filter-controls__chrome {
+    width: 100%;
+  }
+
+  .filter-controls__disclosure.ant-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .filter-toolbar--collapsible .filter-controls__criteria[data-expanded="false"] {
+    display: none;
+  }
+
+  .filter-toolbar--collapsible .filter-controls__criteria {
+    max-block-size: 32dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: 2px;
+  }
+}
+
 /* Applied selections share one surface; polarity belongs to the +/- marker. */
 .applied-filter-chip.ant-btn {
   border-color: var(--line);

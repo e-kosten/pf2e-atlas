@@ -63,7 +63,7 @@ export function RecordDetailPane({
   visibleOwnerRecordKey?: string;
   identityInHost?: boolean;
   showOwnerReturn?: boolean;
-  emptyMessage?: string;
+  emptyMessage?: string | null;
   error?: RecordDetailPaneError;
   loading: boolean;
   loadingMessage?: string;
@@ -263,7 +263,7 @@ export function RecordDetailPane({
             <Spin delay={500} description={loadingMessage}>
               <div className="detail-empty" role="status" aria-label={loadingMessage} />
             </Spin>
-          ) : !error ? (
+          ) : !error && emptyMessage ? (
             <div className="detail-empty">
               <Empty description={emptyMessage} />
             </div>

@@ -11,6 +11,7 @@ import {
   noPageOverflow,
   readThenBack,
   sentinel,
+  showSearchFilters,
 } from "./reading";
 
 test("browse controls share one desktop toolbar above independently scrollable panes", async ({
@@ -618,6 +619,7 @@ test("filters, exact late activity, preview dismissal and Results remain usable"
     }),
   ]);
   await page.goto("/search");
+  await showSearchFilters(page, info);
   const kind = page.getByRole("button", { name: "Edit Kind filter", exact: true });
   await activate(kind, info);
   const choice = page.getByRole("button", { name: /^Kind: Creature, neutral;/ });
@@ -1529,7 +1531,7 @@ test("named parties add everyone directly and archive views stay separate", asyn
       page.getByRole("button", { name: "Party actions", exact: true }),
       info,
     );
-    const deletion = page.getByRole("button", { name: "Delete party", exact: true });
+    const deletion = page.getByRole("menuitem", { name: "Delete party", exact: true });
     await expect(deletion).toBeInViewport();
     const deletionBounds = (await deletion.boundingBox())!;
     expect(deletionBounds.x).toBeGreaterThanOrEqual(0);
@@ -2940,6 +2942,7 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
     ],
   };
   await page.goto(`/search?filter=${encodeFilterUrl(initial)}`);
+  await showSearchFilters(page, info);
   await activate(
     page.getByRole("button", { name: "Advanced filters", exact: true }),
     info,
@@ -3085,6 +3088,7 @@ test("reference feedback: link picker retains direction, scope and preview when 
 }, info) => {
   const narrow = page.viewportSize()!.width < 992;
   await page.goto("/search");
+  await showSearchFilters(page, info);
   await activate(page.getByRole("button", { name: "Links", exact: true }), info);
   const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
   const candidate = picker.locator(".reference-result__summary").first();
