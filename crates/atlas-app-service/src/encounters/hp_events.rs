@@ -1046,64 +1046,64 @@ mod hp_lifecycle_tests {
         );
     }
     #[test]
-    fn confused_damage_recovery_clears_eligible_sources_without_a_selection_form() {
-        let (worker, key, participant) = fixture();
-        add(
-            &worker,
-            &key,
-            &participant,
-            ConditionRule::Confused,
-            "confusion-one",
-            None,
-            Default::default(),
-        );
-        add(
-            &worker,
-            &key,
-            &participant,
-            ConditionRule::Confused,
-            "confusion-two",
-            None,
-            Default::default(),
-        );
-        event(
-            &worker,
-            &key,
-            &participant,
-            "attack",
-            HpEventInput::ResolvedDamage { amount: 1 },
-            HpEventContextView {
-                attack_or_spell_damage: Some(true),
-                ..Default::default()
-            },
-        );
-        let pending = worker.pending_condition_recoveries(&key).unwrap();
-        let PendingConditionRecoveryView::ConfusedDamage {
-            consequence_key,
-            condition_ids,
-            ..
-        } = &pending[0];
-        assert_eq!(condition_ids.len(), 2);
-        lifecycle(
-            &worker,
-            &key,
-            &participant,
-            "confused-recovery",
-            ConditionLifecycleActionView::ConfusedDamageRecovery {
-                consequence_key: consequence_key.clone(),
-                check: Some(LifecycleCheckInputView::TableDegree {
-                    degree: CheckDegreeView::Success,
-                }),
-            },
-        );
-        assert!(
-            worker
-                .pending_condition_recoveries(&key)
-                .unwrap()
-                .is_empty()
-        );
-        let detail = worker.encounter(&key).unwrap();
-        assert!(detail.participants[0].conditions.is_empty());
+    fn confused_damage_recovery_consumes_the_opportunity_for_either_table_outcome() {
+        for (degree, remaining) in [(CheckDegreeView::Success, 0), (CheckDegreeView::Failure, 2)] {
+            let (worker, key, participant) = fixture();
+            add(
+                &worker,
+                &key,
+                &participant,
+                ConditionRule::Confused,
+                "confusion-one",
+                None,
+                Default::default(),
+            );
+            add(
+                &worker,
+                &key,
+                &participant,
+                ConditionRule::Confused,
+                "confusion-two",
+                None,
+                Default::default(),
+            );
+            event(
+                &worker,
+                &key,
+                &participant,
+                "attack",
+                HpEventInput::ResolvedDamage { amount: 1 },
+                HpEventContextView {
+                    attack_or_spell_damage: Some(true),
+                    ..Default::default()
+                },
+            );
+            let pending = worker.pending_condition_recoveries(&key).unwrap();
+            let PendingConditionRecoveryView::ConfusedDamage {
+                consequence_key,
+                condition_ids,
+                ..
+            } = &pending[0];
+            assert_eq!(condition_ids.len(), 2);
+            lifecycle(
+                &worker,
+                &key,
+                &participant,
+                "confused-recovery",
+                ConditionLifecycleActionView::ConfusedDamageRecovery {
+                    consequence_key: consequence_key.clone(),
+                    check: Some(LifecycleCheckInputView::TableDegree { degree }),
+                },
+            );
+            assert!(
+                worker
+                    .pending_condition_recoveries(&key)
+                    .unwrap()
+                    .is_empty()
+            );
+            let detail = worker.encounter(&key).unwrap();
+            assert_eq!(detail.participants[0].conditions.len(), remaining);
+        }
     }
     #[test]
     fn frightened_end_turn_respects_held_source_and_independent_floor() {

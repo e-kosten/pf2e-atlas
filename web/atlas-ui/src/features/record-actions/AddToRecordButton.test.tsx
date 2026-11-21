@@ -129,13 +129,17 @@ it("retains a created destination after an add failure and retries only the add"
   expect(
     screen.getByRole("combobox", { name: "Encounter" }).parentElement,
   ).toHaveTextContent("Ambush");
-  fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Retry to confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(api.createEncounter).toHaveBeenCalledOnce();
   expect(api.addEncounterRecordParticipant).toHaveBeenCalledTimes(2);
+  expect(api.addEncounterRecordParticipant.mock.calls[1]).toEqual(
+    api.addEncounterRecordParticipant.mock.calls[0],
+  );
   expect(api.addEncounterRecordParticipant).toHaveBeenLastCalledWith(
     encounter.encounter_key,
     {
+      request_id: expect.any(String),
       record_ref: creature.record_key,
       quantity: 1,
     },

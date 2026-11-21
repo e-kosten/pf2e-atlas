@@ -287,6 +287,7 @@ impl AtlasAppService {
         text: &str,
         mode: atlas_search::RetrievalMode,
     ) -> AppServiceResult<Option<atlas_search::PreparedQueryEmbedding>> {
+        mode.validate_input_before_inference(text)?;
         if !mode.uses_vector() || text.trim().is_empty() {
             return Ok(None);
         }

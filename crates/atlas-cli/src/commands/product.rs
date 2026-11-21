@@ -209,6 +209,7 @@ pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
         | SavedEditConflict
         | EncounterAlreadyExists
         | EncounterParticipantConflict
+        | EncounterAdditionConflict
         | EncounterTurnConflict
         | FilterEditorConflict => 2,
         ArtifactGenerationChanged

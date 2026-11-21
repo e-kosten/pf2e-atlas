@@ -11,17 +11,20 @@ export function TableRollControl({
   selection,
   artifactGeneration,
   formula,
+  resultsAvailable,
   rollNote,
   onResult,
 }: {
   selection: RecordSelection;
   artifactGeneration: string;
   formula: string | null;
+  resultsAvailable: boolean;
   rollNote: string;
   onResult: (result: TableRollView | undefined) => void;
 }) {
   const roll = useDiceRoll<TableRollView>({ retainResultOnError: true });
   const result = roll.result;
+  const hasFormula = Boolean(formula?.trim());
   useEffect(() => {
     if (!roll.animating) onResult(roll.result);
   }, [roll.result, roll.animating, onResult]);
@@ -30,7 +33,7 @@ export function TableRollControl({
       <Space wrap>
         {formula && <span>{formula}</span>}
         <Button
-          disabled={roll.busy}
+          disabled={roll.busy || !resultsAvailable || !hasFormula}
           loading={roll.busy && !roll.animating ? { delay: 300 } : false}
           onClick={() =>
             void roll.run(() =>
@@ -40,6 +43,9 @@ export function TableRollControl({
         >
           {result ? "Reroll" : "Roll"}
         </Button>
+        {!hasFormula && (
+          <Typography.Text type="secondary">Roll formula unavailable</Typography.Text>
+        )}
         <Popover content={rollNote} trigger={["click", "hover", "focus"]}>
           <Button
             type="text"

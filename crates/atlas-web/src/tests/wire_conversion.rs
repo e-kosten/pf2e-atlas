@@ -126,7 +126,7 @@ async fn unknown_source_adjustment_uses_normal_for_detail_preview_and_add() {
         &fixture,
         Method::POST,
         "/api/encounters/ambush/participants/record",
-        Some(json!({"record_ref":ACTOR,"quantity":1})),
+        Some(json!({"request_id":"add-actor","record_ref":ACTOR,"quantity":1})),
     )
     .await;
     let encounter = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
@@ -138,6 +138,44 @@ async fn unknown_source_adjustment_uses_normal_for_detail_preview_and_add() {
         .unwrap();
     assert_eq!(added["participant_variant"], "normal");
     assert_eq!(added["variant_origin"], "default_unadjusted");
+}
+
+#[tokio::test]
+async fn record_addition_requires_an_id_and_rejects_reuse_for_another_intent() {
+    let fixture = Fixture::new();
+    let path = "/api/encounters/ambush/participants/record";
+    for id in [
+        None,
+        Some(Value::Null),
+        Some(json!("")),
+        Some(json!("x".repeat(129))),
+    ] {
+        let mut request = json!({"record_ref":ACTOR, "quantity":1});
+        if let Some(id) = id {
+            request["request_id"] = id;
+        }
+        let (status, body) = fixture.json(Method::POST, path, Some(request)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+    let request = json!({"record_ref":ACTOR, "quantity":3, "request_id":"a-single-batch"});
+    let first = response(&fixture, Method::POST, path, Some(request.clone())).await;
+    let replay = response(&fixture, Method::POST, path, Some(request.clone())).await;
+    assert_eq!(first, replay);
+    let mut different = request;
+    different["participant_variant"] = json!("normal");
+    let (status, body) = fixture.json(Method::POST, path, Some(different)).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["code"], "encounter_addition_conflict");
+    let encounter = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
+    assert_eq!(
+        encounter["participants"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|p| p["record_key"] == ACTOR)
+            .count(),
+        3
+    );
 }
 
 #[tokio::test]
@@ -360,7 +398,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         Method::POST,
         "/api/encounters/ambush/participants/record",
         Some(
-            json!({"record_ref":ACTOR,"quantity":1,"participant_variant":"elite","initiative":20}),
+            json!({"request_id":"add-actor","record_ref":ACTOR,"quantity":1,"participant_variant":"elite","initiative":20}),
         ),
     )
     .await;

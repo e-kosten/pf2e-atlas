@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 48. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 49. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -260,6 +260,14 @@ New Pathbuilder creation and encounter-addition receipts bind the exact accepted
 export text through a digest. A version marker selects the full import intent
 for new receipts and the original intent for legacy receipts. Both recover the
 original outcome without applying the import again.
+
+Schema 49 extends encounter command receipts with `record_addition`. Its
+encounter-owned row acknowledges the batch independently of the participants'
+later state. The canonical encounter key supplies the entire acknowledgement.
+Both archive formats carry a tagged record-addition outcome. An encounter copy
+preserves the opaque request ID under its newly allocated key. A workspace
+restore preserves both identities. Readers predating the new outcome reject
+the unknown tag during decoding. Existing file versions remain sufficient.
 
 ### Inline Markdown and custom turns
 

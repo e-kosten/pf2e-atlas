@@ -805,7 +805,10 @@ export function RecordPresentation({
             onReference={onReference}
           />
         ) : (
-          <FactLine label="Formula" fact={body.value.formula} required />
+          <>
+            <FactLine label="Formula" fact={body.value.formula} required />
+            {body.value.results.state !== "value" && <p>Table results unavailable</p>}
+          </>
         ))}
       {body.kind === "journal" &&
         (body.value.pages.value ? (
@@ -833,9 +836,6 @@ export function RecordPresentation({
             items={[{ key: "content", label: "Source description", children: content }]}
           />
         )}
-      {body.kind === "roll_table" && body.value.results.state !== "value" && (
-        <FactLine label="Results" fact={body.value.results} />
-      )}
       {body.kind === "journal" && (
         <JournalContents
           key={recordReadingIdentity(presentation.identity.record_key, selection)}

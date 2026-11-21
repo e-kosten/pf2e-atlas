@@ -78,7 +78,7 @@ pub(in crate::encounters) fn plan_hp_event(
                 AppServiceError::invalid_request("Healing would overflow current HP")
             })?;
             update.current_hp =
-                Some(effective_maximum.map_or(healed, |max| healed.min(max.max(0))));
+                Some(effective_maximum.map_or(healed, |max| healed.min(max.max(0)).max(current)));
             if amount > 0
                 && update.current_hp.is_some_and(|hp| hp >= 1)
                 && participant.mortality != MortalityState::Dead

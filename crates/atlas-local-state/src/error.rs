@@ -8,6 +8,10 @@ pub enum LocalStateError {
     CharacterConflict,
     #[error("This encounter boundary has already been processed")]
     EncounterBoundaryConflict,
+    #[error("This request ID was already used for a different creature or hazard addition.")]
+    RecordAdditionConflict,
+    #[error("{0}")]
+    InvalidRecordAddition(&'static str),
     #[error("Party not found: {0}")]
     PartyNotFound(String),
     #[error("Party changed. Reopen it to review the current members.")]

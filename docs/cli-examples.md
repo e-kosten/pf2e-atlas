@@ -371,6 +371,16 @@ atlas encounters list
 atlas encounters show garden-sentries --party-level 7 --party-size 4
 ```
 
+Each `encounters add` invocation generates a new request ID. For a script that
+may retry after losing the response, copy `data.encounter.encounter_key` from
+`encounters show garden-sentries --json` and generate a UUID for this intended
+addition. Retry with that key, UUID and the same options, even if the encounter
+is renamed. A new ID adds another batch.
+
+```bash
+atlas encounters add ENCOUNTER_KEY --record PACK:ID --quantity 2 --request-id UUID
+```
+
 Use `encounters edit garden-sentries --note 'Starts behind cover'` to change
 encounter metadata. Copy a participant key from `encounters show` to remove
 that instance with `encounters remove garden-sentries --participant KEY`.

@@ -514,12 +514,23 @@ pub(crate) fn decode_vector(bytes: &[u8]) -> Result<Vec<f32>, IndexError> {
         .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
         .collect())
 }
-fn literal_fts_query(text: &str) -> Result<String, IndexError> {
+pub fn validate_lexical_text(text: &str) -> Result<(), crate::LexicalQueryError> {
     if text.len() > 16_384 {
-        return Err(IndexError::Invalid(
-            "lexical text exceeds 16384 bytes".into(),
-        ));
+        return Err(crate::LexicalQueryError::LexicalTextTooLong);
     }
+    if !text
+        .bytes()
+        .filter(|b| *b == b'"')
+        .count()
+        .is_multiple_of(2)
+    {
+        return Err(crate::LexicalQueryError::UnclosedPhrase);
+    }
+    Ok(())
+}
+
+fn literal_fts_query(text: &str) -> Result<String, crate::LexicalQueryError> {
+    validate_lexical_text(text)?;
     let mut terms = Vec::new();
     let mut buffer = String::new();
     let mut quoted = false;
@@ -536,9 +547,6 @@ fn literal_fts_query(text: &str) -> Result<String, IndexError> {
         } else {
             buffer.push(c);
         }
-    }
-    if quoted {
-        return Err(IndexError::Invalid("unclosed lexical phrase quote".into()));
     }
     if !buffer.trim().is_empty() {
         terms.push(buffer);

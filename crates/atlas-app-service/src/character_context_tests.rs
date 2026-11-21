@@ -375,3 +375,88 @@ fn every_typed_source_field_has_a_selected_section_and_round_trips() {
     let decoded: CharacterContextView = serde_json::from_value(json.clone()).unwrap();
     assert_eq!(serde_json::to_value(decoded).unwrap(), json);
 }
+
+#[test]
+fn party_lookup_prefers_exact_keys_then_owner_scoped_case_sensitive_names() {
+    let (_directory, service) = service();
+    let hero = party(&service, "Heroes", &[]);
+    let namesake = party(&service, &hero.party_key, &[]);
+    let other = party(&service, "Heroes", &[]);
+    assert_eq!(
+        service.party_roster(&hero.party_key).unwrap().party_key,
+        hero.party_key
+    );
+    assert_eq!(
+        service
+            .party_roster(&format!(" {} ", hero.party_key))
+            .unwrap()
+            .party_key,
+        namesake.party_key
+    );
+    let miss = service.party_roster("heroes").unwrap_err().into_app_error();
+    assert_eq!(miss.code, atlas_app_model::AppErrorCode::PartyNotFound);
+    let error = service
+        .party_roster(" Heroes ")
+        .unwrap_err()
+        .into_app_error();
+    let mut keys = [hero.party_key, other.party_key];
+    keys.sort();
+    assert_eq!(error.code, atlas_app_model::AppErrorCode::InvalidRequest);
+    assert_eq!(
+        error.details.unwrap()["candidates"],
+        json!([
+            {"key":keys[0],"name":"Heroes"},{"key":keys[1],"name":"Heroes"}
+        ])
+    );
+}
+
+#[test]
+fn import_comparison_tracks_container_names_by_id_and_item_edits_separately() {
+    let (_directory, service) = pathbuilder_service();
+    let mut previous: serde_json::Value = serde_json::from_str(&pathbuilder_export(7)).unwrap();
+    previous["build"]["equipmentContainers"] = json!({
+        "full":{"containerName":"Backpack"}, "empty":{"containerName":"Spare bag"}
+    });
+    previous["build"]["equipment"] = json!([["Rope", 1, "full", "Invested"]]);
+    let key = import_source(&service, previous.to_string());
+    let changes = |source: &serde_json::Value| {
+        service
+            .preview_pathbuilder_pc(&source.to_string(), Some(&key))
+            .unwrap()
+            .changes
+            .unwrap()
+            .sections
+            .into_iter()
+            .find(|s| s.label == "Inventory")
+            .unwrap_or_default()
+    };
+    assert!(changes(&previous).changed.is_empty());
+    let mut next = previous.clone();
+    next["build"]["equipmentContainers"]["full"]["containerName"] = json!("Field pack");
+    next["build"]["equipmentContainers"]["empty"]["containerName"] = json!("Pouch");
+    next["build"]["equipment"][0][1] = json!(2);
+    let inventory = changes(&next);
+    assert_eq!(
+        inventory.changed,
+        [
+            "Field pack · Rope",
+            "Container · Spare bag → Pouch",
+            "Container · Backpack → Field pack"
+        ]
+    );
+    assert!(inventory.added.is_empty() && inventory.removed.is_empty());
+    next = previous.clone();
+    next["build"]["equipmentContainers"]["duplicate"] = json!({"containerName":"Backpack"});
+    let inventory = changes(&next);
+    assert_eq!(inventory.added.len(), 1);
+    assert!(inventory.changed.is_empty() && inventory.removed.is_empty());
+    next["build"]["equipmentContainers"]
+        .as_object_mut()
+        .unwrap()
+        .remove("empty");
+    next["build"]["equipmentContainers"]["another-id"] = json!({"containerName":"Satchel"});
+    let inventory = changes(&next);
+    assert!(inventory.changed.is_empty());
+    assert!(inventory.added.contains(&"Satchel · Container".into()));
+    assert_eq!(inventory.removed, ["Spare bag · Container"]);
+}

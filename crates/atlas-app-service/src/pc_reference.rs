@@ -498,8 +498,10 @@ pub(crate) fn prepare_pathbuilder_preview(
     let previous_reference = previous.and_then(|character| character.reference);
     preserve_choices(previous_reference.clone(), &mut character.reference);
     resolve(session.retrieval(), &mut character.reference)?;
+    let incoming = crate::pathbuilder_sheet::read_sheet(json)?;
     let sheet = crate::character_sheet::project_sheet(
         json,
+        &incoming,
         Some(&character.reference),
         Some(session.retrieval()),
     )?;
@@ -508,6 +510,7 @@ pub(crate) fn prepare_pathbuilder_preview(
             crate::character_sheet::compare_imports(
                 json,
                 &sheet,
+                &incoming,
                 &character.reference,
                 source.as_ref().map(|source| source.json()),
                 previous_reference.as_ref(),

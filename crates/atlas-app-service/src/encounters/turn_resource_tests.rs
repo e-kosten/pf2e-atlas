@@ -132,6 +132,7 @@ fn turn_preparation_cannot_retarget_a_reassigned_slug() {
         .add_encounter_record_participant(
             &a.encounter_key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -958,6 +959,7 @@ fn source_condition_fixture(items: serde_json::Value) -> (FixtureWorker, String,
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),

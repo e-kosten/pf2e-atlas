@@ -240,25 +240,39 @@ function PhysicalPrice({
   if (!hasReadingFact(fact, { required: true })) return null;
   if (fact.state !== "value" || !fact.value)
     return <FactLine label={label} fact={fact} required />;
-  const supplied = Object.entries(fact.value).filter(
-    ([, value]) => !["missing", "not_applicable"].includes(value.state),
-  );
+  const price = fact.value;
+  const supplied = (
+    [
+      ["pp", "platinum", price.pp],
+      ["gp", "gold", price.gp],
+      ["sp", "silver", price.sp],
+      ["cp", "copper", price.cp],
+    ] as const
+  ).filter(([, , value]) => !["missing", "not_applicable"].includes(value.state));
   const hasNonzero = supplied.some(
-    ([, value]) => value.state === "value" && value.value !== 0,
+    ([, , value]) => value.state === "value" && value.value !== 0,
   );
   // Suppress only redundant known-zero denominations; retain unavailable facts,
   // adjustments and a genuinely zero price. Never convert currencies or infer free.
   const coins = supplied.filter(
-    ([, value]) =>
+    ([, , value]) =>
       !hasNonzero || value.state !== "value" || value.value !== 0 || value.adjustment,
   );
   return (
     <FactRow label={label}>
       {coins.length
-        ? coins.map(([unit, value], index) => (
+        ? coins.map(([unit, name, value], index) => (
             <span key={unit}>
-              {index ? ", " : ""}
-              <NumberFact fact={value} /> {unit}
+              {index ? " · " : ""}
+              {value.state === "null" ? (
+                `${name} not specified`
+              ) : value.state === "invalid" ? (
+                `${name} value unreadable`
+              ) : (
+                <>
+                  <NumberFact fact={value} /> {unit}
+                </>
+              )}
             </span>
           ))
         : "Not listed"}

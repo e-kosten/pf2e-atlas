@@ -9,6 +9,7 @@ pub(super) enum Family {
     Turn,
     Event,
     PcAddition,
+    RecordAddition,
 }
 
 impl Family {
@@ -17,26 +18,35 @@ impl Family {
             Self::Turn => "turn",
             Self::Event => "event",
             Self::PcAddition => "pc_addition",
+            Self::RecordAddition => "record_addition",
         }
     }
 
     fn conflict(self) -> LocalStateError {
-        LocalStateError::InvalidRollRequest(match self {
+        let message = match self {
+            Self::RecordAddition => return LocalStateError::RecordAdditionConflict,
             Self::Turn => "request ID already used for another turn intent",
             Self::Event => "event request ID was reused with different intent",
             Self::PcAddition => "PC addition request ID was reused with different intent",
-        })
+        };
+        LocalStateError::InvalidRollRequest(message)
     }
 }
 
 pub(super) enum Outcome<'a> {
+    RecordAddition,
     Turn(&'a str),
     Event(&'a EncounterEventReceipt),
     PcAddition(&'a super::PcAdditionReceipt),
 }
 
-fn validate_request(id: &str, intent: &serde_json::Value) -> LocalStateResult<()> {
+fn validate_request(family: Family, id: &str, intent: &serde_json::Value) -> LocalStateResult<()> {
     if id.is_empty() || id.len() > 128 || serde_json::to_vec(intent)?.len() > 64 * 1024 {
+        if matches!(family, Family::RecordAddition) {
+            return Err(LocalStateError::InvalidRecordAddition(
+                "Use a request ID of 1 to 128 bytes and addition details within 64 KiB.",
+            ));
+        }
         return Err(LocalStateError::InvalidRollRequest(
             "request exceeds supported bounds",
         ));
@@ -72,7 +82,7 @@ pub(super) fn recover(
     intents: &[Option<&serde_json::Value>],
 ) -> LocalStateResult<Option<StoredReceipt>> {
     for intent in intents.iter().flatten() {
-        validate_request(request_id, intent)?;
+        validate_request(family, request_id, intent)?;
     }
     let row: Option<(String, Option<String>)> = connection
         .query_row(
@@ -103,6 +113,7 @@ pub(super) fn insert(
     outcome: Outcome<'_>,
 ) -> LocalStateResult<()> {
     let (family, boundary, receipt) = match outcome {
+        Outcome::RecordAddition => (Family::RecordAddition, None, None),
         Outcome::Turn(boundary) => (Family::Turn, Some(boundary), None),
         Outcome::Event(event) => (Family::Event, None, Some(receipt_codec::encode(event)?)),
         Outcome::PcAddition(receipt) => (
@@ -111,7 +122,7 @@ pub(super) fn insert(
             Some(receipt_codec::encode(receipt)?),
         ),
     };
-    connection.execute(
+    let inserted = connection.execute(
         "INSERT INTO encounter_command_receipts
              (encounter_id,family,request_id,intent_json,boundary_key,receipt_json)
          SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1 AND owner_id=?7",
@@ -125,5 +136,49 @@ pub(super) fn insert(
             owner_id,
         ],
     )?;
+    if inserted == 0 {
+        return Err(LocalStateError::EncounterNotFound(encounter_key.into()));
+    }
     Ok(())
+}
+
+impl super::EncountersRead<'_> {
+    pub fn record_addition_committed(
+        &self,
+        encounter_key: &str,
+        request_id: &str,
+        intent: &serde_json::Value,
+    ) -> LocalStateResult<bool> {
+        self.get(encounter_key)?
+            .filter(|parent| parent.encounter_key == encounter_key)
+            .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_key.into()))?;
+        Ok(recover(
+            self.connection,
+            self.owner_id,
+            encounter_key,
+            Family::RecordAddition,
+            request_id,
+            &[Some(intent)],
+        )?
+        .is_some())
+    }
+}
+
+impl super::EncountersWrite<'_> {
+    pub fn save_record_addition_receipt(
+        &self,
+        encounter_key: &str,
+        request_id: &str,
+        intent: &serde_json::Value,
+    ) -> LocalStateResult<()> {
+        validate_request(Family::RecordAddition, request_id, intent)?;
+        insert(
+            self.connection,
+            self.owner_id,
+            encounter_key,
+            request_id,
+            intent,
+            Outcome::RecordAddition,
+        )
+    }
 }

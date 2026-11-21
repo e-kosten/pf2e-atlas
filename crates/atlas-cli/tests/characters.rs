@@ -251,7 +251,28 @@ fn agent_can_repair_an_ability_and_refresh_without_losing_its_correction() {
     ]);
     assert_eq!(reviewed["sections"]["abilities"]["shown"], 0);
     let original = fs::read_to_string(&path).unwrap();
-    fs::write(&path, original.replace("\"level\":7", "\"level\":8")).unwrap();
+    fs::write(
+        &path,
+        original
+            .replace("\"level\":7", "\"level\":8")
+            .replace("Backpack", "Travel bag"),
+    )
+    .unwrap();
+    let human = f.run(&[
+        "characters",
+        "preview",
+        path.to_str().unwrap(),
+        "--character",
+        &key,
+    ]);
+    assert!(human.status.success());
+    let human = String::from_utf8(human.stdout).unwrap();
+    assert_eq!(
+        human
+            .matches("Changed: Container · Backpack → Travel bag")
+            .count(),
+        1
+    );
     let refresh = f.data(&[
         "characters",
         "preview",

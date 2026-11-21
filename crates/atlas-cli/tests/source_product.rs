@@ -860,6 +860,42 @@ fn keyword_only_cli_defaults_to_fts_and_rejects_explicit_semantic_requests() {
 }
 
 #[test]
+fn lexical_input_errors_allow_correction_and_preserve_collection_errors() {
+    let f = Fixture::new();
+    let boundary = "é".repeat(8192);
+    let too_long = format!("{boundary}a");
+    for mode in ["fts", "hybrid"] {
+        for (query, reason) in [
+            ("\"Treat", "unclosed_phrase"),
+            (too_long.as_str(), "lexical_text_too_long"),
+        ] {
+            let output = f.command(&["search", query, "--retrieval", mode, "--json"], false);
+            assert_eq!(output.status.code(), Some(2));
+            let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(response["error"]["code"], "invalid_request");
+            assert_eq!(response["error"]["details"]["reason"], reason);
+        }
+    }
+    assert_eq!(
+        f.data(&["search", &boundary, "--retrieval", "fts", "--json"])["page"]["total"],
+        0
+    );
+    assert_eq!(
+        f.data(&["search", "\"Treat Wounds\"", "--retrieval", "fts", "--json"])["page"]["total"],
+        1
+    );
+
+    // A real incompatible workspace still needs a compatible release.
+    let db = rusqlite::Connection::open(&f.index).unwrap();
+    db.pragma_update(None, "user_version", 9999).unwrap();
+    drop(db);
+    let output = f.command(&["search", "Treat", "--retrieval", "fts", "--json"], false);
+    assert_eq!(output.status.code(), Some(3));
+    let failure: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(failure["error"]["code"], "artifact_incompatible");
+}
+
+#[test]
 fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
     let f = Fixture::new();
     let o = f.command(
@@ -2228,6 +2264,43 @@ fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
             .as_array()
             .unwrap()
             .is_empty()
+    );
+}
+
+#[test]
+fn encounter_add_reuses_a_script_id_but_generates_a_fresh_id_for_each_ordinary_call() {
+    let f = Fixture::new();
+    install_encounter_guard(&f);
+    let created = f.data(&["encounters", "create", "Garden", "--json"]);
+    let key = created["encounter"]["encounter_key"].as_str().unwrap();
+    for _ in 0..2 {
+        f.data(&[
+            "encounters",
+            "add",
+            key,
+            "--record",
+            "Local Guard",
+            "--quantity",
+            "3",
+            "--request-id",
+            "script-batch",
+            "--json",
+        ]);
+        f.data(&[
+            "encounters",
+            "add",
+            "garden",
+            "--record",
+            "Local Guard",
+            "--json",
+        ]);
+    }
+    assert_eq!(
+        f.data(&["encounters", "show", key, "--json"])["participants"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
     );
 }
 

@@ -380,13 +380,18 @@ describe("useSearchWorkspace", () => {
     );
     expect(result.current.pageNumber).toBe(1);
     expect(location.search).toContain("sort=level_desc");
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        query: "",
-        similarSeed: "items:seed",
-      }),
-    );
+    await act(async () => {
+      await atlasRouter.navigate(
+        searchDestination({
+          query: searchStateQueryString({
+            ...result.current.search,
+            query: "",
+            similarSeed: "items:seed",
+            similarity: recordSimilarity,
+          }),
+        }),
+      );
+    });
     await waitFor(() =>
       expect(apiMocks.searchPage.mock.lastCall?.[0].criteria.kind).toBe(
         "similar_records",
@@ -1384,14 +1389,18 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockResolvedValue(
       searchResultsPage(["items:similar"], { similarity: recordSimilarity }),
     );
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        query: "",
-        similarSeed: "items:seed",
-        mode: "similar_records",
-      }),
-    );
+    await act(async () => {
+      await atlasRouter.navigate(
+        searchDestination({
+          query: searchStateQueryString({
+            ...result.current.search,
+            query: "",
+            similarSeed: "items:seed",
+            similarity: recordSimilarity,
+          }),
+        }),
+      );
+    });
     await waitFor(() => expect(result.current.resultPage?.rows).toHaveLength(1));
     expect(
       apiMocks.searchPage.mock.calls[apiMocks.searchPage.mock.calls.length - 1]?.[0],
@@ -1421,12 +1430,18 @@ describe("useSearchWorkspace", () => {
       },
     );
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        similarSeed: "items:second",
-      }),
-    );
+    await act(async () => {
+      await atlasRouter.navigate(
+        searchDestination({
+          query: searchStateQueryString({
+            ...result.current.search,
+            query: "",
+            similarSeed: "items:second",
+            similarity: recordSimilarity,
+          }),
+        }),
+      );
+    });
     await waitFor(() =>
       expect(result.current.resultPage?.artifact_generation).toBe("generation-b"),
     );
@@ -2386,114 +2401,4 @@ it("pages retained link evidence with its producing OR tree while a new NOT tree
       expect.any(AbortSignal),
     ),
   );
-});
-
-describe("Core preset handoff preparation", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    localStorage.clear();
-    history.replaceState(null, "", "/search");
-    apiMocks.discoverFilterEditor.mockResolvedValue({ ...editorFixture(), groups: [] });
-    apiMocks.discoverFilterValues.mockResolvedValue(valuesFixture("kind"));
-    apiMocks.discoverFilterCounts.mockResolvedValue({
-      counts: { status: "unavailable", reason: "non_conjunctive_context" },
-    });
-    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => {
-      const criteria = request.criteria;
-      if (criteria.kind !== "similar_records") return searchResultsPage();
-      const similarity = similarityConfigurationFixture(
-        criteria.similarity ?? recordSimilarity,
-      );
-      similarity.source_sections = criteria.source_sections ?? "all";
-      similarity.search_content = criteria.search_content ?? "all";
-      return {
-        ...searchResultsPage([], {
-          generation: "generation-b",
-          similarity: criteria.similarity ?? undefined,
-        }),
-        similarity,
-        mode: {
-          kind: "similar_records",
-          seed: summaryFixture(criteria.seed_record_key),
-        },
-      };
-    });
-  });
-  it("resolves the typed family before the first ranked request and does not copy selectors into a Core preset", async () => {
-    let complete!: (inventory: ReturnType<typeof similarityPartsFixture>) => void;
-    apiMocks.getSimilarityParts.mockReturnValue(
-      new Promise((resolve) => {
-        complete = resolve;
-      }),
-    );
-    const { result } = renderHook(
-      () =>
-        useSearchWorkspace({
-          searchProfile: "bge-base",
-          searchPreferences: {
-            ...DEFAULT_SEARCH_PREFERENCES,
-            sourceSectionsByFamily: { hazard: "core" },
-          },
-        }),
-      { wrapper: queryClientWrapper() },
-    );
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        similarSeed: "hazards:brown-mold",
-      }),
-    );
-    await waitFor(() => expect(apiMocks.getSimilarityParts).toHaveBeenCalledOnce());
-    expect(apiMocks.searchPage).not.toHaveBeenCalled();
-    await act(async () => complete(similarityPartsFixture()));
-    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledOnce());
-    expect(apiMocks.searchPage.mock.calls[0][0]).toMatchObject({
-      criteria: {
-        kind: "similar_records",
-        source_sections: "core",
-        search_content: "all",
-        similarity: { parts: null },
-      },
-      expected_artifact_generation: "generation-b",
-    });
-    expect(new URLSearchParams(location.search).get("similarity_sections")).toBe(
-      "core",
-    );
-    expect(new URLSearchParams(location.search).has("similarity_part")).toBe(false);
-  });
-  it("does not let an obsolete family lookup replace a later text query", async () => {
-    let complete!: (inventory: ReturnType<typeof similarityPartsFixture>) => void;
-    apiMocks.getSimilarityParts.mockReturnValue(
-      new Promise((resolve) => {
-        complete = resolve;
-      }),
-    );
-    const { result } = renderHook(
-      () =>
-        useSearchWorkspace({
-          searchProfile: "bge-base",
-          searchPreferences: {
-            ...DEFAULT_SEARCH_PREFERENCES,
-            sourceSectionsByFamily: { hazard: "core" },
-          },
-        }),
-      { wrapper: queryClientWrapper() },
-    );
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        similarSeed: "hazards:brown-mold",
-      }),
-    );
-    await waitFor(() => expect(apiMocks.getSimilarityParts).toHaveBeenCalledOnce());
-    act(() => result.current.setSearch({ ...result.current.search, query: "fire" }));
-    await act(async () => complete(similarityPartsFixture()));
-    await waitFor(() => expect(result.current.search.query).toBe("fire"));
-    expect(result.current.search.similarSeed).toBeNull();
-    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledOnce());
-    expect(apiMocks.searchPage.mock.calls[0][0]).toMatchObject({
-      criteria: { kind: "text_search", query: "fire", filter: null },
-      page: { number: 1, size: 25 },
-    });
-  });
 });

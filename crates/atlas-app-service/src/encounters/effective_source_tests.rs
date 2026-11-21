@@ -56,6 +56,7 @@ fn fixture_for_actor(
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
                 quantity: 2,

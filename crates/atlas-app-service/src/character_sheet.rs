@@ -91,6 +91,7 @@ impl AtlasAppService {
                     .map(|source| {
                         project_sheet(
                             source.json(),
+                            &read_sheet(source.json())?,
                             character.reference.as_ref(),
                             reference.ok().flatten().map(|session| session.retrieval()),
                         )
@@ -108,11 +109,10 @@ impl AtlasAppService {
 
 pub(super) fn project_sheet(
     source: &str,
+    sheet: &PathbuilderSheet,
     reference: Option<&PcReference>,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<CharacterSheetView> {
-    let parsed = read_sheet(source)?;
-    let sheet = &parsed;
     let abilities: AbilityKeys = reference
         .into_iter()
         .flat_map(|reference| &reference.abilities)

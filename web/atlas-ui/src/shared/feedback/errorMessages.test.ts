@@ -31,6 +31,20 @@ it("uses a safe fallback for malformed or unknown error codes", () => {
   expect(errorExplanation({ code: { detail: "private internals" } })).toBeUndefined();
 });
 
+it("explains lexical input errors from their reason without exposing diagnostics", () => {
+  for (const [reason, explanation] of [
+    ["unclosed_phrase", "Add a closing quotation mark to finish the phrase."],
+    ["lexical_text_too_long", "Shorten the search text to 16,384 bytes or fewer."],
+  ]) {
+    const error = new AtlasApiError(400, "diagnostic", {
+      code: "invalid_request",
+      message: "diagnostic",
+      details: { reason },
+    });
+    expect(errorExplanation(error)).toBe(explanation);
+  }
+});
+
 it("does not describe an unconfirmed write as unsaved", () => {
   const cause = new TypeError("fetch interrupted");
   const error = new AtlasConnectionError(true, cause);

@@ -1206,7 +1206,7 @@ async fn encounter_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             &format!("{path}/participants/record"),
-            Some(json!({"record_ref":ACTOR,"quantity":2,"initiative":18})),
+            Some(json!({"request_id":"add-actor","record_ref":ACTOR,"quantity":2,"initiative":18})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1783,7 +1783,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
         .json(
             Method::POST,
             "/api/encounters/ambush/participants/record",
-            Some(json!({"record_ref":ACTOR,"quantity":1})),
+            Some(json!({"request_id":"add-actor","record_ref":ACTOR,"quantity":1})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");

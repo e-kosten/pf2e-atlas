@@ -48,6 +48,16 @@ inputs are interpreted before one guarded participant replacement, including
 same-value explicit maximum intent. No sequential partial saves are used. No new
 storage schema or expression/rules engine is introduced.
 
+For a creature or hazard addition, the HTTP client supplies `request_id` on
+`POST /api/encounters/{encounter_ref}/participants/record`. Use one UUID for
+each deliberate addition and retain the canonical encounter key and complete
+submitted payload to confirm an uncertain result. Reusing an ID for changed
+details returns HTTP 409. A preview needs only prospective addition data.
+App-service checks the owned receipt before opening the reference catalog and
+again inside the write that inserts the participants, initializes derived HP,
+and records the acknowledgement. This permits a replay after a catalog change
+or a later edit or removal of the participants.
+
 App-service owns turn eligibility and selection policy. Local-state supplies
 the locked encounter snapshot to a narrow pure callback and applies the chosen
 turn in the same transaction. Callbacks do no source retrieval or artifact I/O.

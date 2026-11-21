@@ -52,6 +52,16 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
             sql: include_str!("../../atlas-local-state/src/release/pathbuilder_sources.sql"),
             backfill: None,
         },
+        Migration {
+            version: 49,
+            name: "encounter-record-addition-receipts",
+            sql: include_str!("../../atlas-local-state/src/release/record_addition_receipts.sql"),
+            backfill: Some(DataBackfill {
+                reconstruct_tables: true,
+                id: "encounter-record-addition-receipts/v1",
+                apply: |_| Ok(()),
+            }),
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

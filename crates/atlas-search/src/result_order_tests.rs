@@ -539,7 +539,7 @@ fn sorting_adaptive_semantic_windows_preserves_expansion_for_dense_contents() {
             .unwrap()
             .unwrap()
             .results;
-        assert_eq!(result.coverage.semantic_unit_window, Some(4096));
+        assert_eq!(result.coverage.semantic_unit_window, Some(2048));
         assert_eq!(result.page.total, 2);
         let mut members = result
             .records

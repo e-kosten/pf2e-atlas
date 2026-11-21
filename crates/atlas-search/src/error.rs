@@ -10,6 +10,7 @@ pub enum SearchErrorKind {
     ArtifactContractViolation,
     InvalidFilter,
     InvalidOptions,
+    InvalidLexicalQuery(atlas_index::LexicalQueryError),
     VectorReadinessRequired,
     EmbeddingUnavailable,
     QueryFailed,
@@ -109,6 +110,10 @@ impl From<IndexError> for SearchError {
             IndexError::Storage(error) if error.is_access_failure() => {
                 Self::new(SearchErrorKind::WorkspaceAccessFailed, error.to_string())
             }
+            IndexError::LexicalQuery(reason) => Self::new(
+                SearchErrorKind::InvalidLexicalQuery(reason),
+                reason.to_string(),
+            ),
             IndexError::Limit(message) => Self::invalid_search_options(message),
             IndexError::Query(e) => e.into(),
             IndexError::Unavailable(s) => Self::index_unavailable(s),

@@ -468,11 +468,7 @@ fn resolve_character(state: &StateRead, reference: &str) -> AppServiceResult<Str
 }
 
 fn resolve_party(state: &StateRead, reference: &str) -> AppServiceResult<String> {
-    let rows = state.local_state()?.parties().list()?;
-    if let Some(row) = rows.iter().find(|r| r.party_key == reference) {
-        return Ok(row.party_key.clone());
-    }
-    let candidates: Vec<_> = rows.iter().filter(|r| r.name == reference.trim()).collect();
+    let candidates = state.local_state()?.parties().candidates(reference)?;
     match candidates.as_slice() {
         [row] => Ok(row.party_key.clone()),
         [] => Err(atlas_local_state::LocalStateError::PartyNotFound(reference.into()).into()),

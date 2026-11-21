@@ -37,6 +37,11 @@ fn party_members_cannot_be_read_or_replaced_through_another_owner() {
     let own = second.create("Party", &[own_member]).unwrap();
 
     assert_eq!(second.list().unwrap(), vec![own.clone()]);
+    assert!(second.candidates(&other.party_key).unwrap().is_empty());
+    assert_eq!(
+        second.candidates(" Party ").unwrap()[0].party_key,
+        own.party_key
+    );
     assert!(matches!(
         second.get(&other.party_key),
         Err(LocalStateError::PartyNotFound(_))
@@ -183,4 +188,48 @@ fn memberships_use_live_character_levels_and_preserve_distinct_same_names() {
             .unwrap(),
         changed
     );
+}
+
+#[test]
+fn party_identity_queries_do_not_fetch_unrelated_rosters() {
+    use rusqlite::trace::{TraceEvent, TraceEventCodes};
+    thread_local! { static STATEMENTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+    let mut connection = connection();
+    let tx = connection.transaction().unwrap();
+    let party = PartiesWrite::from_connection(&tx, 1)
+        .create("Heroes", &[member(&tx, 1, "Hero", None)])
+        .unwrap();
+    tx.commit().unwrap();
+    for extra in [0, 32] {
+        let tx = connection.transaction().unwrap();
+        for n in 0..extra {
+            PartiesWrite::from_connection(&tx, 1)
+                .create(&format!("Unrelated {n}"), &[member(&tx, 1, "Other", None)])
+                .unwrap();
+        }
+        tx.commit().unwrap();
+        STATEMENTS.set(0);
+        connection
+            .trace_v2(
+                TraceEventCodes::SQLITE_TRACE_STMT,
+                Some(|event: TraceEvent<'_>| {
+                    if let TraceEvent::Stmt(_, _) = event {
+                        STATEMENTS.set(STATEMENTS.get() + 1);
+                    }
+                }),
+            )
+            .unwrap();
+        let reader = PartiesRead::from_connection(&connection, 1);
+        let matches = reader.candidates(&party.party_key).unwrap();
+        assert_eq!(matches.len(), 1);
+        assert_eq!(reader.get(&matches[0].party_key).unwrap(), party);
+        connection
+            .trace_v2(TraceEventCodes::empty(), None::<fn(TraceEvent<'_>)>)
+            .unwrap();
+        assert_eq!(
+            STATEMENTS.get(),
+            3,
+            "one identity read, one party read and one roster read"
+        );
+    }
 }

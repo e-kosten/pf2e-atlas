@@ -131,7 +131,11 @@ export type EncounterMutationCommand =
       participantKey: string;
       request: UpdateEncounterParticipantEdit;
     }
-  | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
+  | {
+      kind: "add-record";
+      encounterKey: string;
+      request: AddEncounterRecordParticipantRequest;
+    }
   | {
       kind: "add-party";
       request: import("../../generated/atlas").AddEncounterPartyRequest;
@@ -345,7 +349,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
             command.request,
           );
         case "add-record":
-          return addEncounterRecordParticipant(currentRef, command.request);
+          return addEncounterRecordParticipant(command.encounterKey, command.request);
         case "add-party":
           return addEncounterParty(currentRef, command.request);
         case "add-initiative-entry":

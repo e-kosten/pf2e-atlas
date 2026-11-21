@@ -40,6 +40,35 @@ pub(super) fn get(
     Ok(Some(party))
 }
 
+pub(super) fn candidates(
+    connection: &Connection,
+    owner_id: i64,
+    reference: &str,
+) -> LocalStateResult<Vec<crate::CharacterParty>> {
+    let identity = |row: &rusqlite::Row<'_>| {
+        Ok(crate::CharacterParty {
+            party_key: row.get(0)?,
+            name: row.get(1)?,
+        })
+    };
+    if let Some(party) = connection
+        .query_row(
+            "SELECT party_key, name FROM parties WHERE owner_id=?1 AND party_key=?2",
+            params![owner_id, reference],
+            identity,
+        )
+        .optional()?
+    {
+        return Ok(vec![party]);
+    }
+    let mut statement = connection.prepare(
+        "SELECT party_key, name FROM parties WHERE owner_id=?1 AND name=?2 ORDER BY party_key",
+    )?;
+    Ok(statement
+        .query_map(params![owner_id, reference.trim()], identity)?
+        .collect::<Result<_, _>>()?)
+}
+
 pub(super) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<Vec<Party>> {
     let mut statement = connection.prepare(
         "SELECT party_key FROM parties WHERE owner_id=?1 ORDER BY name COLLATE NOCASE, party_key",

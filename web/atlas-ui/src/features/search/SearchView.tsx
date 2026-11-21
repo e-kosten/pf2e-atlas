@@ -84,6 +84,7 @@ export function SearchView({
         <FilterControls
           key={reset.token ?? "search"}
           filterState={workspace}
+          searchInputError={workspace.searchInputError}
           layout="toolbar"
           similarSearch={
             workspace.search.similarSeed

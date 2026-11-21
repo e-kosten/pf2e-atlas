@@ -30,6 +30,7 @@ fn casting_fixture(items: serde_json::Value) -> (crate::test_support::FixtureWor
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
@@ -210,6 +211,7 @@ fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participa
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
@@ -364,6 +366,7 @@ fn missing_innate_counts_use_rank_independent_markers_without_inventing_limits()
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
@@ -474,6 +477,7 @@ fn resource_editor_saves_one_complete_entry_atomically() {
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                request_id: crate::test_support::next_request_id(),
                 creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
