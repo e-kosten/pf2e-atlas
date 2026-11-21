@@ -260,9 +260,9 @@ pub(super) fn categorized(
     let mut skills = group("Skills", skills);
     skills.kind = Some(SheetGroupKind::Skills);
     Ok(vec![
-        (Identity, identity(sheet, retrieval)?),
         (Statistics, group("Defenses & movement", vitals)),
         (Statistics, group("Perception & saves", saves)),
+        (Identity, identity(sheet, retrieval)?),
         (Statistics, group("Ability scores", scores)),
         (Identity, summary("Background & details", background)),
         (Statistics, skills),
