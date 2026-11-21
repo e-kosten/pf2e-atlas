@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use atlas_desktop_protocol::workspace_selection::SelectionSnapshot;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use minisign_verify::{PublicKey, Signature};
 use semver::Version;
@@ -371,25 +372,6 @@ pub(crate) struct Snapshot {
     error: Option<String>,
 }
 
-impl Updates {
-    pub(crate) fn snapshot(&self, app: &AppHandle) -> Option<Snapshot> {
-        let config = workspace_switch::load_current(app).ok()?;
-        if config
-            .returning
-            .as_ref()
-            .is_some_and(|choice| choice.updates == Waiting::Hold)
-        {
-            return None;
-        }
-        let state = lock(&self.state);
-        Some(Snapshot {
-            version: state.offer.as_ref()?.update.version.clone(),
-            phase: state.phase,
-            error: state.error.clone(),
-        })
-    }
-}
-
 #[derive(Serialize)]
 pub(crate) struct ChannelSnapshot {
     installed: Build,
@@ -403,17 +385,52 @@ pub(crate) struct ChannelSnapshot {
     error: Option<String>,
 }
 
-pub(crate) fn channel_snapshot(app: &AppHandle) -> Option<ChannelSnapshot> {
-    let installed = installed_build()?;
-    let selection = process::workspace_selection_snapshot().ok()?;
+#[derive(Default)]
+pub(crate) struct BroadcastUpdates {
+    pub update: Option<Snapshot>,
+    pub channel: Option<ChannelSnapshot>,
+}
+
+pub(crate) fn broadcast_updates(
+    app: &AppHandle,
+    read_selection: impl FnOnce() -> Result<SelectionSnapshot, String>,
+) -> BroadcastUpdates {
     let desktop = app.state::<Desktop>();
-    let pinned = desktop.workspace_route.index().ok().flatten()?;
-    let active = workspace_switch::running_role(&pinned, &selection).ok()?;
-    let changed = active != selection.config.active;
-    let config = selection.config;
+    let Some(pinned) = desktop.workspace_route.index().ok().flatten() else {
+        return BroadcastUpdates::default();
+    };
+    let Ok(selection) = read_selection() else {
+        return BroadcastUpdates::default();
+    };
     let state = lock(&desktop.updates.state);
-    Some(ChannelSnapshot {
-        installed: installed.clone(),
+    let offer = offer_version(&state.offer).map(|version| Snapshot {
+        version: version.into(),
+        phase: state.phase,
+        error: state.error.clone(),
+    });
+    selection_views(&state, pinned, selection, installed_build(), offer)
+}
+
+fn selection_views(
+    state: &State,
+    pinned: std::path::PathBuf,
+    selection: SelectionSnapshot,
+    installed: Option<Build>,
+    offer: Option<Snapshot>,
+) -> BroadcastUpdates {
+    let Ok(active) = workspace_switch::running_role(&pinned, &selection) else {
+        return BroadcastUpdates::default();
+    };
+    let config = selection.config;
+    let changed = active != config.active;
+    let update = offer.filter(|_| {
+        !changed
+            && !config
+                .returning
+                .as_ref()
+                .is_some_and(|choice| choice.updates == Waiting::Hold)
+    });
+    let channel = installed.map(|installed| ChannelSnapshot {
         active,
         workspace_path: Some(pinned),
         other_exists: selection
@@ -426,13 +443,15 @@ pub(crate) fn channel_snapshot(app: &AppHandle) -> Option<ChannelSnapshot> {
             .pending
             .filter(|pending| pending.previous_resumed && pending.before == installed)
             .map(|pending| pending.target.version),
+        installed,
         busy: changed || state.phase != Phase::Available,
         error: if changed {
             Some(workspace_switch::CHANGED_WORKSPACE.into())
         } else {
             state.error.clone()
         },
-    })
+    });
+    BroadcastUpdates { update, channel }
 }
 
 #[derive(Clone)]
@@ -1430,6 +1449,64 @@ fn recover(app: &AppHandle, old_base: Url) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selection_controls_update_and_channel_views_independently() {
+        use atlas_desktop_protocol::workspace_selection::{
+            Config, ManagedWorkspaceInfo, ReturnChoice,
+        };
+
+        let views = |active, waiting: Option<Waiting>, installed: bool| {
+            let pinned = std::path::PathBuf::from("/Atlas/original.sqlite");
+            let selection = SelectionSnapshot {
+                config: Config {
+                    active,
+                    returning: waiting.map(|updates| ReturnChoice {
+                        workspace: Role::Original,
+                        updates,
+                    }),
+                    ..Config::default()
+                },
+                workspaces: vec![ManagedWorkspaceInfo {
+                    role: Role::Original,
+                    path: pinned.clone(),
+                    exists: true,
+                }],
+            };
+            let build = installed.then(|| Build {
+                tag: "release/v1.0.0".into(),
+                version: "1.0.0".into(),
+                commit: "a".repeat(40),
+            });
+            let state = State::default();
+            let offer = Some(Snapshot {
+                version: "1.1.0".into(),
+                phase: state.phase,
+                error: None,
+            });
+            selection_views(&state, pinned, selection, build, offer)
+        };
+        let ordinary = views(Role::Original, None, true);
+        assert_eq!(ordinary.update.unwrap().version, "1.1.0");
+        assert!(!ordinary.channel.unwrap().busy);
+        let changed = views(Role::Separate, None, true);
+        assert!(changed.update.is_none());
+        let channel = changed.channel.unwrap();
+        assert!(channel.busy);
+        assert_eq!(
+            channel.error.as_deref(),
+            Some(workspace_switch::CHANGED_WORKSPACE)
+        );
+        let held = views(Role::Original, Some(Waiting::Hold), true);
+        assert!(held.update.is_none());
+        assert_eq!(
+            held.channel.unwrap().returning.unwrap().updates,
+            Waiting::Hold
+        );
+        let unmarked = views(Role::Original, Some(Waiting::Continue), false);
+        assert!(unmarked.update.is_some());
+        assert!(unmarked.channel.is_none());
+    }
 
     fn reviewed_switch(destination: Option<u32>, source: Option<u32>) -> Switch {
         let admission = |role: Role, schema: Option<u32>| Admission {

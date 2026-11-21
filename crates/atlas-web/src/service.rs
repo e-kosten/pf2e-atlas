@@ -10,7 +10,7 @@ const MAX_BLOCKING_SERVICE_CALLS: usize = 64;
 
 #[derive(Clone)]
 pub(crate) struct AtlasWebState {
-    pub(crate) service: Arc<AtlasAppService>,
+    service: Arc<AtlasAppService>,
     blocking_calls: Arc<Semaphore>,
     blocking_call_capacity: usize,
 }
@@ -42,22 +42,24 @@ impl Drop for AbandonReadOnDrop {
 
 pub(crate) async fn call_read_service<T: Send + 'static>(
     state: AtlasWebState,
-    call: impl FnOnce(ReadExecutionContext) -> Result<T, AppServiceError> + Send + 'static,
+    call: impl FnOnce(&AtlasAppService, ReadExecutionContext) -> Result<T, AppServiceError>
+    + Send
+    + 'static,
 ) -> Result<T, WebError> {
     let execution = ReadExecutionContext::tracked();
     // This guard belongs to the awaiting handler, independently of the blocking
     // work which must retain its permit until it actually finishes.
     let _guard = AbandonReadOnDrop(execution.clone());
-    call_service(state, move || {
+    call_service(state, move |service| {
         execution.check()?;
-        call(execution)
+        call(service, execution)
     })
     .await
 }
 
 pub(crate) async fn call_service<T: Send + 'static>(
     state: AtlasWebState,
-    call: impl FnOnce() -> Result<T, AppServiceError> + Send + 'static,
+    call: impl FnOnce(&AtlasAppService) -> Result<T, AppServiceError> + Send + 'static,
 ) -> Result<T, WebError> {
     let blocking_call_capacity = state.blocking_call_capacity;
     let permit = state.blocking_calls.try_acquire_owned().map_err(|_| {
@@ -67,7 +69,7 @@ pub(crate) async fn call_service<T: Send + 'static>(
     })?;
     tokio::task::spawn_blocking(move || {
         let _permit = permit;
-        call()
+        call(&state.service)
     })
     .await
     .map_err(|error| {

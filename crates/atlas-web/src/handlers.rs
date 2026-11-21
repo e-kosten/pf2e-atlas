@@ -24,9 +24,8 @@ pub(crate) async fn initiative_options(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.encounter_initiative_options(&encounter_ref)
         })
         .await?,
@@ -40,9 +39,8 @@ pub(crate) async fn roll_initiative(
     payload: Result<Json<atlas_app_model::RollInitiativeRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.roll_encounter_initiative(&encounter_ref, request)
         })
         .await?,
@@ -53,9 +51,8 @@ pub(crate) async fn roll_initiative(
 pub(crate) async fn readiness(
     State(state): State<AtlasWebState>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || Ok(service.readiness())).await?,
+        call_service(state, move |service| Ok(service.readiness())).await?,
     ))
 }
 
@@ -76,9 +73,11 @@ pub(crate) async fn saved_lists(
             format!("invalid list query: {error}"),
         ))
     })?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.saved_lists(query.include_archived)).await?,
+        call_service(state, move |service| {
+            service.saved_lists(query.include_archived)
+        })
+        .await?,
     ))
 }
 
@@ -87,9 +86,8 @@ pub(crate) async fn saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.saved_list(&list_ref)).await?,
+        call_service(state, move |service| service.saved_list(&list_ref)).await?,
     ))
 }
 
@@ -100,9 +98,11 @@ pub(crate) async fn filter_saved_list(
     payload: Result<Json<FilterSavedListRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.filter_saved_list(&list_ref, request)).await?,
+        call_service(state, move |service| {
+            service.filter_saved_list(&list_ref, request)
+        })
+        .await?,
     ))
 }
 
@@ -112,9 +112,8 @@ pub(crate) async fn create_saved_list(
     payload: Result<Json<CreateSavedListRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.create_saved_list(request)).await?,
+        call_service(state, move |service| service.create_saved_list(request)).await?,
     ))
 }
 
@@ -125,9 +124,11 @@ pub(crate) async fn update_saved_list(
     payload: Result<Json<SavedEditPayload<UpdateSavedListRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.update_saved_list(&list_ref, request)).await?,
+        call_service(state, move |service| {
+            service.update_saved_list(&list_ref, request)
+        })
+        .await?,
     ))
 }
 
@@ -138,9 +139,8 @@ pub(crate) async fn add_saved_list_item(
     payload: Result<Json<AddSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.add_saved_list_item(&list_ref, request)
         })
         .await?,
@@ -154,9 +154,8 @@ pub(crate) async fn remove_saved_list_item(
     payload: Result<Json<RemoveSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.remove_saved_list_item(&list_ref, request)
         })
         .await?,
@@ -170,9 +169,8 @@ pub(crate) async fn reorder_saved_list_item(
     payload: Result<Json<ReorderSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.reorder_saved_list_item(&list_ref, request)
         })
         .await?,
@@ -184,9 +182,8 @@ pub(crate) async fn delete_saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.delete_saved_list(&list_ref)).await?,
+        call_service(state, move |service| service.delete_saved_list(&list_ref)).await?,
     ))
 }
 
@@ -194,9 +191,8 @@ pub(crate) async fn delete_saved_list(
 pub(crate) async fn encounters(
     State(state): State<AtlasWebState>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.encounters()).await?,
+        call_service(state, move |service| service.encounters()).await?,
     ))
 }
 
@@ -204,9 +200,11 @@ pub(crate) async fn encounters(
 pub(crate) async fn encounter_condition_definitions(
     State(state): State<AtlasWebState>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.encounter_condition_definitions()).await?,
+        call_service(state, move |service| {
+            service.encounter_condition_definitions()
+        })
+        .await?,
     ))
 }
 
@@ -215,9 +213,8 @@ pub(crate) async fn encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.encounter(&encounter_ref)).await?,
+        call_service(state, move |service| service.encounter(&encounter_ref)).await?,
     ))
 }
 
@@ -227,9 +224,8 @@ pub(crate) async fn create_encounter(
     payload: Result<Json<CreateEncounterRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.create_encounter(request)).await?,
+        call_service(state, move |service| service.create_encounter(request)).await?,
     ))
 }
 
@@ -238,9 +234,11 @@ pub(crate) async fn delete_encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.delete_encounter(&encounter_ref)).await?,
+        call_service(state, move |service| {
+            service.delete_encounter(&encounter_ref)
+        })
+        .await?,
     ))
 }
 
@@ -251,9 +249,8 @@ pub(crate) async fn update_encounter(
     payload: Result<Json<SavedEditPayload<UpdateEncounterRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_encounter(&encounter_ref, request)
         })
         .await?,
@@ -267,9 +264,8 @@ pub(crate) async fn add_encounter_record_participant(
     payload: Result<Json<AddEncounterRecordParticipantRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.add_encounter_record_participant(&encounter_ref, request)
         })
         .await?,
@@ -283,9 +279,8 @@ pub(crate) async fn add_encounter_manual_participant(
     payload: Result<Json<AddEncounterManualParticipantRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.add_encounter_manual_participant(&encounter_ref, request)
         })
         .await?,
@@ -299,9 +294,8 @@ pub(crate) async fn add_encounter_initiative_entry(
     payload: Result<Json<AddEncounterInitiativeEntryRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.add_encounter_initiative_entry(&encounter_ref, request)
         })
         .await?,
@@ -315,9 +309,8 @@ pub(crate) async fn update_encounter_participant(
     payload: Result<Json<SavedEditPayload<UpdateEncounterParticipantEdit>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_encounter_participant(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -331,9 +324,8 @@ pub(crate) async fn reorder_encounter_participant(
     payload: Result<Json<ReorderEncounterParticipantRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.reorder_encounter_participant(&encounter_ref, request)
         })
         .await?,
@@ -347,9 +339,8 @@ pub(crate) async fn apply_encounter_hp_action(
     payload: Result<Json<ApplyEncounterHpActionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.apply_encounter_hp_action(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -363,9 +354,8 @@ pub(crate) async fn apply_encounter_spell_action(
     payload: Result<Json<ApplyEncounterSpellActionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.apply_encounter_spell_action(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -377,9 +367,8 @@ pub(crate) async fn remove_encounter_participant(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.remove_encounter_participant(&encounter_ref, &participant_key)
         })
         .await?,
@@ -391,9 +380,11 @@ pub(crate) async fn encounter_turn_review(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.encounter_turn_review(&encounter_ref)).await?,
+        call_service(state, move |service| {
+            service.encounter_turn_review(&encounter_ref)
+        })
+        .await?,
     ))
 }
 
@@ -404,9 +395,8 @@ pub(crate) async fn advance_encounter_turn(
     payload: Result<Json<AdvanceEncounterTurnRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.advance_encounter_turn(&encounter_ref, request)
         })
         .await?,
@@ -420,9 +410,8 @@ pub(crate) async fn set_encounter_turn(
     payload: Result<Json<SetEncounterTurnRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.set_encounter_turn(&encounter_ref, request)
         })
         .await?,
@@ -436,9 +425,8 @@ pub(crate) async fn add_encounter_participant_condition(
     payload: Result<Json<AddEncounterParticipantConditionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.add_encounter_participant_condition(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -452,9 +440,8 @@ pub(crate) async fn update_encounter_participant_condition(
     payload: Result<Json<UpdateEncounterParticipantConditionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_encounter_participant_condition(
                 &encounter_ref,
                 &participant_key,
@@ -476,9 +463,8 @@ pub(crate) async fn remove_encounter_participant_condition(
     >,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.remove_encounter_participant_condition(
                 &encounter_ref,
                 &participant_key,
@@ -496,9 +482,11 @@ pub(crate) async fn discover_filter_editor(
     payload: Result<Json<DiscoverFilterEditorRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.discover_filter_editor(request)).await?,
+        call_service(state, move |service| {
+            service.discover_filter_editor(request)
+        })
+        .await?,
     ))
 }
 
@@ -508,9 +496,8 @@ pub(crate) async fn discover_filter_values(
     payload: Result<Json<DiscoverFilterValuesRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.discover_filter_values(request, &execution)
         })
         .await?,
@@ -523,9 +510,8 @@ pub(crate) async fn search_page(
     payload: Result<Json<SearchResultsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.search_page(request, &execution)
         })
         .await?,
@@ -538,9 +524,8 @@ pub(crate) async fn similarity_parts(
     payload: Result<Json<atlas_app_model::SimilarityPartsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.similarity_parts(request, &execution)
         })
         .await?,
@@ -552,9 +537,8 @@ pub(crate) async fn record_detail(
     State(state): State<AtlasWebState>,
     Path(record_key): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.record_detail(&record_key)).await?,
+        call_service(state, move |service| service.record_detail(&record_key)).await?,
     ))
 }
 #[utoipa::path(post, path = "/api/records/detail", operation_id = "recordDetailAt", request_body = RecordDetailRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::RecordDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
@@ -563,9 +547,8 @@ pub(crate) async fn record_detail_at(
     payload: Result<Json<RecordDetailRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.record_detail_at(request)).await?,
+        call_service(state, move |service| service.record_detail_at(request)).await?,
     ))
 }
 #[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/reference", operation_id = "encounterReference", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = atlas_app_model::EncounterReferenceRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::RecordDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
@@ -575,9 +558,8 @@ pub(crate) async fn encounter_reference(
     payload: Result<Json<atlas_app_model::EncounterReferenceRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.encounter_reference(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -589,9 +571,8 @@ pub(crate) async fn embedded_reading(
     payload: Result<Json<atlas_app_model::EmbeddedReadingRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.embedded_reading(request)).await?,
+        call_service(state, move |service| service.embedded_reading(request)).await?,
     ))
 }
 #[utoipa::path(post, path = "/api/filters/counts", operation_id = "discoverFilterCounts", request_body = DiscoverFilterCountsRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::FilterCountsView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
@@ -600,9 +581,8 @@ pub(crate) async fn discover_filter_counts(
     payload: Result<Json<DiscoverFilterCountsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.discover_filter_counts(request, &execution)
         })
         .await?,
@@ -614,9 +594,8 @@ pub(crate) async fn validate_filter(
     payload: Result<Json<QueryPredicate>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.validate_filter(request)).await?,
+        call_service(state, move |service| service.validate_filter(request)).await?,
     ))
 }
 
@@ -625,9 +604,8 @@ pub(crate) async fn equipment_family(
     State(state): State<AtlasWebState>,
     Path(family_id): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.equipment_family(family_id)).await?,
+        call_service(state, move |service| service.equipment_family(family_id)).await?,
     ))
 }
 
@@ -636,9 +614,8 @@ pub(crate) async fn creature_family(
     State(state): State<AtlasWebState>,
     Path(family_id): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.creature_family(family_id)).await?,
+        call_service(state, move |service| service.creature_family(family_id)).await?,
     ))
 }
 
@@ -648,9 +625,8 @@ pub(crate) async fn related_records(
     payload: Result<Json<atlas_app_model::RelatedRecordsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.related_records(request)).await?,
+        call_service(state, move |service| service.related_records(request)).await?,
     ))
 }
 
@@ -660,9 +636,8 @@ pub(crate) async fn roll_content(
     payload: Result<Json<atlas_app_model::RollContentRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.roll_content(request.offer)).await?,
+        call_service(state, move |service| service.roll_content(request.offer)).await?,
     ))
 }
 
@@ -672,9 +647,8 @@ pub(crate) async fn roll_flat_check(
     payload: Result<Json<atlas_app_model::RollFlatCheckRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.roll_flat_check(request)).await?,
+        call_service(state, move |service| service.roll_flat_check(request)).await?,
     ))
 }
 
@@ -684,9 +658,8 @@ pub(crate) async fn roll_table(
     payload: Result<Json<atlas_app_model::RollTableRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.roll_table(request)).await?,
+        call_service(state, move |service| service.roll_table(request)).await?,
     ))
 }
 
@@ -697,9 +670,8 @@ pub(crate) async fn encounter_strike_options(
     payload: Result<Json<atlas_app_model::EncounterStrikeOptionsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.encounter_strike_options(&encounter_ref, request)
         })
         .await?,
@@ -713,9 +685,8 @@ pub(crate) async fn roll_encounter_strike(
     payload: Result<Json<atlas_app_model::RollEncounterStrikeRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.roll_encounter_strike(&encounter_ref, request)
         })
         .await?,
@@ -727,9 +698,8 @@ pub(crate) async fn participant_encounter_condition_definitions(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.participant_encounter_condition_definitions(&encounter_ref, &participant_key)
         })
         .await?,
@@ -743,9 +713,8 @@ pub(crate) async fn preview_encounter_condition_add(
     payload: Result<Json<atlas_app_model::AddEncounterParticipantConditionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_condition_add(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -761,9 +730,8 @@ pub(crate) async fn preview_encounter_condition_update(
     >,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_condition_update(
                 &encounter_ref,
                 &participant_key,
@@ -779,9 +747,8 @@ pub(crate) async fn pending_encounter_condition_consequences(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.pending_encounter_condition_consequences(&encounter_ref)
         })
         .await?,
@@ -794,9 +761,8 @@ pub(crate) async fn preview_encounter_drained_consequence(
     payload: Result<Json<atlas_app_model::ResolveDrainedConsequenceRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_drained_consequence(&encounter_ref, request)
         })
         .await?,
@@ -809,9 +775,8 @@ pub(crate) async fn resolve_encounter_drained_consequence(
     payload: Result<Json<atlas_app_model::ResolveDrainedConsequenceRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.resolve_encounter_drained_consequence(&encounter_ref, request)
         })
         .await?,
@@ -824,9 +789,8 @@ pub(crate) async fn set_encounter_life_settings(
     payload: Result<Json<atlas_app_model::SetEncounterLifeSettingsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.set_encounter_life_settings(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -840,9 +804,8 @@ pub(crate) async fn recover_persistent_damage(
     payload: Result<Json<atlas_app_model::RecoverPersistentDamageRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.recover_persistent_damage(&encounter_ref, request)
         })
         .await?,
@@ -854,9 +817,8 @@ pub(crate) async fn pending_encounter_hp_lifecycle(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.pending_encounter_hp_lifecycle(&encounter_ref)
         })
         .await?,
@@ -869,9 +831,8 @@ pub(crate) async fn resolve_encounter_hp_lifecycle(
     payload: Result<Json<atlas_app_model::ResolveEncounterHpLifecycleRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.resolve_encounter_hp_lifecycle(&encounter_ref, request)
         })
         .await?,
@@ -885,9 +846,8 @@ pub(crate) async fn prepare_persistent_damage(
     payload: Result<Json<atlas_app_model::PreparePersistentDamageRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.prepare_persistent_damage(&encounter_ref, request)
         })
         .await?,
@@ -901,9 +861,8 @@ pub(crate) async fn apply_persistent_damage(
     payload: Result<Json<atlas_app_model::ApplyPersistentDamageRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.apply_persistent_damage(&encounter_ref, request)
         })
         .await?,
@@ -917,9 +876,8 @@ pub(crate) async fn preview_encounter_strike_context(
     payload: Result<Json<atlas_app_model::EncounterStrikeContextRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_strike_context(&encounter_ref, request)
         })
         .await?,
@@ -932,9 +890,8 @@ pub(crate) async fn encounter_casting_reminders(
     payload: Result<Json<atlas_app_model::EncounterCastingRemindersRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.encounter_casting_reminders(&encounter_ref, request)
         })
         .await?,
@@ -948,9 +905,8 @@ pub(crate) async fn persistent_damage_review(
     Path(encounter_ref): Path<String>,
     axum::extract::Query(query): axum::extract::Query<PersistentReviewQuery>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.persistent_damage_review(
                 &encounter_ref,
                 query
@@ -971,9 +927,8 @@ pub(crate) async fn preview_encounter_hp_lifecycle(
     payload: Result<Json<atlas_app_model::ResolveEncounterHpLifecycleRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_hp_lifecycle(&encounter_ref, request)
         })
         .await?,
@@ -986,9 +941,8 @@ pub(crate) async fn apply_condition_lifecycle(
     Path(encounter_ref): Path<String>,
     Json(request): Json<atlas_app_model::ApplyConditionLifecycleRequest>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.apply_condition_lifecycle(&encounter_ref, request)
         })
         .await?,
@@ -1000,9 +954,8 @@ pub(crate) async fn condition_lifecycle_actions(
     Path(encounter_ref): Path<String>,
     axum::extract::Query(query): axum::extract::Query<PersistentReviewQuery>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.condition_lifecycle_actions(
                 &encounter_ref,
                 query
@@ -1020,9 +973,8 @@ pub(crate) async fn pending_condition_recoveries(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.pending_condition_recoveries(&encounter_ref)
         })
         .await?,
@@ -1034,9 +986,8 @@ pub(crate) async fn saved_list_item_note(
     State(state): State<AtlasWebState>,
     Path((list_ref, record_key)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.saved_list_item_note(&list_ref, &record_key)
         })
         .await?,
@@ -1050,9 +1001,8 @@ pub(crate) async fn update_saved_list_item_note(
     payload: Result<Json<SavedEditPayload<UpdateSavedListItemNoteRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_saved_list_item_note(&list_ref, &record_key, request)
         })
         .await?,
@@ -1065,9 +1015,8 @@ pub(crate) async fn definition_detail(
     payload: Result<Json<atlas_app_model::DefinitionDetailRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.definition_detail(request, &execution)
         })
         .await?,
@@ -1080,9 +1029,8 @@ pub(crate) async fn trait_definition(
     payload: Result<Json<atlas_app_model::TraitDetailRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.trait_definition(request, &execution)
         })
         .await?,
@@ -1095,9 +1043,8 @@ pub(crate) async fn trait_records(
     payload: Result<Json<atlas_app_model::TraitRecordsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.trait_records(request, &execution)
         })
         .await?,
@@ -1110,9 +1057,8 @@ pub(crate) async fn relationship_occurrences(
     payload: Result<Json<atlas_app_model::RelationshipOccurrencesRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_read_service(state, move |execution| {
+        call_read_service(state, move |service, execution| {
             service.relationship_occurrences(request, &execution)
         })
         .await?,
@@ -1126,9 +1072,8 @@ pub(crate) async fn update_encounter_manual_tracker(
     payload: Result<Json<atlas_app_model::UpdateEncounterManualTrackerRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_encounter_manual_tracker(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -1142,9 +1087,8 @@ pub(crate) async fn update_encounter_adjustment(
     payload: Result<Json<atlas_app_model::EncounterAdjustmentRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_encounter_adjustment(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -1158,9 +1102,8 @@ pub(crate) async fn preview_encounter_adjustment(
     payload: Result<Json<atlas_app_model::EncounterAdjustmentRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_adjustment(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -1174,9 +1117,8 @@ pub(crate) async fn update_encounter_ability_state(
     payload: Result<Json<atlas_app_model::UpdateEncounterAbilityStateRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_encounter_ability_state(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -1190,9 +1132,8 @@ pub(crate) async fn update_turn_resources(
     payload: Result<Json<atlas_app_model::UpdateTurnResourcesRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.update_turn_resources(&encounter_ref, &participant_key, request)
         })
         .await?,
@@ -1206,9 +1147,8 @@ pub(crate) async fn set_encounter_difficulty(
     payload: Result<Json<atlas_app_model::SetEncounterDifficultyRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.set_encounter_difficulty(&encounter_ref, request)
         })
         .await?,
@@ -1221,9 +1161,8 @@ pub(crate) async fn preview_encounter_difficulty(
     payload: Result<Json<atlas_app_model::PreviewEncounterDifficultyRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_difficulty(&encounter_ref, request)
         })
         .await?,
@@ -1237,9 +1176,8 @@ pub(crate) async fn preview_encounter_recovery(
     payload: Result<Json<atlas_app_model::PreviewEncounterRecoveryRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.preview_encounter_recovery(&encounter_ref, request)
         })
         .await?,
@@ -1252,9 +1190,8 @@ pub(crate) async fn apply_encounter_recovery(
     payload: Result<Json<atlas_app_model::ApplyEncounterRecoveryRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || {
+        call_service(state, move |service| {
             service.apply_encounter_recovery(&encounter_ref, request)
         })
         .await?,

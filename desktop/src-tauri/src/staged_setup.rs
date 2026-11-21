@@ -198,16 +198,13 @@ impl StagedSetup {
     }
 }
 
-fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
-    let Some(token) = &document.token else {
-        return;
-    };
-    if !window
-        .url()
-        .is_ok_and(|url| url.origin() == document.origin)
-    {
-        return;
-    }
+fn deliver(
+    window: &WebviewWindow,
+    document: &Document,
+    token: &str,
+    state: &SetupState,
+    updates: &crate::updates::BroadcastUpdates,
+) {
     let reference = state.reference.as_ref().map(|reference| {
         serde_json::json!({
             "revision": reference.revision,
@@ -221,13 +218,9 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
             "preferred": reference.preferred,
         })
     });
-    let update = window
-        .state::<Desktop>()
-        .updates
-        .snapshot(window.app_handle());
     let detail = serde_json::json!({
-        "token": token, "setup": state, "reference": reference, "update": update,
-        "channel": crate::updates::channel_snapshot(window.app_handle()),
+        "token": token, "setup": state, "reference": reference, "update": updates.update,
+        "channel": updates.channel,
         "referenceLoading": state.reference_loading, "openRequest": document.open_request,
         "openTerminal": document.open_terminal,
         "terminalLinking": cfg!(target_os = "macos"),
@@ -243,15 +236,32 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
 
 pub(crate) fn broadcast(app: &AppHandle) {
     let _ = run_on_main(app, |app| {
-        let desktop = app.state::<Desktop>();
-        let snapshot = lock(&desktop.staged_setup.state).clone();
-        let documents = lock(&desktop.staged_setup.documents).clone();
-        for (label, document) in documents {
-            if let Some(window) = app.get_webview_window(&label) {
-                deliver(&window, &document, &snapshot);
-            }
-        }
+        broadcast_to_documents(app, process::workspace_selection_snapshot)
     });
+}
+
+pub(crate) fn broadcast_to_documents(
+    app: &AppHandle,
+    read_selection: impl FnOnce() -> Result<
+        atlas_desktop_protocol::workspace_selection::SelectionSnapshot,
+        String,
+    >,
+) {
+    let desktop = app.state::<Desktop>();
+    let snapshot = lock(&desktop.staged_setup.state).clone();
+    let documents = lock(&desktop.staged_setup.documents).clone();
+    let updates =
+        std::cell::LazyCell::new(|| crate::updates::broadcast_updates(app, read_selection));
+    for (label, document) in documents {
+        if let Some(token) = &document.token
+            && let Some(window) = app.get_webview_window(&label)
+            && window
+                .url()
+                .is_ok_and(|url| url.origin() == document.origin)
+        {
+            deliver(&window, &document, token, &snapshot, &updates);
+        }
+    }
 }
 
 pub fn page_load(window: WebviewWindow, payload: tauri::webview::PageLoadPayload<'_>) {

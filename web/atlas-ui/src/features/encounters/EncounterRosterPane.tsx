@@ -17,7 +17,6 @@ import { useEffect, useRef, useState } from "react";
 import type {
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
-  SearchResultsRequest,
   UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import { EncounterAddMenu } from "./EncounterAddMenu";
@@ -491,7 +490,7 @@ export function EncounterRosterPane({
         </PrimaryToolbar>
       </footer>
       <SearchPickerModal<AddRecordForm>
-        buildRequest={encounterRecordPickerRequest}
+        fixedFilter={{ kind: "in", field: "kind", values: ["creature", "hazard"] }}
         emptyPrompt="Search for a creature or hazard"
         emptyResults="No creatures or hazards"
         form={recordForm}
@@ -633,31 +632,6 @@ export function EncounterRosterPane({
       )}
     </section>
   );
-}
-
-function encounterRecordPickerRequest(query: string): SearchResultsRequest {
-  const filter = {
-    kind: "in" as const,
-    field: "kind",
-    values: ["creature", "hazard"],
-  };
-  const trimmed = query.trim();
-  return {
-    expected_artifact_generation: null,
-    criteria:
-      trimmed.length > 0
-        ? {
-            kind: "text_search",
-            query: trimmed,
-            filter,
-            mode: "hybrid",
-          }
-        : {
-            kind: "list_records",
-            filter,
-          },
-    page: { number: 1, size: 25 },
-  };
 }
 
 function inputNumberValue(value: number | undefined): string {

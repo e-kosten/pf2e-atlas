@@ -50,7 +50,7 @@ impl ReadProbe {
 async fn await_live_slot(state: AtlasWebState) {
     let deadline = Instant::now() + DEADLINE;
     loop {
-        match call_service(state.clone(), || Ok::<_, AppServiceError>(())).await {
+        match call_service(state.clone(), |_| Ok::<_, AppServiceError>(())).await {
             Ok(()) => return,
             Err(error)
                 if error.0.code == AppErrorCode::ServiceBusy && Instant::now() < deadline =>
@@ -69,7 +69,7 @@ async fn dropped_read_future_abandons_context_but_running_work_retains_permit() 
     let (entered, entry) = mpsc::channel();
     let (release, released) = mpsc::channel();
     let (finished, finish) = mpsc::channel();
-    let task = tokio::spawn(call_read_service(state.clone(), move |execution| {
+    let task = tokio::spawn(call_read_service(state.clone(), move |_, execution| {
         let _ = entered.send(execution.clone());
         let released = released.recv_timeout(DEADLINE);
         let result = released
@@ -83,7 +83,7 @@ async fn dropped_read_future_abandons_context_but_running_work_retains_permit() 
     let entered = entry.recv_timeout(DEADLINE);
     task.abort();
     let dropped = task.await;
-    let busy = call_service(state.clone(), || Ok::<_, AppServiceError>(())).await;
+    let busy = call_service(state.clone(), |_| Ok::<_, AppServiceError>(())).await;
     let _ = release.send(());
     let finished = finish.recv_timeout(DEADLINE);
     await_live_slot(state).await;
@@ -117,7 +117,7 @@ fn dropped_read_before_blocking_callback_starts_skips_app_callback() {
         let entered = entry.recv_timeout(DEADLINE);
         let calls = Arc::new(AtomicUsize::new(0));
         let callback_calls = Arc::clone(&calls);
-        let mut awaiting = Box::pin(call_read_service(state.clone(), move |_| {
+        let mut awaiting = Box::pin(call_read_service(state.clone(), move |_, _| {
             callback_calls.fetch_add(1, Ordering::AcqRel);
             Ok(())
         }));
@@ -127,7 +127,7 @@ fn dropped_read_before_blocking_callback_starts_skips_app_callback() {
             .as_mut()
             .poll(&mut Context::from_waker(Waker::noop()));
         drop(awaiting);
-        let busy = call_service(state.clone(), || Ok::<_, AppServiceError>(())).await;
+        let busy = call_service(state.clone(), |_| Ok::<_, AppServiceError>(())).await;
         let _ = release.send(());
         occupying.await.unwrap();
         await_live_slot(state).await;
@@ -160,12 +160,11 @@ async fn dropped_initiative_response_commits_once_and_rejects_the_stale_retry() 
             mode: RollMode::Normal,
         }],
     };
-    let service = fixture.service.clone();
     let submitted = request.clone();
     let (entered, entry) = mpsc::channel();
     let (release, released) = mpsc::channel();
     let (receipt, receipts) = mpsc::channel();
-    let task = tokio::spawn(call_service(state.clone(), move || {
+    let task = tokio::spawn(call_service(state.clone(), move |service| {
         let _ = entered.send(());
         released.recv_timeout(DEADLINE).map_err(|_| {
             AppServiceError::new(AppErrorCode::OperationTimeout, "mutation release timed out")
@@ -178,7 +177,7 @@ async fn dropped_initiative_response_commits_once_and_rejects_the_stale_retry() 
     let entered = entry.recv_timeout(DEADLINE);
     task.abort();
     let dropped = task.await;
-    let busy = call_service(state.clone(), || Ok::<_, AppServiceError>(())).await;
+    let busy = call_service(state.clone(), |_| Ok::<_, AppServiceError>(())).await;
     let _ = release.send(());
     let receipt = receipts.recv_timeout(DEADLINE);
     await_live_slot(state.clone()).await;
@@ -204,8 +203,7 @@ async fn dropped_initiative_response_commits_once_and_rejects_the_stale_retry() 
     );
 
     // A lost response can leave initiative saved. Repeating the old request is stale.
-    let service = fixture.service.clone();
-    let stale = call_service(state, move || {
+    let stale = call_service(state, move |service| {
         service.roll_encounter_initiative("ambush", request)
     })
     .await
@@ -257,7 +255,7 @@ async fn complete_http1_disconnect_abandons_handler_before_running_read_is_relea
             let state = route_state.clone();
             let probe = Arc::clone(&probe);
             async move {
-                call_read_service(state, move |execution| {
+                call_read_service(state, move |_, execution| {
                     probe.observe(&execution)?;
                     Ok(Json(json!({"completed": true})))
                 })

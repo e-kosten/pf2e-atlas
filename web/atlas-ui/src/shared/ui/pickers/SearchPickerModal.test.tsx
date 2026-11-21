@@ -1,7 +1,11 @@
 import { atlasRouter } from "../../../app/router";
 import { recordDetailQueryOptions } from "../../records/recordDetailQuery";
 import { chooseAttributeSort } from "../../../test/sortControls";
-import type { ResultSort } from "../../../generated/atlas";
+import type {
+  QueryPredicate,
+  ResultSort,
+  SearchConnectionScope,
+} from "../../../generated/atlas";
 import { SearchProfileProvider } from "../../../test/SearchProfileProvider";
 import type { WorkspaceSearchDefault } from "../../search/SearchProfileContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,7 +25,6 @@ import {
   getRecordDetail,
   discoverFilterEditor,
   discoverFilterCounts,
-  getSimilarityParts,
 } from "../../../api/atlasApi";
 import {
   activityFixture,
@@ -30,15 +33,9 @@ import {
   fieldFixture,
   summaryFixture,
 } from "../../../test/fixtures";
-import type { SearchResultsRequest, SearchResultsPage } from "../../../generated/atlas";
+import type { SearchResultsPage } from "../../../generated/atlas";
 import { SearchPickerModal } from "./SearchPickerModal";
 import { retireReferenceQueries } from "../../queries/referenceQueries";
-import {
-  similarityConfigurationFixture,
-  similarityPartsFixture,
-} from "../../../test/similarityFixtures";
-
-type SearchConnectionScope = NonNullable<SearchResultsRequest["connection_scope"]>;
 
 vi.mock("../../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../../api/atlasApi")>()),
@@ -46,7 +43,6 @@ vi.mock("../../../api/atlasApi", async (original) => ({
   getRecordDetail: vi.fn(),
   discoverFilterEditor: vi.fn(),
   discoverFilterCounts: vi.fn(),
-  getSimilarityParts: vi.fn(),
 }));
 const search = vi.mocked(searchPage);
 const addSelected = vi.fn();
@@ -88,13 +84,13 @@ function result(
 function Picker({
   disabled = false,
   open = true,
-  similar = false,
   connectionScope,
+  fixedFilter,
 }: {
   disabled?: boolean;
   open?: boolean;
-  similar?: boolean;
   connectionScope?: SearchConnectionScope;
+  fixedFilter?: QueryPredicate;
 }) {
   const [form] = Form.useForm();
   const [selected, setSelected] = useState<string | null>(null);
@@ -114,20 +110,8 @@ function Picker({
             )
           : undefined
       }
-      buildRequest={(query) => ({
-        ...(connectionScope ? { connection_scope: connectionScope } : {}),
-        criteria: similar
-          ? {
-              kind: "similar_records",
-              seed_record_key: "hazards:brown-mold",
-              filter: null,
-            }
-          : query.trim()
-            ? { kind: "text_search", query, mode: "hybrid", filter: null }
-            : { kind: "list_records", filter: null },
-        expected_artifact_generation: null,
-        page: { number: 1, size: 25 },
-      })}
+      connectionScope={connectionScope}
+      fixedFilter={fixedFilter}
       emptyPrompt="Search for a record"
       emptyResults="No matching records"
       selectedRecordKey={selected}
@@ -153,11 +137,15 @@ function Picker({
     </SearchPickerModal>
   );
 }
-function renderPicker(
-  similar = false,
-  connectionScope?: SearchConnectionScope,
-  resolveWorkspaceDefault?: () => Promise<WorkspaceSearchDefault | undefined>,
-) {
+function renderPicker({
+  connectionScope,
+  fixedFilter,
+  resolveWorkspaceDefault,
+}: {
+  connectionScope?: SearchConnectionScope;
+  fixedFilter?: QueryPredicate;
+  resolveWorkspaceDefault?: () => Promise<WorkspaceSearchDefault | undefined>;
+} = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
   });
@@ -175,8 +163,8 @@ function renderPicker(
             <Picker
               disabled={disabled}
               open={open}
-              similar={similar}
               connectionScope={connectionScope}
+              fixedFilter={fixedFilter}
             />
           </App>
         </SearchProfileProvider>
@@ -312,8 +300,20 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
       },
     },
   });
-  renderPicker();
+  const fixedFilter: QueryPredicate = {
+    kind: "in",
+    field: "kind",
+    values: ["creature", "hazard"],
+  };
+  renderPicker({ fixedFilter });
   await screen.findByRole("link", { name: /Ghoul/ });
+  expect(search.mock.lastCall?.[0].criteria).toMatchObject({
+    kind: "list_records",
+    filter: fixedFilter,
+  });
+  expect(vi.mocked(discoverFilterEditor).mock.lastCall?.[0].filter).toEqual(
+    fixedFilter,
+  );
   expect(discoverFilterCounts).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole("button", { name: "Edit Kind filter" }));
   expect(await screen.findByLabelText("4 matching records")).toBeInTheDocument();
@@ -323,6 +323,7 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
   expect(discoverFilterCounts).toHaveBeenCalledWith(
     expect.objectContaining({
       context: expect.objectContaining({
+        filter: fixedFilter,
         search_profile: "bge-base",
         expected_artifact_generation: "generation-a",
       }),
@@ -334,6 +335,11 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
   await waitFor(() =>
     expect(screen.queryByLabelText("4 matching records")).not.toBeInTheDocument(),
   );
+  expect(search.mock.lastCall?.[0].criteria).toMatchObject({
+    kind: "text_search",
+    query: "dragon",
+    filter: fixedFilter,
+  });
   expect(discoverFilterCounts).toHaveBeenCalledTimes(1);
 });
 
@@ -783,95 +789,13 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
   });
 });
 
-it("applies reloaded B parts once while preserving the picker candidate and unsaved form", async () => {
-  let finishOld!: (page: SearchResultsPage) => void;
-  const oldPage = new Promise<SearchResultsPage>((resolve) => {
-    finishOld = resolve;
-  });
-  search.mockImplementation((request) => {
-    const generation = request.expected_artifact_generation ?? "generation-a";
-    const similarity =
-      request.criteria.kind === "similar_records"
-        ? request.criteria.similarity
-        : undefined;
-    const page = {
-      ...result(generation === "generation-b" ? "Dragon" : "Ghoul", generation),
-      sort: { kind: "relevance" } as const,
-      ...(similarity ? { similarity: similarityConfigurationFixture(similarity) } : {}),
-    };
-    return search.mock.calls.length === 2 ? oldPage : Promise.resolve(page);
-  });
-  vi.mocked(getSimilarityParts)
-    .mockRejectedValueOnce(
-      new AtlasApiError(409, "Collection changed", {
-        code: "artifact_generation_changed",
-        message: "Collection changed",
-        recoverable_action: "refresh_results",
-      }),
-    )
-    .mockResolvedValue(similarityPartsFixture());
-  const { client } = renderPicker(true);
-  fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
-  );
-  fireEvent.change(screen.getByLabelText("Note"), {
-    target: { value: "Unsaved encounter note" },
-  });
-  client.setQueryData(["encounter", "draft-owner"], { name: "Encounter" });
-  act(() => {
-    void client.invalidateQueries({ queryKey: ["search-picker"] });
-  });
-  await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
-  vi.mocked(getRecordDetail).mockImplementation((key) =>
-    Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-b" }),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
-  fireEvent.click(screen.getByRole("button", { name: "Choose sections" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Reload sections" }));
-  await screen.findByRole("checkbox", { name: "Description" });
-  const selectAll = screen.getByRole("checkbox", { name: "Select all" });
-  expect(selectAll).toBeChecked();
-  fireEvent.click(selectAll);
-  fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  // The reader remains open; return to results to inspect the new collection.
-  fireEvent.click(screen.getByRole("button", { name: "Results" }));
-  expect(await screen.findByRole("link", { name: /Dragon/ })).toBeInTheDocument();
-  expect(search).toHaveBeenCalledTimes(3);
-  expect(search.mock.lastCall?.[0]).toMatchObject({
-    expected_artifact_generation: "generation-b",
-    criteria: { similarity: { parts: ["description-b"] } },
-    page: { number: 1 },
-  });
-  expect(search.mock.calls[1][1]?.aborted).toBe(true);
-  await act(async () => {
-    finishOld(result("Old A"));
-    await oldPage;
-  });
-  expect(screen.queryByRole("link", { name: /Old A/ })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Refresh results" })).toBeNull();
-  expect(screen.getByLabelText("Note")).toHaveValue("Unsaved encounter note");
-  await expectRetainedCandidate();
-  expect(client.getQueryData(["encounter", "draft-owner"])).toEqual({
-    name: "Encounter",
-  });
-  expect(search).toHaveBeenCalledTimes(3);
-  expect(
-    client
-      .getQueryCache()
-      .findAll({ queryKey: ["search-picker"] })
-      .some((query) => query.queryKey.includes("generation-a")),
-  ).toBe(false);
-});
-
 it("discards a pending keyword draft when closing a picker with empty criteria", async () => {
   let finish!: (value: WorkspaceSearchDefault) => void;
   const readiness = new Promise<WorkspaceSearchDefault>((resolve) => {
     finish = resolve;
   });
   const resolveDefault = vi.fn(() => readiness);
-  const picker = renderPicker(false, undefined, resolveDefault);
+  const picker = renderPicker({ resolveWorkspaceDefault: resolveDefault });
   await screen.findByText("Ghoul");
   await submit("unfinished");
   expect(resolveDefault).toHaveBeenCalledOnce();
@@ -1052,7 +976,7 @@ it("retains backend scope guidance while directions load but invalidates it for 
     connection_scope: { kind: "all_entries", reason: "non_conjunctive_context" },
   };
   search.mockResolvedValue(broad);
-  const view = renderPicker(false, scope);
+  const view = renderPicker({ connectionScope: scope });
   await waitFor(() =>
     expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("all_entries"),
   );

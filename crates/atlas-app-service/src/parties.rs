@@ -51,15 +51,11 @@ impl AtlasAppService {
                         "The level update must belong to this party.",
                     ));
                 }
-                let current = state
-                    .characters()
-                    .get_at_revision(&update.character_key, update.expected_character_revision)?;
-                state.characters().update(
+                state.characters().update_metadata(
                     &update.character_key,
                     update.expected_character_revision,
-                    &current.name,
-                    update.level,
-                    current.reference.as_ref(),
+                    None,
+                    Some(update.level),
                 )?;
             }
             Ok(party_view(state.parties().update(

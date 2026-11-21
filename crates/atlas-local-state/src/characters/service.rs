@@ -3,6 +3,19 @@ use super::{Character, CharacterParty, CharacterSummary};
 use crate::{LocalStateError, LocalStateResult, PathbuilderSource, PcReference};
 use rusqlite::{Connection, OptionalExtension, params};
 
+struct CharacterRow {
+    name: String,
+    level: Option<i64>,
+    revision: i64,
+    reference_payload: Option<String>,
+}
+
+impl CharacterRow {
+    fn reference(&self) -> LocalStateResult<Option<PcReference>> {
+        self.reference_payload.as_deref().map(decode).transpose()
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct CharactersRead<'a> {
     pub(crate) connection: &'a Connection,
@@ -82,8 +95,27 @@ impl<'a> CharactersRead<'a> {
         }
         Ok(characters)
     }
+    fn row(&self, key: &str) -> LocalStateResult<CharacterRow> {
+        self.connection
+            .query_row(
+                "SELECT name,level,revision,reference_payload FROM characters
+                 WHERE character_key=?1 AND owner_id=?2",
+                params![key, self.owner_id],
+                |row| {
+                    Ok(CharacterRow {
+                        name: row.get(0)?,
+                        level: row.get(1)?,
+                        revision: row.get(2)?,
+                        reference_payload: row.get(3)?,
+                    })
+                },
+            )
+            .optional()?
+            .ok_or_else(|| LocalStateError::CharacterNotFound(key.into()))
+    }
+
     pub fn get(&self, key: &str) -> LocalStateResult<Character> {
-        let row = self.connection.query_row("SELECT name,level,revision,reference_payload FROM characters WHERE character_key=?1 AND owner_id=?2", params![key,self.owner_id], |r| Ok((r.get::<_,String>(0)?,r.get(1)?,r.get(2)?,r.get::<_,Option<String>>(3)?))).optional()?.ok_or_else(|| LocalStateError::CharacterNotFound(key.into()))?;
+        let row = self.row(key)?;
         let mut statement = self.connection.prepare("SELECT p.party_key,p.name FROM party_character_memberships m JOIN parties p USING(party_key) WHERE m.character_key=?1 AND p.owner_id=?2 ORDER BY p.name COLLATE NOCASE,p.party_key")?;
         let parties = statement
             .query_map(params![key, self.owner_id], |r| {
@@ -95,10 +127,10 @@ impl<'a> CharactersRead<'a> {
             .collect::<Result<_, _>>()?;
         Ok(Character {
             character_key: key.into(),
-            name: row.0,
-            level: row.1,
-            revision: row.2,
-            reference: row.3.as_deref().map(decode).transpose()?,
+            reference: row.reference()?,
+            name: row.name,
+            level: row.level,
+            revision: row.revision,
             parties,
         })
     }
@@ -207,6 +239,32 @@ impl<'a> CharactersWrite<'a> {
         self.connection.execute("INSERT INTO character_creation_receipts(owner_id,request_id,intent_digest,character_key,intent_version) VALUES(?1,?2,?3,?4,?5)",params![self.owner_id,request,digest,key,version])?;
         Ok(())
     }
+    pub fn update_metadata(
+        &self,
+        key: &str,
+        revision: i64,
+        name: Option<&str>,
+        level: Option<Option<i64>>,
+    ) -> LocalStateResult<()> {
+        crate::atomic_action::run(self.connection, || {
+            let current = self.row(key)?;
+            // An invalid saved reference takes precedence over a stale edit.
+            current.reference()?;
+            if current.revision != revision {
+                return Err(LocalStateError::CharacterConflict);
+            }
+            let name = name.unwrap_or(&current.name);
+            let level = level.unwrap_or(current.level);
+            validate_fields(name, level)?;
+            self.connection.execute(
+                "UPDATE characters SET name=?1,level=?2,revision=revision+1
+                 WHERE character_key=?3 AND owner_id=?4",
+                params![name.trim(), level, key, self.owner_id],
+            )?;
+            Ok(())
+        })
+    }
+
     pub fn update(
         &self,
         key: &str,

@@ -5,10 +5,6 @@ import { Form } from "antd";
 import { useRef, useState } from "react";
 import { addSavedListItem } from "../../api/atlasApi";
 import type { SavedListSummaryView } from "../../generated/atlas";
-import {
-  buildSearchRequest,
-  DEFAULT_SEARCH_STATE,
-} from "../../shared/filters/searchState";
 import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 import { invalidateSavedListQueries } from "./savedListQueries";
 
@@ -90,9 +86,6 @@ export function ListRecordPicker({
       }}
       emptyPrompt="Search or choose filters."
       emptyResults="No matching records."
-      buildRequest={(query) =>
-        buildSearchRequest({ ...DEFAULT_SEARCH_STATE, query }, 1)
-      }
       okButtonProps={{
         loading: add.isPending,
         disabled: paused || !list || receipt?.record === candidate,

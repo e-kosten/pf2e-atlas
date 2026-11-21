@@ -77,6 +77,18 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     if !reference_mode() && source()?.is_none() {
         return Ok(());
     }
+    if reference_mode() {
+        let mut probed = false;
+        crate::staged_setup::broadcast_to_documents(app, || {
+            probed = true;
+            Err("Unexpected selection probe during bootstrap.".into())
+        });
+        if probed {
+            return Err(
+                "A setup broadcast probed selection before a product window attached.".into(),
+            );
+        }
+    }
     if forces_retry() || forces_preflight_retry() {
         receive_link(app, FIXTURE_LINK);
     }
@@ -830,6 +842,52 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     })?;
     if app.webview_windows().len() != 2 {
         return Err("opening setup created an extra window".into());
+    }
+    for view in [&window, &second] {
+        if !evaluates_true(
+            view,
+            r#"(() => {
+            const before = window.__ATLAS_DESKTOP_SETUP__;
+            window.addEventListener('atlas-desktop-setup', () => {
+                const after = window.__ATLAS_DESKTOP_SETUP__;
+                window.selectionFailureDelivered = after.token === before.token &&
+                    after.setup.job === before.setup.job && after.update === null && after.channel === null;
+            }, { once: true });
+            return true;
+        })()"#,
+        ) {
+            return Err("Could not observe the next setup broadcast.".into());
+        }
+    }
+    for fail in [true, false] {
+        let (send, receive) = std::sync::mpsc::channel();
+        crate::run_on_main(app, move |app| {
+            let mut reads = 0;
+            crate::staged_setup::broadcast_to_documents(app, || {
+                reads += 1;
+                if fail {
+                    Err("Unavailable smoke selection.".into())
+                } else {
+                    process::workspace_selection_snapshot()
+                }
+            });
+            let _ = send.send(reads);
+        })?;
+        let reads = receive
+            .recv_timeout(Duration::from_secs(2))
+            .map_err(display)?;
+        if reads != 1 {
+            return Err(format!(
+                "Two-window setup broadcast read workspace selection {reads} times."
+            ));
+        }
+        if fail {
+            wait_for(deadline, "setup delivery after selection failure", || {
+                [&window, &second]
+                    .into_iter()
+                    .all(|view| evaluates_true(view, "window.selectionFailureDelivered === true"))
+            })?;
+        }
     }
     wait_for(deadline, "cancel the job from the second window", || {
         click_product_button(&second, "Cancel setup", true)

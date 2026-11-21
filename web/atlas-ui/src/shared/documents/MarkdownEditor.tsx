@@ -37,7 +37,6 @@ import {
   type RefObject,
 } from "react";
 import { useDesktopTab } from "../../app/DesktopTabContext";
-import { buildSearchRequest, DEFAULT_SEARCH_STATE } from "../filters/searchState";
 import { SearchPickerModal } from "../ui/pickers/SearchPickerModal";
 import { MarkdownDocument, markdownRecordLink } from "./MarkdownDocument";
 import {
@@ -520,9 +519,6 @@ export function MarkdownEditor({
           }
           emptyPrompt="Search for an Atlas record."
           emptyResults="No matching records."
-          buildRequest={(query) =>
-            buildSearchRequest({ ...DEFAULT_SEARCH_STATE, query }, 1)
-          }
         />
       )}
     </div>

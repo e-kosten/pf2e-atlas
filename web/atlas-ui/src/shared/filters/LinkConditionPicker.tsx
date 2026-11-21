@@ -6,7 +6,6 @@ import type {
   QueryRelationship,
   QueryRelationshipDirection,
 } from "../../generated/atlas";
-import { buildSearchRequest, DEFAULT_SEARCH_STATE } from "./searchState";
 import { rootNavigation } from "../records/useReferenceReading";
 import { SearchPickerModal } from "../ui/pickers/SearchPickerModal";
 import type { PickerSelection } from "../ui/pickers/SearchPickerModal";
@@ -158,14 +157,7 @@ export function LinkConditionPicker({
         setCandidate(selection);
         setFeedback(null);
       }}
-      buildRequest={(query) => ({
-        ...buildSearchRequest({ ...DEFAULT_SEARCH_STATE, query }, 1),
-        connection_scope: {
-          parent,
-          direction,
-          include_contents: includeContents,
-        },
-      })}
+      connectionScope={{ parent, direction, include_contents: includeContents }}
       selectionContext={`${direction}:${includeContents}`}
       searchHeader={(scope) => (
         <div className="link-picker-context" role="group" aria-label="Link matching">

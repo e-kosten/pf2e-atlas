@@ -26,17 +26,13 @@ pub(crate) struct WorkspaceOptions {
 }
 
 impl WorkspaceOptions {
-    pub fn connect(&self, catalog: bool) -> Result<AtlasAppService, AppError> {
+    pub fn connect(&self) -> Result<AtlasAppService, AppError> {
         connect(ClientOptions {
             search_profile: None,
             path_mode: crate::cli::runtime_path_mode(self.path_mode),
             index: self.index.clone(),
             embedding_cache: None,
-            retrieval_mode: if catalog {
-                AppServiceRetrievalMode::OnDemandNoQueryInference
-            } else {
-                AppServiceRetrievalMode::OnDemandSavedWorkspace
-            },
+            retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
         })
     }
 }
