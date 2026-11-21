@@ -128,6 +128,9 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
     .locator(".reference-search-entry--similar")
     .getByRole("link", { name: "Signal Protocol", exact: true });
   await expect(seed).toHaveAttribute("href", `/records/${key}`);
+  const viewport = page.viewportSize()!;
+  if (info.project.use.hasTouch && viewport.width < 500)
+    await page.setViewportSize({ ...viewport, width: 320 });
   const searchUrl = page.url();
   await activate(seed, info);
   const drawer = page.getByRole("dialog", { name: /^Signal Protocol\b/ });

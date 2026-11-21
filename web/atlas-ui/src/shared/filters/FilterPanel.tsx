@@ -635,16 +635,20 @@ export function FilterControls({
             {includeSearch && (
               <PrimaryToolbar className="filter-controls__search-row">
                 {searchEntry}
-                {searchRowEnd}
-                {collapseToolbar && (
-                  <FilterDisclosureButton
-                    ref={disclosure}
-                    className="filter-controls__disclosure"
-                    count={filterCount}
-                    aria-expanded={criteriaOpen}
-                    aria-controls={criteriaId}
-                    onClick={() => setCriteriaOpen(!criteriaOpen)}
-                  />
+                {collapseToolbar ? (
+                  <div className="filter-controls__search-actions">
+                    {searchRowEnd}
+                    <FilterDisclosureButton
+                      ref={disclosure}
+                      className="filter-controls__disclosure"
+                      count={filterCount}
+                      aria-expanded={criteriaOpen}
+                      aria-controls={criteriaId}
+                      onClick={() => setCriteriaOpen(!criteriaOpen)}
+                    />
+                  </div>
+                ) : (
+                  searchRowEnd
                 )}
               </PrimaryToolbar>
             )}

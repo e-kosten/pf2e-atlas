@@ -52,10 +52,13 @@
 .reference-search-entry__source {
   flex: 1;
   min-width: 0;
+  user-select: text;
+}
+.reference-search-entry__source > a {
+  display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  user-select: text;
 }
 
 .search-settings-dialog__body {
