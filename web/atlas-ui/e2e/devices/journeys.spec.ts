@@ -276,7 +276,7 @@ test("theme dismissal returns focus without stealing the next modal's focus", as
   await activate(page.getByRole("heading", { name: "Saved Lists" }), info);
   const create = page.getByRole("button", { name: "New list", exact: true });
   await activate(create, info);
-  const dialog = page.getByRole("dialog", { name: "New List", exact: true });
+  const dialog = page.getByRole("dialog", { name: "New list", exact: true });
   await expect(dialog).toBeVisible();
   const name = dialog.getByRole("textbox", { name: /Name$/ });
   await name.fill("Retained draft");
@@ -1299,6 +1299,9 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     await expect(page.getByLabel("HP summary", { exact: true })).toBeVisible();
     const back = page.getByRole("button", { name: "Back to roster", exact: true });
     if (await back.isVisible()) {
+      await expect(
+        page.getByRole("button", { name: "Start turn", exact: true }),
+      ).toBeEnabled();
       await expectParticipantWidth(page);
       await activate(back, info);
       await expect(row).toBeFocused();
@@ -1415,7 +1418,11 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       picker.getByRole("button", { name: "Add", exact: true }),
     ).toBeDisabled();
     await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
+    if (originalViewport.width < 768) await activate(row, info);
     await activate(page.getByRole("button", { name: "Start turn", exact: true }), info);
+    await expect(
+      page.getByRole("button", { name: "Next turn", exact: true }),
+    ).toBeEnabled();
     await expect
       .poll(
         async () =>
@@ -1483,7 +1490,7 @@ test("named parties add everyone directly and archive views stay separate", asyn
   const path = `/api/encounters/${encounter.encounter_key}`;
   let partyKey: string | undefined;
   try {
-    await page.goto("/encounters");
+    await page.goto("/characters");
     await activate(page.getByRole("link", { name: "Parties", exact: true }), info);
     await activate(page.getByRole("button", { name: "New party", exact: true }), info);
     let editor = page.getByRole("dialog", { name: "New party", exact: true });

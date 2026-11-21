@@ -10,7 +10,7 @@ import { CharacterPage } from "../features/parties/CharacterPage";
 
 export const Route = createFileRoute("/characters/$characterKey/")({
   ...routeSearch("character"),
-  staticData: { section: "encounters" },
+  staticData: { section: "characters" },
   component: Page,
 });
 function Page() {

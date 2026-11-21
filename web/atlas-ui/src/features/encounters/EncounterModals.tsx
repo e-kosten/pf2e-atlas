@@ -56,6 +56,7 @@ export function CreateEncounterModal({
   return (
     <EncounterModal
       title="New encounter"
+      okText="Create encounter"
       open={open}
       onCancel={onCancel}
       confirmLoading={mutation.isPending}

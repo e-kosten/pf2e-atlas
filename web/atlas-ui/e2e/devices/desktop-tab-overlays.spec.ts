@@ -145,7 +145,7 @@ test("a save that completes in an inactive desktop tab runs its close lifecycle"
     const settings = page.getByRole("dialog", { name: "Search settings", exact: true });
     await expect(settings).toBeVisible();
     await page.keyboard.press("Control+t");
-    await page.getByRole("link", { name: "Encounters", exact: true }).click();
+    await page.getByRole("link", { name: "Characters", exact: true }).click();
     await page.getByRole("link", { name: "Parties", exact: true }).click();
     await page.getByRole("button", { name: "New party", exact: true }).click();
     const editor = page.getByRole("dialog", { name: "New party", exact: true });
@@ -175,6 +175,14 @@ test("a save that completes in an inactive desktop tab runs its close lifecycle"
     await page.keyboard.press("Control+Tab");
     await expect(editor).toBeHidden();
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    await expect(page.getByRole("banner").locator('a[aria-current="page"]')).toHaveText(
+      "Characters",
+    );
+    await expect(
+      page
+        .getByRole("navigation", { name: "Character pages" })
+        .locator('a[aria-current="page"]'),
+    ).toHaveText("Parties");
     await page.getByRole("button", { name: "New party", exact: true }).click();
     await expect(editor).toBeVisible();
     await expect(editor.getByRole("textbox", { name: "Party name" })).toHaveValue("");

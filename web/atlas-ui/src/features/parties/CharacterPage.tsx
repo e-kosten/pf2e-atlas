@@ -5,7 +5,7 @@ import { Ellipsis } from "lucide-react";
 import { useRef, useState } from "react";
 import { deleteCharacter } from "../../api/atlasApi";
 import { PcAbilityBrowser, type AbilityNavigation } from "./PcAbilityBrowser";
-import { charactersDestination, partiesDestination } from "../../app/destinations";
+import { charactersDestination } from "../../app/destinations";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -21,7 +21,7 @@ import {
   useCharacter,
   useSavedAbilityLink,
 } from "./characterQueries";
-import { AtlasButtonLink } from "../../app/AtlasLink";
+import { CharacterSectionNav } from "./CharacterSectionNav";
 import { PathbuilderImport } from "./PathbuilderImport";
 import type { PcReferenceView } from "../../generated/atlas";
 
@@ -35,30 +35,29 @@ export function CharacterPage({
   const query = useCharacter(characterKey);
   usePageTitle(query.data?.name ?? "Character");
   return (
-    <div className="party-page character-workspace">
-      <div className="character-directory-actions">
-        <AtlasButtonLink {...charactersDestination()}>Characters</AtlasButtonLink>
-        <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
+    <div className="directory-page character-workspace">
+      <CharacterSectionNav current="All characters" />
+      <div className="character-workspace__document">
+        {query.error && (
+          <ErrorNotice
+            title="Character could not load"
+            error={query.error}
+            action={<Button onClick={() => void query.refetch()}>Retry</Button>}
+          />
+        )}
+        {query.isPending && <LoadingStatus label="Loading character…" />}
+        {query.data && (
+          <CharacterDocument
+            key={characterKey}
+            character={query.data}
+            navigation={navigation}
+            refreshCharacter={async () =>
+              (await query.refetch()).data?.character_revision
+            }
+          />
+        )}
+        {query.data === null && <p>Character unavailable.</p>}
       </div>
-      {query.error && (
-        <ErrorNotice
-          title="Character could not load"
-          error={query.error}
-          action={<Button onClick={() => void query.refetch()}>Retry</Button>}
-        />
-      )}
-      {query.isPending && <LoadingStatus label="Loading character…" />}
-      {query.data && (
-        <CharacterDocument
-          key={characterKey}
-          character={query.data}
-          navigation={navigation}
-          refreshCharacter={async () =>
-            (await query.refetch()).data?.character_revision
-          }
-        />
-      )}
-      {query.data === null && <p>Character unavailable.</p>}
     </div>
   );
 }
@@ -84,15 +83,19 @@ function CharacterDocument({
   const [edit, setEdit] = useState<{
     mode: "edit" | "import";
     baseline: PcReferenceView;
+    opener: HTMLElement | null;
   }>();
-  function show(mode: "edit" | "import") {
+  function show(mode: "edit" | "import", opener: HTMLElement | null = actions.current) {
     setOpen(false);
-    actions.current?.focus({ preventScroll: true });
-    setEdit({ mode, baseline: character });
+    opener?.focus({ preventScroll: true });
+    setEdit({ mode, baseline: character, opener });
   }
   function closeEditor() {
     setEdit(undefined);
-    restoreOverlayFocus(() => actions.current, undefined);
+    restoreOverlayFocus(
+      () => (edit?.opener?.isConnected ? edit.opener : actions.current),
+      undefined,
+    );
   }
   return (
     <>
@@ -150,6 +153,15 @@ function CharacterDocument({
       <SavedCharacterSheet
         character={character}
         defaultTab="stats"
+        emptySheetAction={
+          <Button
+            type="primary"
+            disabled={paused}
+            onClick={(event) => show("import", event.currentTarget)}
+          >
+            Import from Pathbuilder
+          </Button>
+        }
         refreshCharacter={refreshCharacter}
         abilityRoute={{ active: Boolean(navigation.view), close: navigation.close }}
         abilities={(active) => (

@@ -308,10 +308,14 @@ it("keeps one party directory and creation control while the selected roster cha
   const directory = await screen.findByRole("navigation", { name: "Parties" });
   const create = screen.getByRole("button", { name: "New party" });
   expect(screen.getByRole("heading", { name: "Select a party" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Characters" })).toHaveAttribute(
+  const section = within(screen.getByRole("navigation", { name: "Character pages" }));
+  expect(section.getByRole("link", { name: "All characters" })).toHaveAttribute(
     "href",
     "/characters",
   );
+  expect(
+    section.getByRole("link", { name: "Parties", current: "page" }),
+  ).toHaveAttribute("href", "/parties");
   view.rerender(
     <PartiesWorkspace selected="party">
       <PartyPage partyKey="party" />

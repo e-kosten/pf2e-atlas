@@ -54,9 +54,7 @@ export function EncounterRosterPane({
   disabled,
   error,
   recovery,
-  onAdvanceTurn,
-  advanceDisabled = false,
-  advanceLoading = false,
+  turnAction,
   needsInitiative = false,
   onRollInitiative,
   onRemove,
@@ -89,9 +87,7 @@ export function EncounterRosterPane({
   disabled: boolean;
   error?: string;
   recovery?: React.ReactNode;
-  onAdvanceTurn: () => void;
-  advanceDisabled?: boolean;
-  advanceLoading?: boolean;
+  turnAction: React.ReactNode;
   needsInitiative?: boolean;
   onRollInitiative?: (participantKey?: string) => void;
   onRemove: (participant: EncounterParticipantView) => void;
@@ -379,17 +375,7 @@ export function EncounterRosterPane({
                     : "Not started")}
             </strong>
           </div>
-          <Button
-            disabled={
-              disabled || advanceDisabled || loading || participants.length === 0
-            }
-            loading={advanceLoading ? { delay: 200 } : false}
-            icon={<Play size={14} aria-hidden="true" />}
-            type="primary"
-            onClick={onAdvanceTurn}
-          >
-            {currentTurnParticipantKey ? "Next turn" : "Start turn"}
-          </Button>
+          {turnAction}
         </PrimaryToolbar>
       </header>
       <div

@@ -30,11 +30,13 @@ export function useAtlasRouter() {
   return useRouter({ warn: false }) ?? atlasRouter;
 }
 
+export type AtlasSection =
+  "search" | "lists" | "encounters" | "characters" | "reference";
 export type AtlasRouter = ReturnType<typeof createAtlasRouter>;
 
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
-    section?: "search" | "lists" | "encounters" | "reference";
+    section?: AtlasSection;
   }
   interface Register {
     router: AtlasRouter;

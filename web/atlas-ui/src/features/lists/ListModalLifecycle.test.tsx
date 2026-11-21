@@ -98,7 +98,7 @@ it("keeps a new-list draft during one pending submission and a failed attempt", 
   expect(name).toHaveValue("Expedition");
   expect(name).toBeEnabled();
   expect(created).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Create" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create list" }));
   await waitFor(() => expect(created).toHaveBeenCalledWith("expedition"));
   expect(api.createSavedList.mock.calls).toEqual([
     [{ slug: "expedition", name: "Expedition", tags: [] }],

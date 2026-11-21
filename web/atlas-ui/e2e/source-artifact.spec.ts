@@ -9,10 +9,10 @@ test("narrow preview restores focus after reopening and keeps checks as plain te
   await page.setViewportSize({ width: 390, height: 844 });
   const name = "Preview lifecycle " + Date.now();
   await page.goto("/encounters");
-  await page.getByRole("button", { name: "New Encounter", exact: true }).click();
+  await page.getByRole("button", { name: "New encounter", exact: true }).click();
   const create = page.getByRole("dialog");
   await create.getByLabel("Name", { exact: true }).fill(name);
-  await create.getByRole("button", { name: "OK", exact: true }).click();
+  await create.getByRole("button", { name: "Create encounter", exact: true }).click();
   await expect(page).toHaveURL(/\/encounters\/preview-lifecycle-/);
   const slug = new URL(page.url()).pathname.split("/")[2];
   try {
@@ -401,7 +401,7 @@ test("saved list creation and adding an exact source survive reload", async ({
   await page.getByRole("button", { name: "New list", exact: true }).click();
   const listDialog = page.getByRole("dialog");
   await listDialog.getByLabel("Name", { exact: true }).fill("Browser List " + suffix);
-  await listDialog.getByRole("button", { name: "Create", exact: true }).click();
+  await listDialog.getByRole("button", { name: "Create list", exact: true }).click();
   await expect(page).toHaveURL(/\/lists\/browser-list-/);
   const listUrl = page.url();
   await expect(

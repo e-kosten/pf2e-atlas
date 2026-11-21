@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { activate, noPageOverflow } from "./reading";
+import { activate, noPageOverflow, sentinel } from "./reading";
 
 test("allowing a restricted reaction retains keyboard focus without spending it", async ({
   page,
@@ -409,6 +409,63 @@ for (const outcome of [
   });
 }
 
+test("phone turn paging keeps Back and Next visible through successive taps", async ({
+  page,
+}, info) => {
+  test.skip(!info.project.name.startsWith("phone-"), "Phone participant navigation");
+  const response = await page.request.post("/api/encounters", {
+    data: { name: `Turn paging ${info.project.name} ${Date.now()}` },
+  });
+  expect(response.ok()).toBe(true);
+  const { encounter } = await response.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const creature = await page.request.post(`${path}/participants/record`, {
+      data: {
+        request_id: crypto.randomUUID(),
+        record_ref: sentinel,
+        quantity: 1,
+        initiative: 18,
+      },
+    });
+    expect(creature.ok()).toBe(true);
+    const hero = await page.request.post(`${path}/participants/manual`, {
+      data: { display_name: "Scout", max_hp: 20, initiative: 12 },
+    });
+    expect(hero.ok()).toBe(true);
+    await page.goto(`/encounters/${encounter.slug}`);
+    await page.getByRole("button", { name: "Start turn", exact: true }).tap();
+
+    const back = page.getByRole("button", { name: "Back to roster", exact: true });
+    const next = page.getByRole("button", { name: "Next turn", exact: true });
+    const reader = page.locator(".encounter-record-pane");
+    await expect(
+      reader.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+    ).toBeVisible();
+    await expect(back).toBeInViewport({ ratio: 1 });
+    await expect(next).toBeInViewport({ ratio: 1 });
+    const bounds = (await next.boundingBox())!;
+    for (const name of ["Scout", "Atlas Sentinel", "Scout"]) {
+      await expect(next).toBeEnabled();
+      // Reuse the same screen coordinate. Locator.tap() would scroll an offscreen button back into view.
+      await page.touchscreen.tap(
+        bounds.x + bounds.width / 2,
+        bounds.y + bounds.height / 2,
+      );
+      await expect(reader.getByRole("heading", { name, exact: true })).toBeVisible();
+      await expect(reader).toBeFocused();
+      await expect(back).toBeInViewport({ ratio: 1 });
+      await expect(next).toBeInViewport({ ratio: 1 });
+    }
+    await back.tap();
+    await expect(
+      page.getByRole("button", { name: "Scout, Current turn", exact: true }),
+    ).toBeFocused();
+  } finally {
+    await page.request.delete(path);
+  }
+});
+
 test("missing initiative explains how to start a turn from the roster", async ({
   page,
 }, info) => {
@@ -418,6 +475,9 @@ test("missing initiative explains how to start a turn from the roster", async ({
   const { encounter } = await created.json();
   const path = `/api/encounters/${encounter.encounter_key}`;
   try {
+    await page.goto(`/encounters/${encounter.slug}`);
+    const start = page.getByRole("button", { name: "Start turn", exact: true });
+    await expect(start).toBeDisabled();
     expect(
       (
         await page.request.post(`${path}/participants/manual`, {
@@ -429,15 +489,25 @@ test("missing initiative explains how to start a turn from the roster", async ({
         })
       ).ok(),
     ).toBeTruthy();
-    await page.goto(`/encounters/${encounter.slug}`);
+    await page.reload();
     await expect(page.getByText("Initiative not set", { exact: true })).toBeVisible();
-    const start = page.getByRole("button", { name: "Start turn", exact: true });
     await expect(start).toBeDisabled();
     await page.screenshot({
       path: info.outputPath("initiative-required.png"),
       fullPage: true,
       animations: "disabled",
     });
+    if (page.viewportSize()!.width < 768) {
+      await activate(
+        page.getByRole("button", { name: "Unassigned hero", exact: true }),
+        info,
+      );
+      await expect(start).toBeDisabled();
+      await activate(
+        page.getByRole("button", { name: "Back to roster", exact: true }),
+        info,
+      );
+    }
     const initiative = page.getByRole("textbox", {
       name: "Unassigned hero initiative total",
     });

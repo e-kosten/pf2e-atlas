@@ -52,3 +52,32 @@
   color: var(--muted);
   font-size: 12px;
 }
+
+.index-row-summary {
+  display: grid;
+  min-inline-size: 0;
+  gap: var(--space-micro);
+  overflow-wrap: anywhere;
+}
+
+.index-row-summary > a {
+  font-weight: 650;
+}
+
+.index-row-summary__facts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-micro) var(--space-control);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.index-table--compact .index-row > td:last-child {
+  text-align: end;
+}
+
+.index-table--compact .index-row > td:last-child button {
+  min-width: 32px;
+  min-height: 32px;
+}

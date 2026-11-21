@@ -1,3 +1,30 @@
+import type { ReactNode } from "react";
+
+export function DirectoryHeader({
+  title,
+  actions,
+  summary,
+  navigation,
+}: {
+  title: string;
+  actions?: ReactNode;
+  summary?: ReactNode;
+  navigation?: ReactNode;
+}) {
+  return (
+    <header className="directory-header">
+      {navigation}
+      <div className="directory-header__heading">
+        <div>
+          <h1>{title}</h1>
+          {summary && <p>{summary}</p>}
+        </div>
+        {actions}
+      </div>
+    </header>
+  );
+}
+
 export function EntityIndexPage({
   actions,
   children,
@@ -24,13 +51,7 @@ export function EntityIndexPage({
       <main
         className={`entity-index-page ${className}${toolbar ? " entity-index-page--with-controls" : ""}`}
       >
-        <section className="entity-index-page__toolbar">
-          <div>
-            <h2>{title}</h2>
-            {summary ? <p>{summary}</p> : null}
-          </div>
-          {actions && <div className="entity-index-page__actions">{actions}</div>}
-        </section>
+        <DirectoryHeader title={title} actions={actions} summary={summary} />
         {toolbar && <div className="entity-index-page__controls">{toolbar}</div>}
         <section
           className="entity-index-page__table"

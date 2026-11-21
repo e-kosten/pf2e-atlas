@@ -462,3 +462,72 @@ test("note overflow follows the rendered layout and a removed open note restores
     await page.request.delete(`/api/lists/${list.list_key}`);
   }
 });
+
+test("directory row actions stay reachable at phone width and retain focus after a resize", async ({
+  page,
+}, info) => {
+  const slug = `compact-directory-${info.project.name}-${Date.now()}`;
+  const name = "Northern Watchtower Expedition and Supplies";
+  const { list } = await (
+    await page.request.post("/api/lists", {
+      data: { slug, name, tags: ["session prep"] },
+    })
+  ).json();
+  const { encounter } = await (
+    await page.request.post("/api/encounters", {
+      data: { name: slug },
+    })
+  ).json();
+  try {
+    for (const sample of [
+      {
+        route: "/lists",
+        name,
+        detail: "0 items",
+        wide: "Description",
+        dialog: "Edit list",
+      },
+      {
+        route: "/encounters",
+        name: slug,
+        detail: "0 participants",
+        wide: "Updated",
+        dialog: "Settings",
+      },
+    ]) {
+      await page.setViewportSize({ width: 320, height: 700 });
+      await page.goto(sample.route);
+      const row = page
+        .getByRole("row")
+        .filter({ has: page.getByRole("link", { name: sample.name, exact: true }) });
+      await expect(row.getByText(sample.detail, { exact: true })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: sample.wide })).toHaveCount(
+        0,
+      );
+      const editName = `Edit ${sample.name}`;
+      const edit = page.getByRole("button", { name: editName, exact: true });
+      await expect(edit).toBeInViewport({ ratio: 1 });
+      if (sample.route === "/encounters") {
+        await expect(
+          row.getByRole("button", { name: `Delete ${sample.name}`, exact: true }),
+        ).toBeInViewport({ ratio: 1 });
+      }
+      await activate(edit, info);
+      const dialog = page.getByRole("dialog", { name: sample.dialog, exact: true });
+      await expect(dialog).toBeVisible();
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+      await expect(dialog).toBeHidden();
+      await expect(page.getByRole("columnheader", { name: sample.wide })).toBeVisible();
+      await expect(edit).toBeFocused();
+      if (sample.route === "/lists") {
+        const cells = page.getByRole("row").filter({ has: edit }).getByRole("cell");
+        for (const cell of await cells.all())
+          await expect(cell).toHaveCSS("vertical-align", "top");
+      }
+    }
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});

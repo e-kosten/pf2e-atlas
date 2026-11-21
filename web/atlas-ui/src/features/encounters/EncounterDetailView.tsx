@@ -12,7 +12,7 @@ import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Dropdown, Grid, Spin } from "antd";
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, Play } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounterConditionDefinitions } from "../../api/atlasApi";
 import { useEncounterStrike } from "./useEncounterStrike";
@@ -62,12 +62,23 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
   } | null>(null);
   const focusDestination = useRef<"participant" | "roster" | null>(null);
   const followAfterRefresh = useRef(false);
+  function focusParticipant() {
+    host.current
+      ?.querySelector<HTMLElement>(".encounter-record-pane")
+      ?.focus({ preventScroll: true });
+    const toolbar = host.current?.querySelector(".encounter-mobile-navigation");
+    if (toolbar) {
+      const bounds = toolbar.getBoundingClientRect();
+      if (bounds.top < 0 || bounds.bottom > window.innerHeight)
+        toolbar.scrollIntoView({ block: "nearest" });
+    }
+  }
   useLayoutEffect(() => {
     const destination = focusDestination.current;
     if (!destination) return;
     focusDestination.current = null;
     if (destination === "participant") {
-      host.current?.querySelector<HTMLElement>(".encounter-record-pane")?.focus();
+      focusParticipant();
     } else {
       const pane = host.current?.querySelector<HTMLElement>(
         ".encounter-roster__participants",
@@ -206,9 +217,8 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
             0,
         };
       }
-      focusDestination.current = "participant";
-      if (participantOpen)
-        host.current?.querySelector<HTMLElement>(".encounter-record-pane")?.focus();
+      if (participantOpen) focusParticipant();
+      else focusDestination.current = "participant";
     }
   };
   const followTurn = (view: typeof encounter.data) => {
@@ -259,6 +269,21 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
     expectedRevision: encounter.data?.revision ?? 0,
   });
   const disabled = mutationDisabled || turnReview.preparing;
+  const turnAction = (
+    <Button
+      disabled={
+        disabled ||
+        !encounter.data?.participants.length ||
+        !!turnReview.data?.next_turn_unavailable_reason
+      }
+      loading={turnReview.preparing ? { delay: 200 } : false}
+      icon={<Play size={14} aria-hidden="true" />}
+      type="primary"
+      onClick={() => void turnReview.begin()}
+    >
+      {encounter.data?.current_turn_participant_key ? "Next turn" : "Start turn"}
+    </Button>
+  );
   const encounterSummary = encounter.data?.encounter ?? null;
   const difficulty: EncounterDifficultyProps | undefined = encounter.data
     ? {
@@ -445,13 +470,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
             >
               Back to roster
             </Button>
-            <Button
-              disabled={disabled || !!turnReview.data?.next_turn_unavailable_reason}
-              loading={turnReview.preparing ? { delay: 200 } : false}
-              onClick={() => void turnReview.begin()}
-            >
-              Next turn
-            </Button>
+            {turnAction}
           </div>
         )}
         {!encounter.data && encounter.isPending && (
@@ -526,13 +545,11 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                   return result.active;
                 }}
 
-                advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
+                turnAction={turnAction}
                 needsInitiative={
                   turnReview.data?.next_turn_unavailable_reason ===
                   "no_initiative_participants"
                 }
-                advanceLoading={turnReview.preparing}
-                onAdvanceTurn={() => void turnReview.begin()}
                 onRemove={(participant) => {
                   if (removedParticipantFocus.current) return;
                   setRemovalKey(participant.participant_key);

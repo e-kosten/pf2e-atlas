@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
 import { PartiesWorkspace } from "../features/parties/PartiesPage";
 
 export const Route = createFileRoute("/parties")({
-  staticData: { section: "encounters" },
+  staticData: { section: "characters" },
   component: Workspace,
 });
 

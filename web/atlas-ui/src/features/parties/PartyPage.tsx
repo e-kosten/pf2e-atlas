@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Button, Popover } from "antd";
-import { Ellipsis, GripVertical } from "lucide-react";
+import { Button, Popover, Tooltip } from "antd";
+import { Ellipsis, GripVertical, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { deleteParty, getParties, updateParty } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
@@ -292,41 +292,46 @@ function PartyRoster({ party }: { party: PartyView }) {
                         <td>{member.level ?? "—"}</td>
                         <td>{member.imported ? "Pathbuilder" : "Manual"}</td>
                         <td>
-                          <DangerActionButton
-                            type="text"
-                            size="small"
-                            disabled={busy || Boolean(change.error)}
-                            confirmTitle={`Remove ${member.name} from ${party.name}?`}
-                            confirmContent="The character stays saved and keeps its encounter links."
-                            confirmOkText="Remove from party"
-                            aria-label={`Remove ${member.name} from party`}
-                            onConfirm={async () => {
-                              const saved = await updateParty(party.party_key, {
-                                expected_revision: party.revision,
-                                name: party.name,
-                                members: membershipInputs(
-                                  party.members.filter(
-                                    (item) =>
-                                      item.character_key !== member.character_key,
-                                  ),
-                                ),
-                                level_updates: [],
-                              });
-                              await cacheParty(client, saved);
-                              void Promise.all([
-                                client.invalidateQueries({ queryKey: ["characters"] }),
-                                client.invalidateQueries({
-                                  queryKey: ["character", member.character_key],
-                                }),
-                                client.invalidateQueries({
-                                  queryKey: ["pc-reference"],
-                                }),
-                              ]);
-                              restoreOverlayFocus(() => actions.current, undefined);
-                            }}
+                          <Tooltip
+                            title={`Remove ${member.name} from party`}
+                            trigger={["hover", "focus"]}
                           >
-                            Remove
-                          </DangerActionButton>
+                            <DangerActionButton
+                              type="text"
+                              icon={<Trash2 size={14} aria-hidden="true" />}
+                              disabled={busy || Boolean(change.error)}
+                              confirmTitle={`Remove ${member.name} from ${party.name}?`}
+                              confirmContent="The character stays saved and keeps its encounter links."
+                              confirmOkText="Remove from party"
+                              aria-label={`Remove ${member.name} from party`}
+                              onConfirm={async () => {
+                                const saved = await updateParty(party.party_key, {
+                                  expected_revision: party.revision,
+                                  name: party.name,
+                                  members: membershipInputs(
+                                    party.members.filter(
+                                      (item) =>
+                                        item.character_key !== member.character_key,
+                                    ),
+                                  ),
+                                  level_updates: [],
+                                });
+                                await cacheParty(client, saved);
+                                void Promise.all([
+                                  client.invalidateQueries({
+                                    queryKey: ["characters"],
+                                  }),
+                                  client.invalidateQueries({
+                                    queryKey: ["character", member.character_key],
+                                  }),
+                                  client.invalidateQueries({
+                                    queryKey: ["pc-reference"],
+                                  }),
+                                ]);
+                                restoreOverlayFocus(() => actions.current, undefined);
+                              }}
+                            />
+                          </Tooltip>
                         </td>
                       </>
                     )}

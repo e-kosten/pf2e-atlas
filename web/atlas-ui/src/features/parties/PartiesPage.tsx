@@ -1,3 +1,6 @@
+import { Plus } from "lucide-react";
+import { DirectoryHeader } from "../../shared/ui/pages/EntityIndexPage";
+import { CharacterSectionNav } from "./CharacterSectionNav";
 import { Button, Form, Input } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -6,11 +9,7 @@ import scrollIntoView from "scroll-into-view-if-needed";
 import { createParty } from "../../api/atlasApi";
 import { AtlasButtonLink, AtlasLink } from "../../app/AtlasLink";
 import { useDesktopTab } from "../../app/DesktopTabContext";
-import {
-  charactersDestination,
-  partiesDestination,
-  partyDestination,
-} from "../../app/destinations";
+import { partiesDestination, partyDestination } from "../../app/destinations";
 import type { PartyView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -113,6 +112,7 @@ function NewPartyAction() {
     <>
       <Button
         type="primary"
+        icon={<Plus size={16} />}
         disabled={paused}
         onClick={(event) => {
           event.currentTarget.focus({ preventScroll: true });
@@ -252,13 +252,14 @@ export function PartiesWorkspace({
   }, [selected, active]);
 
   return (
-    <div
-      className={`party-page parties-workspace-page${selected ? " parties-workspace-page--selected" : ""}`}
+    <main
+      className={`directory-page parties-workspace-page${selected ? " parties-workspace-page--selected" : ""}`}
     >
-      <header className="party-page-heading">
-        <h1>Parties</h1>
-        <AtlasButtonLink {...charactersDestination()}>Characters</AtlasButtonLink>
-      </header>
+      <DirectoryHeader
+        title="Parties"
+        actions={<NewPartyAction />}
+        navigation={<CharacterSectionNav current="Parties" />}
+      />
       {selected && (
         <AtlasButtonLink
           {...partiesDestination()}
@@ -282,7 +283,6 @@ export function PartiesWorkspace({
           tabIndex={-1}
           aria-label="Party list"
         >
-          <NewPartyAction />
           {query.isPending && <LoadingStatus label="Loading parties…" />}
           {query.data &&
             (query.data.parties.length ? (
@@ -302,7 +302,7 @@ export function PartiesWorkspace({
           {query.data && children}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

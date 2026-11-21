@@ -479,6 +479,28 @@
   gap: var(--space-control);
 }
 
+.filter-controls__advanced.ant-btn {
+  padding-inline: var(--space-control);
+}
+
+.filter-controls__advanced-content {
+  --dot-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-control);
+}
+
+/* Split the unused dot and gap equally between both ends of the idle label. */
+.filter-controls__advanced:not([data-applied="true"])
+  .filter-controls__advanced-content {
+  padding-inline: calc(var(--dot-radius) + var(--space-control) / 2);
+}
+
+.filter-controls__advanced-dot {
+  border: var(--dot-radius) solid currentColor;
+  border-radius: 50%;
+}
+
 .filter-controls__advanced[data-applied="true"] {
   background: var(--selection-bg);
   color: var(--selection-text);

@@ -213,7 +213,7 @@ describe("list views", () => {
     );
     const header = screen
       .getByRole("heading", { name: "Saved Lists" })
-      .closest("section");
+      .closest("header");
     expect(header).toContainElement(screen.getByRole("button", { name: "New list" }));
     expect(header).not.toContainElement(controls);
 
@@ -574,8 +574,6 @@ describe("list views", () => {
     expect(table).toHaveStyle({ tableLayout: "auto" });
     expect(table.querySelector("colgroup col")).toHaveStyle({ minWidth: "240px" });
     expect(title).toHaveAttribute("href", "/lists/research");
-    for (const cell of title.closest("tr")!.querySelectorAll("td"))
-      expect(cell).toHaveStyle({ verticalAlign: "top" });
     const description = title
       .closest("tr")!
       .querySelector(".list-index-view__description");
@@ -1741,7 +1739,7 @@ describe("list views", () => {
       target: { value: "Boss Fight Prep!" },
     });
     expect(screen.queryByLabelText("Description")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create list" }));
 
     await waitFor(() =>
       expect(apiMocks.createSavedList).toHaveBeenCalledWith({

@@ -121,11 +121,13 @@ export function SearchView({
             />
           }
         />
-        <SearchProfileNotice
-          similar={Boolean(workspace.search.similarSeed)}
-          showKeyword
-          rerunSemantic={workspace.rerunSemantic}
-        />
+        <div className="search-workspace__profile">
+          <SearchProfileNotice
+            similar={Boolean(workspace.search.similarSeed)}
+            showKeyword
+            rerunSemantic={workspace.rerunSemantic}
+          />
+        </div>
         {workspace.errorMessage && (
           <ErrorNotice
             error={workspace.errorMessage}

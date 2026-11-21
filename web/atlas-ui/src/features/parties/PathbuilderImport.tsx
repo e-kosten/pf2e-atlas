@@ -281,8 +281,9 @@ export function PathbuilderImport({
             <label htmlFor={textareaId}>Pathbuilder JSON</label>
             <Input.TextArea
               id={textareaId}
+              className="character-import__json"
               value={text}
-              rows={8}
+              rows={16}
               autoComplete="off"
               spellCheck={false}
               disabled={busy}
