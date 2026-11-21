@@ -44,35 +44,6 @@
   margin: var(--space-micro) 0 0;
 }
 
-.directory-nav {
-  margin-inline-start: calc(-1 * var(--space-control));
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-micro);
-}
-
-.directory-nav a.ant-typography {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-micro) var(--space-control);
-  min-height: var(--control-height);
-  color: var(--muted);
-  border-radius: var(--radius-md);
-}
-
-.directory-nav a.ant-typography:hover {
-  color: var(--link);
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
-}
-
-.directory-nav a.ant-typography[aria-current="page"] {
-  color: var(--selection-text);
-  background: var(--selection-bg);
-  font-weight: 650;
-}
-
 .entity-index-page__table {
   background: var(--panel);
   border: 1px solid var(--line);

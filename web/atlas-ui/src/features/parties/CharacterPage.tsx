@@ -21,7 +21,7 @@ import {
   useCharacter,
   useSavedAbilityLink,
 } from "./characterQueries";
-import { EncounterDirectoryNav } from "../encounters/EncounterDirectoryNav";
+import { CharacterSectionNav } from "./CharacterSectionNav";
 import { PathbuilderImport } from "./PathbuilderImport";
 import type { PcReferenceView } from "../../generated/atlas";
 
@@ -36,7 +36,7 @@ export function CharacterPage({
   usePageTitle(query.data?.name ?? "Character");
   return (
     <div className="directory-page character-workspace">
-      <EncounterDirectoryNav current="Characters" />
+      <CharacterSectionNav current="All characters" />
       <div className="character-workspace__document">
         {query.error && (
           <ErrorNotice

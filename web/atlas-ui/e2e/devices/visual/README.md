@@ -5,6 +5,26 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Characters in global navigation
+
+The header now includes Characters after Encounters. On phones the four
+destinations fit in one row with tighter spacing. All ten desktop Chromium,
+phone Chromium and tablet WebKit references show the header, as do four
+phone WebKit references. The six phone WebKit frames with the header out of
+view kept their existing references.
+
+The macOS 27.2 (26B123) arm64 runs used Playwright 1.65.0. The final
+character section hover adjustment was included in the ordinary comparison.
+
+| macOS build | File or input  | SHA-256                                                            |
+| ----------- | -------------- | ------------------------------------------------------------------ |
+| Capture     | Frontend input | `6731eceb6dab0446c747469e7c1f3f3a1034f874bdcfe42c70039701b9d7e85b` |
+| Capture     | Frontend index | `37db636cf1e4a782b0415063f117e05a46e8959934fcc6b1557af07d00f8acd5` |
+| Capture     | Fixture        | `19b7b5895a67501b1bb1861962d63df75dd5509d4481072d462cbdec7c48a6aa` |
+| Comparison  | Frontend input | `aca3c88c0d2c15742936910554f646dd1ff27bf7916bd0d7f589e05ab490e556` |
+| Comparison  | Frontend index | `3900b6a2edf2a1cfaa12fb2eae8fe252e5a706fa37e0ac4914f7d3876e9d7273` |
+| Comparison  | Fixture        | `17283d58e075af4762eab886ff251378ca3e04af6255e7459f5329686edcb7e2` |
+
 ## Shared encounter turn action
 
 The phone participant toolbar now shows the same primary play button as the

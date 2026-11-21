@@ -80,6 +80,14 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
   let releaseSearch: (() => void) | undefined;
   try {
     await page.goto("/encounters");
+    const currentView = page.getByRole("banner").locator('a[aria-current="page"]');
+    const characterPages = page.getByRole("navigation", { name: "Character pages" });
+    const currentPage = characterPages.locator('a[aria-current="page"]');
+    await expect(currentView).toHaveText(["Encounters"]);
+    await expect(characterPages).toHaveCount(0);
+    await activate(page.getByRole("link", { name: "Characters", exact: true }), info);
+    await expect(currentView).toHaveText(["Characters"]);
+    await expect(currentPage).toHaveText(["All characters"]);
     await activate(page.getByRole("link", { name: "Parties", exact: true }), info);
     const directory = page.getByRole("navigation", {
       name: "Parties",
@@ -89,6 +97,7 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     const chooseParty = () =>
       activate(page.locator(`a[href="/parties/${party.party_key}"]`), info);
     await chooseParty();
+    await expect(currentPage).toHaveText(["Parties"]);
     await expect(
       page.getByRole("heading", { name: party.name, exact: true }),
     ).toBeVisible();
@@ -218,6 +227,8 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
     await expect(darkvision).toBeFocused();
     await page.goForward();
     await expect(page).toHaveURL(abilityUrl);
+    await expect(currentView).toHaveText(["Characters"]);
+    await expect(currentPage).toHaveText(["All characters"]);
     await expect(
       reference.getByText("Fixture darkvision reference content."),
     ).toBeVisible();
@@ -351,6 +362,12 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       );
       await page.setViewportSize(viewport);
     }
+    await page.goto(abilityUrl);
+    await expect(
+      reference.getByText("Fixture darkvision reference content."),
+    ).toBeVisible();
+    await expect(currentView).toHaveText(["Characters"]);
+    await expect(currentPage).toHaveText(["All characters"]);
     const saved = (await (
       await page.request.get(`/api/characters/${characterKey}`)
     ).json()) as PcReferenceView;
@@ -375,6 +392,8 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       reference.getByRole("button", { name: "Night sight", exact: true }),
     ).toBeVisible();
     await page.goBack();
+    await expect(currentView).toHaveText(["Characters"]);
+    await expect(currentPage).toHaveText(["Parties"]);
     await expect(
       page.getByRole("heading", { name: second.name, exact: true }),
     ).toBeVisible();
@@ -382,6 +401,8 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       page.locator(`a[href="/parties/${second.party_key}"]`),
     ).toHaveAttribute("aria-current", "page");
     await page.goto(`/encounters/${encounter.slug}`);
+    await expect(currentView).toHaveText(["Encounters"]);
+    await expect(characterPages).toHaveCount(0);
     await activate(
       page.getByRole("button", { name: "Add participants", exact: true }),
       info,
@@ -448,16 +469,14 @@ test("an empty saved sheet imports into the same character and returns focus", a
   const { character_key } = await response.json();
   try {
     await page.goto(`/characters/${character_key}`);
-    const directories = page.getByRole("navigation", { name: "Encounter directories" });
+    const directories = page.getByRole("navigation", { name: "Character pages" });
     await expect(directories.getByRole("link")).toHaveText([
-      "Encounters",
+      "All characters",
       "Parties",
-      "Characters",
     ]);
-    await expect(directories.getByRole("link", { name: "Characters" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    await expect(
+      directories.getByRole("link", { name: "All characters" }),
+    ).toHaveAttribute("aria-current", "page");
     const opener = page.getByRole("button", {
       name: "Import from Pathbuilder",
       exact: true,

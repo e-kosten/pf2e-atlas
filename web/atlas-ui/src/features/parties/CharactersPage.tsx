@@ -7,7 +7,7 @@ import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { DirectoryHeader } from "../../shared/ui/pages/EntityIndexPage";
-import { EncounterDirectoryNav } from "../encounters/EncounterDirectoryNav";
+import { CharacterSectionNav } from "./CharacterSectionNav";
 import { AddCharacter } from "./AddCharacter";
 import { useCharacters } from "./characterQueries";
 
@@ -33,7 +33,7 @@ export function CharactersPage() {
     <main className="directory-page">
       <DirectoryHeader
         title="Characters"
-        navigation={<EncounterDirectoryNav current="Characters" />}
+        navigation={<CharacterSectionNav current="All characters" />}
         actions={
           <AddCharacter onSaved={(key) => void navigate(characterDestination(key))} />
         }

@@ -453,10 +453,10 @@ beneath their trigger without centering neighboring controls against that group.
 alignment together at wide, intermediate and phone widths in both themes.
 
 Lists, Encounters, Parties and Characters use the shared directory header. Align the
-title and primary action with the directory body. Encounter, party and character
-directories keep their section links in the same order and position, including while a
-party is selected and throughout a saved character sheet. The encounter runner keeps
-its combat toolbar. Use the toolbar below a directory heading for filters or archive
+title and primary action with the directory body. The main Characters link opens the character directory. Within
+that section, keep All characters and Parties in the same order and position across
+both directories, saved sheets and selected parties. Highlight Characters in the
+main navigation on all of these routes. The encounter runner keeps its combat toolbar. Use the toolbar below a directory heading for filters or archive
 views.
 
 When an index has insufficient width for its detailed columns, keep the linked name,

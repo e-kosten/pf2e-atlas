@@ -35,7 +35,6 @@ export function EntityIndexPage({
   toolbar,
   scrollRef,
   onScroll,
-  navigation,
 }: {
   actions?: React.ReactNode;
   children: React.ReactNode;
@@ -44,7 +43,6 @@ export function EntityIndexPage({
   summary?: React.ReactNode;
   title: string;
   toolbar?: React.ReactNode;
-  navigation?: React.ReactNode;
   scrollRef?: React.Ref<HTMLElement>;
   onScroll?: React.UIEventHandler<HTMLElement>;
 }) {
@@ -53,12 +51,7 @@ export function EntityIndexPage({
       <main
         className={`entity-index-page ${className}${toolbar ? " entity-index-page--with-controls" : ""}`}
       >
-        <DirectoryHeader
-          title={title}
-          actions={actions}
-          summary={summary}
-          navigation={navigation}
-        />
+        <DirectoryHeader title={title} actions={actions} summary={summary} />
         {toolbar && <div className="entity-index-page__controls">{toolbar}</div>}
         <section
           className="entity-index-page__table"

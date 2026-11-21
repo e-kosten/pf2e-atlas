@@ -1490,7 +1490,7 @@ test("named parties add everyone directly and archive views stay separate", asyn
   const path = `/api/encounters/${encounter.encounter_key}`;
   let partyKey: string | undefined;
   try {
-    await page.goto("/encounters");
+    await page.goto("/characters");
     await activate(page.getByRole("link", { name: "Parties", exact: true }), info);
     await activate(page.getByRole("button", { name: "New party", exact: true }), info);
     let editor = page.getByRole("dialog", { name: "New party", exact: true });

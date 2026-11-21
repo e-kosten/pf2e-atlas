@@ -134,10 +134,10 @@ and custom paths, or [Installation](installation.md) to update Atlas.
 
 ## Saved parties
 
-Open **Encounters → Parties** and choose **New party**. Give the party a name,
+Open **Characters → Parties** and choose **New party**. Give the party a name,
 then use **Add PC** on its roster. **Existing character** adds a saved PC to
 the party. **Enter manually** needs only a name. A character can belong to
-several parties, and **Encounters → Characters** includes PCs without a party.
+several parties, and **Characters → All characters** includes PCs without a party.
 
 For a Pathbuilder character, copy the text from Pathbuilder’s **Export JSON**.
 Choose **Add PC → From Pathbuilder** in the character list, a party roster or

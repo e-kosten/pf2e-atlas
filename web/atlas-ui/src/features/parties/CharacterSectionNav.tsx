@@ -1,23 +1,18 @@
 import { AtlasLink } from "../../app/AtlasLink";
-import {
-  charactersDestination,
-  encountersDestination,
-  partiesDestination,
-} from "../../app/destinations";
+import { charactersDestination, partiesDestination } from "../../app/destinations";
 
 const directories = [
-  { label: "Encounters", destination: encountersDestination() },
+  { label: "All characters", destination: charactersDestination() },
   { label: "Parties", destination: partiesDestination() },
-  { label: "Characters", destination: charactersDestination() },
 ] as const;
 
-export function EncounterDirectoryNav({
+export function CharacterSectionNav({
   current,
 }: {
   current: (typeof directories)[number]["label"];
 }) {
   return (
-    <nav className="directory-nav" aria-label="Encounter directories">
+    <nav className="character-section-nav" aria-label="Character pages">
       {directories.map(({ label, destination }) => (
         <AtlasLink
           key={label}

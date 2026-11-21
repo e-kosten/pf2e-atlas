@@ -1,6 +1,72 @@
 import { expect, test } from "./fixtures";
 import { creatureFilter, landedSearch, noPageOverflow, sentinel } from "./reading";
 
+test("four primary destinations remain readable and usable at narrow widths", async ({
+  page,
+}) => {
+  await page.goto("/encounters");
+  const views = page.getByLabel("Atlas views").getByRole("link");
+  await expect(views).toHaveText(["Search", "Lists", "Encounters", "Characters"]);
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 740 });
+    for (const enlarged of [false, true]) {
+      const style = enlarged
+        ? await page.addStyleTag({
+            content: '[aria-label="Atlas views"] a { font-size: 24px !important; }',
+          })
+        : null;
+      await noPageOverflow(page);
+      // Hit-test both ends of each rendered label, including when the menu reflows.
+      // A clipped link can still have an in-viewport bounding box.
+      for (const view of await views.all()) {
+        await expect(view).toBeInViewport();
+        expect(
+          await view.evaluate((link) => {
+            const label = document.createRange();
+            label.selectNodeContents(link);
+            return Array.from(label.getClientRects()).every((rect) =>
+              [rect.left + 1, rect.right - 1].every((x) =>
+                link.contains(document.elementFromPoint(x, rect.top + rect.height / 2)),
+              ),
+            );
+          }),
+        ).toBe(true);
+      }
+      await style?.evaluate((node) => node.remove());
+    }
+  }
+  const characters = page.getByRole("link", { name: "Characters", exact: true });
+  await expect(characters).toHaveAttribute("href", "/characters");
+  await characters.press("Enter");
+  await expect(page).toHaveURL(/\/characters\/?$/);
+  const allCharacters = page.getByRole("link", { name: "All characters", exact: true });
+  await allCharacters.hover();
+  await expect(allCharacters).toHaveAttribute("aria-current", "page");
+  await expect(allCharacters).toHaveCSS("text-decoration-line", "none");
+  await expect(allCharacters).not.toHaveCSS(
+    "border-block-end-color",
+    "rgba(0, 0, 0, 0)",
+  );
+  const parties = page.getByRole("link", { name: "Parties", exact: true });
+  await parties.hover();
+  await expect(parties).toHaveCSS("text-decoration-line", "underline");
+  const [popup] = await Promise.all([
+    page.context().waitForEvent("page"),
+    parties.click({ button: "middle" }),
+  ]);
+  try {
+    await expect(popup).toHaveURL(/\/parties\/?$/);
+    await expect(
+      popup
+        .getByRole("navigation", { name: "Character pages" })
+        .locator('a[aria-current="page"]'),
+    ).toHaveText("Parties");
+    await expect(page).toHaveURL(/\/characters\/?$/);
+  } finally {
+    await popup.close();
+  }
+});
+
 test("an open reference and unfinished query survive crossing the reader breakpoint", async ({
   page,
 }) => {

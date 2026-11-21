@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { DirectoryHeader } from "../../shared/ui/pages/EntityIndexPage";
-import { EncounterDirectoryNav } from "../encounters/EncounterDirectoryNav";
+import { CharacterSectionNav } from "./CharacterSectionNav";
 import { Button, Form, Input } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -258,7 +258,7 @@ export function PartiesWorkspace({
       <DirectoryHeader
         title="Parties"
         actions={<NewPartyAction />}
-        navigation={<EncounterDirectoryNav current="Parties" />}
+        navigation={<CharacterSectionNav current="Parties" />}
       />
       {selected && (
         <AtlasButtonLink

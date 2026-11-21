@@ -4,7 +4,7 @@ import { PartyPage } from "../features/parties/PartyPage";
 
 export const Route = createFileRoute("/parties/$partyKey/")({
   ...routeSearch("empty"),
-  staticData: { section: "encounters" },
+  staticData: { section: "characters" },
   component: Page,
 });
 function Page() {

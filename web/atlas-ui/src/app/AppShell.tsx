@@ -3,10 +3,12 @@ import { DesktopSetupPanel } from "./DesktopSetupPanel";
 import { DesktopStableUpdate, DesktopUpdate } from "./DesktopUpdate";
 import { Link, useRouter, type LinkOptions } from "@tanstack/react-router";
 import { AtlasLink } from "./AtlasLink";
+import type { AtlasSection } from "./router";
 import {
   searchDestination,
   listsDestination,
   encountersDestination,
+  charactersDestination,
 } from "./destinations";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useRef, useState, useSyncExternalStore } from "react";
@@ -42,7 +44,7 @@ import type {
 import { AtlasMark } from "../shared/branding/AtlasMark";
 
 type AppShellProps = {
-  activeView: "search" | "lists" | "encounters" | "reference";
+  activeView: AtlasSection;
   searchReturnDestination?: ReturnType<typeof searchDestination> &
     Pick<LinkOptions, "hash" | "state" | "resetScroll">;
   colorScheme: ColorSchemePreference;
@@ -99,6 +101,11 @@ export function AppShell({
       key: "encounters",
       label: "Encounters",
       destination: encountersDestination(),
+    },
+    {
+      key: "characters",
+      label: "Characters",
+      destination: charactersDestination(),
     },
   ];
   const navItems: MenuProps["items"] = destinations.map((destination) => ({

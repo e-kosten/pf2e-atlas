@@ -4,6 +4,6 @@ import { PartiesPage } from "../features/parties/PartiesPage";
 
 export const Route = createFileRoute("/parties/")({
   ...routeSearch("empty"),
-  staticData: { section: "encounters" },
+  staticData: { section: "characters" },
   component: PartiesPage,
 });

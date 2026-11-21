@@ -20,7 +20,6 @@ import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 
-import { EncounterDirectoryNav } from "./EncounterDirectoryNav";
 import { encounterStatusLabels } from "./encounterStatus";
 import { CreateEncounterModal } from "./EncounterModals";
 import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
@@ -62,7 +61,6 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   });
   return (
     <EntityIndexPage
-      navigation={<EncounterDirectoryNav current="Encounters" />}
       actions={
         <Button
           disabled={paused}
