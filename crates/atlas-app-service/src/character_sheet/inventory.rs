@@ -72,18 +72,28 @@ pub(super) fn categorized(
     let mut weapons = Vec::new();
     for weapon in values(&sheet.weapons) {
         let mut facts = Vec::new();
+        add_role_facts(
+            &mut facts,
+            [
+                (SheetFactRole::Quantity, "Quantity", shown(&weapon.quantity)),
+                (SheetFactRole::Primary, "Attack", signed(&weapon.attack)),
+                (SheetFactRole::Primary, "Damage die", shown(&weapon.die)),
+                (
+                    SheetFactRole::Primary,
+                    "Damage type",
+                    source_label(&weapon.damage_type, damage_type),
+                ),
+                (
+                    SheetFactRole::Primary,
+                    "Damage bonus",
+                    signed(&weapon.damage_bonus),
+                ),
+            ],
+        );
         add_facts(
             &mut facts,
             [
                 ("Base weapon", shown(&weapon.name)),
-                ("Quantity", shown(&weapon.quantity)),
-                ("Attack", signed(&weapon.attack)),
-                ("Damage die", shown(&weapon.die)),
-                (
-                    "Damage type",
-                    source_label(&weapon.damage_type, damage_type),
-                ),
-                ("Damage bonus", signed(&weapon.damage_bonus)),
                 ("Proficiency", title_case(&weapon.proficiency)),
                 ("Potency", signed(&weapon.potency)),
                 ("Striking", title_case(&weapon.striking)),
@@ -112,13 +122,22 @@ pub(super) fn categorized(
     let mut armor = Vec::new();
     for worn in values(&sheet.armor) {
         let mut facts = Vec::new();
+        add_role_facts(
+            &mut facts,
+            [
+                (SheetFactRole::Quantity, "Quantity", shown(&worn.quantity)),
+                (SheetFactRole::Primary, "Worn", yes_no(&worn.worn)),
+                (
+                    SheetFactRole::Primary,
+                    "Proficiency",
+                    title_case(&worn.proficiency),
+                ),
+            ],
+        );
         add_facts(
             &mut facts,
             [
                 ("Base armor", shown(&worn.name)),
-                ("Quantity", shown(&worn.quantity)),
-                ("Worn", yes_no(&worn.worn)),
-                ("Proficiency", title_case(&worn.proficiency)),
                 ("Potency", signed(&worn.potency)),
                 ("Resilient", title_case(&worn.resilient)),
                 ("Material", title_case(&worn.material)),
@@ -143,9 +162,9 @@ pub(super) fn categorized(
     }
 
     let mut groups = vec![
-        group("Weapons", weapons),
-        group("Armor & shields", armor),
-        group("Loose gear", Vec::new()),
+        typed_group(SheetGroupKind::Weapons, "Weapons", weapons),
+        typed_group(SheetGroupKind::Armor, "Armor & shields", armor),
+        typed_group(SheetGroupKind::Gear, "Loose gear", Vec::new()),
     ];
     let loose = groups.len() - 1;
     let mut container_indices = HashMap::new();
@@ -179,7 +198,10 @@ pub(super) fn categorized(
             } else {
                 label.to_owned()
             };
-            let mut container_group = group(display, vec![row("Container", facts)]);
+            let mut metadata = row("Container", facts);
+            metadata.kind = Some(SheetRowKind::ContainerMetadata);
+            let mut container_group =
+                typed_group(SheetGroupKind::Container, display, vec![metadata]);
             container_group.container_id = Some(id.clone());
             groups.push(container_group);
         }
@@ -193,13 +215,17 @@ pub(super) fn categorized(
                 (label, quantity, None, state)
             }
         };
-        let mut facts = vec![fact_value("Quantity", quantity)];
+        let mut facts = vec![role_fact(SheetFactRole::Quantity, "Quantity", quantity)];
         if !state.is_empty() {
-            facts.push(fact_value("State", state));
+            facts.push(role_fact(SheetFactRole::State, "State", state));
         }
         let index = if let Some(id) = container {
             *container_indices.entry(id).or_insert_with(|| {
-                let mut unresolved = group(format!("Unresolved container ({id})"), Vec::new());
+                let mut unresolved = typed_group(
+                    SheetGroupKind::Container,
+                    format!("Unresolved container ({id})"),
+                    Vec::new(),
+                );
                 unresolved.container_id = Some(id.to_owned());
                 groups.push(unresolved);
                 groups.len() - 1
@@ -234,7 +260,9 @@ pub(super) fn categorized(
                 ("Copper (cp)", shown(&money.cp)),
             ],
         );
-        categorized.push((CharacterSection::Money, summary("Coins", facts)));
+        let mut coins = summary("Coins", facts);
+        coins.kind = Some(SheetGroupKind::Coins);
+        categorized.push((CharacterSection::Money, coins));
     }
     for formulas in values(&sheet.formula) {
         let mut known = Vec::new();
@@ -249,7 +277,10 @@ pub(super) fn categorized(
                 || "Known formulas".into(),
                 |kind| format!("Known formulas · {}", sentence_case(kind)),
             );
-        categorized.push((CharacterSection::Crafting, group(label, known)));
+        categorized.push((
+            CharacterSection::Crafting,
+            typed_group(SheetGroupKind::Formulas, label, known),
+        ));
     }
     Ok(categorized)
 }

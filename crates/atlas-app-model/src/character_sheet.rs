@@ -60,6 +60,15 @@ pub struct SheetGroupView {
 pub enum SheetGroupKind {
     Skills,
     Proficiencies,
+    Weapons,
+    Armor,
+    Gear,
+    Container,
+    Coins,
+    Formulas,
+    Advancement,
+    SpecialAbilities,
+    AbilityBoosts,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -89,6 +98,9 @@ pub struct SheetRowView {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub kind: Option<SheetRowKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub summary_value: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
@@ -107,6 +119,28 @@ pub struct SheetRowView {
 pub struct SheetFactView {
     pub label: String,
     pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub role: Option<SheetFactRole>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SheetRowKind {
+    ContainerMetadata,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SheetFactRole {
+    Quantity,
+    State,
+    Category,
+    Choice,
+    AcquiredLevel,
+    Primary,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

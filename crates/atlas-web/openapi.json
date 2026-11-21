@@ -18530,10 +18530,24 @@
         ],
         "type": "object"
       },
+      "SheetFactRole": {
+        "enum": [
+          "quantity",
+          "state",
+          "category",
+          "choice",
+          "acquired_level",
+          "primary"
+        ],
+        "type": "string"
+      },
       "SheetFactView": {
         "properties": {
           "label": {
             "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/SheetFactRole"
           },
           "value": {
             "type": "string"
@@ -18548,7 +18562,16 @@
       "SheetGroupKind": {
         "enum": [
           "skills",
-          "proficiencies"
+          "proficiencies",
+          "weapons",
+          "armor",
+          "gear",
+          "container",
+          "coins",
+          "formulas",
+          "advancement",
+          "special_abilities",
+          "ability_boosts"
         ],
         "type": "string"
       },
@@ -18582,6 +18605,12 @@
         ],
         "type": "object"
       },
+      "SheetRowKind": {
+        "enum": [
+          "container_metadata"
+        ],
+        "type": "string"
+      },
       "SheetRowView": {
         "properties": {
           "ability_key": {
@@ -18592,6 +18621,9 @@
               "$ref": "#/components/schemas/SheetFactView"
             },
             "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SheetRowKind"
           },
           "label": {
             "type": "string"

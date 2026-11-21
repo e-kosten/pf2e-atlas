@@ -1,6 +1,7 @@
 use super::*;
 use atlas_app_model::{
     CharacterAbilityFilter, CharacterContextRequest, CharacterSection as S, CharacterSourceState,
+    SheetFactRole, SheetGroupKind,
 };
 use serde_json::json;
 
@@ -34,6 +35,7 @@ fn context_preserves_typed_availability_occurrences_and_exact_source() {
         json!([["Rope", 0, "Not Invested"], ["Rope", 2, "bag", "Invested"], {"future": true}]);
     build["armor"] = json!([{"name":"Clothing", "worn":false, "qty":"many"}]);
     build["money"] = json!({"gp":0, "sp":null, "cp":"lots"});
+    build["formula"] = json!([{"type":"Alchemical", "known":["Rope"]}]);
     build["spellCasters"] = json!([{"spells":[], "prepared":[{"spellLevel":1,"list":["Test Focus Spell","Test Focus Spell"]}]}]);
     let original = format!(" {}\n", source);
     let key = import_source(&service, original.clone());
@@ -42,6 +44,33 @@ fn context_preserves_typed_availability_occurrences_and_exact_source() {
         .unwrap();
     assert_eq!(view.source_state, CharacterSourceState::Available);
     assert!(!view.sections.contains_key(&S::Source));
+    let gear = view.sections[&S::Equipment]
+        .presentation
+        .iter()
+        .find(|group| group.kind == Some(SheetGroupKind::Gear))
+        .unwrap();
+    assert_eq!(gear.rows[0].label, "Rope");
+    assert!(
+        gear.rows[0]
+            .facts
+            .iter()
+            .any(|fact| { fact.role == Some(SheetFactRole::Quantity) && fact.value == "0" })
+    );
+    assert_eq!(
+        view.sections[&S::Money].presentation[0].kind,
+        Some(SheetGroupKind::Coins)
+    );
+    assert_eq!(
+        view.sections[&S::Crafting].presentation[0].kind,
+        Some(SheetGroupKind::Formulas)
+    );
+    let advancement = view.sections[&S::CharacterOptions]
+        .presentation
+        .iter()
+        .filter(|group| group.kind == Some(SheetGroupKind::Advancement))
+        .map(|group| (group.label.as_str(), group.rows.len()))
+        .collect::<Vec<_>>();
+    assert_eq!(advancement, [("Level 2", 2), ("Level 4", 1)]);
     let json = serde_json::to_value(&view).unwrap();
     assert_eq!(
         json["sections"]["identity"]["fields"]["xp"],

@@ -1,6 +1,7 @@
 mod details;
 mod inventory;
 mod magic;
+mod progression;
 mod source_details;
 mod stats;
 
@@ -9,8 +10,8 @@ use crate::{
     pathbuilder_sheet::{ImportedField, PathbuilderSheet, read_sheet},
 };
 use atlas_app_model::{
-    CharacterSheetResponse, CharacterSheetView, SheetFactView, SheetGroupKind, SheetGroupView,
-    SheetRowView, SheetSectionKind, SheetSectionView,
+    CharacterSheetResponse, CharacterSheetView, SheetFactRole, SheetFactView, SheetGroupKind,
+    SheetGroupView, SheetRowKind, SheetRowView, SheetSectionKind, SheetSectionView,
 };
 use atlas_domain::{RecordKey, SourceRecordSummary, normalize_record_name};
 use atlas_local_state::{PcAbilityKind, PcReference};
@@ -63,7 +64,7 @@ pub(crate) fn context_groups(
     for section in selected {
         let groups = match section {
             S::Proficiencies => stats::proficiencies(sheet),
-            S::CharacterOptions => progression(sheet, &keys),
+            S::CharacterOptions => progression::groups(sheet, &keys),
             S::Spellcasting => magic::groups(sheet, &keys),
             S::Companions => companions(sheet),
             _ => continue,
@@ -130,7 +131,7 @@ pub(super) fn project_sheet(
             section(SheetSectionKind::Stats, stats::groups(sheet, retrieval)?),
             section(
                 SheetSectionKind::Progression,
-                progression(sheet, &abilities),
+                progression::groups(sheet, &abilities),
             ),
             section(SheetSectionKind::Magic, magic::groups(sheet, &abilities)),
             section(
@@ -209,6 +210,16 @@ fn group(label: impl Into<String>, rows: Vec<SheetRowView>) -> SheetGroupView {
     }
 }
 
+fn typed_group(
+    kind: SheetGroupKind,
+    label: impl Into<String>,
+    rows: Vec<SheetRowView>,
+) -> SheetGroupView {
+    let mut group = group(label, rows);
+    group.kind = Some(kind);
+    group
+}
+
 fn summary(label: &str, facts: Vec<SheetFactView>) -> SheetGroupView {
     let rows = facts
         .into_iter()
@@ -229,6 +240,7 @@ fn compact_row(
 fn row(label: impl Into<String>, facts: Vec<SheetFactView>) -> SheetRowView {
     SheetRowView {
         label: label.into(),
+        kind: None,
         summary_value: None,
         summary_help: None,
         facts,
@@ -241,7 +253,25 @@ fn fact_value(label: impl Into<String>, value: impl Display) -> SheetFactView {
     SheetFactView {
         label: label.into(),
         value: value.to_string(),
+        role: None,
     }
+}
+
+fn role_fact(role: SheetFactRole, label: impl Into<String>, value: impl Display) -> SheetFactView {
+    let mut fact = fact_value(label, value);
+    fact.role = Some(role);
+    fact
+}
+
+fn add_role_facts<const N: usize>(
+    facts: &mut Vec<SheetFactView>,
+    entries: [(SheetFactRole, &str, Option<String>); N],
+) {
+    facts.extend(entries.into_iter().filter_map(|(role, label, value)| {
+        value
+            .filter(|text| !text.is_empty())
+            .map(|value| role_fact(role, label, value))
+    }));
 }
 
 fn value<T>(field: &ImportedField<T>) -> Option<&T> {
@@ -320,60 +350,6 @@ fn rank(rank: i64) -> String {
         8 => "Legendary".into(),
         other => format!("Imported rank {other}"),
     }
-}
-
-fn progression(sheet: &PathbuilderSheet, keys: &AbilityKeys<'_>) -> Vec<SheetGroupView> {
-    let feats = values(&sheet.feats).map(|feat| {
-        let mut facts = vec![
-            fact_value("Type", &feat.category),
-            fact_value("Acquired at level", feat.level),
-        ];
-        add_facts(
-            &mut facts,
-            [
-                ("Choice", feat.choice.clone()),
-                ("Slot", shown(&feat.slot)),
-                (
-                    "Selection",
-                    source_label(&feat.selection_kind, feat_selection),
-                ),
-                ("Selection detail", shown(&feat.selection_detail)),
-            ],
-        );
-        let kind = if feat.category == "Heritage" {
-            PcAbilityKind::Heritage
-        } else {
-            PcAbilityKind::Feat
-        };
-        ability_row(keys, kind, &feat.name, feat.choice.as_deref(), facts)
-    });
-    let specials = values(&sheet.specials)
-        .map(|name| ability_row(keys, PcAbilityKind::Special, name, None, Vec::new()));
-    let mut groups = vec![
-        group("Feats", feats.collect()),
-        group("Special abilities", specials.collect()),
-    ];
-    if let Some(boosts) = value(&sheet.abilities).and_then(|abilities| value(&abilities.breakdown))
-    {
-        let mut facts = Vec::new();
-        add_facts(
-            &mut facts,
-            [
-                ("Free ancestry boosts", text_list(&boosts.ancestry_free)),
-                ("Ancestry boosts", text_list(&boosts.ancestry_boosts)),
-                ("Ancestry flaws", text_list(&boosts.ancestry_flaws)),
-                ("Background boosts", text_list(&boosts.background_boosts)),
-                ("Class boosts", text_list(&boosts.class_boosts)),
-            ],
-        );
-        for (level, boosts) in value(&boosts.map_levelled_boosts).into_iter().flatten() {
-            if let Some(boosts) = text_list(boosts) {
-                facts.push(fact_value(format!("Level {level} boosts"), boosts));
-            }
-        }
-        groups.push(summary("Ability boosts", facts));
-    }
-    groups
 }
 
 fn companions(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
