@@ -55,6 +55,7 @@ export function EncounterPcAdd({
     <AtlasModal
       open={!closing}
       title="Add PC"
+      width={416}
       onCancel={() => setClosing(true)}
       confirmDiscard={{
         when: () => form.isFieldsTouched(),
@@ -136,48 +137,50 @@ export function EncounterPcAdd({
         >
           <Input maxLength={255} />
         </Form.Item>
-        <Form.Item
-          name="level"
-          label="Level"
-          rules={[
-            {
-              type: "integer",
-              min: 1,
-              max: 20,
-              message: "Use a level from 1 to 20.",
-            },
-          ]}
-        >
-          <InputNumber min={1} max={20} placeholder="—" />
-        </Form.Item>
-        <Form.Item
-          name="maxHp"
-          label="Max HP"
-          rules={[
-            {
-              type: "integer",
-              min: 0,
-              max: Number.MAX_SAFE_INTEGER,
-              message: "Enter a nonnegative whole number within the supported range.",
-            },
-          ]}
-        >
-          <InputNumber aria-label="Max HP" min={0} />
-        </Form.Item>
-        <Form.Item
-          name="initiative"
-          label="Initiative"
-          rules={[
-            {
-              type: "integer",
-              min: Number.MIN_SAFE_INTEGER,
-              max: Number.MAX_SAFE_INTEGER,
-              message: "Enter a whole number within the supported range.",
-            },
-          ]}
-        >
-          <InputNumber aria-label="Initiative" />
-        </Form.Item>
+        <div className="encounter-pc-add__stats">
+          <Form.Item
+            name="level"
+            label="Level"
+            rules={[
+              {
+                type: "integer",
+                min: 1,
+                max: 20,
+                message: "Use a level from 1 to 20.",
+              },
+            ]}
+          >
+            <InputNumber min={1} max={20} />
+          </Form.Item>
+          <Form.Item
+            name="maxHp"
+            label="Max HP"
+            rules={[
+              {
+                type: "integer",
+                min: 0,
+                max: Number.MAX_SAFE_INTEGER,
+                message: "Enter a nonnegative whole number within the supported range.",
+              },
+            ]}
+          >
+            <InputNumber aria-label="Max HP" min={0} />
+          </Form.Item>
+          <Form.Item
+            name="initiative"
+            label="Initiative"
+            rules={[
+              {
+                type: "integer",
+                min: Number.MIN_SAFE_INTEGER,
+                max: Number.MAX_SAFE_INTEGER,
+                message: "Enter a whole number within the supported range.",
+              },
+            ]}
+          >
+            <InputNumber aria-label="Initiative" />
+          </Form.Item>
+        </div>
       </Form>
     </AtlasModal>
   );

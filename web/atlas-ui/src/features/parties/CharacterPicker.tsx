@@ -201,14 +201,16 @@ export function CharacterPicker({
   }
 
   const members = new Set(reviewedParty?.members.map((member) => member.character_key));
+  const partyChoices = encounter ? (parties.data?.parties ?? []) : [];
+  const selectedParty = partyChoices.find((party) => party.party_key === partyFilter);
   const term = query.trim().toLocaleLowerCase();
   const visible = characters.data?.characters.filter(
     (character) =>
       [character.name, ...character.parties.map((party) => party.name)].some((label) =>
         label.toLocaleLowerCase().includes(term),
       ) &&
-      (!partyFilter ||
-        character.parties.some((party) => party.party_key === partyFilter)),
+      (!selectedParty ||
+        character.parties.some((party) => party.party_key === selectedParty.party_key)),
   );
   return (
     <AtlasModal
@@ -235,15 +237,14 @@ export function CharacterPicker({
           onChange={(event) => setQuery(event.target.value)}
           allowClear
         />
-        {encounter && (
+        {partyChoices.length > 0 && (
           <Select
             aria-label="Filter by party"
             placeholder="All parties"
             allowClear
-            value={partyFilter}
+            value={selectedParty?.party_key}
             onChange={setPartyFilter}
-            loading={parties.isPending}
-            options={parties.data?.parties.map((party) => ({
+            options={partyChoices.map((party) => ({
               value: party.party_key,
               label: party.name,
             }))}

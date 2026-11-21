@@ -130,7 +130,11 @@ it("replays an existing character addition using its originally reviewed revisio
     />,
     context,
   );
-  fireEvent.click(await screen.findByRole("button", { name: /^Add Aster/ }));
+  const add = await screen.findByRole("button", { name: /^Add Aster/ });
+  expect(
+    screen.queryByRole("combobox", { name: "Filter by party" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(add);
   await screen.findByRole("button", { name: "Retry to confirm" });
   context.client.setQueryData(["characters"], {
     characters: [{ ...character, revision: 3 }],

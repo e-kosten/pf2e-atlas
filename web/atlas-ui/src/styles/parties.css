@@ -345,6 +345,16 @@
   overflow-wrap: anywhere;
 }
 
+.encounter-pc-add__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+  column-gap: var(--space-control);
+}
+
+.encounter-pc-add__stats .ant-input-number {
+  inline-size: 100%;
+}
+
 .character-picker {
   display: grid;
   gap: var(--space-control);

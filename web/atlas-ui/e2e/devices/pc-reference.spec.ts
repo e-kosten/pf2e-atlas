@@ -412,6 +412,9 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       info,
     );
     const picker = page.getByRole("dialog", { name: "Choose a character" });
+    await expect(
+      picker.getByRole("combobox", { name: "Filter by party" }),
+    ).toBeVisible();
     await picker.getByRole("textbox", { name: "Find a character" }).fill("Aster");
     await activate(
       picker
