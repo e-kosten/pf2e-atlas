@@ -45,6 +45,7 @@
 }
 
 .directory-nav {
+  margin-inline-start: calc(-1 * var(--space-control));
   display: flex;
   align-items: center;
   flex-wrap: wrap;
