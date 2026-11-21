@@ -1,20 +1,15 @@
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
-import { AtlasButtonLink, AtlasLink } from "../../app/AtlasLink";
+import { AtlasLink } from "../../app/AtlasLink";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
-import {
-  encounterDestination,
-  encountersDestination,
-  partiesDestination,
-  charactersDestination,
-} from "../../app/destinations";
+import { encounterDestination, encountersDestination } from "../../app/destinations";
 import { useRouterState } from "@tanstack/react-router";
 import { encounterIndexSearch } from "../../app/routeSearch";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tooltip, Button, Tabs } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnType, ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
@@ -25,6 +20,7 @@ import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 
+import { EncounterDirectoryNav } from "./EncounterDirectoryNav";
 import { encounterStatusLabels } from "./encounterStatus";
 import { CreateEncounterModal } from "./EncounterModals";
 import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
@@ -66,20 +62,17 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   });
   return (
     <EntityIndexPage
+      navigation={<EncounterDirectoryNav current="Encounters" />}
       actions={
-        <>
-          <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
-          <AtlasButtonLink {...charactersDestination()}>Characters</AtlasButtonLink>
-          <Button
-            disabled={paused}
-            ref={newEncounter}
-            icon={<Plus size={16} />}
-            onClick={() => setCreateOpen(true)}
-            type="primary"
-          >
-            New Encounter
-          </Button>
-        </>
+        <Button
+          disabled={paused}
+          ref={newEncounter}
+          icon={<Plus size={16} />}
+          onClick={() => setCreateOpen(true)}
+          type="primary"
+        >
+          New encounter
+        </Button>
       }
       className="encounter-index-view"
       overlays={
@@ -117,7 +110,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       }
       summary={
         encounters.data
-          ? `${visible.length} ${view === "archived" ? "archived encounters" : "active encounters"}`
+          ? `${visible.length.toLocaleString()} ${view} ${visible.length === 1 ? "encounter" : "encounters"}`
           : undefined
       }
       toolbar={
@@ -168,7 +161,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
         }}
       />
       <IndexTable
-        columns={encounterColumns(
+        {...encounterColumns(
           (encounter, opener) => {
             opener.focus({ preventScroll: true });
 
@@ -181,7 +174,6 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           paused || deleteMutation.isPending,
           editing.preparing ? editing.ref : undefined,
         )}
-        scroll={{ x: 800 }}
         dataSource={visible}
         loading={encounters.isLoading || encounters.isFetching}
         locale={{
@@ -241,18 +233,19 @@ function encounterColumns(
   onDelete: (encounter: EncounterSummaryView) => Promise<unknown>,
   deleting: boolean,
   openingKey?: string,
-): ColumnsType<EncounterSummaryView> {
-  return [
+) {
+  const nameLink = (encounter: EncounterSummaryView) => (
+    <AtlasLink {...encounterDestination({ slug: encounter.slug })}>
+      {encounter.name}
+    </AtlasLink>
+  );
+  const columns: ColumnsType<EncounterSummaryView> = [
     {
       title: "Name",
       minWidth: 240,
       width: 280,
       dataIndex: "name",
-      render: (_value, encounter) => (
-        <AtlasLink {...encounterDestination({ slug: encounter.slug })}>
-          {encounter.name}
-        </AtlasLink>
-      ),
+      render: (_, encounter) => nameLink(encounter),
     },
     {
       title: "Status",
@@ -268,41 +261,68 @@ function encounterColumns(
     },
     { title: "Participants", dataIndex: "participant_count", width: 120 },
     { title: "Updated", dataIndex: "updated_at", width: 180, render: formatDate },
-    {
-      title: "",
-      width: 112,
-      render: (_value, encounter) => (
-        <span className="encounter-row-actions">
-          <PaneIconButton
-            label={`Edit ${encounter.name}`}
-            aria-busy={openingKey === encounter.encounter_key}
-            disabled={deleting}
-            loading={openingKey === encounter.encounter_key ? { delay: 200 } : false}
-            size="small"
-            icon={<Edit2 size={14} />}
-            onClick={(event) => {
-              stopIndexRowAction(event);
-              onEdit(encounter, event.currentTarget);
-            }}
-          />
-          <Tooltip title={`Delete ${encounter.name}`} trigger={["hover", "focus"]}>
-            <DangerActionButton
-              disabled={deleting}
-              aria-label={`Delete ${encounter.name}`}
-              confirmContent="This permanently deletes the encounter."
-              confirmOkText="Delete"
-              confirmTitle={`Delete ${encounter.name}?`}
-              icon={<Trash2 size={14} />}
-              onBeforeConfirm={(event) => {
-                stopIndexRowAction(event);
-              }}
-              onConfirm={() => onDelete(encounter)}
-              type="text"
-              size="small"
-            />
-          </Tooltip>
-        </span>
-      ),
-    },
   ];
+  const actions: ColumnType<EncounterSummaryView> = {
+    title: <span className="sr-only">Actions</span>,
+    key: "actions",
+    width: 112,
+    render: (_value, encounter) => (
+      <span className="encounter-row-actions">
+        <PaneIconButton
+          label={`Edit ${encounter.name}`}
+          aria-busy={openingKey === encounter.encounter_key}
+          disabled={deleting}
+          loading={openingKey === encounter.encounter_key ? { delay: 200 } : false}
+          size="small"
+          icon={<Edit2 size={14} />}
+          onClick={(event) => {
+            stopIndexRowAction(event);
+            onEdit(encounter, event.currentTarget);
+          }}
+        />
+        <Tooltip title={`Delete ${encounter.name}`} trigger={["hover", "focus"]}>
+          <DangerActionButton
+            disabled={deleting}
+            aria-label={`Delete ${encounter.name}`}
+            confirmContent="This permanently deletes the encounter."
+            confirmOkText="Delete"
+            confirmTitle={`Delete ${encounter.name}?`}
+            icon={<Trash2 size={14} />}
+            onBeforeConfirm={(event) => {
+              stopIndexRowAction(event);
+            }}
+            onConfirm={() => onDelete(encounter)}
+            type="text"
+            size="small"
+          />
+        </Tooltip>
+      </span>
+    ),
+  };
+  return {
+    columns: [...columns, actions],
+    compact: {
+      below: 900,
+      columns: [
+        {
+          title: "Name",
+          dataIndex: "name",
+          render: (_, encounter) => (
+            <div className="index-row-summary">
+              {nameLink(encounter)}
+              <div className="index-row-summary__facts">
+                <span>{encounterStatusLabels[encounter.status]}</span>
+                <span>Round {encounter.round_number.toLocaleString()}</span>
+                <span>
+                  {encounter.participant_count.toLocaleString()}{" "}
+                  {encounter.participant_count === 1 ? "participant" : "participants"}
+                </span>
+              </div>
+            </div>
+          ),
+        },
+        { ...actions, width: 96 },
+      ] satisfies ColumnsType<EncounterSummaryView>,
+    },
+  };
 }

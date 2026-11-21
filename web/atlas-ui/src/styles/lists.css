@@ -1,3 +1,9 @@
+.list-index-view .index-row > td {
+  vertical-align: top;
+}
+.list-index-view .index-row-summary__facts > .list-tag-summary {
+  flex: 1 1 6rem;
+}
 .list-index-view__search {
   flex: 1 1 180px;
   width: auto;

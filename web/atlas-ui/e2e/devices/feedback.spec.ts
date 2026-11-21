@@ -8,7 +8,7 @@ test("a version change keeps one reachable recovery inside an open editor and pr
 }, info) => {
   await page.goto("/lists");
   await activate(page.getByRole("button", { name: "New list", exact: true }), info);
-  const dialog = page.getByRole("dialog", { name: "New List", exact: true });
+  const dialog = page.getByRole("dialog", { name: "New list", exact: true });
   const name = dialog.getByRole("textbox", { name: /Name$/ });
   await name.fill("Retained version draft");
   let attempts = 0;
@@ -24,7 +24,10 @@ test("a version change keeps one reachable recovery inside an open editor and pr
       body: JSON.stringify({ message: "SQL private/path decoder consequences" }),
     });
   });
-  await activate(dialog.getByRole("button", { name: "Create", exact: true }), info);
+  await activate(
+    dialog.getByRole("button", { name: "Create list", exact: true }),
+    info,
+  );
   const reload = dialog.getByRole("button", { name: "Reload page", exact: true });
   await expect(reload).toBeVisible();
   await expect(
@@ -52,7 +55,7 @@ test("a lost write response preserves the draft and reconnecting never replays t
 }, info) => {
   await page.goto("/lists");
   await activate(page.getByRole("button", { name: "New list", exact: true }), info);
-  const dialog = page.getByRole("dialog", { name: "New List", exact: true });
+  const dialog = page.getByRole("dialog", { name: "New list", exact: true });
   const name = dialog.getByRole("textbox", { name: /Name$/ });
   await name.fill("Unconfirmed draft");
   let attempts = 0;
@@ -61,7 +64,10 @@ test("a lost write response preserves the draft and reconnecting never replays t
     attempts++;
     await route.abort("connectionreset");
   });
-  await activate(dialog.getByRole("button", { name: "Create", exact: true }), info);
+  await activate(
+    dialog.getByRole("button", { name: "Create list", exact: true }),
+    info,
+  );
   await expect(
     dialog.getByText("Change could not be confirmed", { exact: true }),
   ).toBeVisible();

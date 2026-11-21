@@ -529,12 +529,17 @@ export function FilterControls({
               aria-description={
                 advancedApplied ? "Additional filters applied" : undefined
               }
-              icon={<FilterOutlined aria-hidden="true" />}
               onClick={() => setAdvanced(!advanced)}
               aria-expanded={advanced}
               aria-label="Advanced filters"
             >
-              Advanced
+              <span className="filter-controls__advanced-content">
+                <FilterOutlined aria-hidden="true" />
+                <span>Advanced</span>
+                {advancedApplied && (
+                  <span className="filter-controls__advanced-dot" aria-hidden="true" />
+                )}
+              </span>
             </Button>
           </Tooltip>
           {!pane && canClear && (

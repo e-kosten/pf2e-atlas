@@ -19,7 +19,7 @@
 .search-workspace {
   overflow: clip;
 }
-.search-workspace > .search-profile-status {
+.search-workspace__profile > .search-profile-status {
   padding-inline: var(--space-group);
 }
 :is(html, body):has(
@@ -279,7 +279,7 @@
 @media (max-width: 991px) {
   .search-workspace:has(.reference-browser[data-reading="true"]) > .filter-toolbar,
   .search-workspace:has(.reference-browser[data-reading="true"])
-    > .search-profile-status,
+    > .search-workspace__profile,
   .reference-picker__workspace:has(.reference-browser[data-reading="true"])
     > .filter-toolbar {
     display: none;

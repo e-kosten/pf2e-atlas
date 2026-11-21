@@ -30,6 +30,10 @@
   gap: var(--space-group);
 }
 
+.character-import__json.ant-input {
+  height: clamp(5rem, calc(var(--atlas-modal-height) * 0.48), 24rem);
+}
+
 .character-import-review {
   flex: 1 1 0;
 }

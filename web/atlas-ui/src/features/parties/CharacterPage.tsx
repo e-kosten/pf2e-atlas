@@ -84,15 +84,19 @@ function CharacterDocument({
   const [edit, setEdit] = useState<{
     mode: "edit" | "import";
     baseline: PcReferenceView;
+    opener: HTMLElement | null;
   }>();
-  function show(mode: "edit" | "import") {
+  function show(mode: "edit" | "import", opener: HTMLElement | null = actions.current) {
     setOpen(false);
-    actions.current?.focus({ preventScroll: true });
-    setEdit({ mode, baseline: character });
+    opener?.focus({ preventScroll: true });
+    setEdit({ mode, baseline: character, opener });
   }
   function closeEditor() {
     setEdit(undefined);
-    restoreOverlayFocus(() => actions.current, undefined);
+    restoreOverlayFocus(
+      () => (edit?.opener?.isConnected ? edit.opener : actions.current),
+      undefined,
+    );
   }
   return (
     <>
@@ -150,6 +154,15 @@ function CharacterDocument({
       <SavedCharacterSheet
         character={character}
         defaultTab="stats"
+        emptySheetAction={
+          <Button
+            type="primary"
+            disabled={paused}
+            onClick={(event) => show("import", event.currentTarget)}
+          >
+            Import from Pathbuilder
+          </Button>
+        }
         refreshCharacter={refreshCharacter}
         abilityRoute={{ active: Boolean(navigation.view), close: navigation.close }}
         abilities={(active) => (

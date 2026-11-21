@@ -18,7 +18,7 @@ import { ListTagSummary } from "./ListTagSummary";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ChoicePicker } from "../../shared/ui/pickers/ChoicePicker";
 import { Button, Checkbox, Input, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnType, ColumnsType } from "antd/es/table";
 import { Pencil, Plus, Search } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SavedListSummaryView } from "../../generated/atlas";
@@ -278,7 +278,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
         }}
       />
       <IndexTable
-        columns={listIndexColumns(
+        {...listIndexColumns(
           atlasRouter,
           (list, opener) => {
             opener.focus({ preventScroll: true });
@@ -288,7 +288,6 @@ export function ListIndexView(_props: ListIndexViewProps) {
           editing.preparing ? editing.ref : undefined,
           paused,
         )}
-        scroll={{ x: 880 }}
         dataSource={filteredLists}
         loading={lists.isLoading || lists.isFetching}
         locale={{
@@ -336,42 +335,44 @@ function listIndexColumns(
   onEdit: (list: SavedListSummaryView, opener: HTMLElement) => void,
   openingKey?: string,
   paused = false,
-): ColumnsType<SavedListSummaryView> {
+) {
+  const titleLink = (list: SavedListSummaryView, showSlug: boolean) => (
+    <RowTitleLink
+      href={destinationHref(
+        listDestination({ slug: list.slug, selectedRecordKey: null }),
+      )}
+      onClick={(event) => {
+        if (!isPrimaryActivation(event)) {
+          return;
+        }
+        event.preventDefault();
+        navigateDestination(
+          listDestination({
+            slug: list.slug,
+            selectedRecordKey: null,
+          }),
+          undefined,
+          atlasRouter,
+        );
+      }}
+      subtitle={showSlug ? list.slug : undefined}
+      title={
+        <>
+          {list.name}
+          {list.archived && (
+            <DisplayChip className="list-archive-badge">Archived</DisplayChip>
+          )}
+        </>
+      }
+    />
+  );
   const columns: ColumnsType<SavedListSummaryView> = [
     {
       title: "List",
+      key: "identity",
       minWidth: 240,
       width: 280,
-      render: (_, list) => (
-        <RowTitleLink
-          href={destinationHref(
-            listDestination({ slug: list.slug, selectedRecordKey: null }),
-          )}
-          onClick={(event) => {
-            if (!isPrimaryActivation(event)) {
-              return;
-            }
-            event.preventDefault();
-            navigateDestination(
-              listDestination({
-                slug: list.slug,
-                selectedRecordKey: null,
-              }),
-              undefined,
-              atlasRouter,
-            );
-          }}
-          subtitle={list.slug}
-          title={
-            <>
-              {list.name}
-              {list.archived && (
-                <DisplayChip className="list-archive-badge">Archived</DisplayChip>
-              )}
-            </>
-          }
-        />
-      ),
+      render: (_, list) => titleLink(list, true),
     },
     {
       title: "Description",
@@ -410,27 +411,49 @@ function listIndexColumns(
       width: 180,
       render: (value) => formatDate(value),
     },
-    {
-      title: "",
-      width: 72,
-      render: (_, list) => (
-        <PaneIconButton
-          icon={<Pencil size={15} />}
-          label={`Edit ${list.name}`}
-          disabled={paused}
-          aria-busy={openingKey === list.list_key}
-          loading={openingKey === list.list_key ? { delay: 200 } : false}
-          onClick={(event) => {
-            stopIndexRowAction(event);
-            onEdit(list, event.currentTarget);
-          }}
-          title="Edit"
-        />
-      ),
-    },
   ];
-  return columns.map((column) => ({
-    ...column,
-    onCell: () => ({ style: { verticalAlign: "top" } }),
-  }));
+  const actions: ColumnType<SavedListSummaryView> = {
+    title: <span className="sr-only">Actions</span>,
+    key: "actions",
+    width: 72,
+    render: (_, list) => (
+      <PaneIconButton
+        icon={<Pencil size={15} />}
+        label={`Edit ${list.name}`}
+        disabled={paused}
+        aria-busy={openingKey === list.list_key}
+        loading={openingKey === list.list_key ? { delay: 200 } : false}
+        onClick={(event) => {
+          stopIndexRowAction(event);
+          onEdit(list, event.currentTarget);
+        }}
+        title="Edit"
+      />
+    ),
+  };
+  return {
+    columns: [...columns, actions],
+    compact: {
+      below: 1148,
+      columns: [
+        {
+          title: "List",
+          key: "identity",
+          render: (_, list) => (
+            <div className="index-row-summary">
+              {titleLink(list, false)}
+              <div className="index-row-summary__facts">
+                <span>
+                  {list.item_count.toLocaleString()}{" "}
+                  {list.item_count === 1 ? "item" : "items"}
+                </span>
+                <ListTagSummary tags={list.tags} label={list.name + " tags"} />
+              </div>
+            </div>
+          ),
+        },
+        { ...actions, width: 56 },
+      ] satisfies ColumnsType<SavedListSummaryView>,
+    },
+  };
 }

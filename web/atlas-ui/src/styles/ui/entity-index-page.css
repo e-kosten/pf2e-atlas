@@ -5,35 +5,71 @@
   height: 100%;
   min-height: 0;
   width: 100%;
-  padding: 24px;
 }
 
-.entity-index-page__toolbar {
-  align-items: flex-start;
-  flex-wrap: wrap;
+.entity-index-page,
+.directory-page {
+  padding: var(--space-section);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.directory-page > .directory-header {
+  margin-block-end: var(--panel-gap);
+}
+
+.directory-header {
+  display: grid;
+  gap: var(--space-group);
+}
+
+.directory-header__heading {
   display: flex;
-  gap: 16px;
+  align-items: center;
   justify-content: space-between;
-  min-height: 58px;
-  padding: 0 4px;
-}
-
-.entity-index-page__actions {
-  display: flex;
   flex-wrap: wrap;
-  gap: var(--space-control);
+  gap: var(--space-control) var(--space-group);
 }
 
-.entity-index-page__toolbar h2 {
+.directory-header h1 {
+  color: var(--heading-color);
   font-size: 20px;
   line-height: 1.2;
   margin: 0;
 }
 
-.entity-index-page__toolbar p {
+.directory-header p {
   color: var(--muted);
   font-size: 12px;
-  margin: 3px 0 0;
+  margin: var(--space-micro) 0 0;
+}
+
+.directory-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-micro);
+}
+
+.directory-nav a.ant-typography {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-micro) var(--space-control);
+  min-height: var(--control-height);
+  color: var(--muted);
+  border-radius: var(--radius-md);
+}
+
+.directory-nav a.ant-typography:hover {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.directory-nav a.ant-typography[aria-current="page"] {
+  color: var(--selection-text);
+  background: var(--selection-bg);
+  font-weight: 650;
 }
 
 .entity-index-page__table {
@@ -44,15 +80,13 @@
   overflow: auto;
 }
 
-.entity-index-page__toolbar > * {
-  min-width: 0;
-}
 .entity-index-page__table > [role="alert"] {
   margin: 12px;
 }
-@media (max-width: 575px) {
-  .entity-index-page {
-    padding: 16px;
+@media (max-width: 767px) {
+  .entity-index-page,
+  .directory-page {
+    padding: var(--space-group);
   }
 }
 

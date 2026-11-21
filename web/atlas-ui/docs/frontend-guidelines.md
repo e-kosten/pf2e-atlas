@@ -47,8 +47,8 @@ and link conditions share a separate wrapping area, so values do not create hole
 beneath individual controls. Use compact joined edit/remove link chips; keep each
 remove action attached to its chip and its complete title available from the
 link-scope popover. Conditions that cannot be represented as independent chips
-show “Advanced · Applied” inside the neutral Advanced button; its hover/focus
-tooltip and accessible description say Advanced filters applied. Applied chips
+show a filled dot beside Advanced. Its hover/focus tooltip and accessible
+description say “Additional filters applied.” Applied chips
 share a neutral surface, border and height; include/exclude color belongs to
 the +/- marker rather than changing the whole chip. Do not print the boolean
 expression in the toolbar or count groups as though they were individual choices.
@@ -452,8 +452,15 @@ extending beneath individual triggers. Standalone choice controls may keep value
 beneath their trigger without centering neighboring controls against that group. Verify actual input, selector and button
 alignment together at wide, intermediate and phone widths in both themes.
 
-Index pages use the shared page toolbar slot below the heading; feature styles
-own their responsive search/action priorities.
+Lists, Encounters, Parties and Characters use the shared directory header. Align the
+title and primary action with the directory body. Encounter, party and character
+directories keep their section links in the same order and position, including while a
+party is selected. Use the toolbar below the heading for filters or archive views.
+
+When an index has insufficient width for its detailed columns, keep the linked name,
+identifying facts and row actions together in a compact row. Measure the table's
+available width. Keep a single set of interactive controls and preserve focus when a
+settings dialog spans a resize. List tags retain their measured disclosure.
 
 Shared Ant button and link primitives pass native event props and React refs to
 the underlying Ant control, preserving its DOM target for Tooltip and Popover
@@ -1046,13 +1053,15 @@ A compact common-filter toolbar sits above results and the generous reader. Sear
 occupies its own row; common pickers and Advanced/Clear actions share a wrapping,
 top-aligned row underneath, including when selected chips add height. Use
 an icon beside the Advanced label. When additional applied conditions have no
-chip representation, show a centered dot inside Advanced with the shared soft
-selection treatment. Reserve the dot's space in the inactive state to keep the
-button width stable; describe it as “Additional filters applied.” Clear is an icon with an accessible label and
+chip representation, place one filled dot after Advanced with the shared soft
+selection treatment. Keep the button the same width in both states and center
+the visible icon, label and optional dot as a group. Clear is an icon with an accessible label and
 tooltip, shown when criteria or unfinished drafts can be cleared; clearing returns
 keyboard focus to the retained Advanced control. Use
 native Ant Splitter on desktop; below the lg breakpoint show results or the reader,
-with Results returning focus to the initiating row or match control. Keyword
+with Results returning focus to the initiating row or match control. Keep the
+Search workspace's profile notice with its results and controls when drilling
+into a record. Recovery actions return with Results. Keyword
 `SearchEntry` edits stay local until Enter or the Search button; filters commit
 independently. Advanced filters always use the native Drawer, full catalog and
 complete in-progress expression. Common controls edit recognized conditions in that
@@ -2146,8 +2155,10 @@ with distinct selected, current-turn and defeated states. PC initiative uses a
 borderless, centered inline field with a visible focus outline; creature totals
 use the same numeric alignment and retain their roll/set popover. Accessible movement
 actions disclose the target initiative. Phone layouts drill into a selected
-participant and restore roster focus/scroll on Back. Advancing the turn follows
-the canonical server-selected participant in the reader. Turn progression skips participants without initiative scores, as well as defeated,
+participant and restore roster focus/scroll on Back. The mobile participant toolbar
+uses the same primary Start/Next turn action, label and availability as the roster.
+Following the canonical server-selected participant keeps the reader focused and
+both mobile toolbar buttons visible for successive turns. Turn progression skips participants without initiative scores, as well as defeated,
 disabled and dead participants. Missing initiative must be explained where it prevents
 progression, with a direct way to assign or roll initiative; ordinary selection does
 not change the turn. Use distinct Encounter settings, Participant settings and HP

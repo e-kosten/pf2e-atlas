@@ -40,12 +40,14 @@ const sectionLabels: Record<SheetSectionKind, string> = {
 export function SavedCharacterSheet({
   character,
   defaultTab,
+  emptySheetAction,
   abilityRoute,
   abilities,
   active = true,
   refreshCharacter,
 }: {
   character: PcReferenceView;
+  emptySheetAction?: ReactNode;
   refreshCharacter: () => Promise<number | undefined>;
   defaultTab: "stats" | "abilities";
   abilityRoute?: { active: boolean; close: () => void };
@@ -59,6 +61,7 @@ export function SavedCharacterSheet({
       abilitySections={character.sections}
       abilities={(visible) => abilities(visible && active)}
       saved={character}
+      emptySheetAction={emptySheetAction}
       refreshCharacter={refreshCharacter}
       active={active}
     />
@@ -67,6 +70,7 @@ export function SavedCharacterSheet({
 
 export function CharacterSheet({
   defaultTab,
+  emptySheetAction,
   abilityRoute,
   abilitySections,
   abilities,
@@ -87,6 +91,7 @@ export function CharacterSheet({
   draftDetails?: (signal: AbortSignal) => Promise<ImportDetailsView>;
   priorDetailsChanged?: boolean;
   saved?: PcReferenceView;
+  emptySheetAction?: ReactNode;
   refreshCharacter?: () => Promise<number | undefined>;
   active?: boolean;
   reviewSummary?: ReactNode;
@@ -182,6 +187,17 @@ export function CharacterSheet({
       );
     if (!sheet && saved?.imported && sheetQuery.isPending)
       return <LoadingStatus label="Loading character sheet…" />;
+    if (!sheet && emptySheetAction)
+      return (
+        <>
+          <p>
+            {saved?.imported
+              ? "This character has an abilities reference."
+              : "No character sheet yet."}
+          </p>
+          {emptySheetAction}
+        </>
+      );
     if (!sheet)
       return (
         <p>

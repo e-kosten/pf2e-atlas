@@ -6,11 +6,17 @@ test("an open reference and unfinished query survive crossing the reader breakpo
 }) => {
   await page.goto(landedSearch);
   const input = page.getByRole("searchbox", { name: "Search records" });
+  const profileNotice = page
+    .getByRole("alert")
+    .filter({ hasText: "Text search is unavailable" });
   await input.fill("unfinished search intent");
+  await expect(profileNotice).toBeVisible();
   await expect(page.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 664 });
   await expect(page.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
+  await expect(profileNotice).toBeHidden();
   await page.getByRole("button", { name: "Results", exact: true }).click();
+  await expect(profileNotice).toBeVisible();
   await expect(input).toHaveValue("unfinished search intent");
   await expect(page.locator(`[data-record-key="${sentinel}"]`)).toBeFocused();
   await page.setViewportSize({ width: 1100, height: 700 });

@@ -565,6 +565,7 @@ describe("encounter views", () => {
     });
 
     expect(await screen.findByText("Ambush")).toBeInTheDocument();
+    expect(screen.getByText("1 active encounter")).toBeVisible();
     const indexTable = screen.getByRole("table");
     expect(indexTable).toHaveStyle({ tableLayout: "auto" });
     expect(indexTable.querySelector("colgroup col")).toHaveStyle({ minWidth: "240px" });
@@ -580,6 +581,7 @@ describe("encounter views", () => {
     history.replaceState(null, "", "/encounters");
     fireEvent.click(screen.getByRole("tab", { name: "Archived" }));
     expect(await screen.findByText("Old Fight")).toBeInTheDocument();
+    expect(screen.getByText("1 archived encounter")).toBeVisible();
     expect(screen.queryByText("Ambush")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Active" }));
     expect(await screen.findByText("Ambush")).toBeInTheDocument();

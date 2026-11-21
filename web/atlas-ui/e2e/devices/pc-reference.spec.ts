@@ -437,6 +437,50 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
   }
 });
 
+test("an empty saved sheet imports into the same character and returns focus", async ({
+  page,
+}, info) => {
+  const name = `First import ${info.project.name} ${Date.now()}`;
+  const response = await page.request.post("/api/characters", {
+    data: { name, level: 7, request_id: crypto.randomUUID() },
+  });
+  expect(response.ok()).toBe(true);
+  const { character_key } = await response.json();
+  try {
+    await page.goto(`/characters/${character_key}`);
+    const opener = page.getByRole("button", {
+      name: "Import from Pathbuilder",
+      exact: true,
+    });
+    const dialog = page.getByRole("dialog", { name: "New import from Pathbuilder" });
+    await activate(opener, info);
+    await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(opener).toBeFocused();
+
+    await activate(opener, info);
+    const input = dialog.getByLabel("Pathbuilder JSON");
+    await input.fill("{");
+    await activate(dialog.getByRole("button", { name: "Continue", exact: true }), info);
+    await expect(
+      dialog.getByText("Could not review character", { exact: true }),
+    ).toBeVisible();
+    await expect(input).toHaveValue("{");
+    await input.fill(exportedCharacter(name));
+    await activate(dialog.getByRole("button", { name: "Continue", exact: true }), info);
+    await activate(
+      dialog.getByRole("button", { name: "Update character", exact: true }),
+      info,
+    );
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`/characters/${character_key}/?$`));
+    await expect(page.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(opener).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Character actions" })).toBeFocused();
+  } finally {
+    await deleteCharacters(page.request, [character_key]);
+  }
+});
+
 test("encounter imports and manual PCs create reusable characters", async ({
   page,
 }, info) => {

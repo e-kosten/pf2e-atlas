@@ -1,15 +1,13 @@
 import { Button } from "antd";
 import { useNavigate } from "@tanstack/react-router";
-import { AtlasButtonLink, AtlasLink } from "../../app/AtlasLink";
-import {
-  characterDestination,
-  partiesDestination,
-  partyDestination,
-} from "../../app/destinations";
+import { AtlasLink } from "../../app/AtlasLink";
+import { characterDestination, partyDestination } from "../../app/destinations";
 import type { CharacterPartyView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
+import { DirectoryHeader } from "../../shared/ui/pages/EntityIndexPage";
+import { EncounterDirectoryNav } from "../encounters/EncounterDirectoryNav";
 import { AddCharacter } from "./AddCharacter";
 import { useCharacters } from "./characterQueries";
 
@@ -32,14 +30,14 @@ export function CharactersPage() {
   const query = useCharacters();
   const navigate = useNavigate();
   return (
-    <div className="party-page">
-      <div className="party-page-heading">
-        <h1>Characters</h1>
-        <div className="party-heading-actions">
-          <AtlasButtonLink {...partiesDestination()}>Parties</AtlasButtonLink>
+    <main className="directory-page">
+      <DirectoryHeader
+        title="Characters"
+        navigation={<EncounterDirectoryNav current="Characters" />}
+        actions={
           <AddCharacter onSaved={(key) => void navigate(characterDestination(key))} />
-        </div>
-      </div>
+        }
+      />
       {query.error && (
         <ErrorNotice
           title="Characters could not load"
@@ -77,6 +75,6 @@ export function CharactersPage() {
         ) : (
           <p>No saved characters yet.</p>
         ))}
-    </div>
+    </main>
   );
 }

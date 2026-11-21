@@ -5,6 +5,22 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Shared encounter turn action
+
+The phone participant toolbar now shows the same primary play button as the
+roster. Draft encounters show Start turn and running encounters show Next turn.
+Ten phone Chromium and seven phone WebKit checkpoints show the changed button
+or the retained scroll position after the participant reader takes focus. The
+condition editor and reminder dialogs follow the reader’s current position.
+
+The local capture used macOS 27.2 (26B123) arm64 and Playwright 1.65.0.
+Frontend input SHA-256
+`186ae6ed530ed1abd694040b561fbb2c833429c1061e5f84f57dfaf253337236`.
+Frontend index SHA-256
+`eeddc35b02a7a1e73ca789f2a8bbf3bea8f5a287577e9f251c626cb6bdf3a85f`.
+Fixture SHA-256
+`08988cd538640b946a1b548ebf331262d2ff662236fde966e4dfe2cea88ae64a`.
+
 ## PC reference in the encounter inspector
 
 The condition workflows show the new View PC reference button in the encounter

@@ -18,6 +18,7 @@ import type {
   RecordDetailView,
   SearchResultsPage,
 } from "../../generated/atlas";
+import { SavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { SearchProfileContext } from "../../shared/search/SearchProfileContext";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
@@ -151,6 +152,40 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+it("offers first import for an abilities-only character after the sheet has loaded", async () => {
+  let fail!: (error: Error) => void;
+  api.getCharacterSheet
+    .mockReturnValueOnce(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    )
+    .mockResolvedValueOnce({
+      character_key: character.character_key,
+      character_revision: character.character_revision,
+    });
+  const view = render(
+    <SavedWritesPaused.Provider value={false}>
+      <Harness />
+    </SavedWritesPaused.Provider>,
+  );
+  await waitFor(() => expect(api.getCharacterSheet).toHaveBeenCalledOnce());
+  const button = () =>
+    screen.queryByRole("button", { name: "Import from Pathbuilder" });
+  expect(button()).not.toBeInTheDocument();
+  await act(async () => fail(new Error("Sheet unavailable")));
+  const retry = await screen.findByRole("button", { name: "Retry" });
+  expect(button()).not.toBeInTheDocument();
+  fireEvent.click(retry);
+  await waitFor(() => expect(button()).toBeEnabled());
+  view.rerender(
+    <SavedWritesPaused.Provider value>
+      <Harness />
+    </SavedWritesPaused.Provider>,
+  );
+  expect(button()).toBeDisabled();
 });
 
 async function openAbilities() {

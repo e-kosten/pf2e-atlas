@@ -57,7 +57,7 @@ export function CreateListModal({
       closable={{ disabled: create.isPending }}
       keyboard={!create.isPending}
       mask={{ closable: !create.isPending }}
-      okText="Create"
+      okText="Create list"
       onCancel={() => {
         if (!inFlight.current) onCancel();
       }}
@@ -66,7 +66,7 @@ export function CreateListModal({
         if (!paused) form.submit();
       }}
       open={open}
-      title="New List"
+      title="New list"
     >
       <Form
         form={form}

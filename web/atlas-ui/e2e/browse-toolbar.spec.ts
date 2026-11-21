@@ -591,12 +591,22 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
       },
     ],
   });
+  await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/search");
   const trigger = page.getByRole("button", { name: "Advanced filters", exact: true });
   await expect(trigger).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
+  const labelCenterOffset = () =>
+    trigger.evaluate((button) => {
+      const group = button.querySelector(".filter-controls__advanced-content")!;
+      const { left } = group.firstElementChild!.getBoundingClientRect();
+      const { right } = group.lastElementChild!.getBoundingClientRect();
+      const bounds = button.getBoundingClientRect();
+      return Math.abs((left + right - bounds.left - bounds.right) / 2);
+    });
   const idleWidth = (await trigger.boundingBox())!.width;
   await expect(trigger.locator(".filter-controls__advanced-dot")).toHaveCount(0);
+  expect(await labelCenterOffset()).toBeLessThan(1);
   await page.goto(`/search?q=cat&filter=${encodeURIComponent(filter)}`);
   await expect(trigger).toHaveAttribute(
     "aria-description",
@@ -607,9 +617,11 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
     await page.emulateMedia({ colorScheme });
     await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
     await expect(trigger).toHaveAttribute("data-applied", "true");
-    await expect(trigger.locator(".filter-controls__advanced-dot")).toHaveCount(0);
+    await expect(trigger.locator(".filter-controls__advanced-dot")).toBeVisible();
+    expect(await labelCenterOffset()).toBeLessThan(1);
     expect(await renderedContrast(trigger)).toBeGreaterThanOrEqual(4.5);
   }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await trigger.click();
   const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
   const response = page.waitForResponse(

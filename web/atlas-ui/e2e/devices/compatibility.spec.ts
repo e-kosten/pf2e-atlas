@@ -50,7 +50,7 @@ test("a mismatch during use preserves an unsaved form and never replays its muta
   page,
 }) => {
   await page.goto("/encounters");
-  await page.getByRole("button", { name: "New Encounter", exact: true }).click();
+  await page.getByRole("button", { name: "New encounter", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "New encounter", exact: true });
   await dialog.getByRole("textbox", { name: "Name" }).fill("Unsaved draft");
   let submissions = 0;
@@ -64,7 +64,7 @@ test("a mismatch during use preserves an unsaved form and never replays its muta
       });
     } else await route.continue();
   });
-  await dialog.getByRole("button", { name: "OK", exact: true }).click();
+  await dialog.getByRole("button", { name: "Create encounter", exact: true }).click();
   await expect(
     dialog.getByRole("status").filter({ hasText: "Reload Atlas to continue" }),
   ).toBeVisible();
