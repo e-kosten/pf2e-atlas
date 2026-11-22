@@ -937,31 +937,30 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         .set_size(tauri::LogicalSize::new(480.0, 720.0))
         .map_err(display)?;
     // Supply model availability to this isolated WebView fixture without loading models.
-    wait_for(deadline, "fixture model selector", || {
-        evaluates_true(
-            window,
-            r#"(() => {
-        const state = window.__ATLAS_DESKTOP_SETUP__;
-        if (!state?.reference || state.referenceLoading) return false;
-        window.__atlasSmokeSetup = state;
-        window.__ATLAS_DESKTOP_SETUP__ = {
-            ...state, reference: { ...state.reference, modelsAvailable: true, canChangeModels: true,
-                preferred: null, models: [
-                    {id: 'bge-base', label: 'BGE Base', installed: true, usable: true},
-                    {id: 'embeddinggemma', label: 'EmbeddingGemma', installed: true, usable: true}
-                ]}
-        };
-        window.dispatchEvent(new Event('atlas-desktop-setup'));
-        return true;
-    })()"#,
-        )
-    })?;
     wait_for(deadline, "open model selector", || {
         evaluates_true(
             window,
             r#"(() => {
+        const state = window.__ATLAS_DESKTOP_SETUP__;
+        if (!document.getElementById('desktop-setup-models') || !state?.reference || state.referenceLoading)
+            return false;
+        if (state !== window.__atlasSmokeModels) {
+            window.__atlasSmokeSetup = state;
+            window.__atlasSmokeModels = {
+                ...state, reference: { ...state.reference, modelsAvailable: true, canChangeModels: true,
+                    preferred: 'bge-base', models: [
+                        {id: 'bge-base', label: 'BGE Base', installed: true, usable: true},
+                        {id: 'embeddinggemma', label: 'EmbeddingGemma', installed: true, usable: true}
+                    ]}
+            };
+            window.__ATLAS_DESKTOP_SETUP__ = window.__atlasSmokeModels;
+            window.dispatchEvent(new Event('atlas-desktop-setup'));
+            return false;
+        }
         const field = document.querySelector('[aria-label="Preferred search model"]');
-        if (!field || field.disabled) return false;
+        const select = field?.closest('.ant-select');
+        if (!select || field.disabled || !select.textContent.includes('BGE Base')) return false;
+        select.dataset.smokeShortWidth = select.offsetWidth;
         field.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
         return true;
     })()"#,
@@ -985,8 +984,10 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
             window,
             r#"(() => {
         const field = document.querySelector('[aria-label="Preferred search model"]');
-        const value = field?.closest('.ant-select')?.querySelector('.ant-select-content');
-        return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth;
+        const select = field?.closest('.ant-select');
+        const value = select?.querySelector('.ant-select-content');
+        return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth
+            && select.offsetWidth > Number(select.dataset.smokeShortWidth);
     })()"#,
         )
     })?;
@@ -994,6 +995,7 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         .eval(
             r#"window.__ATLAS_DESKTOP_SETUP__ = window.__atlasSmokeSetup;
         delete window.__atlasSmokeSetup;
+        delete window.__atlasSmokeModels;
         window.dispatchEvent(new Event('atlas-desktop-setup'));"#,
         )
         .map_err(display)

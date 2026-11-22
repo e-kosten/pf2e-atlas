@@ -47,8 +47,9 @@
   min-width: 0;
 }
 
-.desktop-setup__model-preference {
-  max-width: 12rem;
+.desktop-setup__model-preference .ant-select {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .desktop-setup__section button {
