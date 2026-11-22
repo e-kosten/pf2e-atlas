@@ -49,8 +49,9 @@ Clear **Archived** and save to put the list back in the default view.
 
 Add a creature or hazard with **Add to list or encounter**, choosing an existing
 encounter or creating one. Open Encounters to review the roster and add your PCs.
-Use **Add PC** to choose a saved character, enter a name or import a PC from
-Pathbuilder. Choose a party under **Add party** to add its members together.
+Open the roster’s **Add** menu and choose **Existing character** or **Enter
+manually** under **Add PC**. Choose a party under **Add party** to add its
+members together.
 See [saved parties](#saved-parties) for roster and character management.
 
 Use the encounter controls to set initiative, move through turns, adjust HP,
@@ -140,13 +141,14 @@ the party. **Enter manually** needs only a name. A character can belong to
 several parties, and **Characters → All characters** includes PCs without a party.
 
 For a Pathbuilder character, copy the text from Pathbuilder’s **Export JSON**.
-Choose **Add PC → From Pathbuilder** in the character list, a party roster or
-an encounter. Paste the JSON and choose **Continue**. Select an ability to read
-its matched rule. Use **Link rule…** or **Change link** to choose a link.
-Read a search result and select **Link this rule**. You can leave abilities
-unlinked and resolve them later. **Add character**, **Add to party** or
-**Add to encounter** saves the character and your chosen links. An encounter
-also saves newly entered manual PCs and imported PCs for reuse.
+Choose **Add PC → From Pathbuilder** in **Characters** or in a party roster.
+Paste the JSON and choose **Continue**. Select an ability to read its matched
+rule. Use **Link rule…** or **Change link** to choose a link. Read a search
+result and select **Link this rule**. You can leave abilities unlinked and
+resolve them later. Choose **Add character** or **Add to party** to save the
+character and your chosen links. In an encounter, use **Add → Existing
+character** to add the imported PC. PCs entered manually in an encounter are
+also saved in Characters for reuse.
 
 Open a character by name to see its party memberships and grouped abilities.
 Filter abilities and select one to read its rules. **Find rule** opens a search

@@ -2,12 +2,14 @@ import { isUnconfirmedMutation } from "../../api/apiError";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { Button, Dropdown, type MenuProps } from "antd";
 import { ChevronDown } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, type SyntheticEvent } from "react";
 import type { AddEncounterPartyRequest, PartyView } from "../../generated/atlas";
 import { AtlasLink } from "../../app/AtlasLink";
 import { partiesDestination } from "../../app/destinations";
 import { useParties } from "../parties/useParties";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
+
+export type EncounterPcAddMode = "existing" | "manual";
 
 export function EncounterAddMenu({
   onAdd,
@@ -19,7 +21,7 @@ export function EncounterAddMenu({
 }: {
   onAdd: (request: AddEncounterPartyRequest) => Promise<void>;
   onAddCreature: () => void;
-  onAddPc: () => void;
+  onAddPc: (mode: EncounterPcAddMode) => void;
   onAddInitiativeEntry?: (opener: HTMLElement | null) => void;
   disabled: boolean;
   encounterRevision?: number;
@@ -96,26 +98,22 @@ export function EncounterAddMenu({
       key: "create",
       label: <AtlasLink {...partiesDestination()}>Create party…</AtlasLink>,
     });
+  const openEditor = (
+    event: SyntheticEvent,
+    show: (opener: HTMLElement | null) => void,
+  ) => {
+    // Enter can activate the dialog's newly focused close button.
+    event.preventDefault();
+    setOpen(false);
+    trigger.current?.focus();
+    show(trigger.current);
+  };
   const menuItems: MenuProps["items"] = [
     {
       key: "creature",
       label: "Add creature or hazard…",
       disabled: disabled || adding,
-      onClick: () => {
-        setOpen(false);
-        trigger.current?.focus();
-        onAddCreature();
-      },
-    },
-    {
-      key: "pc",
-      label: "Add PC…",
-      disabled: disabled || adding,
-      onClick: () => {
-        setOpen(false);
-        trigger.current?.focus();
-        onAddPc();
-      },
+      onClick: ({ domEvent }) => openEditor(domEvent, onAddCreature),
     },
     ...(onAddInitiativeEntry
       ? [
@@ -123,14 +121,31 @@ export function EncounterAddMenu({
             key: "initiative-entry",
             label: "Add custom turn…",
             disabled: disabled || adding,
-            onClick: () => {
-              setOpen(false);
-              trigger.current?.focus();
-              onAddInitiativeEntry(trigger.current);
-            },
+            onClick: ({ domEvent }: { domEvent: SyntheticEvent }) =>
+              openEditor(domEvent, onAddInitiativeEntry),
           },
         ]
       : []),
+    { type: "divider" },
+    {
+      key: "pc",
+      type: "group",
+      label: "Add PC",
+      children: [
+        {
+          key: "existing-pc",
+          label: "Existing character",
+          disabled: disabled || adding,
+          onClick: ({ domEvent }) => openEditor(domEvent, () => onAddPc("existing")),
+        },
+        {
+          key: "manual-pc",
+          label: "Enter manually",
+          disabled: disabled || adding,
+          onClick: ({ domEvent }) => openEditor(domEvent, () => onAddPc("manual")),
+        },
+      ],
+    },
     { type: "divider" },
     { key: "parties", type: "group", label: "Add party", children: items },
   ];

@@ -416,12 +416,14 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       page.getByRole("button", { name: "Add participants", exact: true }),
       info,
     );
-    await activate(page.getByRole("menuitem", { name: "Add PC…" }), info);
     await activate(
-      page.getByRole("button", { name: "Existing character", exact: true }),
+      page.getByRole("menuitem", { name: "Existing character", exact: true }),
       info,
     );
     const picker = page.getByRole("dialog", { name: "Choose a character" });
+    await expect(
+      picker.getByRole("combobox", { name: "Filter by party" }),
+    ).toBeVisible();
     await picker.getByRole("textbox", { name: "Find a character" }).fill("Aster");
     await activate(
       picker
@@ -529,7 +531,7 @@ test("an empty saved sheet imports into the same character and returns focus", a
   }
 });
 
-test("encounter imports and manual PCs create reusable characters", async ({
+test("Characters imports and manual PCs can be used in encounters", async ({
   page,
 }, info) => {
   const stamp = `${info.project.name} ${Date.now()}`;
@@ -538,10 +540,48 @@ test("encounter imports and manual PCs create reusable characters", async ({
   const encounter = await createEncounter(page.request, stamp);
   const created: string[] = [];
   try {
+    await page.goto("/characters");
+    await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+    await activate(page.getByRole("menuitem", { name: "From Pathbuilder" }), info);
+    const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
+    await importer.getByLabel("Pathbuilder JSON").fill(exportedCharacter(importedName));
+    await activate(
+      importer.getByRole("button", { name: "Continue", exact: true }),
+      info,
+    );
+    await activate(importer.getByRole("button", { name: "Add character" }), info);
+    await expect(page).toHaveURL(/\/characters\/[^/]+$/);
+    const importedKey = new URL(page.url()).pathname.split("/").pop()!;
+    created.push(importedKey);
+
     await page.goto(`/encounters/${encounter.slug}`);
-    await activate(page.getByRole("button", { name: "Add participants" }), info);
-    await activate(page.getByRole("menuitem", { name: "Add PC…" }), info);
-    await activate(page.getByRole("button", { name: "Enter manually" }), info);
+    const add = page.getByRole("button", { name: "Add participants" });
+    const menu = page.getByRole("menu", { name: "Add participants" });
+    const enterManually = menu.getByRole("menuitem", { name: "Enter manually" });
+    if (info.project.use.hasTouch) {
+      await activate(add, info);
+    } else {
+      await add.focus();
+      await page.keyboard.press("Enter");
+    }
+    await expect(menu).toBeVisible();
+    await expect(
+      menu.getByRole("menuitem", { name: /Pathbuilder|^Add PC/ }),
+    ).toHaveCount(0);
+    if (info.project.use.hasTouch) {
+      await activate(enterManually, info);
+    } else {
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Home");
+      await expect(
+        menu.getByRole("menuitem", { name: /Add creature or hazard/ }),
+      ).toBeFocused();
+      for (const name of [/Add custom turn/, "Existing character", "Enter manually"]) {
+        await page.keyboard.press("ArrowDown");
+        await expect(menu.getByRole("menuitem", { name })).toBeFocused();
+      }
+      await page.keyboard.press("Enter");
+    }
     const manual = page.getByRole("dialog", { name: "Add PC", exact: true });
     await manual.getByLabel("Name", { exact: true }).fill(manualName);
     await manual.getByLabel("Max HP", { exact: true }).fill("30");
@@ -559,27 +599,34 @@ test("encounter imports and manual PCs create reusable characters", async ({
     expect(character).toBeDefined();
     created.push(character.character_key);
     expect(character.imported).toBe(false);
-    await activate(page.getByRole("button", { name: "Add participants" }), info);
-    await activate(page.getByRole("menuitem", { name: "Add PC…" }), info);
-    await activate(page.getByRole("button", { name: "From Pathbuilder" }), info);
-    const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
-    await importer.getByLabel("Pathbuilder JSON").fill(exportedCharacter(importedName));
+    await expect(add).toBeFocused();
+    await activate(add, info);
+    await activate(menu.getByRole("menuitem", { name: "Existing character" }), info);
+    const picker = page.getByRole("dialog", { name: "Choose a character" });
+    await picker.getByRole("textbox", { name: "Find a character" }).fill(importedName);
     await activate(
-      importer.getByRole("button", { name: "Continue", exact: true }),
+      picker
+        .getByRole("listitem")
+        .filter({ hasText: importedName })
+        .getByRole("button", {
+          name: /^Add /,
+        }),
       info,
     );
-    await activate(importer.getByRole("button", { name: "Add to encounter" }), info);
+    await expect(page.locator("[data-participant-key]")).toHaveCount(2);
+    await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
+    await expect(add).toBeFocused();
+    await activate(
+      page.locator("[data-participant-key]").filter({ hasText: importedName }),
+      info,
+    );
+    await activate(page.getByRole("button", { name: "View PC reference" }), info);
     const drawer = page.getByRole("dialog", { name: importedName, exact: true });
     await expect(drawer).toBeVisible();
     await expect(drawer.getByRole("heading", { name: /^Features/ })).toBeVisible();
     await activate(drawer.getByRole("tab", { name: "Stats", exact: true }), info);
     await expect(drawer.getByText("Max HP", { exact: true })).toBeVisible();
     await expect(page.locator("[data-participant-key]")).toHaveCount(2);
-    const index = await (await page.request.get("/api/characters")).json();
-    created.push(
-      index.characters.find((item: { name: string }) => item.name === importedName)
-        .character_key,
-    );
     await activate(drawer.getByRole("button", { name: "Close", exact: true }), info);
     const live = await (
       await page.request.get(`/api/characters/${character.character_key}`)

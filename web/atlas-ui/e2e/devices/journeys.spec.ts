@@ -1342,9 +1342,8 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       page.getByRole("button", { name: "Add participants", exact: true }),
       info,
     );
-    await activate(page.getByRole("menuitem", { name: "Add PC…", exact: true }), info);
     await activate(
-      page.getByRole("button", { name: "Enter manually", exact: true }),
+      page.getByRole("menuitem", { name: "Enter manually", exact: true }),
       info,
     );
     await activate(

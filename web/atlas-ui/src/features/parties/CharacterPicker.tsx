@@ -1,5 +1,5 @@
 import { isUnconfirmedMutation } from "../../api/apiError";
-import { Button, Input, List, Select } from "antd";
+import { Button, Flex, Input, List, Select } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type ComponentRef } from "react";
 import {
@@ -201,14 +201,16 @@ export function CharacterPicker({
   }
 
   const members = new Set(reviewedParty?.members.map((member) => member.character_key));
+  const partyChoices = encounter ? (parties.data?.parties ?? []) : [];
+  const selectedParty = partyChoices.find((party) => party.party_key === partyFilter);
   const term = query.trim().toLocaleLowerCase();
   const visible = characters.data?.characters.filter(
     (character) =>
       [character.name, ...character.parties.map((party) => party.name)].some((label) =>
         label.toLocaleLowerCase().includes(term),
       ) &&
-      (!partyFilter ||
-        character.parties.some((party) => party.party_key === partyFilter)),
+      (!selectedParty ||
+        character.parties.some((party) => party.party_key === selectedParty.party_key)),
   );
   return (
     <AtlasModal
@@ -221,9 +223,15 @@ export function CharacterPicker({
       confirmLoading={busy}
       mask={{ closable: !busy }}
       footer={
-        <Button disabled={busy} onClick={() => setClosing(true)}>
-          Done
-        </Button>
+        <Flex align="center" justify="space-between" gap="small">
+          <div className="character-picker__status">
+            <div role="status">{status}</div>
+            {save.isPending && !status && <LoadingStatus label="Adding character…" />}
+          </div>
+          <Button disabled={busy} onClick={() => setClosing(true)}>
+            Done
+          </Button>
+        </Flex>
       }
     >
       <div className="character-picker">
@@ -235,23 +243,19 @@ export function CharacterPicker({
           onChange={(event) => setQuery(event.target.value)}
           allowClear
         />
-        {encounter && (
+        {partyChoices.length > 0 && (
           <Select
             aria-label="Filter by party"
             placeholder="All parties"
             allowClear
-            value={partyFilter}
+            value={selectedParty?.party_key}
             onChange={setPartyFilter}
-            loading={parties.isPending}
-            options={parties.data?.parties.map((party) => ({
+            options={partyChoices.map((party) => ({
               value: party.party_key,
               label: party.name,
             }))}
           />
         )}
-        <p className="character-picker__status" role="status">
-          {status}
-        </p>
         {parties.error && encounter && (
           <ErrorNotice
             error={parties.error}
@@ -351,10 +355,6 @@ export function CharacterPicker({
                         aria-label={`Add ${character.name}, ${metadata}`}
                         disabled={
                           paused || busy || Boolean(save.error) || needsEncounterRead
-                        }
-                        loading={
-                          save.isPending &&
-                          save.variables?.character.character_key === key
                         }
                         onClick={() => add(character)}
                       >
