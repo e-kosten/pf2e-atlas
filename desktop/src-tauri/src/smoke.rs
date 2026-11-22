@@ -14,6 +14,7 @@ use crate::{
     Desktop, bundled_origin, display, lock,
     opening::{PRIMARY, evaluates_true},
     process, receive_link,
+    settings::{self, Destination},
 };
 
 const FIXTURE_LINK: &str = "pf2e-atlas://v1/record/actions%3Aaaaaaaaaaaaaaaaa";
@@ -180,26 +181,9 @@ fn run_upgrade_flow(app: &AppHandle) -> Result<(), String> {
         if config.pending.is_some() {
             return Err("Upgrade smoke requires a fresh Stable review.".into());
         }
-        wait_for(deadline, "desktop settings", || open_setup_panel(&window))?;
-        wait_for(deadline, "preview build disclosure", || {
-            evaluates_true(
-                &window,
-                r#"(() => {
-                const summary = document.querySelector('.desktop-channel__preview summary');
-                if (!summary?.getClientRects().length) return false;
-                if (!summary.parentElement.open) summary.click();
-                return true;
-            })()"#,
-            )
-        })?;
-        for label in [
-            "Try Nightly…",
-            "Use the other copy",
-            "Check Nightly compatibility",
-        ] {
-            wait_for(deadline, label, || {
-                click_product_button(&window, label, true)
-            })?;
+        let window = open_settings(app, &window, Destination::Channel, deadline)?;
+        for label in ["Use the other copy", "Check Nightly compatibility"] {
+            wait_for(deadline, label, || click_settings_button(&window, label))?;
         }
         wait_for(deadline, "data upgrade downtime warning", || {
             text_visible(
@@ -209,7 +193,7 @@ fn run_upgrade_flow(app: &AppHandle) -> Result<(), String> {
         })?;
         upgrade_record(app, "awaiting-automatic-restart", None)?;
         wait_for(deadline, "signed Nightly install confirmation", || {
-            click_product_button(&window, "Install Nightly and restart", true)
+            click_settings_button(&window, "Install Nightly and restart")
         })?;
         return wait_for(deadline, "automatic target restart", || false);
     }
@@ -233,7 +217,7 @@ fn run_upgrade_flow(app: &AppHandle) -> Result<(), String> {
             const heading = document.getElementById('heading');
             const button = document.getElementById('primary');
             return heading?.getClientRects().length > 0
-                && heading.textContent === 'Update your workspace for this version of Atlas'
+                && heading.textContent === 'Update your workspace'
                 && button?.getClientRects().length > 0
                 && button.textContent === 'Update workspace' && !button.disabled;
         })()"#,
@@ -302,35 +286,12 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
         .get_webview_window(PRIMARY)
         .ok_or("primary window unavailable")?;
     let deadline = Instant::now() + Duration::from_secs(30);
-    wait_for(deadline, "desktop settings", || open_setup_panel(&window))?;
+    let window = open_settings(app, &window, Destination::Channel, deadline)?;
     let stable = installed.tag.starts_with("release/");
     if stable {
-        wait_for(deadline, "preview build disclosure", || {
-            evaluates_true(
-                &window,
-                r#"(() => {
-                const summary = document.querySelector('.desktop-channel__preview summary');
-                if (!summary?.getClientRects().length) return false;
-                if (!summary.parentElement.open) summary.click();
-                return true;
-            })()"#,
-            )
-        })?;
-    }
-    wait_for(deadline, "release channel controls", || {
-        click_product_button(
-            &window,
-            if stable {
-                "Try Nightly…"
-            } else {
-                "Change release channel"
-            },
-            true,
-        ) || (!stable && click_product_button(&window, "Stable available", true))
-    })?;
-    if stable {
         wait_for(deadline, "Stable channel after restart", || {
-            text_visible(&window, &format!("Version {}", installed.version))
+            text_visible(&window, &format!("Installed version {}", installed.version))
+                && text_visible(&window, "Current channel · Stable")
         })?;
         let config = crate::workspace_switch::load(app)?;
         if config.pending.is_some() {
@@ -362,12 +323,13 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
     wait_for(deadline, "Stable compatibility review", || {
-        click_product_button(&window, "Check Stable compatibility", true)
+        click_settings_button(&window, "Check Stable compatibility")
     })?;
     if let Err(error) = wait_for(deadline, "signed Stable install confirmation", || {
-        click_product_button(&window, "Install Stable and restart", true)
+        click_settings_button(&window, "Install Stable and restart")
     }) {
-        let _ = window.eval("location.hash = 'smoke_error=' + encodeURIComponent(document.querySelector('[role=dialog]')?.innerText || document.body.innerText)");
+        let _ = window
+            .eval("location.hash = 'smoke_error=' + encodeURIComponent(document.body.innerText)");
         thread::sleep(Duration::from_millis(200));
         let detail = window
             .url()
@@ -557,20 +519,13 @@ fn run(app: &AppHandle) -> Result<(), String> {
             )
         },
     )?;
-    wait_for(deadline, "in-window setup panel", || {
-        open_setup_panel(&window)
+    let settings = open_settings(app, &window, Destination::Data, deadline)?;
+    wait_for(deadline, "cancel setup from Settings", || {
+        click_settings_button(&settings, "Cancel setup")
     })?;
-    wait_for(deadline, "cancel setup in the product", || {
-        evaluates_true(
-            &window,
-            r#"(() => {
-            const button = [...document.querySelectorAll('[role="dialog"] button')].find(
-                item => item.textContent.trim() === "Cancel setup");
-            if (!button || button.disabled) return false;
-            button.click();
-            return true;
-        })()"#,
-        )
+    settings.close().map_err(display)?;
+    wait_for(deadline, "Settings closes", || {
+        app.get_webview_window(settings::WINDOW).is_none()
     })?;
     wait_for(deadline, "cancel releases edit admission", || {
         evaluates_true(
@@ -749,6 +704,7 @@ fn run_links(app: &AppHandle) -> Result<(), String> {
         }
     };
 
+    let _settings = open_settings(app, &primary, Destination::Updates, deadline)?;
     send_url()?;
     let deadline = Instant::now() + Duration::from_secs(5);
     wait_for(deadline, "foreground record tab from warm OS URL", || {
@@ -769,7 +725,7 @@ fn run_links(app: &AppHandle) -> Result<(), String> {
         deadline,
         "existing standalone record tab after reopening URL",
         || {
-            app.webview_windows().len() == 2
+            app.webview_windows().len() == 3
                 && app.get_webview_window("atlas-0").is_some_and(|record| {
                     record.is_focused().unwrap_or(false)
                         && fixture_record_rendered(&record, FIXTURE_RECORD)
@@ -792,11 +748,9 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(PRIMARY)
         .ok_or("primary window unavailable")?;
-    wait_for(deadline, "permanent setup toolbar entry", || {
-        open_setup_panel(&window)
-    })?;
+    let terminal = open_settings(app, &window, Destination::Terminal, deadline)?;
     wait_for(deadline, "terminal access action", || {
-        click_product_button(&window, "Install terminal command", true)
+        click_settings_button(&terminal, "Install terminal command")
     })?;
     let linked = home.join(".local/bin/atlas");
     wait_for(deadline, "bundled terminal command linked", || {
@@ -805,45 +759,35 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
             .is_ok_and(|path| process::bundled_cli().is_ok_and(|cli| path == cli))
     })?;
     wait_for(deadline, "terminal link status", || {
-        evaluates_true(
-            &window,
-            r#"[...document.querySelectorAll('[role=dialog] [role=status]')].some(
-            node => node.textContent === 'The terminal command is installed.' && node.getClientRects().length)"#,
-        )
+        text_visible(&terminal, "The terminal command is installed.")
     })?;
+    let settings = open_settings(app, &window, Destination::Data, deadline)?;
     wait_for(deadline, "reference action", || {
-        click_product_button(&window, "Check and repair reference data", true)
+        click_settings_button(&settings, "Check and repair reference data")
     })?;
     wait_for(deadline, "shared reference setup job", || {
-        SETUP_RUNS.load(Ordering::Relaxed) == 1 && text_visible(&window, "Cancel setup")
+        SETUP_RUNS.load(Ordering::Relaxed) == 1 && text_visible(&settings, "Cancel setup")
     })?;
 
     crate::run_on_main(app, |app| {
         let _ = crate::open_product(app, "/search", None);
     })?;
     wait_for(deadline, "second product window", || {
-        app.webview_windows().len() == 2
+        app.webview_windows().len() == 3
     })?;
     let second = app
         .webview_windows()
         .into_values()
-        .find(|view| view.label() != PRIMARY)
+        .find(|view| view.label() != PRIMARY && view.label() != settings::WINDOW)
         .ok_or("second product window unavailable")?;
-    wait_for(deadline, "second window attachment", || {
-        evaluates_true(&second, "Boolean(window.__ATLAS_DESKTOP_SETUP__?.token)")
-    })?;
-    wait_for(
-        deadline,
-        "setup gear opens drawer in the second window",
-        || open_setup_panel(&second),
-    )?;
-    wait_for(deadline, "running job appears in the second drawer", || {
-        text_visible(&second, "Cancel setup")
-    })?;
-    if app.webview_windows().len() != 2 {
-        return Err("opening setup created an extra window".into());
+    let reopened = open_settings(app, &second, Destination::Data, deadline)?;
+    if reopened.ns_window().map_err(display)? != settings.ns_window().map_err(display)? {
+        return Err("Opening Settings created another native window.".into());
     }
-    for view in [&window, &second] {
+    wait_for(deadline, "running job survives refocusing Settings", || {
+        text_visible(&settings, "Cancel setup")
+    })?;
+    for view in [&window, &second, &settings] {
         if !evaluates_true(
             view,
             r#"(() => {
@@ -878,22 +822,22 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
             .map_err(display)?;
         if reads != 1 {
             return Err(format!(
-                "Two-window setup broadcast read workspace selection {reads} times."
+                "Shared setup broadcast read workspace selection {reads} times."
             ));
         }
         if fail {
             wait_for(deadline, "setup delivery after selection failure", || {
-                [&window, &second]
+                [&window, &second, &settings]
                     .into_iter()
                     .all(|view| evaluates_true(view, "window.selectionFailureDelivered === true"))
             })?;
         }
     }
-    wait_for(deadline, "cancel the job from the second window", || {
-        click_product_button(&second, "Cancel setup", true)
+    wait_for(deadline, "cancel the shared job", || {
+        click_settings_button(&settings, "Cancel setup")
     })?;
     wait_for(deadline, "cancelled setup state", || {
-        text_visible(&window, "Setup was cancelled.")
+        text_visible(&settings, "Setup was cancelled.")
     })?;
     let pinned_source = std::fs::read_dir(home.join("Library/Caches/pf2e-atlas/pf2e"))
         .map_err(display)?
@@ -903,10 +847,10 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         .path();
     std::fs::remove_file(pinned_source.join(".hold-reference")).map_err(display)?;
     wait_for(deadline, "retry reference setup", || {
-        click_product_button(&window, "Check and repair reference data", true)
+        click_settings_button(&settings, "Check and repair reference data")
     })?;
     wait_for(deadline, "verified no-op", || {
-        text_visible(&window, "Reference data is already up to date.")
+        text_visible(&settings, "Reference data is already up to date.")
     })?;
     if process::reference_status(app)?.generation != initial.generation {
         return Err("the no-op changed the committed generation".into());
@@ -918,62 +862,39 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     source["name"] = "Updated Handoff Test Action".into();
     std::fs::write(record, source.to_string()).map_err(display)?;
     wait_for(deadline, "explicit reference refresh", || {
-        click_product_button(&window, "Check and repair reference data", true)
+        click_settings_button(&settings, "Check and repair reference data")
     })?;
-    wait_for(deadline, "publication confirmed in both drawers", || {
-        text_visible(&window, "Reference data updated.")
-            && text_visible(&second, "Reference data updated.")
+    wait_for(deadline, "reference publication confirmed", || {
+        text_visible(&settings, "Reference data updated.")
     })?;
     if SETUP_RUNS.load(Ordering::Relaxed) != 3
         || process::reference_status(app)?.generation == initial.generation
-        || app.webview_windows().len() != 2
+        || app.webview_windows().len() != 3
     {
         return Err(
             "the reference refresh should publish once without replacing either window".into(),
         );
     }
-    wait_for(deadline, "close the setup drawer", || {
-        click_product_button(&second, "Close", true)
-    })?;
+    settings.close().map_err(display)?;
     wait_for(
         deadline,
-        "the product remains open after closing setup",
+        "both workspaces remain after closing Settings",
         || {
-            evaluates_true(
-                &second,
-                r#"!Array.from(document.querySelectorAll('[role="dialog"]')).some(el => el.getClientRects().length)"#,
-            )
+            app.webview_windows().len() == 2
+                && [&window, &second].into_iter().all(|view| {
+                    evaluates_true(
+                        view,
+                        "Boolean(document.querySelector('.topbar')?.getClientRects().length)",
+                    )
+                })
         },
     )?;
-    // With one product window, exercise the app-menu handler without racing
-    // macOS focus changes caused by the user or another application.
-    crate::run_on_main(app, move |_| {
-        let _ = second.close();
-    })?;
-    wait_for(deadline, "one product window remains", || {
-        app.webview_windows().len() == 1
-    })?;
-    wait_for(deadline, "close the original setup drawer", || {
-        click_product_button(&window, "Close", true)
-    })?;
-    wait_for(deadline, "original drawer closes", || {
-        evaluates_true(
-            &window,
-            r#"!Array.from(document.querySelectorAll('[role="dialog"]')).some(el => el.getClientRects().length)"#,
-        )
-    })?;
-    crate::run_on_main(app, |app| {
-        let _ = crate::show_workspace_setup(app, false);
-    })?;
+    let restored = open_settings(app, &second, Destination::General, deadline)?;
     wait_for(
         deadline,
-        "native menu reopens the drawer with the last result",
-        || text_visible(&window, "Reference data updated."),
-    )?;
-    if app.webview_windows().len() != 1 {
-        return Err("setup menu opened an extra window".into());
-    }
-    Ok(())
+        "Settings remembers the data pane and result",
+        || text_visible(&restored, "Reference data updated."),
+    )
 }
 
 fn run_selector(app: &AppHandle) -> Result<(), String> {
@@ -992,12 +913,13 @@ fn run_selector(app: &AppHandle) -> Result<(), String> {
                 )
         },
     )?;
-    wait_for(
+    let settings = open_settings(
+        app,
+        &window,
+        Destination::Data,
         Instant::now() + Duration::from_secs(10),
-        "setup drawer entry",
-        || open_setup_panel(&window),
     )?;
-    check_model_selector(&window)
+    check_model_selector(&settings)
 }
 
 fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
@@ -1068,28 +990,45 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         .map_err(display)
 }
 
-fn open_setup_panel(window: &WebviewWindow) -> bool {
-    [
-        "Setup and Updates",
-        "Setup and Updates (setup in progress)",
-        "Setup and Updates (setup incomplete)",
-    ]
-    .into_iter()
-    .any(|label| click_product_button(window, label, false))
+fn open_settings(
+    app: &AppHandle,
+    origin: &WebviewWindow,
+    pane: Destination,
+    deadline: Instant,
+) -> Result<WebviewWindow, String> {
+    wait_for(
+        deadline,
+        "workspace attached before opening Settings",
+        || evaluates_true(origin, "Boolean(window.__ATLAS_DESKTOP_SETUP__?.token)"),
+    )?;
+    let origin = origin.clone();
+    let (send, receive) = std::sync::mpsc::channel();
+    crate::run_on_main(app, move |app| {
+        let _ = send.send(settings::open(app, Some(&origin), pane));
+    })?;
+    receive
+        .recv_timeout(Duration::from_secs(3))
+        .map_err(display)??;
+    wait_for(deadline, "attached Settings window", || {
+        app.get_webview_window(settings::WINDOW)
+            .is_some_and(|view| {
+                evaluates_true(
+                    &view,
+                    "Boolean(window.__ATLAS_DESKTOP_SETUP__?.settingsWindow)",
+                )
+            })
+    })?;
+    app.get_webview_window(settings::WINDOW)
+        .ok_or_else(|| "Settings window closed.".into())
 }
 
-fn click_product_button(window: &WebviewWindow, text: &str, drawer: bool) -> bool {
+fn click_settings_button(window: &WebviewWindow, text: &str) -> bool {
     let label = serde_json::json!(text);
-    let selector = if drawer {
-        "[role=dialog] button"
-    } else {
-        ".topbar button"
-    };
     evaluates_true(
         window,
         &format!(
             r#"(() => {{
-            const button = [...document.querySelectorAll("{selector}")].find(
+            const button = [...document.querySelectorAll("button")].find(
                 item => (item.textContent.trim() === {label} || item.getAttribute("aria-label") === {label})
                     && item.getClientRects().length > 0);
             if (!button || button.disabled) return false;
@@ -1105,7 +1044,7 @@ fn text_visible(window: &WebviewWindow, text: &str) -> bool {
     evaluates_true(
         window,
         &format!(
-            r#"[...document.querySelectorAll('[role="dialog"] *')].some(
+            r#"[...document.querySelectorAll('body *')].some(
             item => item.textContent.trim() === {text} && item.getClientRects().length > 0)"#
         ),
     )

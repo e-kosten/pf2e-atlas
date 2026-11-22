@@ -1,5 +1,4 @@
 use std::{
-    fs,
     io::{Read, Seek, SeekFrom},
     os::fd::OwnedFd,
     path::{Path, PathBuf},
@@ -364,42 +363,77 @@ pub fn confirm(app: &AppHandle, status: &Status) -> Result<bool, String> {
     receive.recv().map_err(display)
 }
 
-pub fn link_from_bootstrap(
-    home: &Path,
-    directory: &Path,
-    bundled: &Bundled,
-) -> Result<String, String> {
+pub fn choose_folder(app: &AppHandle) -> Result<Option<PathBuf>, String> {
+    let (tx, rx) = mpsc::sync_channel(1);
+    run_on_main(app, move |_| {
+        let selected = MainThreadMarker::new().and_then(|main| {
+            let panel = objc2_app_kit::NSOpenPanel::openPanel(main);
+            panel.setCanChooseDirectories(true);
+            panel.setCanChooseFiles(false);
+            panel.setAllowsMultipleSelection(false);
+            panel.setCanCreateDirectories(false);
+            panel.setPrompt(Some(&NSString::from_str("Install command")));
+            panel.setMessage(Some(&NSString::from_str(
+                "Choose a bin folder inside your home folder.",
+            )));
+            (panel.runModal() == objc2_app_kit::NSModalResponseOK)
+                .then(|| {
+                    panel
+                        .URL()?
+                        .path()
+                        .map(|path| PathBuf::from(path.to_string()))
+                })
+                .flatten()
+        });
+        let _ = tx.send(selected);
+    })?;
+    rx.recv().map_err(display)
+}
+
+pub fn link_folder(home: &Path, directory: &Path, bundled: &Bundled) -> Result<Status, String> {
     let home = home.canonicalize().map_err(display)?;
     if directory == home.join(".local/bin") {
-        let status = Destination::inspect(&home, bundled)?.commit(bundled, false)?;
-        return Ok(status.path.display().to_string());
+        return Destination::inspect(&home, bundled)?.commit(bundled, false);
     }
     let directory = directory.canonicalize().map_err(display)?;
-    if !directory.starts_with(home) || !directory.is_dir() {
-        return Err("Choose an existing bin folder inside your home folder.".into());
+    let relative = directory
+        .strip_prefix(&home)
+        .map_err(|_| "Choose an existing bin folder inside your home folder.")?;
+    let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let mut folder = at::open(&home, flags, Mode::empty()).map_err(display)?;
+    for component in relative.iter() {
+        folder = at::openat(&folder, component, flags, Mode::empty()).map_err(display)?;
     }
-    let destination = directory.join(COMMAND);
+    let path = directory.join(COMMAND);
     bundled.recheck()?;
-    match std::os::unix::fs::symlink(&bundled.path, &destination) {
-        Ok(()) => Ok(destination.display().to_string()),
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            if fs::read_link(&destination).is_ok_and(|path| path == bundled.path) {
-                Ok(destination.display().to_string())
-            } else {
-                Err(format!(
-                    "An atlas command already exists at {}. Choose another folder to preserve it.",
-                    destination.display()
-                ))
-            }
+    match at::symlinkat(&bundled.path, &folder, COMMAND) {
+        Ok(()) => {}
+        Err(Errno::EXIST)
+            if at::readlinkat(&folder, COMMAND, Vec::new()).is_ok_and(|target| {
+                target.as_bytes() == bundled.path.as_os_str().as_encoded_bytes()
+            }) => {}
+        Err(Errno::EXIST) => {
+            return Err(format!(
+                "An atlas command already exists at {}. Choose another folder to preserve it.",
+                path.display()
+            ));
         }
-        Err(error) => Err(display(error)),
+        Err(error) => return Err(display(error)),
     }
+    Ok(Status {
+        state: State::Linked,
+        path,
+        version: bundled.version.clone(),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::{PermissionsExt, symlink};
+    use std::{
+        fs,
+        os::unix::fs::{PermissionsExt, symlink},
+    };
 
     fn executable(path: &Path, content: &str) {
         fs::write(path, content).unwrap();
@@ -431,6 +465,28 @@ mod tests {
             let result = destination.commit(&bundled, false).unwrap();
             assert_eq!(fs::read_link(result.path).unwrap(), bundled.path);
         }
+    }
+
+    #[test]
+    fn custom_folder_reports_the_actual_link_and_preserves_an_existing_command() {
+        let (home, bundled) = fixture();
+        let bin = home.path().join("tools");
+        fs::create_dir(&bin).unwrap();
+        let path = bin.canonicalize().unwrap().join(COMMAND);
+        for _ in 0..2 {
+            let status = link_folder(home.path(), &bin, &bundled).unwrap();
+            assert_eq!(status.state, State::Linked);
+            assert_eq!(status.path, path);
+            assert_eq!(fs::read_link(&path).unwrap(), bundled.path);
+        }
+
+        fs::remove_file(&path).unwrap();
+        executable(&path, "existing command");
+        assert!(link_folder(home.path(), &bin, &bundled).is_err());
+        assert_eq!(fs::read_to_string(path).unwrap(), "existing command");
+        let outside = tempfile::tempdir().unwrap();
+        assert!(link_folder(home.path(), outside.path(), &bundled).is_err());
+        assert!(!outside.path().join(COMMAND).exists());
     }
 
     #[test]

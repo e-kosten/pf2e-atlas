@@ -1,16 +1,9 @@
 import { ConfigProvider } from "antd";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   DesktopReleaseChannel,
-  DesktopStableUpdate,
-  DesktopUpdate,
+  DesktopUpdateShortcut,
+  DesktopUpdateSection,
 } from "./DesktopUpdate";
 
 const desktopWindow = window as Window & {
@@ -25,70 +18,143 @@ afterEach(() => {
   invoke.mockReset();
 });
 
-it("keeps channel controls out of ordinary browser sessions and the quiet top bar", () => {
-  const view = render(
+function publish(update: object) {
+  desktopWindow.__TAURI__ = { core: { invoke } };
+  desktopWindow.__ATLAS_DESKTOP_SETUP__ = { token: "current-document", update };
+  fireEvent(window, new Event("atlas-desktop-setup"));
+}
+
+it("shows the available action only after checking the current offer, then replaces it with progress", async () => {
+  const open = vi.fn();
+  render(
     <>
-      <DesktopReleaseChannel />
-      <DesktopStableUpdate />
+      <DesktopUpdateSection />
+      <DesktopUpdateShortcut onOpen={open} />
     </>,
   );
   expect(screen.queryByRole("button")).toBeNull();
+  let resolveDetails!: (value: object) => void;
+  invoke.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveDetails = resolve;
+      }),
+  );
+  publish({ version: "0.2.3", phase: { kind: "available" }, error: null });
+  const install = screen.getByRole("button", { name: "Install and restart" });
+  expect(install).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Update available" }));
+  expect(open).toHaveBeenCalledWith("updates");
+  expect(invoke.mock.calls.map(([, { action }]) => action)).toEqual(["details"]);
+  await act(async () => resolveDetails({ kind: "upgrade" }));
+  expect(screen.getByText(/will upgrade your workspace/)).toBeVisible();
+  invoke.mockRejectedValueOnce("Couldn’t verify the download.");
+  fireEvent.click(install);
+  expect(await screen.findByText("Couldn’t verify the download.")).toBeVisible();
+  expect(invoke).toHaveBeenLastCalledWith("desktop_update_action", {
+    token: "current-document",
+    version: "0.2.3",
+    action: "install",
+  });
+  publish({
+    version: "0.2.3",
+    phase: { kind: "downloading", percent: 46 },
+    error: null,
+  });
+  expect(screen.queryByRole("button", { name: /install and restart/i })).toBeNull();
+  expect(screen.queryByText(/will upgrade your workspace/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Downloading update · 46%" }));
+  expect(open).toHaveBeenLastCalledWith("updates");
+  publish({ version: "0.2.3", phase: { kind: "installing" }, error: null });
+  expect(screen.getByRole("status")).toHaveTextContent("Installing and restarting…");
+});
+
+it("reopens a channel installation in either pane without issuing a new request", async () => {
+  publish({
+    version: "0.2.4",
+    switching: true,
+    phase: { kind: "downloading", percent: null },
+  });
+  const updatePane = render(<DesktopUpdateSection />);
+  expect(screen.getByRole("status")).toHaveTextContent("Downloading update…");
+  expect(screen.getByText("Atlas 0.2.4")).toBeVisible();
+  expect(screen.queryByRole("button")).toBeNull();
+  updatePane.unmount();
+  render(<DesktopReleaseChannel />);
+  expect(screen.getByRole("status")).toHaveTextContent("Downloading update…");
+  publish({ version: "0.2.4", switching: true, phase: { kind: "installing" } });
+  expect(screen.getByRole("status")).toHaveTextContent("Installing and restarting…");
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("keeps a resumed installation on its original released version and destination", async () => {
+  const open = vi.fn();
   desktopWindow.__TAURI__ = { core: { invoke } };
   desktopWindow.__ATLAS_DESKTOP_SETUP__ = {
     token: "current-document",
     channel: {
       installed: { tag: "release/v0.1.0", version: "0.1.0" },
       active: "original",
-      workspace_path: "/Atlas/workspace.sqlite",
-      other_exists: false,
       returning: null,
-      ready: false,
+      pending_version: "0.2.4",
       busy: false,
     },
   };
-  view.rerender(<DesktopStableUpdate />);
-  expect(screen.queryByRole("button")).toBeNull();
+  render(
+    <>
+      <DesktopReleaseChannel />
+      <DesktopUpdateShortcut onOpen={open} />
+    </>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Install pending" }));
+  expect(open).toHaveBeenCalledWith("channel");
+  expect(
+    screen.getByText(/Atlas 0.2.4 still has a pending installation/),
+  ).toBeVisible();
+  expect(screen.queryByText(/Check Nightly compatibility/)).toBeNull();
+  invoke.mockRejectedValueOnce({
+    kind: "failed",
+    message: "Couldn’t reach the update service.",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Retry pending install" }));
+  expect(await screen.findByText("Couldn’t reach the update service.")).toBeVisible();
+  expect(invoke).toHaveBeenCalledWith("desktop_channel_action", {
+    token: "current-document",
+    action: { kind: "retry_pending" },
+  });
 });
 
-it("offers an update only when the desktop host reports one and installs only after confirmation", async () => {
-  render(
-    <ConfigProvider theme={{ token: { motion: false } }}>
-      <DesktopUpdate />
-    </ConfigProvider>,
+it("discards a late preflight when the offered version changes", async () => {
+  let resolveOld!: (value: object) => void;
+  invoke.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveOld = resolve;
+      }),
   );
-  expect(screen.queryByRole("button", { name: "Update" })).toBeNull();
-
-  desktopWindow.__TAURI__ = { core: { invoke } };
-  desktopWindow.__ATLAS_DESKTOP_SETUP__ = {
-    token: "current-document",
-    update: { version: "0.2.3", phase: { kind: "available" }, error: null },
-  };
-  const warning = "Atlas will be unavailable during workspace setup.";
-  invoke.mockResolvedValueOnce(warning);
-  fireEvent(window, new Event("atlas-desktop-setup"));
-  fireEvent.click(screen.getByRole("button", { name: "Update" }));
-
-  const dialog = await screen.findByRole("dialog", { name: "Update Atlas Desktop" });
-  await within(dialog).findByText(warning);
-  expect(invoke.mock.calls.map(([, { action }]) => action)).toEqual(["details"]);
-
-  invoke.mockRejectedValueOnce(
-    "Atlas couldn’t verify the downloaded update. It won’t be installed.",
+  render(<DesktopUpdateSection />);
+  publish({ version: "0.2.3", phase: { kind: "available" } });
+  invoke.mockResolvedValueOnce({ kind: "restart" });
+  publish({ version: "0.2.4", phase: { kind: "available" } });
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Install and restart" })).toBeEnabled(),
   );
-  fireEvent.click(within(dialog).getByRole("button", { name: "Install update" }));
-  await within(dialog).findByText(
-    "Atlas couldn’t verify the downloaded update. It won’t be installed.",
-  );
-  expect(invoke).toHaveBeenLastCalledWith("desktop_update_action", {
-    token: "current-document",
-    version: "0.2.3",
-    action: "install",
-  });
-  expect(within(dialog).getByRole("button", { name: "Install update" })).toBeEnabled();
+  await act(async () => resolveOld({ kind: "upgrade" }));
+  expect(screen.queryByText(/will upgrade/)).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByText("Atlas 0.2.4 is available")).toBeVisible();
+});
 
-  fireEvent.click(within(dialog).getByRole("button", { name: "Later" }));
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  expect(screen.getByRole("button", { name: "Update" })).toBeEnabled();
+it("treats rejected preflight as retryable and distinguishes unknown impact", async () => {
+  invoke.mockRejectedValueOnce("Reopen Settings.");
+  render(<DesktopUpdateSection />);
+  publish({ version: "0.2.3", phase: { kind: "available" } });
+  expect(await screen.findByText("Reopen Settings.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Install and restart" })).toBeDisabled();
+  invoke.mockResolvedValueOnce({ kind: "unknown" });
+  fireEvent.click(screen.getByRole("button", { name: "Retry check" }));
+  expect(await screen.findByText(/couldn’t determine whether/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Install and restart" })).toBeEnabled();
 });
 
 it("offers both ways to wait for Stable after a workspace compatibility refusal", async () => {
@@ -111,33 +177,37 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <DesktopReleaseChannel />
-      <DesktopUpdate />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
-  const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Use an earlier copy" }));
-  invoke.mockRejectedValueOnce(
-    "This Stable release can’t open this earlier copy of your data yet.",
-  );
-  fireEvent.click(
-    within(dialog).getByRole("button", { name: "Check Stable compatibility" }),
-  );
-  await within(dialog).findByText(
+  fireEvent.click(screen.getByRole("button", { name: "Use an earlier copy" }));
+  expect(screen.queryByRole("button", { name: /wait for the next Stable/ })).toBeNull();
+  invoke.mockRejectedValueOnce({
+    kind: "failed",
+    message: "Couldn’t retrieve Stable.",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Check Stable compatibility" }));
+  expect(await screen.findByText("Couldn’t retrieve Stable.")).toBeVisible();
+  expect(screen.queryByRole("button", { name: /wait for the next Stable/ })).toBeNull();
+  invoke.mockRejectedValueOnce({
+    kind: "unavailable",
+    message: "This Stable release can’t open this earlier copy of your data yet.",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Check Stable compatibility" }));
+  await screen.findByText(
     "This Stable release can’t open this earlier copy of your data yet.",
   );
   expect(
-    within(dialog).queryByRole("button", { name: "Install Stable and restart" }),
+    screen.queryByRole("button", { name: "Install Stable and restart" }),
   ).toBeNull();
   expect(
-    within(dialog).getByRole("button", {
+    screen.getByRole("button", {
       name: "Keep checking for Nightly updates while waiting",
     }),
   ).toBeEnabled();
 
   invoke.mockResolvedValueOnce(null);
   fireEvent.click(
-    within(dialog).getByRole("button", {
+    screen.getByRole("button", {
       name: "Stay on this build and wait for the next Stable release",
     }),
   );
@@ -164,19 +234,13 @@ it("explains creating a separate copy and keeps the reviewed destination through
     },
   };
   render(<DesktopReleaseChannel />);
-  expect(screen.getByText("Preview builds").closest("details")).not.toHaveAttribute(
-    "open",
+  expect(screen.getByRole("button", { name: "Use my current data" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
   );
-  fireEvent.click(screen.getByText("Preview builds"));
-  fireEvent.click(screen.getByRole("button", { name: "Try Nightly…" }));
-  const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
-  expect(within(dialog).getAllByRole("button", { name: "Close" })).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Use a separate copy" }));
   expect(
-    within(dialog).getByRole("button", { name: "Use my current data" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  fireEvent.click(within(dialog).getByRole("button", { name: "Use a separate copy" }));
-  expect(
-    within(dialog).getByText(
+    screen.getByText(
       "Creates a copy of your current data. Changes made to either copy stay separate.",
     ),
   ).toBeVisible();
@@ -188,15 +252,10 @@ it("explains creating a separate copy and keeps the reviewed destination through
     needs_setup: false,
     will_upgrade: false,
   });
-  fireEvent.click(
-    within(dialog).getByRole("button", { name: "Check Nightly compatibility" }),
-  );
-  const install = await within(dialog).findByRole("button", {
+  fireEvent.click(screen.getByRole("button", { name: "Check Nightly compatibility" }));
+  const install = await screen.findByRole("button", {
     name: "Install Nightly and restart",
   });
-  expect(
-    within(dialog).getByText("After switching, the app will use your existing data."),
-  ).toBeVisible();
   invoke.mockResolvedValueOnce(null);
   fireEvent.click(install);
   await waitFor(() =>
@@ -222,26 +281,16 @@ it("reopens the retained other workspace after the separate workspace became the
     },
   };
   render(<DesktopReleaseChannel />);
-  expect(screen.getByText("Preview builds").closest("details")).not.toHaveAttribute(
-    "open",
-  );
-  fireEvent.click(screen.getByText("Preview builds"));
-  fireEvent.click(screen.getByRole("button", { name: "Try Nightly…" }));
-  const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
+  expect(screen.queryByRole("button", { name: "Use a separate copy" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Use the other copy" }));
   expect(
-    within(dialog).queryByRole("button", { name: "Use a separate copy" }),
-  ).toBeNull();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Use the other copy" }));
-  expect(
-    within(dialog).getByText(
+    screen.getByText(
       "Reopens your other copy with its earlier changes. Neither copy is overwritten.",
     ),
   ).toBeVisible();
   invoke.mockRejectedValueOnce("Try again later.");
-  fireEvent.click(
-    within(dialog).getByRole("button", { name: "Check Nightly compatibility" }),
-  );
-  await within(dialog).findByText("Try again later.");
+  fireEvent.click(screen.getByRole("button", { name: "Check Nightly compatibility" }));
+  await screen.findByText("Try again later.");
   expect(invoke).toHaveBeenLastCalledWith("desktop_channel_action", {
     token: "current-document",
     action: { kind: "review", workspace: "original", seed_if_missing: true },
@@ -267,23 +316,18 @@ it.each(["original", "separate"])(
       },
     };
     render(<DesktopReleaseChannel />);
-    fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
-    const dialog = await screen.findByRole("dialog", {
-      name: "Change release channel",
-    });
+    expect(screen.getByRole("button", { name: "Use my current data" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(
-      within(dialog).getByRole("button", { name: "Use my current data" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      within(dialog).getByText(
+      screen.getByText(
         "Keep the data you’ve been using in Nightly, including your latest changes.",
       ),
     ).toBeVisible();
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: "Use an earlier copy" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Use an earlier copy" }));
     expect(
-      within(dialog).getByText(
+      screen.getByText(
         "Use an earlier, separate copy of your data. Changes made in Nightly won’t be copied over. Your current Nightly data will remain available.",
       ),
     ).toBeVisible();
@@ -295,11 +339,9 @@ it.each(["original", "separate"])(
       needs_setup: false,
       will_upgrade: false,
     });
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: "Check Stable compatibility" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Check Stable compatibility" }));
     expect(
-      await within(dialog).findByText(
+      await screen.findByText(
         "Atlas will install Stable 0.2.0 and use an earlier copy of your data.",
       ),
     ).toBeVisible();
@@ -328,12 +370,8 @@ it.each([
       },
     };
     render(<DesktopReleaseChannel />);
-    fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
-    const dialog = await screen.findByRole("dialog", {
-      name: "Change release channel",
-    });
     expect(
-      within(dialog).getByText(`Waiting for a compatible Stable release. ${status}`),
+      screen.getByText(`Waiting for a compatible Stable release. ${status}`),
     ).toBeVisible();
   },
 );
@@ -355,36 +393,32 @@ it("requires a deliberate current-data choice when the saved earlier copy is mis
     },
   };
   render(<DesktopReleaseChannel />);
-  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
-  const dialog = await screen.findByRole("dialog", { name: "Change release channel" });
   expect(
-    within(dialog).getByText(
+    screen.getByText(
       "The earlier copy of your data is missing. Choose your current data to continue.",
     ),
   ).toBeVisible();
   expect(
-    within(dialog).getByRole("button", { name: "Check Stable compatibility" }),
+    screen.getByRole("button", { name: "Check Stable compatibility" }),
   ).toBeDisabled();
   expect(
-    within(dialog).getByRole("button", {
+    screen.getByRole("button", {
       name: "Stay on this build and wait for the next Stable release",
     }),
   ).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Cancel return to Stable" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Use my current data" }));
   expect(
-    within(dialog).getByRole("button", { name: "Cancel return to Stable" }),
-  ).toBeEnabled();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Use my current data" }));
-  expect(
-    within(dialog).queryByText(
+    screen.queryByText(
       "The earlier copy of your data is missing. Choose your current data to continue.",
     ),
   ).toBeNull();
   expect(
-    within(dialog).getByRole("button", { name: "Check Stable compatibility" }),
+    screen.getByRole("button", { name: "Check Stable compatibility" }),
   ).toBeEnabled();
   invoke.mockResolvedValueOnce(null);
   fireEvent.click(
-    within(dialog).getByRole("button", {
+    screen.getByRole("button", {
       name: "Stay on this build and wait for the next Stable release",
     }),
   );
@@ -396,7 +430,7 @@ it("requires a deliberate current-data choice when the saved earlier copy is mis
   );
 });
 
-it("ignores a previous dialog's review after closing and reopening with current data", async () => {
+it("ignores a previous page's review after closing and reopening with current data", async () => {
   desktopWindow.__TAURI__ = { core: { invoke } };
   desktopWindow.__ATLAS_DESKTOP_SETUP__ = {
     token: "current-document",
@@ -419,21 +453,15 @@ it("ignores a previous dialog's review after closing and reopening with current 
         resolveOld = resolve;
       }),
   );
-  render(
+  const view = render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <DesktopReleaseChannel />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
-  let dialog = await screen.findByRole("dialog", { name: "Change release channel" });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Use an earlier copy" }));
-  fireEvent.click(
-    within(dialog).getByRole("button", { name: "Check Stable compatibility" }),
-  );
-  fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  fireEvent.click(screen.getByRole("button", { name: "Change release channel" }));
-  dialog = await screen.findByRole("dialog", { name: "Change release channel" });
+  fireEvent.click(screen.getByRole("button", { name: "Use an earlier copy" }));
+  fireEvent.click(screen.getByRole("button", { name: "Check Stable compatibility" }));
+  view.unmount();
+  render(<DesktopReleaseChannel />);
   await act(async () =>
     resolveOld({
       id: "earlier-copy",
@@ -444,11 +472,12 @@ it("ignores a previous dialog's review after closing and reopening with current 
       will_upgrade: false,
     }),
   );
+  expect(screen.getByRole("button", { name: "Use my current data" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   expect(
-    within(dialog).getByRole("button", { name: "Use my current data" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  expect(
-    within(dialog).queryByRole("button", { name: "Install Stable and restart" }),
+    screen.queryByRole("button", { name: "Install Stable and restart" }),
   ).toBeNull();
   invoke.mockResolvedValueOnce({
     id: "current-copy",
@@ -458,11 +487,9 @@ it("ignores a previous dialog's review after closing and reopening with current 
     needs_setup: false,
     will_upgrade: false,
   });
+  fireEvent.click(screen.getByRole("button", { name: "Check Stable compatibility" }));
   fireEvent.click(
-    within(dialog).getByRole("button", { name: "Check Stable compatibility" }),
-  );
-  fireEvent.click(
-    await within(dialog).findByRole("button", { name: "Install Stable and restart" }),
+    await screen.findByRole("button", { name: "Install Stable and restart" }),
   );
   await waitFor(() =>
     expect(invoke).toHaveBeenLastCalledWith("desktop_channel_action", {

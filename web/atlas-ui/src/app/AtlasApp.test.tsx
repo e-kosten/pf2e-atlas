@@ -452,14 +452,8 @@ describe("AtlasApp routing", () => {
     expect(location.pathname).toBe("/search");
   });
 
-  it("keeps the selected record and draft when reference data updates through the drawer", async () => {
-    const host = window as Window & {
-      __ATLAS_DESKTOP_SETUP__?: object;
-      __TAURI__?: object;
-    };
-    const invoke = vi.fn().mockResolvedValue(undefined);
-    host.__TAURI__ = { core: { invoke } };
-    host.__ATLAS_DESKTOP_SETUP__ = {
+  it("returns to the selected record and draft after repairing data in Settings", async () => {
+    const attachment = {
       token: "desktop",
       setup: { job: 0, sequence: 1, status: "idle" },
       reference: {
@@ -470,33 +464,54 @@ describe("AtlasApp routing", () => {
         available: true,
       },
     };
+    let request = 0;
+    const invoke = vi.fn(async (command: string, args: { destination?: string }) => {
+      if (command === "desktop_settings_open") {
+        vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", {
+          ...attachment,
+          settingsRequest: { id: ++request, destination: args.destination },
+        });
+        window.dispatchEvent(new Event("atlas-desktop-setup"));
+      }
+    });
+    vi.stubGlobal("__ATLAS_WINDOWS_TABS__", true);
+    vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", attachment);
+    vi.stubGlobal("__TAURI__", { core: { invoke } });
+    vi.stubGlobal("__TAURI_INTERNALS__", { invoke });
+    const view = renderDom(
+      <DesktopTabs initialHref="/search/records/spell:heal?q=heal" />,
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
     try {
-      history.replaceState(null, "", "/search/records/spell:heal?q=heal");
-      render(<AtlasApp />, { wrapper: queryClientWrapper() });
       expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
       const input = screen.getByRole("searchbox", { name: "Search records" });
       fireEvent.change(input, { target: { value: "Unsubmitted draft" } });
-      fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
-      const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
-      const repair = await within(drawer).findByRole("button", {
+      fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      fireEvent.click(
+        await screen.findByRole("link", { name: /Search and reference data/i }),
+      );
+      const repair = await screen.findByRole("button", {
         name: "Check and repair reference data",
       });
       await waitFor(() => expect(repair).toBeEnabled());
       fireEvent.click(repair);
-      expect(invoke).toHaveBeenLastCalledWith(
+      expect(invoke).toHaveBeenCalledWith(
         "desktop_setup_action",
         expect.objectContaining({ action: "check_reference" }),
       );
       fireEvent(window, new CustomEvent("atlas-reference-updated"));
-      fireEvent.click(within(drawer).getByRole("button", { name: "Close" }));
-      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-      expect(location.pathname).toBe("/search/records/spell:heal");
-      expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
-        "Unsubmitted draft",
+      const settings = screen.getByRole("tab", { name: /Settings/i });
+      fireEvent.click(
+        within(settings.parentElement!).getByRole("button", { name: "Close tab" }),
       );
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+      expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+      expect(input).toHaveValue("Unsubmitted draft");
     } finally {
-      delete host.__ATLAS_DESKTOP_SETUP__;
-      delete host.__TAURI__;
+      view.unmount();
+      vi.unstubAllGlobals();
     }
   });
 

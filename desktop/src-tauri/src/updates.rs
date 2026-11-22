@@ -4,7 +4,9 @@ use std::{
     time::Duration,
 };
 
-use atlas_desktop_protocol::workspace_selection::SelectionSnapshot;
+use atlas_desktop_protocol::workspace_selection::{
+    SelectionSnapshot, TransitionFailure, TransitionFailureKind,
+};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use minisign_verify::{PublicKey, Signature};
 use semver::Version;
@@ -194,12 +196,9 @@ struct Descriptor {
 }
 
 impl Descriptor {
-    fn admission_error(
-        &self,
-        error: atlas_desktop_protocol::workspace_selection::TransitionFailure,
-        data: &str,
-    ) -> String {
-        process::transition_error(
+    fn admission_error(&self, error: TransitionFailure, data: &str) -> ChannelError {
+        let incompatible = matches!(error.kind, TransitionFailureKind::NewerSchema);
+        let message = process::transition_error(
             error,
             if self.channel == "stable" {
                 "Stable"
@@ -207,7 +206,12 @@ impl Descriptor {
                 "Nightly"
             },
             data,
-        )
+        );
+        if incompatible {
+            ChannelError::Unavailable(message)
+        } else {
+            ChannelError::Failed(message)
+        }
     }
 
     fn build(&self) -> Build {
@@ -350,8 +354,30 @@ struct State {
     offer: Option<Offer>,
     channel_offer: Option<Offer>,
     return_version: Option<String>,
-    phase: Phase,
-    error: Option<String>,
+    attempt: Option<Snapshot>,
+}
+
+impl State {
+    fn active(&self) -> Option<&Snapshot> {
+        self.attempt
+            .as_ref()
+            .filter(|attempt| attempt.phase != Phase::Available)
+    }
+
+    fn update_offer(&self) -> Option<Snapshot> {
+        let version = offer_version(&self.offer)?;
+        let error = self
+            .attempt
+            .as_ref()
+            .filter(|attempt| !attempt.switching && attempt.version == version)
+            .and_then(|attempt| attempt.error.clone());
+        Some(Snapshot {
+            version: version.into(),
+            switching: false,
+            phase: Phase::Available,
+            error,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Default, Serialize, PartialEq, Eq)]
@@ -365,9 +391,10 @@ enum Phase {
     Installing,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub(crate) struct Snapshot {
     version: String,
+    switching: bool,
     phase: Phase,
     error: Option<String>,
 }
@@ -396,19 +423,26 @@ pub(crate) fn broadcast_updates(
     read_selection: impl FnOnce() -> Result<SelectionSnapshot, String>,
 ) -> BroadcastUpdates {
     let desktop = app.state::<Desktop>();
-    let Some(pinned) = desktop.workspace_route.index().ok().flatten() else {
-        return BroadcastUpdates::default();
-    };
-    let Ok(selection) = read_selection() else {
-        return BroadcastUpdates::default();
-    };
+    let selection = desktop
+        .workspace_route
+        .index()
+        .ok()
+        .flatten()
+        .and_then(|pinned| read_selection().ok().map(|selection| (pinned, selection)));
     let state = lock(&desktop.updates.state);
-    let offer = offer_version(&state.offer).map(|version| Snapshot {
-        version: version.into(),
-        phase: state.phase,
-        error: state.error.clone(),
-    });
-    selection_views(&state, pinned, selection, installed_build(), offer)
+    let Some((pinned, selection)) = selection else {
+        return BroadcastUpdates {
+            update: state.active().cloned(),
+            channel: None,
+        };
+    };
+    selection_views(
+        &state,
+        pinned,
+        selection,
+        installed_build(),
+        state.update_offer(),
+    )
 }
 
 fn selection_views(
@@ -419,16 +453,21 @@ fn selection_views(
     offer: Option<Snapshot>,
 ) -> BroadcastUpdates {
     let Ok(active) = workspace_switch::running_role(&pinned, &selection) else {
-        return BroadcastUpdates::default();
+        return BroadcastUpdates {
+            update: state.active().cloned(),
+            channel: None,
+        };
     };
     let config = selection.config;
     let changed = active != config.active;
-    let update = offer.filter(|_| {
-        !changed
-            && !config
-                .returning
-                .as_ref()
-                .is_some_and(|choice| choice.updates == Waiting::Hold)
+    let update = state.active().cloned().or_else(|| {
+        offer.filter(|_| {
+            !changed
+                && !config
+                    .returning
+                    .as_ref()
+                    .is_some_and(|choice| choice.updates == Waiting::Hold)
+        })
     });
     let channel = installed.map(|installed| ChannelSnapshot {
         active,
@@ -444,11 +483,15 @@ fn selection_views(
             .filter(|pending| pending.previous_resumed && pending.before == installed)
             .map(|pending| pending.target.version),
         installed,
-        busy: changed || state.phase != Phase::Available,
+        busy: changed || state.active().is_some(),
         error: if changed {
             Some(workspace_switch::CHANGED_WORKSPACE.into())
         } else {
-            state.error.clone()
+            state
+                .attempt
+                .as_ref()
+                .filter(|attempt| attempt.switching)
+                .and_then(|attempt| attempt.error.clone())
         },
     });
     BroadcastUpdates { update, channel }
@@ -536,13 +579,12 @@ pub(crate) fn start(app: &AppHandle) {
                 Ok((normal, returning)) => {
                     let desktop = app.state::<Desktop>();
                     let mut state = lock(&desktop.updates.state);
-                    if state.phase == Phase::Available {
+                    if state.active().is_none() {
                         let changed = offer_version(&state.offer) != offer_version(&normal)
                             || state.return_version.as_deref() != offer_version(&returning);
                         state.offer = normal;
                         state.return_version = offer_version(&returning).map(str::to_owned);
                         if changed {
-                            state.error = None;
                             drop(state);
                             staged_setup::broadcast(&app);
                         }
@@ -583,7 +625,7 @@ async fn poll(
                     Ok(offer) => Some(offer),
                     Err(error) => {
                         eprintln!(
-                            "Atlas could not verify the workspace for its next update: {error}"
+                            "Atlas could not verify the workspace for its next update: {error:?}"
                         );
                         None
                     }
@@ -776,7 +818,14 @@ async fn check_tag(
         Ok(found) => found,
         Err(error) => return Err(updater_check_error(error)),
     };
-    let Some(found) = found else { return Ok(None) };
+    let Some(found) = found else {
+        if switching {
+            return Err(release_metadata_error(
+                "No matching update for the selected release tag.",
+            ));
+        }
+        return Ok(None);
+    };
     let version = Version::parse(&found.version).map_err(display)?;
     if Channel::from_version(&version).is_none_or(|channel| channel.tag(&version) != tag)
         || found.download_url.as_str() != format!("{base}/{PACKAGE}")
@@ -808,28 +857,41 @@ async fn check_tag(
     }))
 }
 
-fn setup_notice(
-    app: &AppHandle,
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum UpdateImpact {
+    Restart,
+    Upgrade,
+    Reference { version: String },
+    Unknown,
+}
+
+fn setup_impact(
     target: &Compatibility,
-    workspace: &std::path::Path,
-) -> Option<String> {
-    let installed_schema = option_env!("ATLAS_WORKSPACE_SCHEMA")?.parse::<u32>().ok()?;
+    installed_schema: Option<u32>,
+    read_reference: impl FnOnce() -> Option<atlas_desktop_protocol::ReferenceStatus>,
+) -> UpdateImpact {
+    let Some(installed_schema) = installed_schema else {
+        return UpdateImpact::Unknown;
+    };
     if target.workspace_schema > installed_schema {
-        return Some(
-            "This version needs to upgrade your data after restarting. Atlas will be unavailable until the upgrade finishes."
-                .into(),
-        );
+        return UpdateImpact::Upgrade;
     }
-    let reference = process::reference_status(app)
-        .ok()
-        .filter(|report| report.workspace == workspace)?;
-    if reference.managed && reference.revision.as_deref()? != target.foundry_commit {
-        return Some(format!(
-            "This update includes Foundry PF2e {}. The Setup panel will show whether your reference data needs to be refreshed. Some features may be unavailable during setup.",
-            target.foundry_version,
-        ));
+    let Some(report) = read_reference() else {
+        return UpdateImpact::Unknown;
+    };
+    if report.managed {
+        match report.revision.as_deref() {
+            None => return UpdateImpact::Unknown,
+            Some(revision) if revision != target.foundry_commit => {
+                return UpdateImpact::Reference {
+                    version: target.foundry_version.clone(),
+                };
+            }
+            _ => {}
+        }
     }
-    None
+    UpdateImpact::Restart
 }
 
 #[derive(Deserialize)]
@@ -845,7 +907,7 @@ pub(crate) async fn desktop_update_action(
     token: String,
     version: String,
     action: Action,
-) -> Result<Option<String>, String> {
+) -> Result<Option<UpdateImpact>, String> {
     let app = window.app_handle().clone();
     let desktop = app.state::<Desktop>();
     let (_, instance) = current_product(&app)?;
@@ -868,7 +930,13 @@ pub(crate) async fn desktop_update_action(
         .ok_or("A different update is available. Open Update again.")?;
     match action {
         Action::Details => tauri::async_runtime::spawn_blocking(move || {
-            setup_notice(&app, &offer.compatibility, &workspace)
+            let installed_schema =
+                option_env!("ATLAS_WORKSPACE_SCHEMA").and_then(|schema| schema.parse::<u32>().ok());
+            Some(setup_impact(&offer.compatibility, installed_schema, || {
+                process::reference_status(&app)
+                    .ok()
+                    .filter(|report| report.workspace == workspace)
+            }))
         })
         .await
         .map_err(display),
@@ -902,7 +970,7 @@ fn begin_install(
             .try_lock()
             .map_err(|_| "Wait for Atlas setup to finish and try again.")?;
         let mut state = lock(&desktop.updates.state);
-        if state.phase != Phase::Available {
+        if state.active().is_some() {
             return Err("Atlas is already installing an update.".into());
         }
         let current = if switching {
@@ -928,8 +996,12 @@ fn begin_install(
                 "The workspace or update preference changed. Review the update again.".into(),
             );
         }
-        state.phase = Phase::Downloading { percent: None };
-        state.error = None;
+        state.attempt = Some(Snapshot {
+            version: offer.update.version.clone(),
+            switching,
+            phase: Phase::Downloading { percent: None },
+            error: None,
+        });
     }
     staged_setup::broadcast(app);
     let app = app.clone();
@@ -937,13 +1009,34 @@ fn begin_install(
         if let Err(error) = download_and_install(&app, offer, instance).await {
             let desktop = app.state::<Desktop>();
             let mut state = lock(&desktop.updates.state);
-            state.phase = Phase::Available;
-            state.error = Some(error);
+            if let Some(attempt) = &mut state.attempt {
+                attempt.phase = Phase::Available;
+                attempt.error = Some(error);
+            }
             drop(state);
             staged_setup::broadcast(&app);
         }
     });
     Ok(())
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", content = "message", rename_all = "snake_case")]
+pub(crate) enum ChannelError {
+    Unavailable(String),
+    Failed(String),
+}
+
+impl From<String> for ChannelError {
+    fn from(message: String) -> Self {
+        Self::Failed(message)
+    }
+}
+
+impl From<&str> for ChannelError {
+    fn from(message: &str) -> Self {
+        Self::Failed(message.into())
+    }
 }
 
 async fn authorize(
@@ -952,7 +1045,7 @@ async fn authorize(
     role: Role,
     returning_to_stable: bool,
     seed_if_missing: bool,
-) -> Result<Offer, String> {
+) -> Result<Offer, ChannelError> {
     let descriptor = offer
         .descriptor
         .clone()
@@ -976,7 +1069,7 @@ async fn authorize(
         } else {
             None
         };
-        Ok::<_, String>(Switch {
+        Ok::<_, ChannelError>(Switch {
             descriptor,
             admission,
             seed_source,
@@ -1057,7 +1150,7 @@ pub(crate) async fn desktop_channel_action(
     window: WebviewWindow,
     token: String,
     action: ChannelAction,
-) -> Result<Option<ChannelReview>, String> {
+) -> Result<Option<ChannelReview>, ChannelError> {
     let app = window.app_handle().clone();
     let desktop = app.state::<Desktop>();
     let (_, instance) = current_product(&app)?;
@@ -1071,7 +1164,7 @@ pub(crate) async fn desktop_channel_action(
     let installed_version = Version::parse(&installed.version).map_err(display)?;
     let nightly = installed.tag.starts_with("nightly/");
     let mut config = workspace_switch::load_current(&app)?;
-    if lock(&desktop.updates.state).phase != Phase::Available {
+    if lock(&desktop.updates.state).active().is_some() {
         return Err("Atlas is already installing an update.".into());
     }
     if let Some(pending) = &config.pending {
@@ -1140,10 +1233,15 @@ pub(crate) async fn desktop_channel_action(
             let offer = check(&app, &installed_version, &target, key, &source, true, true)
                 .await?
                 .ok_or_else(|| {
-                    format!(
-                        "There is no {} release available to review.",
-                        if nightly { "Stable" } else { "Nightly" }
-                    )
+                    if nightly {
+                        ChannelError::Unavailable(
+                            "There is no Stable release available to review.".into(),
+                        )
+                    } else {
+                        ChannelError::Failed(
+                            "There is no Nightly release available to review.".into(),
+                        )
+                    }
                 })?;
             let offer = authorize(
                 offer,
@@ -1165,7 +1263,20 @@ pub(crate) async fn desktop_channel_action(
                 .as_ref()
                 .ok_or("Missing reviewed channel switch.")?;
             let review = ChannelReview::from_switch(transition)?;
-            lock(&desktop.updates.state).channel_offer = Some(offer);
+            let mut state = lock(&desktop.updates.state);
+            if state.active().is_some() {
+                return Err("Atlas is already installing an update.".into());
+            }
+            state.channel_offer = Some(offer);
+            if state
+                .attempt
+                .as_ref()
+                .is_some_and(|attempt| attempt.switching)
+            {
+                state.attempt = None;
+                drop(state);
+                staged_setup::broadcast(&app);
+            }
             Ok(Some(review))
         }
         ChannelAction::Install { token } => {
@@ -1192,7 +1303,7 @@ pub(crate) async fn desktop_channel_action(
                     .try_lock()
                     .map_err(|_| "Atlas is already working.")?;
                 let mut current = lock(&desktop.updates.state);
-                if current.phase != Phase::Available {
+                if current.active().is_some() {
                     return Err("Atlas is already installing an update.".into());
                 }
                 config.returning = Some(workspace_switch::ReturnChoice { workspace, updates });
@@ -1200,6 +1311,7 @@ pub(crate) async fn desktop_channel_action(
                 current.offer = None;
                 current.channel_offer = None;
                 current.return_version = None;
+                current.attempt = None;
             }
             refresh(&app);
             Ok(None)
@@ -1211,13 +1323,14 @@ pub(crate) async fn desktop_channel_action(
                     .try_lock()
                     .map_err(|_| "Atlas is already working.")?;
                 let mut current = lock(&desktop.updates.state);
-                if current.phase != Phase::Available {
+                if current.active().is_some() {
                     return Err("Atlas is already installing an update.".into());
                 }
                 config.returning = None;
                 workspace_switch::save(&app, &mut config)?;
                 current.channel_offer = None;
                 current.return_version = None;
+                current.attempt = None;
             }
             refresh(&app);
             Ok(None)
@@ -1248,7 +1361,7 @@ pub(crate) fn refresh(app: &AppHandle) {
         if let Ok((normal, returning)) = poll(&app, &version, &channel, key, &source).await {
             let desktop = app.state::<Desktop>();
             let mut state = lock(&desktop.updates.state);
-            if state.phase == Phase::Available {
+            if state.active().is_none() {
                 state.offer = normal;
                 state.return_version = offer_version(&returning).map(str::to_owned);
                 drop(state);
@@ -1275,8 +1388,10 @@ async fn download_and_install(
                 let desktop = app.state::<Desktop>();
                 let mut state = lock(&desktop.updates.state);
                 let phase = Phase::Downloading { percent };
-                if state.phase != phase {
-                    state.phase = phase;
+                if let Some(attempt) = &mut state.attempt
+                    && attempt.phase != phase
+                {
+                    attempt.phase = phase;
                     drop(state);
                     staged_setup::broadcast(app);
                 }
@@ -1361,7 +1476,9 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
     let launcher = lock(&desktop.launcher)
         .take()
         .ok_or("The Atlas service stopped.")?;
-    lock(&desktop.updates.state).phase = Phase::Installing;
+    if let Some(attempt) = &mut lock(&desktop.updates.state).attempt {
+        attempt.phase = Phase::Installing;
+    }
     staged_setup::broadcast(app);
     let install = launcher.release().and_then(|()| {
         #[cfg(windows)]
@@ -1415,6 +1532,16 @@ fn recover(app: &AppHandle, old_base: Url) {
         match recovery {
             Ok((base, instance)) => {
                 for (window, route) in views {
+                    #[cfg(target_os = "macos")]
+                    if window.label() == crate::settings::WINDOW {
+                        if let Err(error) =
+                            crate::settings::recover_window(app, &window, &base, &instance)
+                        {
+                            let _ = window.destroy();
+                            crate::window_host::report("Settings couldn’t reopen", &error);
+                        }
+                        continue;
+                    }
                     if base.origin() == old_base.origin() || window.label() == opening::PRIMARY {
                         if let Ok(target) = base.join(&route)
                             && target.origin() == base.origin()
@@ -1435,6 +1562,10 @@ fn recover(app: &AppHandle, old_base: Url) {
                 }
             }
             Err(error) => {
+                #[cfg(target_os = "macos")]
+                if let Some(settings) = app.get_webview_window(crate::settings::WINDOW) {
+                    let _ = settings.destroy();
+                }
                 desktop.recovery.store(true, Ordering::Release);
                 let _ = crate::show_bootstrap(app);
                 crate::window_host::report("Atlas couldn’t reconnect", &error);
@@ -1456,7 +1587,7 @@ mod tests {
             Config, ManagedWorkspaceInfo, ReturnChoice,
         };
 
-        let views = |active, waiting: Option<Waiting>, installed: bool| {
+        let views = |state: &State, active, waiting: Option<Waiting>, installed: bool| {
             let pinned = std::path::PathBuf::from("/Atlas/original.sqlite");
             let selection = SelectionSnapshot {
                 config: Config {
@@ -1478,18 +1609,19 @@ mod tests {
                 version: "1.0.0".into(),
                 commit: "a".repeat(40),
             });
-            let state = State::default();
             let offer = Some(Snapshot {
                 version: "1.1.0".into(),
-                phase: state.phase,
+                phase: Phase::Available,
+                switching: false,
                 error: None,
             });
-            selection_views(&state, pinned, selection, build, offer)
+            selection_views(state, pinned, selection, build, offer)
         };
-        let ordinary = views(Role::Original, None, true);
+        let idle = State::default();
+        let ordinary = views(&idle, Role::Original, None, true);
         assert_eq!(ordinary.update.unwrap().version, "1.1.0");
         assert!(!ordinary.channel.unwrap().busy);
-        let changed = views(Role::Separate, None, true);
+        let changed = views(&idle, Role::Separate, None, true);
         assert!(changed.update.is_none());
         let channel = changed.channel.unwrap();
         assert!(channel.busy);
@@ -1497,15 +1629,34 @@ mod tests {
             channel.error.as_deref(),
             Some(workspace_switch::CHANGED_WORKSPACE)
         );
-        let held = views(Role::Original, Some(Waiting::Hold), true);
+        let held = views(&idle, Role::Original, Some(Waiting::Hold), true);
         assert!(held.update.is_none());
         assert_eq!(
             held.channel.unwrap().returning.unwrap().updates,
             Waiting::Hold
         );
-        let unmarked = views(Role::Original, Some(Waiting::Continue), false);
+        let unmarked = views(&idle, Role::Original, Some(Waiting::Continue), false);
         assert!(unmarked.update.is_some());
         assert!(unmarked.channel.is_none());
+
+        let switching = State {
+            attempt: Some(Snapshot {
+                version: "2.0.0".into(),
+                phase: Phase::Downloading { percent: Some(41) },
+                switching: true,
+                error: None,
+            }),
+            ..State::default()
+        };
+        let switching_view = views(&switching, Role::Original, Some(Waiting::Hold), true);
+        let update = switching_view.update.unwrap();
+        assert!(update.switching);
+        assert_eq!(update.version, "2.0.0");
+        assert!(matches!(
+            update.phase,
+            Phase::Downloading { percent: Some(41) }
+        ));
+        assert!(switching_view.channel.unwrap().busy);
     }
 
     fn reviewed_switch(destination: Option<u32>, source: Option<u32>) -> Switch {
@@ -1536,6 +1687,57 @@ mod tests {
             seed_source: source.map(|schema| admission(Role::Original, Some(schema))),
             config: workspace_switch::Config::default(),
             returning_to_stable: false,
+        }
+    }
+
+    #[test]
+    fn update_impact_only_reports_an_ordinary_restart_after_a_successful_check() {
+        let target = reviewed_switch(Some(45), None).descriptor.compatibility;
+        assert_eq!(setup_impact(&target, None, || None), UpdateImpact::Unknown);
+        assert_eq!(
+            setup_impact(&target, Some(44), || None),
+            UpdateImpact::Upgrade
+        );
+        assert_eq!(
+            setup_impact(&target, Some(45), || None),
+            UpdateImpact::Unknown
+        );
+        let reference = |managed, revision| {
+            Some(atlas_desktop_protocol::ReferenceStatus {
+                version: atlas_desktop_protocol::VERSION,
+                workspace: "/Atlas/workspace.sqlite".into(),
+                generation: String::new(),
+                revision,
+                target: String::new(),
+                target_version: String::new(),
+                managed,
+                offer: None,
+                model_offer: None,
+                can_change_models: false,
+                preferred: None,
+                models: Vec::new(),
+            })
+        };
+        for (managed, revision, expected) in [
+            (true, None, UpdateImpact::Unknown),
+            (false, None, UpdateImpact::Restart),
+            (
+                true,
+                Some(target.foundry_commit.clone()),
+                UpdateImpact::Restart,
+            ),
+            (
+                true,
+                Some("older".into()),
+                UpdateImpact::Reference {
+                    version: target.foundry_version.clone(),
+                },
+            ),
+        ] {
+            assert_eq!(
+                setup_impact(&target, Some(45), || reference(managed, revision)),
+                expected
+            );
         }
     }
 
@@ -1621,12 +1823,16 @@ mod tests {
         };
         assert_eq!(
             descriptor.admission_error(failure(), "your current data"),
-            "This Stable release can’t open your current data yet."
+            ChannelError::Unavailable(
+                "This Stable release can’t open your current data yet.".into()
+            )
         );
         descriptor.channel = "nightly".into();
         assert_eq!(
             descriptor.admission_error(failure(), "your current data"),
-            "This Nightly release can’t open your current data yet."
+            ChannelError::Unavailable(
+                "This Nightly release can’t open your current data yet.".into()
+            )
         );
         assert_eq!(
             updater_check_error(tauri_plugin_updater::Error::ReleaseNotFound),

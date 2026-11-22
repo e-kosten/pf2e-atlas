@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Manager, WebviewWindow, window::Color};
 
-use crate::{Desktop, current_product, lock, product_view, run_on_main, window_host::system_dark};
+use crate::{Desktop, current_product, lock, run_on_main, window_host::system_dark};
 
 #[derive(Clone, Copy, Default, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -41,13 +41,11 @@ pub async fn desktop_appearance(
         let Some(window) = app.get_webview_window(&label) else {
             return;
         };
-        if !product_view(&window, &base, &instance)
-            && !(label == crate::opening::PRIMARY
-                && window
-                    .state::<crate::Desktop>()
-                    .staged_setup
-                    .attached_to(&label, &instance)
-                && window.url().is_ok_and(|url| url.origin() == base.origin()))
+        if !window
+            .state::<Desktop>()
+            .staged_setup
+            .attached_to(&label, &instance)
+            || !window.url().is_ok_and(|url| url.origin() == base.origin())
         {
             return;
         }

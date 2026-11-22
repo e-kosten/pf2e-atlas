@@ -1,6 +1,5 @@
 import { useDesktopTab } from "./DesktopTabContext";
-import { DesktopSetupPanel } from "./DesktopSetupPanel";
-import { DesktopStableUpdate, DesktopUpdate } from "./DesktopUpdate";
+import { DesktopSettingsControls } from "./DesktopSettings";
 import { Link, useRouter, type LinkOptions } from "@tanstack/react-router";
 import { AtlasLink } from "./AtlasLink";
 import type { AtlasSection } from "./router";
@@ -240,9 +239,7 @@ export function AppShell({
               />
             </Tooltip>
           </Popover>
-          <DesktopSetupPanel />
-          <DesktopStableUpdate />
-          <DesktopUpdate />
+          <DesktopSettingsControls />
         </Space>
       </header>
       {readiness?.saved_writes_paused && (

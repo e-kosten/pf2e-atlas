@@ -1,0 +1,201 @@
+.desktop-setup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
+}
+
+.desktop-setup__section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  gap: 12px;
+  padding-block: 20px;
+  min-width: 0;
+}
+
+.desktop-setup > :not(:first-child) {
+  border-block-start: 1px solid var(--line);
+}
+
+.desktop-setup > :first-child,
+.desktop-setup > :first-child > .desktop-setup__section {
+  padding-block-start: 0;
+}
+
+.desktop-setup > :last-child,
+.desktop-setup > :last-child > .desktop-setup__section {
+  padding-block-end: 0;
+}
+
+.desktop-setup__section h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.desktop-setup__section .ant-alert {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.desktop-setup__stack,
+.desktop-setup__section .desktop-setup__model-options {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.desktop-setup__model-preference {
+  max-width: 12rem;
+}
+
+.desktop-setup__section button {
+  height: auto;
+  min-height: var(--control-height);
+  white-space: normal;
+}
+
+.desktop-setup__model-status {
+  display: grid;
+  width: 100%;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desktop-setup__model-status li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.desktop-setup__terminal-details {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.desktop-setup__terminal-details summary {
+  cursor: pointer;
+}
+
+.desktop-setup__terminal-details dl {
+  display: grid;
+  gap: 4px;
+  margin-block: 8px;
+}
+
+.desktop-setup__terminal-details dd {
+  margin: 0 0 4px;
+}
+
+.desktop-settings {
+  min-height: calc(100dvh - var(--desktop-tab-strip-height, 0px));
+  background: var(--bg);
+  color: var(--text);
+}
+.desktop-settings__body {
+  max-width: 64rem;
+  margin-inline: auto;
+  padding: clamp(16px, 3vw, 36px);
+  overflow-wrap: anywhere;
+}
+.desktop-settings--mac .desktop-settings__body {
+  max-width: 42rem;
+}
+.desktop-settings__body h1 {
+  font-size: 1.6rem;
+  line-height: 1.25;
+  margin: 0 0 20px;
+}
+.desktop-settings__channel {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 16px;
+}
+.desktop-settings__channel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.desktop-settings__channel[open] summary {
+  margin-bottom: 12px;
+}
+.desktop-settings__group {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.desktop-settings__group h2,
+.desktop-settings__body > .desktop-setup__section h2 {
+  font-size: 1rem;
+  margin: 0 0 4px;
+}
+.desktop-settings__group > :where(.ant-flex, .ant-typography),
+.desktop-settings__row {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+.desktop-settings__panes {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--line);
+  background: var(--shell-bg);
+}
+.desktop-settings__panes a {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  padding: 6px clamp(8px, 3vw, 16px);
+}
+.desktop-settings__panes a[aria-current="page"] {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+.desktop-settings__row,
+.desktop-settings__row-end,
+.desktop-settings__back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.desktop-settings__row {
+  justify-content: space-between;
+  color: var(--text);
+}
+.desktop-settings__row:hover,
+.desktop-settings__panes a:hover {
+  color: var(--selection-text);
+  background: var(--panel-subtle);
+}
+.desktop-settings a:focus-visible {
+  outline: 2px solid var(--selection-border);
+  outline-offset: -2px;
+}
+.desktop-settings__row-end {
+  color: var(--muted);
+}
+.desktop-settings__back {
+  width: fit-content;
+  margin-bottom: 8px;
+}
+.desktop-settings__command {
+  padding: 10px;
+  background: var(--panel-subtle);
+  border-radius: var(--radius-sm);
+  user-select: all;
+}
+.desktop-settings__body > .desktop-setup__section {
+  padding-block-start: 0;
+}

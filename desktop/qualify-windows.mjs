@@ -188,19 +188,63 @@ async function runCase(mode) {
     const page = await product(plan.stable);
     const runningPath = await page.evaluate(() => window.__ATLAS_DESKTOP_SETUP__?.channel?.workspace_path);
     assert.equal(windowsPath(runningPath), windowsPath(original), "The old host did not open the isolated fixture");
-    await page.getByRole("button", { name: "Setup and Updates", exact: true }).click();
-    await page.locator(".desktop-channel__preview summary").click();
-    await page.getByRole("button", { name: "Try Nightly…", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Change release channel", exact: true });
-    if (mode === "normal") await dialog.getByRole("button", { name: "Use a separate copy", exact: true }).click();
-    await dialog.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
-    await expect(dialog.getByRole("button", { name: "Install Nightly and restart", exact: true })).toBeEnabled({ timeout: 30_000 });
+    const nativeKeys = (keys) => ps(`$shell = New-Object -ComObject WScript.Shell
+      if (-not $shell.AppActivate(${child.pid})) { throw "Could not focus the fixture Atlas window" }
+      Start-Sleep -Milliseconds 200
+      $shell.SendKeys(${literal(keys)})`, env);
+    if (mode === "normal") {
+      const input = page.getByRole("searchbox", { name: "Search records" });
+      await input.fill("unsubmitted fixture search");
+      nativeKeys("^,");
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+      nativeKeys("^,");
+      await expect(page.getByRole("tab", { name: "Settings", exact: true })).toHaveCount(1);
+      const terminalRow = page.getByRole("link", { name: "Terminal access" });
+      await terminalRow.click();
+      await expect(page.getByRole("heading", { name: "Run Atlas in PowerShell" })).toBeVisible();
+      const command = await page.getByRole("main").locator("code").innerText();
+      assert.equal(command, "& '" + join(installDirectory, "atlas.exe").replaceAll("'", "''") + "'");
+      await page.getByRole("button", { name: "Copy command" }).click();
+      await expect(page.getByText("Command copied.", { exact: true })).toBeVisible();
+      assert.equal(ps("Get-Clipboard -Raw", env).trimEnd(), command);
+      await page.getByRole("link", { name: "Back to Settings" }).click();
+      await expect(terminalRow).toBeFocused();
+      nativeKeys("^w");
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue("unsubmitted fixture search");
+
+      // Keep Settings open in both windows, then deliver a record to a window
+      // whose only remaining tab is Settings. The original draft stays mounted.
+      nativeKeys("^,");
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+      nativeKeys("^n");
+      const second = await nativePage(async (candidate) =>
+        candidate !== page && await candidate.getByRole("button", { name: "Settings", exact: true }).isVisible().catch(() => false));
+      await second.getByRole("button", { name: "Settings", exact: true }).click();
+      const secondSettings = second.getByRole("heading", { name: "Settings", exact: true });
+      await expect(secondSettings).toBeVisible();
+      const searchTab = second.getByRole("tab", { name: "Search", exact: true });
+      await searchTab.locator("..").getByRole("button", { name: "Close tab" }).click();
+      await expect(second.getByRole("tablist")).toHaveCount(0);
+      await expect(secondSettings).toBeVisible();
+      run(join(installDirectory, "atlas-desktop.exe"), ["pf2e-atlas://v1/record/actions%3Aaaaaaaaaaaaaaaaa"], { env, cwd: home });
+      await expect(second.getByRole("heading", { name: "Windows updater fixture", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+      await page.getByRole("tab", { name: "Search", exact: true }).click();
+      await expect(input).toHaveValue("unsubmitted fixture search");
+    }
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("link", { name: /Release channel/ }).click();
+    const channel = page.getByRole("main").filter({ has: page.getByRole("heading", { name: "Release channel", exact: true }) });
+    if (mode === "normal") await channel.getByRole("button", { name: "Use a separate copy", exact: true }).click();
+    await channel.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
+    await expect(channel.getByRole("button", { name: "Install Nightly and restart", exact: true })).toBeEnabled({ timeout: 30_000 });
     await page.screenshot({ path: join(caseRoot, "review.png") });
     const processes = installedProcesses();
     assert(processes.some((entry) => entry.Name === "atlas-desktop.exe"));
     assert(processes.some((entry) => entry.Name === "atlas.exe" && entry.CommandLine?.includes("--desktop-launcher")));
     writeFileSync(join(caseRoot, "before-processes.json"), JSON.stringify(processes, null, 2));
-    await dialog.getByRole("button", { name: "Install Nightly and restart", exact: true }).click();
+    await channel.getByRole("button", { name: "Install Nightly and restart", exact: true }).click();
     const hook = await until("NSIS replacement and race hook", () => existsSync(join(caseRoot, "postinstall.json")) && readJson(join(caseRoot, "postinstall.json")), 90_000);
     assert.equal(hook.oldProcesses, 0);
     assert.equal(hook.hostSha256, plan.targetHostSha256);

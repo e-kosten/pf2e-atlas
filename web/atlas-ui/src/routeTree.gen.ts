@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as PartiesRouteImport } from './routes/parties'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as CharactersIndexRouteImport } from './routes/characters.index'
 import { Route as DefinitionsDefinitionKeyRouteImport } from './routes/definitions.$definitionKey'
 import { Route as EncountersIndexRouteImport } from './routes/encounters.index'
@@ -20,6 +21,7 @@ import { Route as ListsSlugRouteImport } from './routes/lists.$slug'
 import { Route as PartiesIndexRouteImport } from './routes/parties.index'
 import { Route as RecordsRecordKeyRouteImport } from './routes/records.$recordKey'
 import { Route as SearchIndexRouteImport } from './routes/search.index'
+import { Route as SettingsPaneRouteImport } from './routes/settings.$pane'
 import { Route as TraitsTraitKeyRouteImport } from './routes/traits.$traitKey'
 import { Route as CharactersCharacterKeyIndexRouteImport } from './routes/characters.$characterKey.index'
 import { Route as EncountersSlugIndexRouteImport } from './routes/encounters.$slug.index'
@@ -45,6 +47,11 @@ const SplatRoute = SplatRouteImport.update({
 const PartiesRoute = PartiesRouteImport.update({
   id: '/parties',
   path: '/parties',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CharactersIndexRoute = CharactersIndexRouteImport.update({
@@ -87,6 +94,11 @@ const SearchIndexRoute = SearchIndexRouteImport.update({
   id: '/search/',
   path: '/search/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsPaneRoute = SettingsPaneRouteImport.update({
+  id: '/$pane',
+  path: '/$pane',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const TraitsTraitKeyRoute = TraitsTraitKeyRouteImport.update({
   id: '/traits/$traitKey',
@@ -152,9 +164,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/parties': typeof PartiesRouteWithChildren
+  '/settings': typeof SettingsRouteWithChildren
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
+  '/settings/$pane': typeof SettingsPaneRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
   '/characters/': typeof CharactersIndexRoute
   '/encounters/': typeof EncountersIndexRoute
@@ -175,8 +189,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/records/$recordKey': typeof RecordsRecordKeyRoute
+  '/settings/$pane': typeof SettingsPaneRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
   '/characters': typeof CharactersIndexRoute
   '/encounters': typeof EncountersIndexRoute
@@ -199,9 +215,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/parties': typeof PartiesRouteWithChildren
+  '/settings': typeof SettingsRouteWithChildren
   '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
+  '/settings/$pane': typeof SettingsPaneRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
   '/characters/': typeof CharactersIndexRoute
   '/encounters/': typeof EncountersIndexRoute
@@ -225,9 +243,11 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/parties'
+    | '/settings'
     | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
+    | '/settings/$pane'
     | '/traits/$traitKey'
     | '/characters/'
     | '/encounters/'
@@ -248,8 +268,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$'
+    | '/settings'
     | '/definitions/$definitionKey'
     | '/records/$recordKey'
+    | '/settings/$pane'
     | '/traits/$traitKey'
     | '/characters'
     | '/encounters'
@@ -271,9 +293,11 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/parties'
+    | '/settings'
     | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
+    | '/settings/$pane'
     | '/traits/$traitKey'
     | '/characters/'
     | '/encounters/'
@@ -296,6 +320,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
   PartiesRoute: typeof PartiesRouteWithChildren
+  SettingsRoute: typeof SettingsRouteWithChildren
   DefinitionsDefinitionKeyRoute: typeof DefinitionsDefinitionKeyRoute
   ListsSlugRoute: typeof ListsSlugRouteWithChildren
   RecordsRecordKeyRoute: typeof RecordsRecordKeyRoute
@@ -333,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/parties'
       fullPath: '/parties'
       preLoaderRoute: typeof PartiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/characters/': {
@@ -390,6 +422,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/search/'
       preLoaderRoute: typeof SearchIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/settings/$pane': {
+      id: '/settings/$pane'
+      path: '/$pane'
+      fullPath: '/settings/$pane'
+      preLoaderRoute: typeof SettingsPaneRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/traits/$traitKey': {
       id: '/traits/$traitKey'
@@ -484,6 +523,18 @@ const PartiesRouteChildren: PartiesRouteChildren = {
 const PartiesRouteWithChildren =
   PartiesRoute._addFileChildren(PartiesRouteChildren)
 
+interface SettingsRouteChildren {
+  SettingsPaneRoute: typeof SettingsPaneRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsPaneRoute: SettingsPaneRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 interface ListsSlugRouteChildren {
   ListsSlugEditRoute: typeof ListsSlugEditRoute
   ListsSlugIndexRoute: typeof ListsSlugIndexRoute
@@ -504,6 +555,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
   PartiesRoute: PartiesRouteWithChildren,
+  SettingsRoute: SettingsRouteWithChildren,
   DefinitionsDefinitionKeyRoute: DefinitionsDefinitionKeyRoute,
   ListsSlugRoute: ListsSlugRouteWithChildren,
   RecordsRecordKeyRoute: RecordsRecordKeyRoute,

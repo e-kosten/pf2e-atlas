@@ -5,6 +5,7 @@ mod appearance;
 mod bootstrap_jobs;
 mod opening;
 mod process;
+mod settings;
 #[cfg(all(debug_assertions, target_os = "macos"))]
 mod smoke;
 mod staged_setup;
@@ -51,6 +52,7 @@ struct Desktop {
     appearance: Mutex<appearance::Appearance>,
     bootstrap_jobs: Mutex<BootstrapJobs>,
     presented_bootstrap: Mutex<HashSet<String>>,
+    bootstrap_terminal: AtomicBool,
     copy_menu: copy_link::CopyMenu,
     #[cfg(windows)]
     windows_tabs: windows_tabs::WindowsTabs,
@@ -82,6 +84,7 @@ struct Inspection {
     recovery: bool,
     opening_error: Option<String>,
     selection_error: Option<String>,
+    terminal_requested: bool,
     recovery_release: Option<String>,
     resume_previous_workspace: bool,
 }
@@ -261,6 +264,7 @@ async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, St
             running: lock(&desktop.launcher).is_some(),
             recovery: desktop.recovery.load(Ordering::Acquire),
             selection_error,
+            terminal_requested: desktop.bootstrap_terminal.swap(false, Ordering::AcqRel),
             recovery_release: workspace_switch::recovery_release(&app),
             resume_previous_workspace: workspace_switch::can_resume_previous(&app),
             opening_error: if initial {
@@ -444,6 +448,10 @@ fn on_launcher_exit(app: &AppHandle, pid: u32) {
     drop(launcher);
     if !desktop.quitting.load(Ordering::Acquire) {
         let _ = run_on_main(app, |app| {
+            #[cfg(target_os = "macos")]
+            if let Some(settings) = app.get_webview_window(settings::WINDOW) {
+                let _ = settings.destroy();
+            }
             copy_link::refresh(app);
             let _ = show_bootstrap(app);
         });
@@ -612,7 +620,8 @@ fn current_product(app: &AppHandle) -> Result<(Url, String), String> {
 
 fn product_view(window: &WebviewWindow, base: &Url, instance: &str) -> bool {
     let desktop = window.state::<Desktop>();
-    (window.label() != opening::PRIMARY || lock(&desktop.primary).is_product())
+    window.label() != settings::WINDOW
+        && (window.label() != opening::PRIMARY || lock(&desktop.primary).is_product())
         && desktop.staged_setup.attached_to(window.label(), instance)
         && window.url().is_ok_and(|url| url.origin() == base.origin())
 }
@@ -729,32 +738,6 @@ fn new_search(app: &AppHandle, as_tab: bool) -> Result<(), String> {
         .then(|| recent_product_views(app, &base, &instance))
         .and_then(|views| views.into_iter().next());
     open_product(app, "/search", source.as_ref().map(|window| (window, true))).map(|_| ())
-}
-
-fn show_workspace_setup(app: &AppHandle, terminal: bool) -> Result<(), String> {
-    let desktop = app.state::<Desktop>();
-    if let Ok((base, instance)) = current_product(app) {
-        for window in recent_product_views(app, &base, &instance) {
-            if desktop
-                .staged_setup
-                .request_open(&window, &instance, false, terminal)
-            {
-                return window_host::select(&window);
-            }
-        }
-        if lock(&desktop.primary).is_product() {
-            let window = open_product(app, "/search", None)?;
-            if desktop
-                .staged_setup
-                .request_open(&window, &instance, true, terminal)
-            {
-                return Ok(());
-            }
-        }
-    }
-    opening::restore_setup_if_needed(app)
-        .and_then(|()| show_bootstrap(app))
-        .map_err(display)
 }
 
 fn open_external(destination: &Url) {
@@ -878,7 +861,8 @@ async fn enable_cli(window: WebviewWindow, directory: String) -> Result<String, 
         );
         let bundled = terminal::Bundled::inspect()?;
         guard(&window)?;
-        terminal::link_from_bootstrap(&home, &path, &bundled)
+        terminal::link_folder(&home, &path, &bundled)
+            .map(|status| status.path.display().to_string())
     })
     .await
     .map_err(display)?
@@ -889,13 +873,7 @@ fn display(error: impl std::fmt::Display) -> String {
 }
 
 fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
-    let settings = MenuItem::with_id(
-        app,
-        "setup",
-        "Setup and Updates…",
-        true,
-        Some("CmdOrCtrl+,"),
-    )?;
+    let settings = MenuItem::with_id(app, "setup", "Settings…", true, Some("CmdOrCtrl+,"))?;
     #[cfg(target_os = "macos")]
     let window = MenuItem::with_id(app, "new", "New Window", true, Some("CmdOrCtrl+N"))?;
     // Keep the Windows menu hints while the focused tab shell handles the shortcuts.
@@ -976,7 +954,13 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
 
 fn reopen(app: &AppHandle, has_visible_windows: bool) {
     let pending = !lock(&app.state::<Desktop>().links).is_empty();
-    if has_visible_windows && !pending {
+    // A standalone Settings window cannot receive workspace navigation.
+    if has_visible_windows
+        && !pending
+        && app.webview_windows().into_values().any(|window| {
+            window.label() != settings::WINDOW && window.is_visible().unwrap_or(false)
+        })
+    {
         return;
     }
     if setup_window_label(app) != opening::PRIMARY
@@ -1010,6 +994,10 @@ fn main() {
             #[cfg(target_os = "macos")]
             enable_cli,
             staged_setup::desktop_setup_action,
+            settings::desktop_settings_open,
+            settings::desktop_settings_ack,
+            #[cfg(target_os = "macos")]
+            settings::desktop_settings_pane,
             updates::desktop_update_action,
             updates::desktop_channel_action,
             #[cfg(debug_assertions)]
@@ -1073,6 +1061,19 @@ fn main() {
                 }
             }
             #[cfg(target_os = "macos")]
+            if window.label() == settings::WINDOW
+                && matches!(event, tauri::WindowEvent::CloseRequested { .. })
+                && window.is_focused().unwrap_or(false)
+                && let Ok((base, instance)) = current_product(app)
+                && let Some(workspace) = recent_product_views(app, &base, &instance)
+                    .into_iter()
+                    .find(|view| {
+                        view.is_visible().unwrap_or(false) && !view.is_minimized().unwrap_or(false)
+                    })
+            {
+                let _ = window_host::select(&workspace);
+            }
+            #[cfg(target_os = "macos")]
             let hide_on_close =
                 window.label() == "bootstrap" || window.label() == setup_window_label(app);
             #[cfg(target_os = "macos")]
@@ -1083,11 +1084,8 @@ fn main() {
         })
         .on_menu_event(|app, event| {
             let result = match event.id().as_ref() {
-                "setup" => show_workspace_setup(app, false),
-                #[cfg(target_os = "macos")]
-                "terminal-access" => show_workspace_setup(app, true),
-                #[cfg(windows)]
-                "terminal-access" => window_host::show_cli_path(app),
+                "setup" => settings::open(app, None, settings::Destination::General),
+                "terminal-access" => settings::open(app, None, settings::Destination::Terminal),
                 #[cfg(windows)]
                 "exit" => windows_tabs::exit(app),
                 "new" => new_search(app, false),

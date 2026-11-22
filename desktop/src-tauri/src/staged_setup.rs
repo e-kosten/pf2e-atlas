@@ -29,8 +29,13 @@ struct Document {
     instance: String,
     origin: url::Origin,
     token: Option<String>,
-    open_request: Option<usize>,
-    open_terminal: bool,
+    settings_request: Option<SettingsRequest>,
+}
+
+#[derive(Clone, Copy, Serialize)]
+struct SettingsRequest {
+    id: usize,
+    destination: crate::settings::Destination,
 }
 
 #[derive(Clone, Default, Serialize)]
@@ -106,22 +111,36 @@ impl StagedSetup {
             .local(false)
             .remote(format!("{}/*", origin.ascii_serialization()))
             .webview(label)
-            .permission("allow-desktop-setup-action")
-            .permission("allow-desktop-update-action")
-            .permission("allow-desktop-channel-action")
-            .permission("allow-desktop-tab-link")
             .permission("allow-desktop-appearance")
-            .permission("allow-desktop-copy-link")
-            .permission("allow-desktop-copy-availability");
-        #[cfg(target_os = "macos")]
-        let permission = permission.permission("allow-desktop-native-tab-title");
-        #[cfg(windows)]
-        let permission = permission
-            .permission("allow-desktop-tabs-state")
-            .permission("allow-desktop-tabs-ack")
-            .permission("allow-desktop-tabs-close")
-            .permission("allow-desktop-tabs-new-window")
-            .permission("allow-desktop-tabs-exit-status");
+            .permission("allow-desktop-settings-open");
+        let settings_window = label == crate::settings::WINDOW;
+        let permission = if settings_window || cfg!(windows) {
+            permission
+                .permission("allow-desktop-setup-action")
+                .permission("allow-desktop-update-action")
+                .permission("allow-desktop-channel-action")
+                .permission("allow-desktop-settings-ack")
+        } else {
+            permission
+        };
+        let permission = if settings_window {
+            permission.permission("allow-desktop-settings-pane")
+        } else {
+            let permission = permission
+                .permission("allow-desktop-tab-link")
+                .permission("allow-desktop-copy-link")
+                .permission("allow-desktop-copy-availability");
+            #[cfg(target_os = "macos")]
+            let permission = permission.permission("allow-desktop-native-tab-title");
+            #[cfg(windows)]
+            let permission = permission
+                .permission("allow-desktop-tabs-state")
+                .permission("allow-desktop-tabs-ack")
+                .permission("allow-desktop-tabs-close")
+                .permission("allow-desktop-tabs-new-window")
+                .permission("allow-desktop-tabs-exit-status");
+            permission
+        };
         app.add_capability(permission).map_err(display)?;
         lock(&self.documents).insert(
             label.into(),
@@ -129,8 +148,7 @@ impl StagedSetup {
                 instance: instance.into(),
                 origin,
                 token: None,
-                open_request: None,
-                open_terminal: false,
+                settings_request: None,
             },
         );
         Ok(())
@@ -172,29 +190,36 @@ impl StagedSetup {
             .is_some_and(|document| document.instance == instance && document.token.is_some())
     }
 
-    pub fn request_open(
+    pub fn request_settings(
         &self,
         window: &WebviewWindow,
         instance: &str,
-        initial: bool,
-        terminal: bool,
-    ) -> bool {
-        let origin = window.url().ok().map(|url| url.origin());
+        destination: crate::settings::Destination,
+    ) -> Result<(), String> {
+        // Store the intent even if the physical WebView is still mounting. Its
+        // next authenticated document snapshot will deliver the latest request.
         let mut documents = lock(&self.documents);
-        let Some(doc) = documents.get_mut(window.label()) else {
-            return false;
-        };
-        if doc.instance != instance
-            || origin.as_ref() != Some(&doc.origin) && !initial
-            || doc.token.is_none() && !initial
-        {
-            return false;
-        }
-        doc.open_request = Some(self.menu_requests.fetch_add(1, Ordering::Relaxed) + 1);
-        doc.open_terminal = terminal;
+        let doc = documents
+            .get_mut(window.label())
+            .filter(|doc| doc.instance == instance)
+            .ok_or("The Settings destination is no longer available.")?;
+        doc.settings_request = Some(SettingsRequest {
+            id: self.menu_requests.fetch_add(1, Ordering::Relaxed) + 1,
+            destination,
+        });
         drop(documents);
         broadcast(window.app_handle());
-        true
+        Ok(())
+    }
+
+    pub fn ack_settings(&self, label: &str, token: &str, id: usize) {
+        let mut documents = lock(&self.documents);
+        if let Some(doc) = documents.get_mut(label)
+            && doc.token.as_deref() == Some(token)
+            && doc.settings_request.is_some_and(|request| request.id == id)
+        {
+            doc.settings_request = None;
+        }
     }
 }
 
@@ -221,10 +246,9 @@ fn deliver(
     let detail = serde_json::json!({
         "token": token, "setup": state, "reference": reference, "update": updates.update,
         "channel": updates.channel,
-        "referenceLoading": state.reference_loading, "openRequest": document.open_request,
-        "openTerminal": document.open_terminal,
-        "terminalLinking": cfg!(target_os = "macos"),
-        "nativeTabTitles": cfg!(target_os = "macos"),
+        "referenceLoading": state.reference_loading, "settingsRequest": document.settings_request,
+        "settingsWindow": window.label() == crate::settings::WINDOW,
+        "nativeTabTitles": cfg!(target_os = "macos") && window.label() != crate::settings::WINDOW,
     });
     // Check the current document again inside the queued WebView callback.
     let origin = serde_json::json!(document.origin.ascii_serialization());
@@ -277,10 +301,6 @@ pub fn page_load(window: WebviewWindow, payload: tauri::webview::PageLoadPayload
         return;
     };
     if payload.event() == PageLoadEvent::Started {
-        if doc.token.is_some() {
-            doc.open_request = None;
-            doc.open_terminal = false;
-        }
         doc.token = None;
         return;
     }
@@ -928,7 +948,7 @@ pub enum SetupAction {
     ReadTerminal,
     EnableTerminal,
     SwitchTerminal,
-    AcknowledgeOpen,
+    ChooseTerminalFolder,
 }
 
 #[cfg(target_os = "macos")]
@@ -936,7 +956,10 @@ use crate::terminal;
 #[cfg(target_os = "macos")]
 type TerminalStatus = terminal::Status;
 #[cfg(windows)]
-type TerminalStatus = ();
+#[derive(Serialize)]
+pub struct TerminalStatus {
+    command: String,
+}
 
 #[tauri::command]
 pub async fn desktop_setup_action(
@@ -945,12 +968,14 @@ pub async fn desktop_setup_action(
     job: usize,
     action: SetupAction,
     sequence: Option<usize>,
-    open_request: Option<usize>,
     model_selection: Option<ModelSelection>,
 ) -> Result<Option<TerminalStatus>, String> {
     if matches!(
         action,
-        SetupAction::ReadTerminal | SetupAction::EnableTerminal | SetupAction::SwitchTerminal
+        SetupAction::ReadTerminal
+            | SetupAction::EnableTerminal
+            | SetupAction::SwitchTerminal
+            | SetupAction::ChooseTerminalFolder
     ) {
         #[cfg(target_os = "macos")]
         return tauri::async_runtime::spawn_blocking(move || {
@@ -959,7 +984,20 @@ pub async fn desktop_setup_action(
         .await
         .map_err(display)?;
         #[cfg(windows)]
-        return Err("Use Terminal and Agent Access in the PF2e Atlas menu.".into());
+        {
+            let (_, instance) = crate::current_product(window.app_handle())?;
+            if !matches!(action, SetupAction::ReadTerminal)
+                || !window
+                    .state::<Desktop>()
+                    .staged_setup
+                    .authorize_document(&window, &instance, &token)
+            {
+                return Err("Open Terminal access again in Settings.".into());
+            }
+            return Ok(Some(TerminalStatus {
+                command: crate::window_host::powershell_command()?,
+            }));
+        }
     }
     let app = window.app_handle().clone();
     let desktop = app.state::<Desktop>();
@@ -967,27 +1005,11 @@ pub async fn desktop_setup_action(
         .as_ref()
         .map(|launcher| launcher.ready.instance.clone())
         .ok_or("The Atlas service stopped.")?;
-    let origin = window.url().map_err(display)?.origin();
+    if !desktop
+        .staged_setup
+        .authorize_document(&window, &instance, &token)
     {
-        let mut documents = lock(&desktop.staged_setup.documents);
-        let doc = documents
-            .get_mut(window.label())
-            .filter(|doc| {
-                doc.instance == instance
-                    && doc.token.as_deref() == Some(token.as_str())
-                    && origin == doc.origin
-            })
-            .ok_or("This setup action belongs to an earlier Atlas view.")?;
-        if matches!(action, SetupAction::AcknowledgeOpen) {
-            if open_request.is_some() && doc.open_request == open_request {
-                doc.open_request = None;
-                doc.open_terminal = false;
-                drop(documents);
-                load_reference(&app, true);
-                broadcast(&app);
-            }
-            return Ok(None);
-        }
+        return Err("This setup action belongs to an earlier Atlas view.".into());
     }
     if matches!(action, SetupAction::Cancel) {
         return cancel(&app, job).map(|()| None);
@@ -1047,6 +1069,13 @@ fn terminal_action(
     };
     drop(authorize()?);
     let bundled = terminal::Bundled::inspect()?;
+    if matches!(action, SetupAction::ChooseTerminalFolder) {
+        let Some(path) = terminal::choose_folder(window.app_handle())? else {
+            return Ok(None);
+        };
+        let _authorization = authorize()?;
+        return terminal::link_folder(&process::home()?, &path, &bundled).map(Some);
+    }
     let destination = terminal::Destination::inspect(&process::home()?, &bundled)?;
     match action {
         SetupAction::ReadTerminal => {
@@ -1082,4 +1111,35 @@ pub(crate) fn owns_document(window: &WebviewWindow, instance: &str, token: &str)
                 && doc.token.as_deref() == Some(token)
                 && origin.as_ref() == Some(&doc.origin)
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_ack_applies_only_to_the_current_request_and_document() {
+        let setup = StagedSetup::default();
+        for label in ["first", "second"] {
+            lock(&setup.documents).insert(
+                label.into(),
+                Document {
+                    instance: "current".into(),
+                    origin: Url::parse("http://127.0.0.1:4210").unwrap().origin(),
+                    token: Some(format!("token-{label}")),
+                    settings_request: Some(SettingsRequest {
+                        id: 2,
+                        destination: crate::settings::Destination::Terminal,
+                    }),
+                },
+            );
+        }
+        let pending = |label: &str| lock(&setup.documents)[label].settings_request.is_some();
+        setup.ack_settings("first", "token-first", 1);
+        setup.ack_settings("first", "old-document", 2);
+        assert!(pending("first"));
+        setup.ack_settings("first", "token-first", 2);
+        assert!(!pending("first"));
+        assert!(pending("second"));
+    }
 }

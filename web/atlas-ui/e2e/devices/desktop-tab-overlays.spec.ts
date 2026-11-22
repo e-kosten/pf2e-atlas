@@ -197,3 +197,83 @@ test("a save that completes in an inactive desktop tab runs its close lifecycle"
     }
   }
 });
+
+test("Settings reopens in one tab and returns to the focused encounter draft", async ({
+  page,
+}) => {
+  const { encounter } = await (
+    await page.request.post("/api/encounters", {
+      data: { name: `Settings draft ${Date.now()}` },
+    })
+  ).json();
+  try {
+    await page.addInitScript(() => {
+      const attachment = {
+        token: "browser-fixture",
+        setup: { job: 0, sequence: 0, status: "idle" },
+      };
+      let sequence = 0;
+      const invoke = async (command: string, args: { destination?: string }) => {
+        if (command === "desktop_settings_open") {
+          Object.assign(window, {
+            __ATLAS_DESKTOP_SETUP__: {
+              ...attachment,
+              settingsRequest: { id: ++sequence, destination: args.destination },
+            },
+          });
+          window.dispatchEvent(new Event("atlas-desktop-setup"));
+        } else if (command === "desktop_setup_action") {
+          return { command: '& "C:\\Atlas\\atlas.exe"' };
+        }
+      };
+      Object.assign(window, {
+        __ATLAS_WINDOWS_TABS__: true,
+        __ATLAS_DESKTOP_SETUP__: attachment,
+        __TAURI__: { core: { invoke } },
+        __TAURI_INTERNALS__: { invoke },
+      });
+    });
+    await page.goto("/search");
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Settings", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Control+t");
+    await page.getByRole("link", { name: "Encounters", exact: true }).click();
+    await page.getByRole("link", { name: encounter.name, exact: true }).click();
+    await page.getByRole("button", { name: "Add participants", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Add custom turn…", exact: true }).click();
+    const turn = page.getByRole("dialog", { name: "Add custom turn", exact: true });
+    const notes = turn.getByRole("textbox", { name: "Notes", exact: true });
+    await replaceMarkdown(notes, "Retain this turn across Settings");
+    await notes.focus();
+    // The real accelerator belongs to the native host, which delivers this command.
+    await page.evaluate(() => {
+      const host = window as Window & {
+        __TAURI__: {
+          core: { invoke: (command: string, args: object) => Promise<void> };
+        };
+      };
+      return host.__TAURI__.core.invoke("desktop_settings_open", {
+        destination: "terminal",
+      });
+    });
+    const terminal = page.getByRole("heading", {
+      name: "Terminal access",
+      exact: true,
+    });
+    await expect(terminal).toBeVisible();
+    await expect(page.getByRole("tab")).toHaveCount(3);
+    await page.getByRole("link", { name: "Back to Settings" }).click();
+    await expect(page.getByRole("link", { name: "Terminal access" })).toBeFocused();
+    await page.keyboard.press("Control+w");
+    await expect(turn).toBeVisible();
+    await expect(notes).toBeFocused();
+    await expect
+      .poll(() => markdownSource(notes))
+      .toBe("Retain this turn across Settings");
+    await expect(page.getByRole("tab")).toHaveCount(2);
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+  }
+});

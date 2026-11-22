@@ -1,5 +1,6 @@
 import { RouterProvider } from "@tanstack/react-router";
-import { DesktopTabs, windowsTabsEnabled } from "./DesktopTabs";
+import { DesktopTabs } from "./DesktopTabs";
+import { windowsTabsEnabled } from "./desktopBridge";
 import { atlasRouter } from "./router";
 
 export function AtlasApp() {
