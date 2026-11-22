@@ -436,6 +436,12 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 .is_ok_and(|current| current == initial_window)
             && fixture_record_rendered(&window, expected_path)
     })?;
+    // Directly launched smoke bundles can remain behind another Atlas instance.
+    // The Edit menu follows the key window, as it does during normal use.
+    let focused = window.clone();
+    crate::run_on_main(app, move |_| {
+        let _ = crate::window_host::select(&focused);
+    })?;
     wait_for(
         deadline,
         "loaded record copy control and enabled Edit menu",
@@ -1018,7 +1024,12 @@ fn open_settings(
     let origin = origin.clone();
     let (send, receive) = std::sync::mpsc::channel();
     crate::run_on_main(app, move |app| {
-        let _ = send.send(settings::open(app, Some(&origin), pane));
+        let result = if pane == Destination::General {
+            settings_shortcut()
+        } else {
+            settings::open(app, Some(&origin), pane)
+        };
+        let _ = send.send(result);
     })?;
     receive
         .recv_timeout(Duration::from_secs(3))
@@ -1034,6 +1045,28 @@ fn open_settings(
     })?;
     app.get_webview_window(settings::WINDOW)
         .ok_or_else(|| "Settings window closed.".into())
+}
+
+// Drive the application's actual AppKit menu accelerator without requiring
+// Accessibility permission or synthesizing input into another application.
+fn settings_shortcut() -> Result<(), String> {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSApplication, NSEvent, NSEventModifierFlags, NSEventType};
+    use objc2_foundation::{NSPoint, NSString};
+
+    let main = MainThreadMarker::new().ok_or("Settings shortcut needs the main thread.")?;
+    let app = NSApplication::sharedApplication(main);
+    let menu = app.mainMenu().ok_or("The Atlas menu is unavailable.")?;
+    let key = NSString::from_str(",");
+    let event = NSEvent::keyEventWithType_location_modifierFlags_timestamp_windowNumber_context_characters_charactersIgnoringModifiers_isARepeat_keyCode(
+        NSEventType::KeyDown, NSPoint::new(0.0, 0.0), NSEventModifierFlags::Command,
+        0.0, app.keyWindow().map_or(0, |window| window.windowNumber()), None, &key, &key, false, 43,
+    ).ok_or("Could not construct the Settings key event.")?;
+    if menu.performKeyEquivalent(&event) {
+        Ok(())
+    } else {
+        Err("The Atlas menu did not handle Command-comma.".into())
+    }
 }
 
 fn click_settings_button(window: &WebviewWindow, text: &str) -> bool {
