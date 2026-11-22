@@ -18,11 +18,7 @@ import { useDesktopTab } from "./DesktopTabContext";
 import { usePageTitle } from "../shared/browser/usePageTitle";
 import { LinkNotFound } from "./InvalidUrl";
 import { useAtlasRouter } from "./router";
-import {
-  DesktopReleaseChannel,
-  DesktopUpdateSection,
-  DesktopUpdateShortcut,
-} from "./DesktopUpdate";
+import { DesktopUpdateSection, DesktopUpdateShortcut } from "./DesktopUpdate";
 import { DesktopSearchData, DesktopTerminal } from "./DesktopMaintenance";
 import {
   activeSettingsPane,
@@ -288,33 +284,29 @@ function SettingsPage({ pane, windows }: { pane: Pane; windows: boolean }) {
           <>
             <section className="desktop-settings__group" aria-label="App updates">
               {windows && <h2>App updates</h2>}
-              <DesktopUpdateSection />
+              <DesktopUpdateSection
+                channelDisclosure={
+                  windows
+                    ? undefined
+                    : {
+                        open: pane === "channel",
+                        onToggle: () =>
+                          void router.navigate({
+                            to: "/settings/$pane",
+                            params: {
+                              pane: pane === "channel" ? "updates" : "channel",
+                            },
+                            replace: true,
+                          }),
+                      }
+                }
+              />
               {windows && channel && (
                 <SettingsRow
                   to="/settings/channel"
                   label="Release channel"
                   value={channelLabel}
                 />
-              )}
-              {!windows && (channel || pane === "channel") && (
-                <details
-                  className="desktop-settings__channel"
-                  open={pane === "channel"}
-                >
-                  <summary
-                    onClick={(event) => {
-                      event.preventDefault();
-                      void router.navigate({
-                        to: "/settings/$pane",
-                        params: { pane: pane === "channel" ? "updates" : "channel" },
-                        replace: true,
-                      });
-                    }}
-                  >
-                    Release channel
-                  </summary>
-                  {pane === "channel" && <DesktopReleaseChannel />}
-                </details>
               )}
             </section>
             {windows && (
@@ -331,7 +323,7 @@ function SettingsPage({ pane, windows }: { pane: Pane; windows: boolean }) {
             )}
           </>
         )}
-        {windows && pane === "channel" && <DesktopReleaseChannel />}
+        {windows && pane === "channel" && <DesktopUpdateSection view="channel" />}
         {pane === "data" && <SearchDataPane />}
         {pane === "terminal" && <DesktopTerminal />}
       </div>

@@ -32,10 +32,27 @@ const desktop: DesktopAttachment = {
     busy: false,
   },
 };
-const invoke = vi.fn(async (command: string, args: { action?: string }) => {
-  if (command === "desktop_setup_action" && args.action === "read_terminal")
-    return { command: '& "C:\\Atlas\\atlas.exe"' };
-});
+const invoke = vi.fn(
+  async (command: string, args: { action?: string | { kind: string } }) => {
+    if (command === "desktop_update_action" && args.action === "details")
+      return { kind: "restart" };
+    if (
+      command === "desktop_channel_action" &&
+      typeof args.action === "object" &&
+      args.action.kind === "review"
+    )
+      return {
+        id: "reviewed-nightly",
+        version: "1.2.0-nightly",
+        workspace: "original",
+        will_seed: false,
+        needs_setup: false,
+        will_upgrade: false,
+      };
+    if (command === "desktop_setup_action" && args.action === "read_terminal")
+      return { command: '& "C:\\Atlas\\atlas.exe"' };
+  },
+);
 function attach(attachment: DesktopAttachment, windows: boolean) {
   vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", attachment);
   vi.stubGlobal("__ATLAS_WINDOWS_TABS__", windows);
@@ -131,3 +148,62 @@ it("opens a targeted macOS channel review in the Updates pane and keeps the tool
   );
   expect(getReadiness).not.toHaveBeenCalled();
 });
+
+it.each(["same-channel", "switch"])(
+  "replaces the expanded macOS controls with one focused progress report for a %s install",
+  async (job) => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    attach(
+      {
+        ...desktop,
+        settingsWindow: true,
+        update: { version: "1.1.0", phase: { kind: "available" }, error: null },
+      },
+      false,
+    );
+    const pane = open("/settings/channel", false);
+    const switchButton = await screen.findByRole("button", {
+      name: "Switch to Nightly…",
+    });
+    if (job === "switch") {
+      fireEvent.click(switchButton);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Check Nightly compatibility" }),
+      );
+    }
+    const install = await screen.findByRole("button", {
+      name: job === "switch" ? "Install Nightly and restart" : "Install and restart",
+    });
+    await waitFor(() => expect(install).toBeEnabled());
+    install.focus();
+    await act(async () => fireEvent.click(install));
+    const version = job === "switch" ? "1.2.0-nightly" : "1.1.0";
+    await act(async () => {
+      attach(
+        {
+          ...desktop,
+          settingsWindow: true,
+          update: {
+            version,
+            switching: job === "switch",
+            phase: { kind: "downloading", percent: 43 },
+            error: null,
+          },
+        },
+        false,
+      );
+      window.dispatchEvent(new Event("atlas-desktop-setup"));
+    });
+    const updates = within(screen.getByRole("region", { name: "App updates" }));
+    expect(updates.getByRole("status")).toHaveFocus();
+    expect(updates.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "43");
+    expect(updates.getByText(`Atlas ${version}`)).toBeVisible();
+
+    pane.unmount();
+    open("/settings/updates", false);
+    const reopened = within(await screen.findByRole("region", { name: "App updates" }));
+    expect(reopened.getByRole("status")).toHaveTextContent("Downloading update…");
+    expect(reopened.getByRole("status")).not.toHaveFocus();
+    expect(reopened.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "43");
+  },
+);

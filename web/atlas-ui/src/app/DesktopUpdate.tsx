@@ -288,7 +288,11 @@ function UpdateOffer({
   );
 }
 
-export function DesktopUpdateSection() {
+type UpdatePage =
+  | { view?: "updates"; channelDisclosure?: { open: boolean; onToggle: () => void } }
+  | { view: "channel" };
+
+export function DesktopUpdateSection(page: UpdatePage) {
   const attachment = useDesktopAttachment();
   const installFocusRef: InstallFocus = useRef(null);
   if (!attachment) return null;
@@ -302,57 +306,7 @@ export function DesktopUpdateSection() {
         installFocusRef={installFocusRef}
       />
     );
-  if (update)
-    return (
-      <UpdateOffer
-        key={JSON.stringify([token, update.version])}
-        update={update}
-        installFocusRef={installFocusRef}
-        token={token}
-        installed={channel?.installed.version}
-        setupRunning={setup?.status === "running" || setup?.status === "cancelling"}
-      />
-    );
-  return (
-    <Typography.Text>
-      {channel
-        ? `Installed version ${channel.installed.version}`
-        : "Update information is unavailable."}
-    </Typography.Text>
-  );
-}
-
-function failureMessage(failure: unknown, fallback: string) {
-  if (typeof failure === "string") return failure;
-  if (
-    failure &&
-    typeof failure === "object" &&
-    "message" in failure &&
-    typeof failure.message === "string"
-  )
-    return failure.message;
-  return fallback;
-}
-
-export function DesktopReleaseChannel() {
-  const attachment = useDesktopAttachment();
-  const installFocusRef: InstallFocus = useRef(null);
-  if (attachment?.update && attachment.update.phase.kind !== "available")
-    return (
-      <UpdateProgress
-        phase={attachment.update.phase}
-        version={attachment.update.version}
-        token={attachment.token}
-        installFocusRef={installFocusRef}
-      />
-    );
-  if (!attachment) return null;
-  if (!attachment.channel)
-    return (
-      <Typography.Text>Release channel information is unavailable.</Typography.Text>
-    );
-  const { token, channel } = attachment;
-  return (
+  const channelDetail = channel ? (
     <ChannelOptions
       key={JSON.stringify([
         token,
@@ -366,7 +320,56 @@ export function DesktopReleaseChannel() {
       token={token}
       installFocusRef={installFocusRef}
     />
+  ) : (
+    <Typography.Text>Release channel information is unavailable.</Typography.Text>
   );
+  if (page.view === "channel") return channelDetail;
+  const disclosure = page.channelDisclosure;
+  return (
+    <>
+      {update ? (
+        <UpdateOffer
+          key={JSON.stringify([token, update.version])}
+          update={update}
+          installFocusRef={installFocusRef}
+          token={token}
+          installed={channel?.installed.version}
+          setupRunning={setup?.status === "running" || setup?.status === "cancelling"}
+        />
+      ) : (
+        <Typography.Text>
+          {channel
+            ? `Installed version ${channel.installed.version}`
+            : "Update information is unavailable."}
+        </Typography.Text>
+      )}
+      {disclosure && (channel || disclosure.open) && (
+        <details className="desktop-settings__channel" open={disclosure.open}>
+          <summary
+            onClick={(event) => {
+              event.preventDefault();
+              disclosure.onToggle();
+            }}
+          >
+            Release channel
+          </summary>
+          {disclosure.open && channelDetail}
+        </details>
+      )}
+    </>
+  );
+}
+
+function failureMessage(failure: unknown, fallback: string) {
+  if (typeof failure === "string") return failure;
+  if (
+    failure &&
+    typeof failure === "object" &&
+    "message" in failure &&
+    typeof failure.message === "string"
+  )
+    return failure.message;
+  return fallback;
 }
 
 function ChannelOptions({

@@ -1,10 +1,6 @@
 import { ConfigProvider } from "antd";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import {
-  DesktopReleaseChannel,
-  DesktopUpdateShortcut,
-  DesktopUpdateSection,
-} from "./DesktopUpdate";
+import { DesktopUpdateShortcut, DesktopUpdateSection } from "./DesktopUpdate";
 
 const desktopWindow = window as Window & {
   __ATLAS_DESKTOP_SETUP__?: object;
@@ -118,7 +114,7 @@ it("reopens a channel installation in either pane without issuing a new request"
   expect(screen.getByText("Atlas 0.2.4")).toBeVisible();
   expect(screen.queryByRole("button")).toBeNull();
   updatePane.unmount();
-  render(<DesktopReleaseChannel />);
+  render(<DesktopUpdateSection view="channel" />);
   expect(screen.getByRole("status")).toHaveTextContent("Downloading update…");
   publish({ version: "0.2.4", switching: true, phase: { kind: "installing" } });
   expect(screen.getByRole("status")).toHaveTextContent("Installing and restarting…");
@@ -140,7 +136,7 @@ it("keeps a resumed installation on its original released version and destinatio
   };
   render(
     <>
-      <DesktopReleaseChannel />
+      <DesktopUpdateSection view="channel" />
       <DesktopUpdateShortcut onOpen={open} />
     </>,
   );
@@ -214,7 +210,7 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
   };
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <DesktopReleaseChannel />
+      <DesktopUpdateSection view="channel" />
     </ConfigProvider>,
   );
   expect(screen.queryByText(/Choose which data to use/)).toBeNull();
@@ -274,7 +270,7 @@ it("explains creating a separate copy and keeps the reviewed destination through
       busy: false,
     },
   };
-  render(<DesktopReleaseChannel />);
+  render(<DesktopUpdateSection view="channel" />);
   expect(screen.queryByText(/Choose which data to use/)).toBeNull();
   expect(screen.queryByRole("button", { name: /compatibility/ })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Switch to Nightly…" }));
@@ -326,7 +322,7 @@ it("reopens the retained other workspace after the separate workspace became the
       busy: false,
     },
   };
-  render(<DesktopReleaseChannel />);
+  render(<DesktopUpdateSection view="channel" />);
   fireEvent.click(screen.getByRole("button", { name: "Switch to Nightly…" }));
   expect(screen.queryByRole("button", { name: "Use a separate copy" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Use the other copy" }));
@@ -362,7 +358,7 @@ it.each(["original", "separate"])(
         busy: false,
       },
     };
-    render(<DesktopReleaseChannel />);
+    render(<DesktopUpdateSection view="channel" />);
     fireEvent.click(screen.getByRole("button", { name: "Switch to Stable…" }));
     expect(screen.getByRole("button", { name: "Use my current data" })).toHaveAttribute(
       "aria-pressed",
@@ -417,7 +413,7 @@ it.each([
         busy: false,
       },
     };
-    render(<DesktopReleaseChannel />);
+    render(<DesktopUpdateSection view="channel" />);
     expect(
       screen.getByText(`Waiting for a compatible Stable release. ${status}`),
     ).toBeVisible();
@@ -440,7 +436,7 @@ it("requires a deliberate current-data choice when the saved earlier copy is mis
       busy: false,
     },
   };
-  render(<DesktopReleaseChannel />);
+  render(<DesktopUpdateSection view="channel" />);
   expect(
     screen.getByText(
       "The earlier copy of your data is missing. Choose your current data to continue.",
@@ -503,14 +499,14 @@ it("ignores a previous page's review after closing and reopening with current da
   );
   const view = render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <DesktopReleaseChannel />
+      <DesktopUpdateSection view="channel" />
     </ConfigProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Switch to Stable…" }));
   fireEvent.click(screen.getByRole("button", { name: "Use an earlier copy" }));
   fireEvent.click(screen.getByRole("button", { name: "Check Stable compatibility" }));
   view.unmount();
-  render(<DesktopReleaseChannel />);
+  render(<DesktopUpdateSection view="channel" />);
   await act(async () =>
     resolveOld({
       id: "earlier-copy",

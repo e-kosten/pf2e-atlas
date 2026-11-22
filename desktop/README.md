@@ -160,10 +160,11 @@ built debug bundle. The smoke test creates a fresh temporary workspace and uses
 one local fixture record. It verifies setup opens Search in the same native
 window. It also forces a failed render and a failed readiness check to verify
 that retry opens the requested record in that window. Each case runs offline and
-pauses after the keyword commit, then cancels through the product panel and
+pauses after the keyword commit, then cancels from Search & data in Settings and
 verifies that editing is available again. A separate managed-source fixture
-checks toolbar and menu access, shared cancellation, a no-op check and a
-publication observed in two windows. The link scenario sends real macOS URL
+opens Settings from two workspace windows, checks that both use the same
+Settings window, and exercises cancellation, a no-op check and reference
+publication. The link scenario sends real macOS URL
 events to an isolated app bundle. It checks a cold launch, a warm open with the
 same record in a Search preview, and reuse of the standalone record tab.
 Embedding generation is skipped.
