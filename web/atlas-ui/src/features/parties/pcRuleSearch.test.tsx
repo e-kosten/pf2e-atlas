@@ -206,6 +206,12 @@ it.each([
       level: savedLevel,
     });
     render(<Harness />);
+    await screen.findByRole("heading", { level: 1, name: savedName });
+    if (savedLevel === undefined) {
+      expect(screen.queryByText(/^Level [0-9]+$/)).not.toBeInTheDocument();
+    } else {
+      expect(screen.getByText(`Level ${savedLevel}`, { exact: true })).toBeVisible();
+    }
     const stats = within(await screen.findByRole("tabpanel", { name: "Stats" }));
     await stats.findByText("This export has no stats to show.");
     const attribution = stats.queryByText(/^Imported\b/);
