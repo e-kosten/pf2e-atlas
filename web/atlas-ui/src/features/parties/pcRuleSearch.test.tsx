@@ -23,6 +23,7 @@ import { SearchProfileContext } from "../../shared/search/SearchProfileContext";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
 import { CharacterPage } from "./CharacterPage";
+import { characterQueryKey } from "./characterQueries";
 import type { AbilityView } from "./PcAbilityBrowser";
 import { PcCharacterDrawer } from "./PcCharacterDrawer";
 import { PathbuilderImport } from "./PathbuilderImport";
@@ -98,9 +99,11 @@ function page(count = 1): SearchResultsPage {
   };
 }
 function Harness({
+  client: suppliedClient,
   ready = true,
   children,
 }: {
+  client?: QueryClient;
   ready?: boolean;
   children?: ReactNode;
 }) {
@@ -108,6 +111,7 @@ function Harness({
   const [view, setView] = useState<AbilityView | null>(null);
   const [client] = useState(
     () =>
+      suppliedClient ??
       new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
       }),
@@ -186,6 +190,100 @@ it("offers first import for an abilities-only character after the sheet has load
     </SavedWritesPaused.Provider>,
   );
   expect(button()).toBeDisabled();
+});
+
+it.each([
+  { savedName: "Simon", savedLevel: 7, provenance: null },
+  { savedName: "Alias", savedLevel: 7, provenance: "Imported as Simon" },
+  { savedName: "Alias", savedLevel: 8, provenance: "Imported as Simon · Level 7" },
+  { savedName: "Simon", savedLevel: undefined, provenance: "Imported level 7" },
+])(
+  "shows imported identity differences for $savedName at level $savedLevel",
+  async ({ savedName, savedLevel, provenance }) => {
+    api.getCharacter.mockResolvedValueOnce({
+      ...character,
+      name: savedName,
+      level: savedLevel,
+    });
+    render(<Harness />);
+    const stats = within(await screen.findByRole("tabpanel", { name: "Stats" }));
+    await stats.findByText("This export has no stats to show.");
+    const attribution = stats.queryByText(/^Imported\b/);
+    if (provenance === null) expect(attribution).not.toBeInTheDocument();
+    else expect(attribution).toHaveTextContent(new RegExp(`^${provenance}$`));
+  },
+);
+
+it("keeps preparations open for the same caster across a revision refresh and resets them for a different character", async () => {
+  const client = new QueryClient();
+  const next = { ...character, character_key: "next", name: "New character" };
+  const magicSheet = (pc: PcReferenceView) => ({
+    character_key: pc.character_key,
+    character_revision: pc.character_revision,
+    sheet: {
+      name: pc.name,
+      level: 7,
+      has_additional_details: false,
+      sections: [
+        {
+          kind: "magic",
+          groups: ["Alarm", "Fear"].map((label) => ({
+            label: "Wizard",
+            rows: [],
+            spell_ranks: [
+              {
+                label: "Rank 1",
+                known: [{ label, count: 1 }],
+                prepared: [{ label, count: 2 }],
+              },
+            ],
+          })),
+        },
+      ],
+    },
+  });
+  api.getCharacterSheet.mockResolvedValueOnce(magicSheet(character));
+  const pageFor = (key: string) => (
+    <Harness client={client}>
+      <CharacterPage
+        characterKey={key}
+        navigation={{ view: null, open: vi.fn(), close: vi.fn() }}
+      />
+    </Harness>
+  );
+  const view = render(pageFor(character.character_key));
+  const panels = () => screen.getAllByRole("button", { name: "Prepared at export" });
+  fireEvent.click(await screen.findByRole("tab", { name: "Magic" }));
+  fireEvent.keyDown(panels()[1], { key: " " });
+  expect(panels()[0]).toHaveAttribute("aria-expanded", "false");
+  expect(panels()[1]).toHaveAttribute("aria-expanded", "true");
+
+  const revised = { ...character, character_revision: 5 };
+  let finish!: (value: ReturnType<typeof magicSheet>) => void;
+  api.getCharacter.mockResolvedValueOnce(revised);
+  api.getCharacterSheet.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await act(async () => {
+    await client.invalidateQueries({
+      queryKey: characterQueryKey(character.character_key),
+    });
+  });
+  await waitFor(() =>
+    expect(screen.queryByRole("tab", { name: "Magic" })).not.toBeInTheDocument(),
+  );
+  await act(async () => finish(magicSheet(revised)));
+  await screen.findByRole("tabpanel", { name: "Magic" });
+  expect(panels()[0]).toHaveAttribute("aria-expanded", "false");
+  expect(panels()[1]).toHaveAttribute("aria-expanded", "true");
+
+  api.getCharacter.mockResolvedValueOnce(next);
+  api.getCharacterSheet.mockResolvedValueOnce(magicSheet(next));
+  view.rerender(pageFor(next.character_key));
+  fireEvent.click(await screen.findByRole("tab", { name: "Magic" }));
+  for (const panel of panels()) expect(panel).toHaveAttribute("aria-expanded", "false");
 });
 
 async function openAbilities() {

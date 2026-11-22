@@ -66,30 +66,42 @@ fn identity(
         }
         rows.push(row);
     }
-    if let Some(ability) = value(&sheet.key_ability)
+    Ok(group("Character details", rows))
+}
+
+fn key_ability(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+) -> AppServiceResult<Option<SheetRowView>> {
+    let Some(ability) = value(&sheet.key_ability)
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
+    else {
+        return Ok(None);
+    };
+    let mut row = compact_row(
+        "Key ability",
+        Some(attribute_label(ability).to_owned()),
+        Vec::new(),
+    );
+    if let Some(retrieval) = retrieval
+        && let Ok(key) = DefinitionKey::new(DefinitionNamespace::Ability, ability.to_owned())
     {
-        let mut row = compact_row(
-            "Key ability",
-            Some(attribute_label(ability).to_owned()),
-            Vec::new(),
-        );
-        if let Some(retrieval) = retrieval
-            && let Ok(key) = DefinitionKey::new(DefinitionNamespace::Ability, ability.to_owned())
-        {
-            row.summary_help = HelpContext::load(retrieval, [key.clone()].into())?.help(&key);
-        }
-        rows.push(row);
+        row.summary_help = HelpContext::load(retrieval, [key.clone()].into())?.help(&key);
     }
-    Ok(group("Character details", rows))
+    Ok(Some(row))
+}
+
+enum Layout {
+    Sheet,
+    Context,
 }
 
 pub(super) fn groups(
     sheet: &PathbuilderSheet,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<Vec<SheetGroupView>> {
-    Ok(categorized(sheet, retrieval)?
+    Ok(project(sheet, retrieval, Layout::Sheet)?
         .into_iter()
         .map(|(_, group)| group)
         .collect())
@@ -99,26 +111,15 @@ pub(super) fn categorized(
     sheet: &PathbuilderSheet,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<Vec<(atlas_app_model::CharacterSection, SheetGroupView)>> {
+    project(sheet, retrieval, Layout::Context)
+}
+
+fn project(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+    layout: Layout,
+) -> AppServiceResult<Vec<(atlas_app_model::CharacterSection, SheetGroupView)>> {
     use atlas_app_model::CharacterSection::{Identity, Statistics};
-    let mut background = Vec::new();
-    let languages: Vec<_> = values(&sheet.languages)
-        .filter(|language| !language.trim().eq_ignore_ascii_case("None selected"))
-        .map(String::as_str)
-        .collect();
-    add_facts(
-        &mut background,
-        [
-            ("Languages", Some(languages.join(", "))),
-            ("Resistances", text_list(&sheet.resistances)),
-            (
-                "Size",
-                shown(&sheet.size_name).or_else(|| shown(&sheet.size)),
-            ),
-            ("Age", biography(&sheet.age)),
-            ("Gender", biography(&sheet.gender)),
-            ("Deity", biography(&sheet.deity)),
-        ],
-    );
     let mut scores = Vec::new();
     let mut modifiers = [None; 6];
     if let Some(abilities) = value(&sheet.abilities) {
@@ -194,7 +195,7 @@ pub(super) fn categorized(
             ],
         );
         vitals.push(compact_row(
-            "Imported max HP",
+            "Max HP",
             Some(hp_facts[0].value.clone()),
             hp_facts,
         ));
@@ -259,15 +260,58 @@ pub(super) fn categorized(
     skills.sort_by_cached_key(|row| normalize_record_name(&row.label));
     let mut skills = group("Skills", skills);
     skills.kind = Some(SheetGroupKind::Skills);
+    let mut details = identity(sheet, retrieval)?;
+    let key_ability = key_ability(sheet, retrieval)?;
+    let resistances = text_list(&sheet.resistances).filter(|value| !value.is_empty());
+    let mut background = group("Background & details", Vec::new());
+    match layout {
+        Layout::Sheet => {
+            scores.extend(key_ability);
+            if let Some(value) = resistances {
+                vitals.push(compact_row("Resistances", Some(value), Vec::new()));
+            }
+            add_biography(&mut details, sheet, None);
+        }
+        Layout::Context => {
+            details.rows.extend(key_ability);
+            add_biography(&mut background, sheet, resistances);
+        }
+    }
     Ok(vec![
-        (Identity, identity(sheet, retrieval)?),
         (Statistics, group("Defenses & movement", vitals)),
         (Statistics, group("Perception & saves", saves)),
+        (Identity, details),
         (Statistics, group("Ability scores", scores)),
-        (Identity, summary("Background & details", background)),
+        (Identity, background),
         (Statistics, skills),
         (Statistics, group("Other exported bonuses", other_bonuses)),
     ])
+}
+
+fn add_biography(
+    group: &mut SheetGroupView,
+    sheet: &PathbuilderSheet,
+    resistances: Option<String>,
+) {
+    let languages: Vec<_> = values(&sheet.languages)
+        .filter(|language| !language.trim().eq_ignore_ascii_case("None selected"))
+        .map(String::as_str)
+        .collect();
+    for (label, value) in [
+        ("Languages", Some(languages.join(", "))),
+        ("Resistances", resistances),
+        (
+            "Size",
+            shown(&sheet.size_name).or_else(|| shown(&sheet.size)),
+        ),
+        ("Age", biography(&sheet.age)),
+        ("Gender", biography(&sheet.gender)),
+        ("Deity", biography(&sheet.deity)),
+    ] {
+        if let Some(value) = value.filter(|value| !value.is_empty()) {
+            group.rows.push(compact_row(label, Some(value), Vec::new()));
+        }
+    }
 }
 
 pub(super) fn proficiencies(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {

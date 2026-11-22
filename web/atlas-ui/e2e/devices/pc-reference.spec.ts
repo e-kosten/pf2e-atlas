@@ -167,19 +167,28 @@ test("Pathbuilder character rules stay shared between parties and encounters", a
       "aria-selected",
       "true",
     );
-    await expect(page.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(page.getByText("Max HP", { exact: true })).toBeVisible();
     await expect(page.getByText("Intelligence", { exact: true }).first()).toBeVisible();
-    await activate(
-      page.getByRole("button", { name: "Show details for Imported max HP" }),
-      info,
-    );
+    await activate(page.getByRole("button", { name: "Show details for Max HP" }), info);
     const breakdown = page.getByRole("dialog", {
-      name: "Show details for Imported max HP",
+      name: "Show details for Max HP",
     });
+    await expect(breakdown.getByText("64", { exact: true })).toBeVisible();
     await expect(
       breakdown.getByText("Constitution per level", { exact: true }),
     ).toBeVisible();
     await activate(breakdown.getByRole("button", { name: "Close explanation" }), info);
+    const skills = page.getByRole("heading", { name: "Skills", exact: true });
+    const jump = page.getByRole("link", { name: "Jump to Skills" });
+    if (info.project.name.startsWith("phone-")) {
+      const beforeJump = page.url();
+      await activate(jump, info);
+      await expect(skills).toBeFocused();
+      await expect(skills).toBeInViewport();
+      await expect(page).toHaveURL(beforeJump);
+    } else if (info.project.name === "desktop-chromium") {
+      await expect(jump).toBeHidden();
+    }
     await activate(page.getByRole("tab", { name: "Inventory", exact: true }), info);
     await expect(
       page.getByRole("heading", { name: "Backpack", exact: true }),
@@ -502,7 +511,7 @@ test("an empty saved sheet imports into the same character and returns focus", a
     );
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/characters/${character_key}/?$`));
-    await expect(page.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(page.getByText("Max HP", { exact: true })).toBeVisible();
     await expect(opener).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Character actions" })).toBeFocused();
   } finally {
@@ -554,7 +563,7 @@ test("encounter imports and manual PCs create reusable characters", async ({
     await expect(drawer).toBeVisible();
     await expect(drawer.getByRole("heading", { name: /^Features/ })).toBeVisible();
     await activate(drawer.getByRole("tab", { name: "Stats", exact: true }), info);
-    await expect(drawer.getByText("Imported max HP", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("Max HP", { exact: true })).toBeVisible();
     await expect(page.locator("[data-participant-key]")).toHaveCount(2);
     const index = await (await page.request.get("/api/characters")).json();
     created.push(
@@ -863,10 +872,26 @@ test("character sheet keeps formulas together and level choices across import, p
       name,
       level: 7,
       feats: [
-        ["Later feat", null, "Class Feat", 10],
-        ["Assurance", "Arcana", "Skill Feat", 2],
+        ["Later feat", null, "Class Feat", 10, "FutureFeat", "customChoice", "Feat"],
+        [
+          "Assurance",
+          "Arcana",
+          "Skill Feat",
+          2,
+          "Class FeatHuman Feat 1",
+          "childChoice",
+          "Human Feat 1",
+        ],
         ["Starting feat", null, "Ancestry Feat", 0],
-        ["Assurance", "Athletics", "Skill Feat", 2],
+        [
+          "Assurance",
+          "Athletics",
+          "Skill Feat",
+          2,
+          "Heritage Featversatile heritage",
+          "childChoice",
+          "Heritage Feat",
+        ],
       ],
       specials: ["Darkvision"],
       spellCasters: [],
@@ -917,8 +942,32 @@ test("character sheet keeps formulas together and level choices across import, p
       "Level 2",
       "Level 10",
     ]);
-    await expect(importer.getByText("Arcana", { exact: true })).toBeVisible();
-    await expect(importer.getByText("Athletics", { exact: true })).toBeVisible();
+    const progression = importer.getByRole("tabpanel", { name: "Progression" });
+    const arcana = progression
+      .getByRole("listitem")
+      .filter({ has: page.getByRole("heading", { name: "Assurance (Arcana)" }) })
+      .last();
+    await expect(arcana.getByText("Skill Feat", { exact: true })).toBeVisible();
+    await expect(progression.getByText("Type", { exact: true })).toHaveCount(0);
+    await expect(
+      progression.getByRole("heading", { name: "Assurance (Athletics)" }),
+    ).toBeVisible();
+    const switcher = progression.getByRole("switch", { name: "Show feat sources" });
+    await expect(switcher).not.toBeChecked();
+    await expect(progression.getByText("Slot", { exact: true })).toBeHidden();
+    if (info.project.use.hasTouch) await activate(switcher, info);
+    else await switcher.press("Space");
+    await expect(switcher).toBeChecked();
+    await expect(
+      arcana.getByText("Class Feat · Human Feat 1", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      progression.getByText("Heritage Featversatile heritage", { exact: true }),
+    ).toBeVisible();
+    await expect(progression.getByText("FutureFeat", { exact: true })).toBeVisible();
+    await noPageOverflow(page);
+    await activate(switcher, info);
+    await expect(progression.getByText("Slot", { exact: true })).toBeHidden();
     await activate(
       importer.getByRole("button", { name: "Add character", exact: true }),
       info,
@@ -997,10 +1046,81 @@ test("character sheet keeps formulas together and level choices across import, p
       "Level 2",
       "Level 10",
     ]);
-    await expect(drawer.getByText("Arcana", { exact: true })).toBeVisible();
+    await expect(
+      drawer.getByRole("heading", { name: "Assurance (Arcana)" }),
+    ).toBeVisible();
+    await expect(
+      drawer.getByRole("switch", { name: "Show feat sources" }),
+    ).not.toBeChecked();
     await noPageOverflow(page);
   } finally {
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
     if (characterKey) await deleteCharacters(page.request, [characterKey]);
   }
+});
+
+test("Magic keeps the spell list readable and reveals preparations at their exported rank", async ({
+  page,
+}, info) => {
+  const source = {
+    success: true,
+    build: {
+      name: "Caster with a borrowed spellbook",
+      level: 7,
+      money: { gp: 0, sp: null },
+      focusPoints: 1,
+      feats: [],
+      specials: [],
+      spellCasters: [
+        {
+          name: "Wizard",
+          perDay: [0, 2, 1, 3, 1],
+          spells: [{ spellLevel: 1, list: ["Force Barrage"] }],
+          prepared: [
+            { spellLevel: 3, list: ["Force Barrage", "Force Barrage", "Haste"] },
+          ],
+        },
+        {
+          name: "Innate spells",
+          spells: [],
+          prepared: [{ spellLevel: 2, list: ["See the Unseen"] }],
+        },
+        {
+          name: "Bard",
+          spells: [{ spellLevel: 1, list: ["Fear"] }],
+        },
+      ],
+    },
+  };
+  await page.goto("/characters");
+  await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+  await activate(page.getByRole("menuitem", { name: "From Pathbuilder" }), info);
+  const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
+  await importer.getByLabel("Pathbuilder JSON").fill(JSON.stringify(source));
+  await activate(importer.getByRole("button", { name: "Continue", exact: true }), info);
+  await activate(importer.getByRole("tab", { name: "Inventory", exact: true }), info);
+  await expect(importer.getByRole("tabpanel", { name: "Inventory" })).toHaveText(
+    "Coins 0 gp",
+  );
+  await activate(importer.getByRole("tab", { name: "Magic", exact: true }), info);
+  const magic = importer.getByRole("tabpanel", { name: "Magic" });
+  await expect(magic.getByText("Focus pool 1 point", { exact: true })).toBeVisible();
+  const snapshot = magic.getByRole("button", { name: "Prepared at export" });
+  await expect(snapshot).toHaveAttribute("aria-expanded", "false");
+  await expect(magic.getByText("Force Barrage", { exact: true })).toBeVisible();
+  await expect(magic.getByText("See the Unseen", { exact: true })).toBeVisible();
+  await expect(magic.getByText("Fear", { exact: true })).toBeVisible();
+  await expect(magic.getByText(/\bHaste$/)).toBeHidden();
+  await expect(magic.getByText(/Rank 4.*1 slot/)).toBeVisible();
+  if (info.project.use.hasTouch) await activate(snapshot, info);
+  else await snapshot.press("Space");
+  await expect(snapshot).toHaveAttribute("aria-expanded", "true");
+  const preparedRow = magic.locator(".actor-casting__row").filter({ hasText: "Haste" });
+  await expect(preparedRow).toContainText("Rank 3");
+  await expect(preparedRow).toContainText(/Force Barrage\s*×2/);
+  await expect(preparedRow).toContainText("Haste");
+  await noPageOverflow(page);
+  await activate(snapshot, info);
+  await expect(magic.getByText(/\bHaste$/)).toBeHidden();
+  await expect(magic.getByText("Force Barrage", { exact: true })).toBeVisible();
 });

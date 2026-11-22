@@ -1552,6 +1552,7 @@ export const SheetGroupKind = {
   gear: 'gear',
   container: 'container',
   coins: 'coins',
+  focus_pool: 'focus_pool',
   formulas: 'formulas',
   advancement: 'advancement',
   special_abilities: 'special_abilities',
@@ -1571,6 +1572,7 @@ export const SheetFactRole = {
 } as const;
 
 export interface SheetFactView {
+  display_value?: string;
   label: string;
   role?: SheetFactRole;
   value: string;

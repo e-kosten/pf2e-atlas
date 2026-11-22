@@ -5,7 +5,8 @@ use atlas_app_model::{CharacterSheetResponse, SavePathbuilderPcRequest};
 async fn sheet_wire_preserves_layout_roles_and_omits_absent_optional_fields() {
     let fixture = Fixture::new();
     let raw = json!({"success":true,"build":{
-        "name":"Layout wire example","level":4,
+        "name":"Layout wire example","level":4,"class":"Wizard",
+        "acTotal":{"acTotal":19},"proficiencies":{"reflex":2},
         "feats":[["Assurance","Athletics","Skill Feat",2]],
         "specials":[],"spellCasters":[],
         "equipment":[["Container",0,"bag","Custom state"]],
@@ -44,6 +45,20 @@ async fn sheet_wire_preserves_layout_roles_and_omits_absent_optional_fields() {
             .find(|section| section["kind"] == kind)
             .unwrap()
     };
+    let stats: Vec<_> = section("stats")["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|group| group["label"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        stats,
+        [
+            "Defenses & movement",
+            "Perception & saves",
+            "Character details"
+        ]
+    );
     let progression = &section("progression")["groups"][0];
     assert_eq!(progression["kind"], "advancement");
     assert_eq!(progression["label"], "Level 2");

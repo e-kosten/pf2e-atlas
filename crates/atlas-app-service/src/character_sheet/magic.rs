@@ -6,7 +6,11 @@ use std::collections::BTreeMap;
 pub(super) fn groups(sheet: &PathbuilderSheet, abilities: &AbilityKeys<'_>) -> Vec<SheetGroupView> {
     let mut groups = Vec::new();
     if let Some(points) = value(&sheet.focus_points).filter(|points| **points != 0) {
-        groups.push(summary("Focus pool", vec![fact_value("Points", points)]));
+        groups.push(typed_group(
+            SheetGroupKind::FocusPool,
+            "Focus pool",
+            vec![compact_row("Points", Some(points.to_string()), Vec::new())],
+        ));
     }
     for caster in values(&sheet.spell_casters) {
         let mut ranks = BTreeMap::<Option<i64>, SheetSpellRankView>::new();

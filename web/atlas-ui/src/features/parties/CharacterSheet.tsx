@@ -11,18 +11,16 @@ import type {
   SheetGroupView,
   SheetRowView,
   SheetSectionKind,
-  SheetSpellRankView,
-  SheetSpellView,
 } from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ReferenceHelpLink } from "../../shared/records/ReferenceHelp";
-import { SpellListRow } from "../../shared/records/SpellListRow";
+import { landReadingTarget } from "../../shared/records/landReadingTarget";
 import { FactRow } from "../../shared/records/presentationFacts";
 import { ValueExplanation } from "../../shared/ui/ValueExplanation";
-import { rootNavigation } from "../../shared/records/useReferenceReading";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 
+import { CharacterSpellRanks } from "./CharacterSpellRanks";
 import { CharacterInventory } from "./CharacterInventory";
 import { CharacterProgression } from "./CharacterProgression";
 import { SheetFacts, SheetLabel } from "./CharacterSheetParts";
@@ -100,6 +98,9 @@ export function CharacterSheet({
   const [selected, setSelected] = useState<SheetTab>(() =>
     abilityRoute?.active ? "abilities" : defaultTab,
   );
+  // Revision-keyed sheet reads can briefly unmount the Magic pane during a refresh.
+  const [openPreparations, setOpenPreparations] = useState<string[]>([]);
+  const skillsHeadingId = useId();
   const draftId = useId();
   const characterKey = saved?.character_key;
   const revision = saved?.character_revision;
@@ -173,6 +174,55 @@ export function CharacterSheet({
     if (!refreshCharacter || (await refreshCharacter()) === revision) await refetch();
   }
 
+  function renderGroups(kind: SheetSectionKind, groups: SheetGroupView[]) {
+    if (kind === "inventory")
+      return (
+        <CharacterInventory groups={groups} links={links} generation={generation} />
+      );
+    if (kind === "progression")
+      return (
+        <CharacterProgression groups={groups} links={links} generation={generation} />
+      );
+    const skills = groups.find((group) => group.kind === "skills");
+    return (
+      <div className={`character-sheet__groups character-sheet__groups--${kind}`}>
+        <div className="character-sheet__group-stack">
+          {groups.map((group, index) => {
+            if (group === skills) return null;
+            const key = `${group.label}-${index}`;
+            return (
+              <SheetGroup key={key} group={group} links={links} generation={generation}>
+                {group.spell_ranks?.length ? (
+                  <CharacterSpellRanks
+                    ranks={group.spell_ranks}
+                    links={links}
+                    generation={generation}
+                    open={openPreparations.includes(key)}
+                    onOpenChange={(open) =>
+                      setOpenPreparations((current) =>
+                        open
+                          ? [...current, key]
+                          : current.filter((entry) => entry !== key),
+                      )
+                    }
+                  />
+                ) : null}
+              </SheetGroup>
+            );
+          })}
+        </div>
+        {skills && (
+          <SheetGroup
+            group={skills}
+            links={links}
+            generation={generation}
+            headingId={skillsHeadingId}
+          />
+        )}
+      </div>
+    );
+  }
+
   function renderSection(kind: SheetSectionKind) {
     if (kind !== selectedTab && !sheet) return null;
     if (sheetQuery.error)
@@ -207,23 +257,50 @@ export function CharacterSheet({
         </p>
       );
     const groups = sheet.sections.find((section) => section.kind === kind)?.groups;
+    const identityDiffers =
+      saved && (saved.name !== sheet.name || saved.level !== sheet.level);
+    const hasSkills = groups?.some(
+      (group) => group.kind === "skills" && group.rows.length > 0,
+    );
     return (
       <>
-        {kind === "stats" && (
+        {kind === "stats" && (identityDiffers || hasSkills) && (
           <div className="character-sheet__snapshot">
-            {saved && saved.name !== sheet.name && <strong>{sheet.name}</strong>}
-            <Typography.Text type="secondary">
-              Imported build · Level {sheet.level}
-            </Typography.Text>
+            {identityDiffers && (
+              <Typography.Text type="secondary">
+                {saved.name !== sheet.name ? (
+                  <>
+                    Imported as <strong>{sheet.name}</strong>
+                    {saved.level !== sheet.level && <> · Level {sheet.level}</>}
+                  </>
+                ) : (
+                  <>Imported level {sheet.level}</>
+                )}
+              </Typography.Text>
+            )}
+            {hasSkills && (
+              <Typography.Link
+                className="character-sheet__skills-jump"
+                href={`#${skillsHeadingId}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  const heading = document.getElementById(skillsHeadingId);
+                  if (!heading) return;
+                  heading.focus({ preventScroll: true });
+                  const boundary = heading.closest<HTMLElement>(
+                    '[role="dialog"], .atlas-app__content',
+                  );
+                  if (boundary) landReadingTarget(heading, boundary);
+                  else heading.scrollIntoView({ block: "start" });
+                }}
+              >
+                Jump to Skills
+              </Typography.Link>
+            )}
           </div>
         )}
         {groups?.length ? (
-          <SheetGroups
-            kind={kind}
-            groups={groups}
-            links={links}
-            generation={generation}
-          />
+          renderGroups(kind, groups)
         ) : (
           <p>This export has no {sectionLabels[kind].toLocaleLowerCase()} to show.</p>
         )}
@@ -302,56 +379,28 @@ export function CharacterSheet({
   );
 }
 
-function SheetGroups({
-  kind,
-  groups,
-  links,
-  generation,
-}: {
-  kind: SheetSectionKind;
-  groups: SheetGroupView[];
-  links: Map<string, string | undefined>;
-  generation?: string;
-}) {
-  if (kind === "inventory")
-    return <CharacterInventory groups={groups} links={links} generation={generation} />;
-  if (kind === "progression")
-    return (
-      <CharacterProgression groups={groups} links={links} generation={generation} />
-    );
-  const skills = groups.find((group) => group.kind === "skills");
-  return (
-    <div className={`character-sheet__groups character-sheet__groups--${kind}`}>
-      <div className="character-sheet__group-stack">
-        {groups.map((group, index) =>
-          group === skills ? null : (
-            <SheetGroup
-              key={
-                group.container_id
-                  ? `container-${group.container_id}`
-                  : `${group.label}-${index}`
-              }
-              group={group}
-              links={links}
-              generation={generation}
-            />
-          ),
-        )}
-      </div>
-      {skills && <SheetGroup group={skills} links={links} generation={generation} />}
-    </div>
-  );
-}
-
 function SheetGroup({
   group,
   links,
   generation,
+  headingId,
+  children,
 }: {
   group: SheetGroupView;
   links: Map<string, string | undefined>;
   generation?: string;
+  headingId?: string;
+  children?: ReactNode;
 }) {
+  if (group.kind === "focus_pool") {
+    const points = group.rows[0]?.summary_value;
+    if (points === undefined) return null;
+    return (
+      <p className="character-magic__focus-pool">
+        <strong>{group.label}</strong> {points} {points === "1" ? "point" : "points"}
+      </p>
+    );
+  }
   const skills = group.kind === "skills";
   const aligned = skills || group.kind === "proficiencies";
   const compact =
@@ -363,7 +412,9 @@ function SheetGroup({
   });
   return (
     <section className={skills ? "character-sheet__skills" : undefined}>
-      <h3>{group.label}</h3>
+      <h3 id={headingId} tabIndex={headingId ? -1 : undefined}>
+        {group.label}
+      </h3>
       {items.length > 0 &&
         (compact ? (
           <div className="record-fact-list">{items}</div>
@@ -374,84 +425,8 @@ function SheetGroup({
             {items}
           </ul>
         ))}
-      {group.spell_ranks?.length ? (
-        <div className="actor-casting__rows">
-          {group.spell_ranks.map((rank, index) => (
-            <SheetCastingRank
-              key={`${rank.label}-${index}`}
-              rank={rank}
-              links={links}
-              generation={generation}
-            />
-          ))}
-        </div>
-      ) : null}
+      {children}
     </section>
-  );
-}
-
-function SheetCastingRank({
-  rank,
-  links,
-  generation,
-}: {
-  rank: SheetSpellRankView;
-  links: Map<string, string | undefined>;
-  generation?: string;
-}) {
-  const spells = (list: SheetSpellView[]) =>
-    list.map((spell, index) => {
-      const key = spell.ability_key && links.get(spell.ability_key);
-      return (
-        <span key={spell.label}>
-          {index > 0 && ", "}
-          <ReferenceHelpLink
-            help={
-              key
-                ? {
-                    definition_key: null,
-                    destination: { kind: "record", navigation: rootNavigation(key) },
-                  }
-                : null
-            }
-            generation={generation}
-          >
-            {spell.label}
-          </ReferenceHelpLink>
-          {spell.count > 1 && ` ×${spell.count}`}
-        </span>
-      );
-    });
-  return (
-    <SpellListRow
-      label={
-        <>
-          {rank.label}
-          {rank.slots !== undefined && (
-            <span className="character-sheet__spell-slots">
-              {" "}
-              {rank.slots} {rank.slots === 1 ? "slot" : "slots"}
-            </span>
-          )}
-        </>
-      }
-    >
-      {rank.prepared.length > 0 && (
-        <span className="character-sheet__spell-list">
-          <strong>Prepared</strong> {spells(rank.prepared)}
-        </span>
-      )}
-      {rank.known.length > 0 && (
-        <span className="character-sheet__spell-list">
-          {rank.prepared.length > 0 && (
-            <>
-              <strong>Known</strong>{" "}
-            </>
-          )}
-          {spells(rank.known)}
-        </span>
-      )}
-    </SpellListRow>
   );
 }
 

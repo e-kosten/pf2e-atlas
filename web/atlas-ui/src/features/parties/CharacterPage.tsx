@@ -105,10 +105,11 @@ function CharacterDocument({
             {character.name}{" "}
             {character.level != null && <small>Level {character.level}</small>}
           </h1>
-          <div className="character-secondary">
-            {character.parties.length > 0 && "Parties "}
-            <CharacterMemberships parties={character.parties} />
-          </div>
+          {character.parties.length > 0 && (
+            <div className="character-secondary">
+              Parties <CharacterMemberships parties={character.parties} />
+            </div>
+          )}
         </div>
         <Popover
           trigger="click"

@@ -43,7 +43,7 @@ export function SheetFacts({
       {facts.map((fact, index) => (
         <div key={`${fact.label}-${index}`}>
           <dt>{fact.label}</dt>
-          <dd>{fact.value}</dd>
+          <dd>{fact.display_value ?? fact.value}</dd>
         </div>
       ))}
     </dl>

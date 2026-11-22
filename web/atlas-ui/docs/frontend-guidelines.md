@@ -2057,11 +2057,13 @@ roll tables need more cell spacing. Keep source-authored tables as tables.
 Saved character pages, encounter PC drawers and import review share the character
 sheet renderers. Choose layout from Rust-projected group kinds and fact roles;
 keep source interpretation and acquisition-level grouping in the app service.
-Inventory separates equipment, carried gear and containers, coins, and formulas.
+Inventory shows the supplied coin denominations in a compact line near equipment.
 Keep all formula groups together below carried equipment. Container metadata
 belongs with its heading, distinct from actual items with the same name.
-Progression pairs each supplied acquisition level with its feats and choices,
-with special abilities and ability boosts in separate supporting sections.
+Progression lists feats by level with the selected option beside the feat name
+and its category in secondary text. **Show feat sources** reveals the slot and
+selection details on their respective feats. Special abilities and ability
+boosts have separate supporting sections.
 
 Use the available pane width for reflow. A single equipment or storage group
 fills its track; reserve a second column only when there is content for it.
@@ -2069,6 +2071,21 @@ Keep quantity and state labels readable when ledger rows stack on narrow panes.
 Sheet reading text uses a relative 16px main/14px detail scale with stronger
 section headings; links inherit their local text size and Ant controls keep
 their standard sizing.
+
+Lead Stats with defenses, resistances, movement, Perception and saves. Place
+the key ability with ability scores and biographical facts in Character details.
+Keep the alphabetical
+Skills list alongside Stats in a wide pane and give stacked panes a local
+**Jump to Skills** link. Keep imported name or level differences visible when
+the saved character has been edited.
+
+In Magic, read each caster’s ordinary spells by rank. When that caster also has
+preparations, put **Prepared at export** after the list in one bordered Ant
+Collapse. Follow the Heightening details panel for the header, boundary and
+body inset. Preserve the rank and count of each preparation, including spells
+prepared at a higher rank. When preparations are the caster’s only spell list,
+show them inline under **Prepared at export**. Keep slot-only ranks and focus
+spells available in the main view. Show the character's focus pool as one inline value.
 
 ### Inline checks and areas
 
