@@ -181,7 +181,7 @@
   min-width: 0;
   max-width: 100%;
 }
-.record-reference__title h2 {
+.record-reference__title :is(h1, h2) {
   font-family: var(--theme-font);
   color: var(--heading-color);
   margin: 0;

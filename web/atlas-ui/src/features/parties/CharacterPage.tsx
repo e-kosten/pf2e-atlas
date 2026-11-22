@@ -7,6 +7,7 @@ import { PcAbilityBrowser, type AbilityNavigation } from "./PcAbilityBrowser";
 import { charactersDestination } from "../../app/destinations";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
+import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -197,52 +198,52 @@ function CharacterDocument({
   }
   return (
     <>
-      <header className="party-page-heading character-heading">
-        <div>
-          <h1>
-            {character.name}{" "}
-            {character.level != null && <small>Level {character.level}</small>}
-          </h1>
-          {character.parties.length > 0 && (
-            <div className="character-secondary">
-              Parties <CharacterMemberships parties={character.parties} />
-            </div>
-          )}
-        </div>
-        <EntityActionsMenu
-          label="Character actions"
-          trigger={actions}
-          items={[
-            { key: "edit", label: "Edit name and level", disabled: paused },
-            { key: "import", label: "New import from Pathbuilder", disabled: paused },
-            {
-              key: "delete",
-              label: "Delete character",
-              danger: true,
-              disabled: paused,
-            },
-          ]}
-          onAction={(key, opener) => {
-            if (key === "edit" || key === "import") {
-              show(key, opener);
-            } else {
-              deletion.confirm({
-                title: `Delete ${character.name}?`,
-                okText: "Delete character",
-                content:
-                  "This removes the character from all parties and detaches its live rules from encounters. Encounter participants keep their names, levels, HP and initiative.",
-                onConfirm: async () => {
-                  await deleteCharacter(character.character_key, {
-                    expected_revision: character.character_revision,
-                  });
-                  await navigate(charactersDestination());
-                  await refreshCharacters(client);
-                },
-              });
-            }
-          }}
-        />
-      </header>
+      <DocumentIdentityHeader
+        title={character.name}
+        headingLevel={1}
+        classification={character.level == null ? "" : `Level ${character.level}`}
+        actions={
+          <EntityActionsMenu
+            label="Character actions"
+            trigger={actions}
+            items={[
+              { key: "edit", label: "Edit name and level", disabled: paused },
+              { key: "import", label: "New import from Pathbuilder", disabled: paused },
+              {
+                key: "delete",
+                label: "Delete character",
+                danger: true,
+                disabled: paused,
+              },
+            ]}
+            onAction={(key, opener) => {
+              if (key === "edit" || key === "import") {
+                show(key, opener);
+              } else {
+                deletion.confirm({
+                  title: `Delete ${character.name}?`,
+                  okText: "Delete character",
+                  content:
+                    "This removes the character from all parties and detaches its live rules from encounters. Encounter participants keep their names, levels, HP and initiative.",
+                  onConfirm: async () => {
+                    await deleteCharacter(character.character_key, {
+                      expected_revision: character.character_revision,
+                    });
+                    await navigate(charactersDestination());
+                    await refreshCharacters(client);
+                  },
+                });
+              }
+            }}
+          />
+        }
+      >
+        {character.parties.length > 0 && (
+          <div className="character-secondary">
+            Parties <CharacterMemberships parties={character.parties} />
+          </div>
+        )}
+      </DocumentIdentityHeader>
       <SavedCharacterSheet
         character={character}
         headingLevel={character.level}
