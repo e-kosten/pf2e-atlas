@@ -999,7 +999,10 @@ fn open_settings(
     wait_for(
         deadline,
         "workspace attached before opening Settings",
-        || evaluates_true(origin, "Boolean(window.__ATLAS_DESKTOP_SETUP__?.token)"),
+        || {
+            lock(&app.state::<Desktop>().primary).is_product()
+                && evaluates_true(origin, "Boolean(window.__ATLAS_DESKTOP_SETUP__?.token)")
+        },
     )?;
     let origin = origin.clone();
     let (send, receive) = std::sync::mpsc::channel();
