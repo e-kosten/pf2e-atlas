@@ -403,6 +403,11 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
         {narrow && entryNote.detached && <ListEntryNoteEditor state={entryNote} />}
         <BrowseReader
           reading={addressableReading}
+          readerEmptyMessage={
+            listView?.items.some((item) => item.status !== "unresolved" && item.record)
+              ? undefined
+              : null
+          }
           recordActions={(record) =>
             record.record_key === route.selectedRecordKey &&
             record.kind === "creature" ? (

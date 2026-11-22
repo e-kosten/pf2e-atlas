@@ -24,6 +24,9 @@ it and leaves the text selected for copying.
 
 ## Narrow the results
 
+On a narrow or short screen, open **Filters** to see the criteria. The number
+on the button shows how many conditions are applied.
+
 Use **Kind** to look for creatures, spells, equipment or another type of entry.
 Add level, rarity or trait filters for requirements that matter to your game.
 For example, combine a creature idea with a level range suited to your party.
@@ -77,6 +80,9 @@ such as Grab. The picker shows observed values by name. **Read** opens the
 existing ability record and returns to the picker when you close it.
 
 ## Follow references
+
+Click a result or press Enter to read it beside your results. On a phone, use
+**Results** to go back. Choose **Open full page** to read the record on its own.
 
 The header's **Explore** icon opens previews of related entries.
 **Search referring records** finds entries that link to the selected record;

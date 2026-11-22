@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Button, Popover, Tooltip } from "antd";
-import { Ellipsis, GripVertical, Trash2 } from "lucide-react";
+import { Button, Tooltip } from "antd";
+import { GripVertical, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { deleteParty, getParties, updateParty } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
@@ -13,6 +13,8 @@ import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
+import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
+import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { AddCharacter } from "./AddCharacter";
@@ -55,14 +57,13 @@ function PartyRoster({ party }: { party: PartyView }) {
   const paused = useSavedWritesPaused();
   type PartyEdit = { kind: "rename" | "levels"; party: PartyView };
   const [editing, setEditing] = useState<PartyEdit>();
-  const pendingEdit = useRef<PartyEdit | null>(null);
+  const deletion = useConfirmDangerAction();
   const actions = useRef<HTMLButtonElement>(null);
   const [manual, setManual] = useState<PartyView>();
   const inlineArea = useRef<HTMLDivElement>(null);
   const addTrigger = useRef<HTMLButtonElement>(null);
   const [lastAdded, setLastAdded] = useState<string>();
   const added = party.members.find((member) => member.character_key === lastAdded);
-  const [open, setOpen] = useState(false);
   const change = useMutation({
     retry: false,
     mutationFn: (members: PartyView["members"]) =>
@@ -114,11 +115,6 @@ function PartyRoster({ party }: { party: PartyView }) {
     restoreOverlayFocus(() => addTrigger.current, inlineArea.current);
     setManual(undefined);
   }
-  function startEdit(kind: PartyEdit["kind"]) {
-    pendingEdit.current = { kind, party };
-    actions.current?.focus({ preventScroll: true });
-    setOpen(false);
-  }
   return (
     <section className="party-roster-pane">
       <header className="party-page-heading">
@@ -138,55 +134,36 @@ function PartyRoster({ party }: { party: PartyView }) {
             triggerRef={addTrigger}
             onSaved={setLastAdded}
           />
-          <Popover
-            trigger="click"
-            placement="bottomRight"
-            open={open}
-            onOpenChange={(visible) => {
-              if (!pendingEdit.current) setOpen(visible);
-            }}
-            afterOpenChange={(visible) => {
-              // The closing popover still owns Escape until its exit completes.
-              if (visible || !pendingEdit.current) return;
-              setEditing(pendingEdit.current);
-              pendingEdit.current = null;
-            }}
-            content={
-              <div className="party-context-actions">
-                <Button type="text" disabled={busy} onClick={() => startEdit("rename")}>
-                  Rename party
-                </Button>
-                <Button
-                  type="text"
-                  disabled={busy || party.members.length === 0}
-                  onClick={() => startEdit("levels")}
-                >
-                  Set character levels…
-                </Button>
-                <DangerActionButton
-                  type="text"
-                  disabled={busy}
-                  confirmTitle={`Delete ${party.name}?`}
-                  confirmOkText="Delete party"
-                  confirmContent="The characters stay saved. PCs already in encounters keep their live rules and combat state."
-                  onConfirm={async () => {
+          <EntityActionsMenu
+            label="Party actions"
+            trigger={actions}
+            items={[
+              { key: "rename", label: "Rename party", disabled: busy },
+              {
+                key: "levels",
+                label: "Set character levels…",
+                disabled: busy || party.members.length === 0,
+              },
+              { key: "delete", label: "Delete party", danger: true, disabled: busy },
+            ]}
+            onAction={(key) => {
+              if (key === "rename" || key === "levels") {
+                setEditing({ kind: key, party });
+              } else {
+                deletion.confirm({
+                  title: `Delete ${party.name}?`,
+                  okText: "Delete party",
+                  content:
+                    "The characters stay saved. PCs already in encounters keep their live rules and combat state.",
+                  onConfirm: async () => {
                     await deleteParty(party.party_key, party.revision);
                     await navigate(partiesDestination());
                     await refreshCharacters(client);
-                  }}
-                >
-                  Delete party
-                </DangerActionButton>
-              </div>
-            }
-          >
-            <Button
-              icon={<Ellipsis size={16} />}
-              ref={actions}
-              aria-label="Party actions"
-              aria-expanded={open}
-            />
-          </Popover>
+                  },
+                });
+              }
+            }}
+          />
         </div>
       </header>
       {(review.error || change.error) && (
@@ -352,6 +329,7 @@ function PartyRoster({ party }: { party: PartyView }) {
       ) : (
         <p>No characters in this party yet.</p>
       )}
+      {deletion.dialog}
       {editing?.kind === "rename" && (
         <RenameParty party={editing.party} onClose={() => setEditing(undefined)} />
       )}

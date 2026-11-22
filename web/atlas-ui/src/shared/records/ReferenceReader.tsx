@@ -47,6 +47,7 @@ type ReferenceReaderProps = {
   readerContext?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
+  emptyMessage?: string | null;
   readerFooter?: ReaderFooter;
   positions?: BrowsePositions;
   onResults?: () => void;
@@ -71,6 +72,7 @@ export function ReferenceReader({
   recordActions,
   readerContext,
   status,
+  emptyMessage,
   readerFooter,
   positions,
   onResults,
@@ -547,6 +549,7 @@ export function ReferenceReader({
       >
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
+            emptyMessage={emptyMessage}
             showRelated={showRelated}
             identityActions={detail ? documentActions : undefined}
             detail={detail}

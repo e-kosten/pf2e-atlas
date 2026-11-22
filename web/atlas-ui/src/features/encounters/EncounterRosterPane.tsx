@@ -1,3 +1,4 @@
+import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import type { ReorderPlacement } from "../../generated/atlas";
 import { EncounterRecordAdjustment } from "./EncounterRecordAdjustment";
 import { isUnconfirmedMutation } from "../../api/apiError";
@@ -13,7 +14,7 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
 import { Dice5, Ellipsis, Eye, EyeOff, GripVertical, Play, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
@@ -90,7 +91,7 @@ export function EncounterRosterPane({
   turnAction: React.ReactNode;
   needsInitiative?: boolean;
   onRollInitiative?: (participantKey?: string) => void;
-  onRemove: (participant: EncounterParticipantView) => void;
+  onRemove: (participant: EncounterParticipantView, opener: HTMLElement) => void;
   onReorder: (
     participantKey: string,
     targetParticipantKey: string,
@@ -126,6 +127,18 @@ export function EncounterRosterPane({
   const [entryOpen, setEntryOpen] = useState(false);
   const entryOpener = useRef<HTMLElement | null>(null);
   const roster = useRef<HTMLElement>(null);
+  const [compactActions, setCompactActions] = useState(false);
+  useLayoutEffect(() => {
+    const pane = roster.current;
+    if (!pane) return;
+    const measure = () => {
+      if (pane.clientWidth) setCompactActions(pane.clientWidth < 360);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, []);
   const [candidate, setCandidate] = useState<PickerSelection | null>(null);
   const selectedRecordKey = candidate?.record.record_key ?? null;
   const [preparedCreature, setPreparedCreature] =
@@ -330,6 +343,7 @@ export function EncounterRosterPane({
             <ParticipantActions
               participant={participant}
               disabled={disabled}
+              compact={compactActions}
               removing={removingKey === participant.participant_key}
               onSetTurn={() => onSetTurn(participant)}
               onToggleDim={() =>
@@ -338,7 +352,7 @@ export function EncounterRosterPane({
                   hidden: !participant.hidden,
                 })
               }
-              onRemove={() => onRemove(participant)}
+              onRemove={(opener) => onRemove(participant, opener)}
             />
             {removeError?.participantKey === participant.participant_key && (
               <Typography.Text
@@ -357,7 +371,12 @@ export function EncounterRosterPane({
   };
 
   return (
-    <section ref={roster} tabIndex={-1} className="encounter-pane encounter-roster">
+    <section
+      ref={roster}
+      tabIndex={-1}
+      className="encounter-pane encounter-roster"
+      data-compact-actions={compactActions || undefined}
+    >
       <header className="encounter-roster__header">
         <PrimaryToolbar className="encounter-roster__turn-bar">
           <div className="encounter-roster__turn-summary">
@@ -644,6 +663,7 @@ function rosterRowClass(
 function ParticipantActions({
   participant,
   disabled,
+  compact,
   removing,
   onSetTurn,
   onToggleDim,
@@ -651,18 +671,43 @@ function ParticipantActions({
 }: {
   participant: EncounterParticipantView;
   disabled: boolean;
+  compact: boolean;
   removing: boolean;
   onSetTurn: () => void;
   onToggleDim: () => Promise<unknown>;
-  onRemove: () => void;
+  onRemove: (opener: HTMLElement) => void;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
+  const focusAfterRemoveButtonHides = useCallback(
+    (button: HTMLButtonElement | null) => {
+      if (!button) return;
+      return () => {
+        if (button.ownerDocument.activeElement === button)
+          restoreOverlayFocus(() => trigger.current, button);
+      };
+    },
+    [],
+  );
+  function remove(opener: HTMLElement | null) {
+    if (disabled || removing || !opener) return;
+    opener.focus({ preventScroll: true });
+    onRemove(opener);
+  }
   return (
     <div className="encounter-roster__actions">
       <Dropdown
+        disabled={disabled}
         trigger={["click"]}
+        styles={{
+          itemContent: {
+            maxWidth: "min(18rem, calc(100vw - 64px))",
+            whiteSpace: "normal",
+            overflowWrap: "anywhere",
+          },
+        }}
         menu={{
           "aria-label": `${participant.display_name} actions`,
+          onClick: ({ domEvent }) => domEvent.preventDefault(),
           items: [
             {
               key: "turn",
@@ -690,6 +735,18 @@ function ParticipantActions({
                 });
               },
             },
+            ...(compact
+              ? [
+                  {
+                    key: "remove",
+                    label: "Remove participant",
+                    danger: true,
+                    icon: <Trash2 size={14} aria-hidden="true" />,
+                    disabled: disabled || removing,
+                    onClick: () => remove(trigger.current),
+                  },
+                ]
+              : []),
           ],
         }}
       >
@@ -697,30 +754,32 @@ function ParticipantActions({
           ref={trigger}
           type="text"
           size="small"
-          disabled={disabled}
+          disabled={disabled && !removing}
+          aria-disabled={removing || undefined}
           className="encounter-roster__more"
           aria-label={`Actions for ${participant.display_name}`}
           aria-haspopup="menu"
           icon={<Ellipsis size={16} aria-hidden="true" />}
         />
       </Dropdown>
-      <Tooltip
-        title={`Remove ${participant.display_name}`}
-        trigger={["hover", "focus"]}
-      >
-        <Button
-          type="text"
-          size="small"
-          danger
-          disabled={disabled && !removing}
-          aria-disabled={removing || undefined}
-          aria-label={`Remove ${participant.display_name}`}
-          icon={<Trash2 size={14} aria-hidden="true" />}
-          onClick={() => {
-            if (!disabled && !removing) onRemove();
-          }}
-        />
-      </Tooltip>
+      {!compact && (
+        <Tooltip
+          title={`Remove ${participant.display_name}`}
+          trigger={["hover", "focus"]}
+        >
+          <Button
+            ref={focusAfterRemoveButtonHides}
+            type="text"
+            size="small"
+            danger
+            disabled={disabled && !removing}
+            aria-disabled={removing || undefined}
+            aria-label={`Remove ${participant.display_name}`}
+            icon={<Trash2 size={14} aria-hidden="true" />}
+            onClick={(event) => remove(event.currentTarget)}
+          />
+        </Tooltip>
+      )}
     </div>
   );
 }

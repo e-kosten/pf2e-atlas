@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { DirectoryHeader } from "../../shared/ui/pages/EntityIndexPage";
 import { CharacterSectionNav } from "./CharacterSectionNav";
 import { Button, Form, Input } from "antd";
@@ -7,7 +7,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import scrollIntoView from "scroll-into-view-if-needed";
 import { createParty } from "../../api/atlasApi";
-import { AtlasButtonLink, AtlasLink } from "../../app/AtlasLink";
+import { AtlasLink } from "../../app/AtlasLink";
 import { useDesktopTab } from "../../app/DesktopTabContext";
 import { partiesDestination, partyDestination } from "../../app/destinations";
 import type { PartyView } from "../../generated/atlas";
@@ -237,7 +237,9 @@ export function PartiesWorkspace({
       if (
         directory.current?.contains(focused) ||
         detail.current?.contains(focused) ||
-        focused.closest(".party-directory-back")
+        focused.closest(
+          ".party-directory-back, .parties-workspace-page .directory-header__heading",
+        )
       ) {
         if (media.matches && selected) focusRoster();
         else focusDirectory(selected);
@@ -261,13 +263,14 @@ export function PartiesWorkspace({
         navigation={<CharacterSectionNav current="Parties" />}
       />
       {selected && (
-        <AtlasButtonLink
+        <AtlasLink
           {...partiesDestination()}
           resetScroll={false}
           className="party-directory-back"
         >
+          <ArrowLeft size={14} aria-hidden="true" />
           Back to parties
-        </AtlasButtonLink>
+        </AtlasLink>
       )}
       {query.error && (
         <ErrorNotice

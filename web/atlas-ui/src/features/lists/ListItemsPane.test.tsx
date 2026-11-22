@@ -58,7 +58,7 @@ it("keeps 120 ordered member summaries and unavailable snapshots without radio o
   ).toBeEnabled();
 });
 
-it("shares deliberate preview, native modified navigation, Enter and keyboard focus with search", async () => {
+it("previews on Enter or Space and preserves native modified links and keyboard focus", () => {
   const { onSelect } = mount([active(0), active(1)]);
   const first = screen.getByRole("link", { name: /Saved record 0/ });
   const second = screen.getByRole("link", { name: /Saved record 1/ });
@@ -72,8 +72,9 @@ it("shares deliberate preview, native modified navigation, Enter and keyboard fo
   expect(second).toHaveFocus();
   expect(onSelect).toHaveBeenCalledTimes(1);
   fireEvent.keyDown(second, { key: "Enter" });
-  await waitFor(() => expect(window.location.pathname).toBe("/records/rules:record-1"));
-  expect(onSelect).toHaveBeenCalledTimes(1);
+  expect(onSelect).toHaveBeenCalledTimes(2);
+  expect(onSelect).toHaveBeenLastCalledWith("rules:record-1");
+  expect(second).toHaveAttribute("href", "/records/rules:record-1");
 });
 
 it("allows cancellation and awaits failed member removal in one retryable confirmation without losing the snapshot", async () => {

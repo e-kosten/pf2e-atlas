@@ -37,6 +37,7 @@ const sectionLabels: Record<SheetSectionKind, string> = {
 
 export function SavedCharacterSheet({
   character,
+  headingLevel,
   defaultTab,
   emptySheetAction,
   abilityRoute,
@@ -45,6 +46,7 @@ export function SavedCharacterSheet({
   refreshCharacter,
 }: {
   character: PcReferenceView;
+  headingLevel?: number;
   emptySheetAction?: ReactNode;
   refreshCharacter: () => Promise<number | undefined>;
   defaultTab: "stats" | "abilities";
@@ -55,6 +57,7 @@ export function SavedCharacterSheet({
   return (
     <CharacterSheet
       defaultTab={defaultTab}
+      headingLevel={headingLevel}
       abilityRoute={abilityRoute}
       abilitySections={character.sections}
       abilities={(visible) => abilities(visible && active)}
@@ -68,6 +71,7 @@ export function SavedCharacterSheet({
 
 export function CharacterSheet({
   defaultTab,
+  headingLevel,
   emptySheetAction,
   abilityRoute,
   abilitySections,
@@ -82,6 +86,7 @@ export function CharacterSheet({
   refreshCharacter,
 }: {
   defaultTab: "stats" | "abilities";
+  headingLevel?: number;
   abilityRoute?: { active: boolean; close: () => void };
   abilitySections: PcAbilitySectionView[];
   abilities: (active: boolean) => ReactNode;
@@ -257,21 +262,21 @@ export function CharacterSheet({
         </p>
       );
     const groups = sheet.sections.find((section) => section.kind === kind)?.groups;
-    const identityDiffers =
-      saved && (saved.name !== sheet.name || saved.level !== sheet.level);
+    const importedName = saved && saved.name !== sheet.name ? sheet.name : undefined;
+    const showImportedLevel = sheet.level !== headingLevel;
     const hasSkills = groups?.some(
       (group) => group.kind === "skills" && group.rows.length > 0,
     );
     return (
       <>
-        {kind === "stats" && (identityDiffers || hasSkills) && (
+        {kind === "stats" && (importedName || showImportedLevel || hasSkills) && (
           <div className="character-sheet__snapshot">
-            {identityDiffers && (
+            {(importedName || showImportedLevel) && (
               <Typography.Text type="secondary">
-                {saved.name !== sheet.name ? (
+                {importedName ? (
                   <>
-                    Imported as <strong>{sheet.name}</strong>
-                    {saved.level !== sheet.level && <> · Level {sheet.level}</>}
+                    Imported as <strong>{importedName}</strong>
+                    {showImportedLevel && <> · Level {sheet.level}</>}
                   </>
                 ) : (
                   <>Imported level {sheet.level}</>

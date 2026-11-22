@@ -58,6 +58,7 @@
   min-inline-size: 0;
   gap: var(--space-micro);
   overflow-wrap: anywhere;
+  text-align: start;
 }
 
 .index-row-summary > a {

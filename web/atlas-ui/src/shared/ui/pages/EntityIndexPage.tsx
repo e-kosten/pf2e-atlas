@@ -29,6 +29,7 @@ export function EntityIndexPage({
   actions,
   children,
   className,
+  navigation,
   overlays,
   summary,
   title,
@@ -39,6 +40,7 @@ export function EntityIndexPage({
   actions?: React.ReactNode;
   children: React.ReactNode;
   className: string;
+  navigation?: ReactNode;
   overlays?: React.ReactNode;
   summary?: React.ReactNode;
   title: string;
@@ -51,7 +53,12 @@ export function EntityIndexPage({
       <main
         className={`entity-index-page ${className}${toolbar ? " entity-index-page--with-controls" : ""}`}
       >
-        <DirectoryHeader title={title} actions={actions} summary={summary} />
+        <DirectoryHeader
+          title={title}
+          actions={actions}
+          summary={summary}
+          navigation={navigation}
+        />
         {toolbar && <div className="entity-index-page__controls">{toolbar}</div>}
         <section
           className="entity-index-page__table"

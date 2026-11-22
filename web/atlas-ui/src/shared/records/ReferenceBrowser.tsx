@@ -42,6 +42,7 @@ export function ReferenceBrowser({
   searchCards = false,
   observeWidth,
   showRelated,
+  showReaderPrompt = true,
   previewOnEnter,
   readerFooter,
   showMatchContext = true,
@@ -70,6 +71,7 @@ export function ReferenceBrowser({
   onRefreshResults?: () => Promise<void>;
   observeWidth?: boolean;
   showRelated?: boolean;
+  showReaderPrompt?: boolean;
   previewOnEnter?: boolean;
   readerFooter?: ReaderFooter;
   showMatchContext?: boolean;
@@ -103,6 +105,7 @@ export function ReferenceBrowser({
         positions={positions}
         observeWidth={observeWidth}
         showRelated={showRelated}
+        readerEmptyMessage={showReaderPrompt ? undefined : null}
         readerFooter={readerFooter}
         readerContext={
           showContext ? (

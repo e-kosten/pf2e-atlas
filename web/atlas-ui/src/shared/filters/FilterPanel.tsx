@@ -1,4 +1,4 @@
-import { FilterDisclosure } from "./FilterDisclosure";
+import { FilterDisclosure, FilterDisclosureButton } from "./FilterDisclosure";
 import { FilterFieldSelect } from "./FilterFieldSelect";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
@@ -141,6 +141,7 @@ export function FilterControls({
   includeSearch = true,
   includeLinks = true,
   layout = "panel",
+  collapseToolbar = false,
   searchRowEnd,
   searchInputRef,
   searchInputError,
@@ -154,6 +155,7 @@ export function FilterControls({
   includeSearch?: boolean;
   includeLinks?: boolean;
   layout?: "panel" | "toolbar";
+  collapseToolbar?: boolean;
   pane?: { narrow: boolean; summary: ReactNode };
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
@@ -164,6 +166,9 @@ export function FilterControls({
   children?: ReactNode;
 }) {
   const searchErrorId = useId();
+  const criteriaId = useId();
+  const disclosure = useRef<HTMLButtonElement>(null);
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
@@ -398,6 +403,7 @@ export function FilterControls({
   const commonFields = fields
     .filter((field) => editor?.common_field_ids.includes(field.definition.id))
     .map((field) => field.definition);
+  const filterCount = countAppliedFilterConditions(search.filter, commonFields);
   const advancedApplied =
     editor &&
     (hasAdvancedFilterConditions(search.filter, commonFields) ||
@@ -553,40 +559,48 @@ export function FilterControls({
           )}
         </div>
       </div>
-      <div
-        className="filter-controls__selections"
-        role="group"
-        aria-label="Applied filters"
-      >
-        <div
-          className="filter-controls__common-selections"
-          ref={setSelectionContainer}
-        />
-        {!pane && (
-          <LinkFilterControls
-            filter={search.filter}
-            title={linkTitle}
-            limit={editor?.limits.relationship_leaves}
-            onEdit={(leaf, opener) =>
-              openPicker(
-                leaf.relationship,
-                leaf.clause_id!,
-                (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
-                { opener },
-              )
-            }
-            onRemove={(leaf) => {
-              const trigger = linksTrigger.current ?? advancedTrigger.current;
-              restoreOverlayFocus(
-                trigger,
-                trigger?.ownerDocument.activeElement as HTMLElement | null,
-              );
-              latestEditor.current.editLink(leaf, null);
-            }}
-          />
-        )}
-      </div>
     </>
+  );
+  const selections = (
+    <div
+      className="filter-controls__selections"
+      role="group"
+      aria-label="Applied filters"
+      onClickCapture={
+        collapseToolbar && !criteriaOpen
+          ? () => {
+              // A chip can disappear on activation. Reveal its normal focus
+              // destination before the field's removal handler restores focus.
+              if (disclosure.current?.getClientRects().length) setCriteriaOpen(true);
+            }
+          : undefined
+      }
+    >
+      <div className="filter-controls__common-selections" ref={setSelectionContainer} />
+      {!pane && (
+        <LinkFilterControls
+          filter={search.filter}
+          title={linkTitle}
+          limit={editor?.limits.relationship_leaves}
+          onEdit={(leaf, opener) =>
+            openPicker(
+              leaf.relationship,
+              leaf.clause_id!,
+              (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
+              { opener },
+            )
+          }
+          onRemove={(leaf) => {
+            const trigger = linksTrigger.current ?? advancedTrigger.current;
+            restoreOverlayFocus(
+              trigger,
+              trigger?.ownerDocument.activeElement as HTMLElement | null,
+            );
+            latestEditor.current.editLink(leaf, null);
+          }}
+        />
+      )}
+    </div>
   );
   return (
     <LinkEditingContext value={linkEditing}>
@@ -596,7 +610,9 @@ export function FilterControls({
             ? "pane-filter-controls"
             : layout === "panel"
               ? "filter-panel"
-              : "filter-toolbar"
+              : collapseToolbar
+                ? "filter-toolbar filter-toolbar--collapsible"
+                : "filter-toolbar"
         }
       >
         {children}
@@ -605,12 +621,13 @@ export function FilterControls({
             narrow={pane.narrow}
             searchEntry={searchEntry}
             summary={pane.summary}
-            count={countAppliedFilterConditions(search.filter, commonFields)}
+            count={filterCount}
             childOverlayOpen={advanced || Boolean(picker?.open)}
             clear={clear}
             canClear={canClear}
           >
             {criteria}
+            {selections}
             {feedback}
           </FilterDisclosure>
         ) : (
@@ -618,7 +635,21 @@ export function FilterControls({
             {includeSearch && (
               <PrimaryToolbar className="filter-controls__search-row">
                 {searchEntry}
-                {searchRowEnd}
+                {collapseToolbar ? (
+                  <div className="filter-controls__search-actions">
+                    {searchRowEnd}
+                    <FilterDisclosureButton
+                      ref={disclosure}
+                      className="filter-controls__disclosure"
+                      count={filterCount}
+                      aria-expanded={criteriaOpen}
+                      aria-controls={criteriaId}
+                      onClick={() => setCriteriaOpen(!criteriaOpen)}
+                    />
+                  </div>
+                ) : (
+                  searchRowEnd
+                )}
               </PrimaryToolbar>
             )}
             {searchInputError && (
@@ -626,7 +657,38 @@ export function FilterControls({
                 {searchInputError}
               </Typography.Text>
             )}
-            <div className="filter-controls__criteria">{criteria}</div>
+            <div
+              id={criteriaId}
+              role={collapseToolbar ? "group" : undefined}
+              aria-label={collapseToolbar ? "Filter criteria" : undefined}
+              className="filter-controls__criteria"
+              data-expanded={criteriaOpen}
+              onFocusCapture={
+                collapseToolbar && !criteriaOpen
+                  ? () => setCriteriaOpen(true)
+                  : undefined
+              }
+              // Inner popups and drawers own Escape while their editors are active.
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Escape" &&
+                  !event.defaultPrevented &&
+                  disclosure.current?.getClientRects().length &&
+                  !advanced &&
+                  !picker?.open &&
+                  event.currentTarget.contains(event.target as Node)
+                ) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  disclosure.current.focus({ preventScroll: true });
+                  setCriteriaOpen(false);
+                }
+              }}
+            >
+              {criteria}
+              {!collapseToolbar && selections}
+            </div>
+            {collapseToolbar && selections}
           </div>
         )}
         <Drawer

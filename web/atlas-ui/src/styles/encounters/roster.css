@@ -94,6 +94,10 @@
   padding: 6px 4px;
 }
 
+[data-compact-actions] :is(.encounter-roster__columns, .encounter-roster__row) {
+  grid-template-columns: 24px 36px minmax(0, 1fr) 40px 28px;
+}
+
 .encounter-roster__row {
   border-bottom: 1px solid var(--line);
   color: var(--text);

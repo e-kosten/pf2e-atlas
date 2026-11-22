@@ -26,6 +26,18 @@ export async function activate(control: Locator, info: TestInfo) {
   else await control.click();
 }
 
+export async function showSearchFilters(page: Page, info: TestInfo) {
+  await expect(
+    page.getByRole("searchbox", { name: "Search records", exact: true }),
+  ).toBeVisible();
+  const disclosure = page.getByRole("button", { name: /^Filters(?: \(\d+\))?$/ });
+  if (
+    (await disclosure.isVisible()) &&
+    (await disclosure.getAttribute("aria-expanded")) !== "true"
+  )
+    await activate(disclosure, info);
+}
+
 export async function noPageOverflow(page: Page) {
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),

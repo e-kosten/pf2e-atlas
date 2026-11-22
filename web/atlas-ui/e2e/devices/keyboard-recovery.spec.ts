@@ -18,6 +18,81 @@ test("Escape closes the Sort mode menu before closing Sort and restoring focus",
   await expect(trigger).toBeFocused();
 });
 
+test("entity action menus focus the first command and return focus on Escape", async ({
+  page,
+}) => {
+  const name = `Menu focus ${Date.now()}`;
+  const slug = name.toLowerCase().replaceAll(" ", "-");
+  const list = await page.request.post("/api/lists", {
+    data: { slug, name, tags: [] },
+  });
+  expect(list.ok()).toBe(true);
+  const { list: savedList } = await list.json();
+  const party = await page.request.post("/api/parties", {
+    data: { name, members: [] },
+  });
+  expect(party.ok()).toBe(true);
+  const savedParty = await party.json();
+  const character = await page.request.post("/api/characters", {
+    data: { name, request_id: crypto.randomUUID() },
+  });
+  expect(character.ok()).toBe(true);
+  const savedCharacter = await character.json();
+  const created = await page.request.post("/api/encounters", { data: { name } });
+  expect(created.ok()).toBe(true);
+  const { encounter } = await created.json();
+  try {
+    for (const [route, label, first] of [
+      [`/lists/${slug}`, "List actions", "Edit list"],
+      [`/parties/${savedParty.party_key}`, "Party actions", "Rename party"],
+      [
+        `/characters/${savedCharacter.character_key}`,
+        "Character actions",
+        "Edit name and level",
+      ],
+      [`/encounters/${encounter.slug}`, "Encounter actions", "Edit encounter"],
+    ]) {
+      await page.goto(route);
+      const trigger = page.getByRole("button", { name: label, exact: true });
+      await trigger.press("Enter");
+      const menu = page.getByRole("menu", { name: label, exact: true });
+      await expect(
+        menu.getByRole("menuitem", { name: first, exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press("ArrowDown");
+      await expect(
+        menu.getByRole("menuitem", { name: first, exact: true }),
+      ).not.toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(trigger).toBeFocused();
+      if (label === "Character actions") {
+        await trigger.press("Space");
+        await expect(
+          menu.getByRole("menuitem", { name: first, exact: true }),
+        ).toBeFocused();
+        await page.keyboard.press("Enter");
+        const dialog = page.getByRole("dialog", { name: `Edit ${name}`, exact: true });
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+        await expect(dialog).toBeHidden();
+        await expect(trigger).toBeFocused();
+      }
+    }
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+    await page.request.delete(`/api/lists/${savedList.list_key}`);
+    const characterPath = `/api/characters/${savedCharacter.character_key}`;
+    const character = await (await page.request.get(characterPath)).json();
+    await page.request.delete(characterPath, {
+      data: { expected_revision: character.character_revision },
+    });
+    await page.request.delete(`/api/parties/${savedParty.party_key}`, {
+      data: { expected_revision: savedParty.revision },
+    });
+  }
+});
+
 test("failed encounter removal keeps keyboard focus on the retry button", async ({
   page,
 }) => {
@@ -49,6 +124,62 @@ test("failed encounter removal keeps keyboard focus on the retry button", async 
     await expect(remove).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(remove).toHaveCount(0);
+    expect(removals).toBe(2);
+  } finally {
+    await page.request.delete(detailPath);
+  }
+});
+
+test("compact roster removal uses the row menu and returns focus after retry", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Compact removal ${Date.now()}` },
+  });
+  expect(created.ok()).toBe(true);
+  const { encounter } = await created.json();
+  const detailPath = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    for (const display_name of [
+      "Long named champion of the northern pass",
+      "Next participant",
+    ]) {
+      const added = await page.request.post(`${detailPath}/participants/manual`, {
+        data: { display_name, max_hp: 30, current_hp: 30 },
+      });
+      expect(added.ok()).toBe(true);
+    }
+    await page.goto(`/encounters/${encounter.slug}`);
+    const actions = page.getByRole("button", {
+      name: "Actions for Long named champion of the northern pass",
+    });
+    await expect(page.getByRole("button", { name: /^Remove Long named/ })).toHaveCount(
+      0,
+    );
+    let removals = 0;
+    await page.route(
+      (url) => /\/api\/encounters\/[^/]+\/participants\/[^/]+$/.test(url.pathname),
+      (route) => {
+        if (route.request().method() !== "DELETE") return route.continue();
+        removals += 1;
+        return removals === 1 ? route.abort("failed") : route.continue();
+      },
+    );
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await actions.press("Enter");
+      await page
+        .getByRole("menuitem", { name: "Remove participant", exact: true })
+        .press("Enter");
+      if (!attempt) {
+        await expect(page.getByText("Try removing again.")).toBeVisible();
+        await expect(actions).toBeFocused();
+      }
+    }
+    await expect(actions).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Next participant", exact: true }),
+    ).toBeFocused();
     expect(removals).toBe(2);
   } finally {
     await page.request.delete(detailPath);
