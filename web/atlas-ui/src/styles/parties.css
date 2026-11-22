@@ -319,12 +319,23 @@
 }
 
 .party-roster__drag-preview {
+  /* Match the row measured by DragOverlay, including wrapped character names. */
+  box-sizing: border-box;
+  block-size: 100%;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-control);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--selection-bg);
   color: var(--selection-text);
-  padding: var(--space-control) var(--space-group);
+  padding-inline-end: var(--space-control);
   overflow-wrap: anywhere;
+}
+
+.party-roster__drag-preview > svg {
+  justify-self: center;
 }
 
 .party-roster-pane .party-roster td:nth-child(2) {

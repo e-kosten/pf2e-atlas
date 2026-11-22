@@ -153,9 +153,24 @@
   line-height: 1.5;
 }
 
+.character-heading {
+  margin-block-end: var(--space-group);
+  padding-block-end: var(--space-group);
+}
+
 .character-heading h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-control);
+  overflow-wrap: anywhere;
   font-size: clamp(1.75rem, 2.4vw, 2rem);
   letter-spacing: -0.025em;
+}
+
+.character-heading h1 small {
+  margin: 0;
+  white-space: nowrap;
 }
 
 .pc-character-drawer__title {
@@ -198,9 +213,24 @@
 .character-sheet__snapshot {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-control) var(--space-group);
   margin-block-end: var(--space-group);
+}
+
+.character-sheet__skills-jump {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.character-sheet__skills h3:focus-visible,
+.character-sheet__skills-jump:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: -2px;
 }
 
 .character-sheet__groups,
@@ -302,7 +332,22 @@
   overflow-wrap: anywhere;
 }
 
+@container (width < 48rem) {
+  .character-sheet__groups--stats .record-fact-list {
+    grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  }
+
+  .character-sheet__groups--stats h3 {
+    margin-block-end: var(--space-control);
+  }
+}
+
 @container (min-width: 48rem) {
+  .character-sheet__skills-jump,
+  .character-sheet__snapshot:has(> .character-sheet__skills-jump:only-child) {
+    display: none;
+  }
+
   .character-sheet__groups--stats:has(> .character-sheet__skills) {
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     align-items: start;
@@ -335,20 +380,6 @@
   flex: none;
 }
 
-.character-sheet__spell-list {
-  display: block;
-}
-
-.character-sheet__spell-list a.ant-typography {
-  font-size: inherit;
-  line-height: inherit;
-}
-
-.character-sheet__spell-slots {
-  color: var(--muted);
-  font-weight: 400;
-}
-
 .character-sheet .character-ability-section h3 {
   font-size: var(--sheet-section-size);
   line-height: 1.3;
@@ -362,10 +393,6 @@
 
 .character-sheet .character-secondary {
   font-size: var(--sheet-detail-size);
-}
-
-.character-sheet__groups--magic .actor-casting__rows {
-  margin-block-start: var(--space-control);
 }
 
 .character-sheet__source-fragment {

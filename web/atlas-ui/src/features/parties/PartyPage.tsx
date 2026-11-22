@@ -317,10 +317,11 @@ function PartyRoster({ party }: { party: PartyView }) {
               </tbody>
             </SortableContext>
           </table>
-          <DragOverlay>
+          <DragOverlay dropAnimation={null} style={{ pointerEvents: "none" }}>
             {sortable.activeItem && (
-              <div className="party-roster__drag-preview">
-                {sortable.activeItem.name}
+              <div className="party-roster__drag-preview" aria-hidden>
+                <GripVertical size={16} />
+                <span>{sortable.activeItem.name}</span>
               </div>
             )}
           </DragOverlay>

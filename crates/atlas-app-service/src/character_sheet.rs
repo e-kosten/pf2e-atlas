@@ -253,6 +253,7 @@ fn fact_value(label: impl Into<String>, value: impl Display) -> SheetFactView {
     SheetFactView {
         label: label.into(),
         value: value.to_string(),
+        display_value: None,
         role: None,
     }
 }

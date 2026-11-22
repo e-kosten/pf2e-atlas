@@ -238,26 +238,19 @@ pub(super) fn categorized(
         groups[index].rows.push(item);
     }
 
-    let has_gear = groups.iter().any(|group| !group.rows.is_empty());
     let mut categorized: Vec<_> = groups
         .into_iter()
         .map(|group| (CharacterSection::Equipment, group))
         .collect();
-    if let Some(money) = value(&sheet.money).filter(|money| {
-        has_gear
-            || [&money.pp, &money.gp, &money.sp, &money.cp]
-                .into_iter()
-                .filter_map(value)
-                .any(|count| *count != 0)
-    }) {
+    if let Some(money) = value(&sheet.money) {
         let mut facts = Vec::new();
         add_facts(
             &mut facts,
             [
-                ("Platinum (pp)", shown(&money.pp)),
-                ("Gold (gp)", shown(&money.gp)),
-                ("Silver (sp)", shown(&money.sp)),
-                ("Copper (cp)", shown(&money.cp)),
+                ("pp", shown(&money.pp)),
+                ("gp", shown(&money.gp)),
+                ("sp", shown(&money.sp)),
+                ("cp", shown(&money.cp)),
             ],
         );
         let mut coins = summary("Coins", facts);

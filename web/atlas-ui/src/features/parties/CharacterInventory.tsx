@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { SheetGroupView, SheetRowView } from "../../generated/atlas";
 import { SheetFacts, SheetLabel, type SheetPresentation } from "./CharacterSheetParts";
 
@@ -16,19 +17,6 @@ export function CharacterInventory({
   const formulas = groups.filter((group) => group.kind === "formulas");
   return (
     <div className="character-inventory">
-      {coins.map((group, index) => (
-        <section className="character-inventory__coins" key={index}>
-          <h3>{group.label}</h3>
-          <dl>
-            {group.rows.map((row, index) => (
-              <div key={index}>
-                <dt>{row.label}</dt>
-                <dd>{row.summary_value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ))}
       {loadout.length > 0 && (
         <div className="character-inventory__loadout">
           {loadout.map((group) => (
@@ -43,6 +31,19 @@ export function CharacterInventory({
           ))}
         </div>
       )}
+      {coins.map((group, index) => (
+        <p className="character-inventory__coins" key={index}>
+          <strong>{group.label}</strong>{" "}
+          {group.rows.map((row, index) => (
+            <Fragment key={row.label}>
+              {index > 0 && ", "}
+              <span>
+                {row.summary_value} {row.label}
+              </span>
+            </Fragment>
+          ))}
+        </p>
+      ))}
       {storage.length > 0 && (
         <div className="character-inventory__storage">
           {storage.map((group, index) => (
