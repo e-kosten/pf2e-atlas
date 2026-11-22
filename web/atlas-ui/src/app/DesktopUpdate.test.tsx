@@ -16,6 +16,7 @@ afterEach(() => {
   delete desktopWindow.__ATLAS_DESKTOP_SETUP__;
   delete desktopWindow.__TAURI__;
   invoke.mockReset();
+  vi.restoreAllMocks();
 });
 
 function publish(update: object) {
@@ -68,6 +69,43 @@ it("shows the available action only after checking the current offer, then repla
   publish({ version: "0.2.3", phase: { kind: "installing" }, error: null });
   expect(screen.getByRole("status")).toHaveTextContent("Installing and restarting…");
 });
+
+it.each(["initiator", "focus moved", "inactive window", "another window"])(
+  "hands focus to the new phase only for the focused initiator (%s)",
+  async (scenario) => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(scenario !== "inactive window");
+    invoke.mockResolvedValueOnce({ kind: "restart" });
+    render(
+      <>
+        <DesktopUpdateSection />
+        <button>Release channel</button>
+      </>,
+    );
+    publish({ version: "0.2.3", phase: { kind: "available" } });
+    const install = screen.getByRole("button", { name: "Install and restart" });
+    await waitFor(() => expect(install).toBeEnabled());
+    const elsewhere = screen.getByRole("button", { name: "Release channel" });
+    install.focus();
+    if (scenario !== "another window") {
+      invoke.mockResolvedValueOnce(null);
+      await act(async () => fireEvent.click(install));
+    }
+    if (scenario === "focus moved") elsewhere.focus();
+    publish({ version: "0.2.3", phase: { kind: "downloading", percent: 10 } });
+    const status = screen.getByRole("status");
+    if (scenario === "initiator") expect(status).toHaveFocus();
+    else expect(status).not.toHaveFocus();
+    if (scenario === "focus moved") expect(elsewhere).toHaveFocus();
+    expect(status.textContent).toBe("Downloading update…");
+    elsewhere.focus();
+    publish({ version: "0.2.3", phase: { kind: "downloading", percent: 71 } });
+    expect(status.textContent).toBe("Downloading update…");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "71");
+    publish({ version: "0.2.3", phase: { kind: "installing" } });
+    expect(status.textContent).toBe("Installing and restarting…");
+    expect(elsewhere).toHaveFocus();
+  },
+);
 
 it("reopens a channel installation in either pane without issuing a new request", async () => {
   publish({

@@ -170,6 +170,11 @@
   align-items: center;
   gap: 8px;
 }
+.desktop-settings__row,
+.desktop-settings__panes a,
+.desktop-settings__back {
+  text-decoration: none;
+}
 .desktop-settings__row {
   justify-content: space-between;
   color: var(--text);
@@ -189,6 +194,10 @@
 .desktop-settings__back {
   width: fit-content;
   margin-bottom: 8px;
+  color: var(--link);
+}
+.desktop-settings__back:hover {
+  text-decoration: underline;
 }
 .desktop-settings__command {
   padding: 10px;

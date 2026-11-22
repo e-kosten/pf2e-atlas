@@ -1,6 +1,6 @@
 import { Alert, Button, Flex, Progress, Spin, Typography } from "antd";
 import { ArrowDownToLine } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invokeDesktop, useDesktopAttachment } from "./desktopBridge";
 import "./desktopReleaseChannel.css";
 
@@ -96,22 +96,60 @@ export function DesktopUpdateShortcut({
   );
 }
 
+type InstallFocus = RefObject<{ token: string; version: string } | null>;
+
+function rememberInstallFocus(
+  focusRef: InstallFocus,
+  button: HTMLElement,
+  token: string,
+  version: string,
+) {
+  focusRef.current = button === document.activeElement ? { token, version } : null;
+}
+
 function UpdateProgress({
   phase,
   version,
+  token,
+  installFocusRef,
 }: {
   phase: Exclude<Phase, { kind: "available" }>;
   version: string;
+  token: string;
+  installFocusRef: InstallFocus;
 }) {
+  const status = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const intended = installFocusRef.current;
+    installFocusRef.current = null;
+    if (
+      intended?.version === version &&
+      intended.token === token &&
+      document.hasFocus() &&
+      document.activeElement === document.body &&
+      !status.current?.closest("[hidden], [inert]")
+    )
+      status.current?.focus();
+  }, [installFocusRef, token, version]);
   return (
     <Flex vertical gap="small">
       <Flex align="center" gap="small">
         {(phase.kind === "installing" || phase.percent === null) && (
           <Spin size="small" />
         )}
-        <Typography.Text strong role="status">
-          {progressLabel(phase)}
-        </Typography.Text>
+        <span
+          ref={status}
+          role="status"
+          tabIndex={-1}
+          className="desktop-update__phase"
+        >
+          {phase.kind === "downloading"
+            ? "Downloading update…"
+            : "Installing and restarting…"}
+        </span>
+        {phase.kind === "downloading" && phase.percent !== null && (
+          <Typography.Text aria-hidden="true">{phase.percent}%</Typography.Text>
+        )}
       </Flex>
       <Typography.Text type="secondary">Atlas {version}</Typography.Text>
       {phase.kind === "downloading" && phase.percent !== null && (
@@ -144,11 +182,13 @@ function UpdateOffer({
   update,
   installed,
   setupRunning,
+  installFocusRef,
 }: {
   token: string;
   update: Offer;
   installed?: string;
   setupRunning: boolean;
+  installFocusRef: InstallFocus;
 }) {
   const [impact, setImpact] = useState<Impact>();
   const [error, setError] = useState<string>();
@@ -173,8 +213,9 @@ function UpdateOffer({
       current = false;
     };
   }, [check, token, version]);
-  async function install() {
+  async function install(button: HTMLElement) {
     if (sending || !impact || setupRunning) return;
+    rememberInstallFocus(installFocusRef, button, token, version);
     setSending(true);
     setError(undefined);
     try {
@@ -184,6 +225,7 @@ function UpdateOffer({
         version,
       });
     } catch (failure) {
+      installFocusRef.current = null;
       setError(failureMessage(failure, "Atlas couldn’t start the update."));
     } finally {
       setSending(false);
@@ -208,7 +250,7 @@ function UpdateOffer({
           type="primary"
           loading={sending}
           disabled={!impact || setupRunning}
-          onClick={() => void install()}
+          onClick={(event) => void install(event.currentTarget)}
         >
           {update.error ? "Retry install and restart" : "Install and restart"}
         </Button>
@@ -248,15 +290,24 @@ function UpdateOffer({
 
 export function DesktopUpdateSection() {
   const attachment = useDesktopAttachment();
+  const installFocusRef: InstallFocus = useRef(null);
   if (!attachment) return null;
   const { update, channel, token, setup } = attachment;
   if (update && update.phase.kind !== "available")
-    return <UpdateProgress phase={update.phase} version={update.version} />;
+    return (
+      <UpdateProgress
+        phase={update.phase}
+        version={update.version}
+        token={token}
+        installFocusRef={installFocusRef}
+      />
+    );
   if (update)
     return (
       <UpdateOffer
         key={JSON.stringify([token, update.version])}
         update={update}
+        installFocusRef={installFocusRef}
         token={token}
         installed={channel?.installed.version}
         setupRunning={setup?.status === "running" || setup?.status === "cancelling"}
@@ -285,11 +336,14 @@ function failureMessage(failure: unknown, fallback: string) {
 
 export function DesktopReleaseChannel() {
   const attachment = useDesktopAttachment();
+  const installFocusRef: InstallFocus = useRef(null);
   if (attachment?.update && attachment.update.phase.kind !== "available")
     return (
       <UpdateProgress
         phase={attachment.update.phase}
         version={attachment.update.version}
+        token={attachment.token}
+        installFocusRef={installFocusRef}
       />
     );
   if (!attachment) return null;
@@ -310,11 +364,20 @@ export function DesktopReleaseChannel() {
       ])}
       channel={channel}
       token={token}
+      installFocusRef={installFocusRef}
     />
   );
 }
 
-function ChannelOptions({ channel, token }: { channel: Channel; token: string }) {
+function ChannelOptions({
+  channel,
+  token,
+  installFocusRef,
+}: {
+  channel: Channel;
+  token: string;
+  installFocusRef: InstallFocus;
+}) {
   const [selection, setSelection] = useState<Role | null>(null);
   const [review, setReview] = useState<ChannelReview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -327,8 +390,12 @@ function ChannelOptions({ channel, token }: { channel: Channel; token: string })
   const missingSelection =
     installedNightly && workspace !== channel.active && !channel.other_exists;
   const other: Role = channel.active === "original" ? "separate" : "original";
-  async function request(action: ChannelAction) {
+  async function request(action: ChannelAction, button?: HTMLElement) {
     if (disabled) return;
+    const targetVersion =
+      action.kind === "retry_pending" ? channel.pending_version : review?.version;
+    if (button && targetVersion)
+      rememberInstallFocus(installFocusRef, button, token, targetVersion);
     setBusy(true);
     setError(null);
     setUnavailable(false);
@@ -340,6 +407,7 @@ function ChannelOptions({ channel, token }: { channel: Channel; token: string })
         }),
       );
     } catch (failure) {
+      if (button) installFocusRef.current = null;
       setReview(null);
       setError(failureMessage(failure, "Atlas couldn’t complete the channel request."));
       setUnavailable(
@@ -355,7 +423,7 @@ function ChannelOptions({ channel, token }: { channel: Channel; token: string })
   }
 
   return (
-    <Flex vertical gap="middle">
+    <Flex vertical gap="middle" className="desktop-channel">
       <Typography.Text type="secondary">
         Current channel · {installedNightly ? "Nightly" : "Stable"}
       </Typography.Text>
@@ -380,7 +448,9 @@ function ChannelOptions({ channel, token }: { channel: Channel; token: string })
           <Button
             type="primary"
             disabled={disabled}
-            onClick={() => void request({ kind: "retry_pending" })}
+            onClick={(event) =>
+              void request({ kind: "retry_pending" }, event.currentTarget)
+            }
           >
             Retry pending install
           </Button>
@@ -462,7 +532,12 @@ function ChannelOptions({ channel, token }: { channel: Channel; token: string })
               <Button
                 type="primary"
                 disabled={disabled || missingSelection}
-                onClick={() => void request({ kind: "install", token: review.id })}
+                onClick={(event) =>
+                  void request(
+                    { kind: "install", token: review.id },
+                    event.currentTarget,
+                  )
+                }
               >
                 {disabled ? "Installing…" : `Install ${target} and restart`}
               </Button>

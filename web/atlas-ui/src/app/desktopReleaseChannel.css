@@ -7,8 +7,16 @@
   overflow-wrap: anywhere;
 }
 
+.desktop-update__phase {
+  font-weight: 600;
+}
+
+.desktop-channel > button {
+  align-self: flex-start;
+}
+
 .desktop-channel__choices > button {
-  flex: 1 1 180px;
+  flex: 0 1 auto;
   min-width: 0;
   height: auto;
   min-height: var(--control-height);
