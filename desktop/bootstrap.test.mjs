@@ -274,3 +274,40 @@ for (const [name, resume, label] of [
     }
   });
 }
+
+test("terminal access is requested from the menu and does not hide workspace setup", async () => {
+  const f = await fixture({ trace: false });
+  try {
+    f.take("inspect").resolve({ generation: 4, probe: { status: "needs_setup" } });
+    await setImmediate();
+    const doc = f.window.document;
+    assert.equal(doc.getElementById("terminal").hidden, true);
+    f.listeners.get("atlas-terminal-access")();
+    assert.equal(doc.getElementById("terminal").hidden, false);
+    assert.equal(doc.getElementById("terminal").open, true);
+    assert.equal(doc.getElementById("primary").textContent, "Set up Atlas");
+    assert.equal(doc.activeElement.id, "bin");
+  } finally {
+    f.close();
+  }
+});
+
+test("a busy workspace upgrade shows the remedy and retries preparation", async () => {
+  const f = await fixture({ trace: false });
+  try {
+    f.take("inspect").resolve({ generation: 4, probe: { status: "upgrade_required" } });
+    await setImmediate();
+    const doc = f.window.document;
+    const primary = doc.getElementById("primary");
+    primary.click();
+    f.take("prepare").resolve();
+    await setImmediate();
+    f.post({ type: "failed", value: { code: "workspace_upgrade_busy" } });
+    assert.equal(doc.getElementById("heading").textContent, "Close the other Atlas session");
+    assert.equal(primary.textContent, "Retry upgrade");
+    primary.click();
+    assert.equal(f.take("prepare").args.operation, 2);
+  } finally {
+    f.close();
+  }
+});

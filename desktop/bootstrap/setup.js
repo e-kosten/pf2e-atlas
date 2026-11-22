@@ -18,9 +18,6 @@ const startupTarget = {
 };
 const workspaceTemplate = document.getElementById("workspace-template");
 const workspaceContent = workspaceTemplate.content.cloneNode(true);
-if (window.location.origin === "http://tauri.localhost") {
-  workspaceContent.getElementById("terminal").hidden = true;
-}
 const ui = Object.fromEntries(
   [
     "opening-status",
@@ -38,6 +35,7 @@ const ui = Object.fromEntries(
     "result",
     "cancel",
     "bin",
+    "terminal",
     "terminal-form",
     "terminal-result",
   ].map((id) => [
@@ -71,6 +69,13 @@ function showWorkspace() {
 
 showOpening();
 
+function showTerminal() {
+  if (window.location.origin === "http://tauri.localhost" || navigating || handingOff) return;
+  ui.terminal.hidden = false;
+  ui.terminal.open = true;
+  if (ui.workspace.isConnected) ui.bin.focus();
+}
+
 function action(button, title, handler) {
   button.hidden = !title;
   button.disabled = busy;
@@ -81,6 +86,7 @@ function action(button, title, handler) {
 function status(heading, description) {
   ui.heading.textContent = heading;
   ui.description.textContent = description;
+  ui.description.hidden = !description;
 }
 
 function trace(source, error, force = false) {
@@ -130,6 +136,13 @@ function failure(error, source) {
   ui.activity.hidden = true;
   ui.diagnostic.hidden = false;
   ui.details.textContent = error?.message || String(error);
+  if (error?.code === "workspace_upgrade_busy") {
+    ui.diagnostic.hidden = true;
+    status("Close the other Atlas session", "It’s using the workspace you’re trying to upgrade.");
+    action(ui.primary, "Retry upgrade", () => work("Updating workspace", "", "prepare"));
+    action(ui.secondary);
+    return;
+  }
   if (error?.code === "embedding_seed_unavailable") {
     status(
       "Precomputed embeddings are unavailable",
@@ -276,8 +289,10 @@ function show(inspection, auto) {
       failure(error, "workspace-selection");
     }
   };
+  if (inspection.terminal_requested) showTerminal();
   if (inspection.selection_error) {
     showWorkspace();
+    if (inspection.terminal_requested) ui.bin.focus();
     status("Choose a workspace", [inspection.selection_error, inspection.recovery_release].filter(Boolean).join(" "));
     if (inspection.resume_previous_workspace) {
       action(ui.primary, "Resume my previous workspace", () => recoverWorkspace(true));
@@ -297,11 +312,12 @@ function show(inspection, auto) {
     action(ui.primary, "Retry opening Atlas", launch);
     return;
   }
-  if (usable && !running && !recovery && auto) {
+  if (usable && !running && !recovery && auto && ui.terminal.hidden) {
     void launch();
     return;
   }
   showWorkspace();
+  if (inspection.terminal_requested) ui.bin.focus();
   switch (probe.status) {
     case "ready":
     case "browsable": {
@@ -312,7 +328,7 @@ function show(inspection, auto) {
           ? "The local service stopped. Reconnect to open a fresh window. Existing windows stay open."
           : browsable
             ? "Your reference data is available. Prepare the search model to use semantic search."
-            : "Atlas can open your workspace. Use Setup and Updates in Atlas to manage reference data.",
+            : "",
       );
       action(ui.primary, recovery ? "Reconnect" : "Open Atlas", launch);
       action(
@@ -327,23 +343,23 @@ function show(inspection, auto) {
     }
     case "needs_setup":
       status(
-        "Prepare your workspace",
-        "Atlas will download the Pathfinder reference data and a search model, then build your local index.",
+        "Set up Atlas",
+        "Download Pathfinder reference data and prepare search on this computer.",
       );
       action(
         ui.primary,
         "Set up Atlas",
         setup(
           "Setting up Atlas",
-          "Atlas will open when your workspace is ready.",
+          "",
         ),
       );
       break;
     case "upgrade_required":
       status(
-        "Update your workspace for this version of Atlas",
+        "Update your workspace",
         [
-          "This version needs to update your existing workspace before Atlas can open it. Atlas backs up your saved work before upgrading.",
+          "Atlas will back up your saved work before upgrading.",
           inspection.recovery_release,
         ].filter(Boolean).join(" "),
       );
@@ -352,10 +368,14 @@ function show(inspection, auto) {
         "Update workspace",
         setup(
           "Updating your workspace",
-          "Your saved work will be available when Atlas reopens.",
+          "",
         ),
       );
       if (inspection.recovery_release) action(ui.secondary, "Open my original workspace", () => recoverWorkspace(false));
+      break;
+    case "busy":
+      status("Workspace in use", probe.message);
+      action(ui.primary, "Check again", () => refresh(true));
       break;
     case "recovery_required":
       status(
@@ -431,6 +451,10 @@ async function init() {
       else failure(payload, "native:atlas-error");
     }),
   );
+  await track(listen("atlas-terminal-access", () => {
+    showTerminal();
+    if (!ui.workspace.isConnected && !busy) void refresh(false);
+  }));
   window.addEventListener("atlas-opening-retry", retryOpening);
   await track(listen("atlas-inspect", () => refresh(true)));
   ui["terminal-form"].onsubmit = async (event) => {
