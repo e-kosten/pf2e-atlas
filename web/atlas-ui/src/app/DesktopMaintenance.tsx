@@ -529,7 +529,7 @@ function SearchModels({
           disabled={!editable || (membershipChanged && !canEditMembership)}
           onClick={() => onApply({ profiles, preferred: preferred || null })}
         >
-          Apply search models
+          Apply
         </Button>
       )}
     </section>

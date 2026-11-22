@@ -303,7 +303,9 @@ test("a busy workspace upgrade shows the remedy and retries preparation", async 
     f.take("prepare").resolve();
     await setImmediate();
     f.post({ type: "failed", value: { code: "workspace_upgrade_busy" } });
-    assert.equal(doc.getElementById("heading").textContent, "Close the other Atlas session");
+    assert.equal(doc.getElementById("heading").textContent, "Your Atlas data is in use");
+    assert.match(doc.getElementById("description").textContent, /another Atlas window is open, quit Atlas there/);
+    assert.match(doc.getElementById("description").textContent, /atlas web in a terminal, stop it with Ctrl\+C/);
     assert.equal(primary.textContent, "Retry upgrade");
     primary.click();
     assert.equal(f.take("prepare").args.operation, 2);

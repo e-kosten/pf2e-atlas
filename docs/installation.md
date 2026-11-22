@@ -43,7 +43,8 @@ first updater-enabled release the same way you installed Atlas originally.
 
 On macOS, open **PF2e Atlas → Settings…** (⌘,), select **Updates**, and open
 **Release channel**. On Windows, open **Settings** (Ctrl+,) and select
-**Release channel**. Choose which data to use and check the other channel's compatibility.
+**Release channel**. Select **Switch to Nightly…** or **Switch to Stable…**,
+then choose which data to use and check compatibility.
 Atlas shows the version and any setup requirements before installing.
 
 Choose **Use my current data** to keep the same campaign on

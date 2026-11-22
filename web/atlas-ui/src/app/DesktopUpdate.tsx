@@ -385,6 +385,11 @@ function ChannelOptions({
   const [error, setError] = useState<string | null>(null);
   const installedNightly = channel.installed.tag.startsWith("nightly/");
   const target = installedNightly ? "Stable" : "Nightly";
+  const choosingWorkspace = selection !== null && !channel.returning;
+  const currentDataButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (choosingWorkspace) currentDataButton.current?.focus();
+  }, [choosingWorkspace]);
   const workspace = selection ?? channel.returning?.workspace ?? channel.active;
   const disabled = busy || channel.busy;
   const missingSelection =
@@ -455,6 +460,10 @@ function ChannelOptions({
             Retry pending install
           </Button>
         </>
+      ) : selection === null && !channel.returning ? (
+        <Button disabled={disabled} onClick={() => setSelection(channel.active)}>
+          Switch to {target}…
+        </Button>
       ) : (
         <>
           <Typography.Text>
@@ -473,6 +482,7 @@ function ChannelOptions({
             ].map((role) => (
               <Button
                 key={role}
+                ref={role === channel.active ? currentDataButton : undefined}
                 aria-pressed={workspace === role}
                 color={workspace === role ? "primary" : "default"}
                 variant={workspace === role ? "filled" : "outlined"}

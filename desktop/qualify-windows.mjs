@@ -236,6 +236,7 @@ async function runCase(mode) {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("link", { name: /Release channel/ }).click();
     const channel = page.getByRole("main").filter({ has: page.getByRole("heading", { name: "Release channel", exact: true }) });
+    await channel.getByRole("button", { name: "Switch to Nightly…", exact: true }).click();
     if (mode === "normal") await channel.getByRole("button", { name: "Use a separate copy", exact: true }).click();
     await channel.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
     await expect(channel.getByRole("button", { name: "Install Nightly and restart", exact: true })).toBeEnabled({ timeout: 30_000 });

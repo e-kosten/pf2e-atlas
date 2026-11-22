@@ -138,7 +138,10 @@ function failure(error, source) {
   ui.details.textContent = error?.message || String(error);
   if (error?.code === "workspace_upgrade_busy") {
     ui.diagnostic.hidden = true;
-    status("Close the other Atlas session", "It’s using the workspace you’re trying to upgrade.");
+    status(
+      "Your Atlas data is in use",
+      "If another Atlas window is open, quit Atlas there. If you’re running atlas web in a terminal, stop it with Ctrl+C.",
+    );
     action(ui.primary, "Retry upgrade", () => work("Updating workspace", "", "prepare"));
     action(ui.secondary);
     return;

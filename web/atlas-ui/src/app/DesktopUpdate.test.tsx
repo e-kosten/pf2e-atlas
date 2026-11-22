@@ -217,6 +217,9 @@ it("offers both ways to wait for Stable after a workspace compatibility refusal"
       <DesktopReleaseChannel />
     </ConfigProvider>,
   );
+  expect(screen.queryByText(/Choose which data to use/)).toBeNull();
+  expect(screen.queryByRole("button", { name: /compatibility/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Switch to Stable…" }));
   fireEvent.click(screen.getByRole("button", { name: "Use an earlier copy" }));
   expect(screen.queryByRole("button", { name: /wait for the next Stable/ })).toBeNull();
   invoke.mockRejectedValueOnce({
@@ -272,6 +275,11 @@ it("explains creating a separate copy and keeps the reviewed destination through
     },
   };
   render(<DesktopReleaseChannel />);
+  expect(screen.queryByText(/Choose which data to use/)).toBeNull();
+  expect(screen.queryByRole("button", { name: /compatibility/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Switch to Nightly…" }));
+  expect(invoke).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Use my current data" })).toHaveFocus();
   expect(screen.getByRole("button", { name: "Use my current data" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -319,6 +327,7 @@ it("reopens the retained other workspace after the separate workspace became the
     },
   };
   render(<DesktopReleaseChannel />);
+  fireEvent.click(screen.getByRole("button", { name: "Switch to Nightly…" }));
   expect(screen.queryByRole("button", { name: "Use a separate copy" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Use the other copy" }));
   expect(
@@ -354,6 +363,7 @@ it.each(["original", "separate"])(
       },
     };
     render(<DesktopReleaseChannel />);
+    fireEvent.click(screen.getByRole("button", { name: "Switch to Stable…" }));
     expect(screen.getByRole("button", { name: "Use my current data" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -496,6 +506,7 @@ it("ignores a previous page's review after closing and reopening with current da
       <DesktopReleaseChannel />
     </ConfigProvider>,
   );
+  fireEvent.click(screen.getByRole("button", { name: "Switch to Stable…" }));
   fireEvent.click(screen.getByRole("button", { name: "Use an earlier copy" }));
   fireEvent.click(screen.getByRole("button", { name: "Check Stable compatibility" }));
   view.unmount();
@@ -510,6 +521,7 @@ it("ignores a previous page's review after closing and reopening with current da
       will_upgrade: false,
     }),
   );
+  fireEvent.click(screen.getByRole("button", { name: "Switch to Stable…" }));
   expect(screen.getByRole("button", { name: "Use my current data" })).toHaveAttribute(
     "aria-pressed",
     "true",

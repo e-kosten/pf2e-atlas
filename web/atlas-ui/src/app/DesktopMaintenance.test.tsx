@@ -173,7 +173,7 @@ it("requires confirmation before applying a different bundled pin", async () => 
 it("applies keyword-only settings", async () => {
   attach();
   renderPanel();
-  expect(screen.queryByRole("button", { name: "Apply search models" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
   expect(screen.queryByText(/Editing pauses/)).toBeNull();
   const base = screen.getByRole("checkbox", { name: "BGE Base" });
   expect(base).toBeChecked();
@@ -181,7 +181,7 @@ it("applies keyword-only settings", async () => {
   expect(screen.getByText("Atlas default")).toBeVisible();
   expect(screen.getByText(/Editing pauses/)).toBeVisible();
   expect(screen.getByText(/Similar records requires a search model/)).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Apply search models" }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   await waitFor(() =>
     expect(invoke).toHaveBeenLastCalledWith("desktop_setup_action", {
       action: "apply_models",

@@ -75,7 +75,7 @@ On macOS, open **PF2e Atlas → Settings…** (⌘,) and select **Search & data*
 On Windows, open **Settings** (Ctrl+,) and select **Search and reference data**.
 **Search models** lets
 you keep BGE Base, EmbeddingGemma, both, or keyword-only search. Choose a
-default and select **Apply search models**. Automatic uses the only installed
+default and select **Apply**. Automatic uses the only installed
 model, or BGE Base when both are installed. Similar records needs a model.
 
 Adding or removing models keeps browsing and the previous search index available

@@ -182,7 +182,11 @@ fn run_upgrade_flow(app: &AppHandle) -> Result<(), String> {
             return Err("Upgrade smoke requires a fresh Stable review.".into());
         }
         let window = open_settings(app, &window, Destination::Channel, deadline)?;
-        for label in ["Use the other copy", "Check Nightly compatibility"] {
+        for label in [
+            "Switch to Nightly…",
+            "Use the other copy",
+            "Check Nightly compatibility",
+        ] {
             wait_for(deadline, label, || click_settings_button(&window, label))?;
         }
         wait_for(deadline, "data upgrade downtime warning", || {
@@ -321,6 +325,11 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
         )
         .map_err(display)?;
         return Ok(());
+    }
+    if crate::workspace_switch::load(app)?.returning.is_none() {
+        wait_for(deadline, "start switching to Stable", || {
+            click_settings_button(&window, "Switch to Stable…")
+        })?;
     }
     wait_for(deadline, "Stable compatibility review", || {
         click_settings_button(&window, "Check Stable compatibility")
