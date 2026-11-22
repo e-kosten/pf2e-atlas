@@ -11,6 +11,7 @@ BUSY = "hdiutil: verify failed - Resource temporarily unavailable"
 INVALID = "hdiutil: verify failed - image data corrupted"
 
 
+@unittest.skipUnless(os.name == "posix", "requires a POSIX shell fixture")
 class VerifyDmgTest(unittest.TestCase):
     def check_verification(self, diagnostics, status, expected_calls):
         with tempfile.TemporaryDirectory() as tmp:
