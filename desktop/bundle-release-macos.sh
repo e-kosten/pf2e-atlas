@@ -55,7 +55,7 @@ ditto "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/bundle/macos/PF2e Atlas.ap
 ln -s /Applications "$work/image/Applications"
 image="$work/atlas.dmg"
 hdiutil create -srcfolder "$work/image" -volname 'PF2e Atlas' -format UDZO "$image"
-hdiutil verify "$image" >/dev/null
+sh "$desktop/verify-dmg.sh" "$image"
 mkdir "$mount"
 hdiutil attach "$image" -readonly -nobrowse -mountpoint "$mount" >/dev/null
 app="$mount/PF2e Atlas.app"
