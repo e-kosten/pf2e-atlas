@@ -245,13 +245,14 @@ test("long entry notes read in the selected record pane and preserve both scroll
     await expect(
       rules.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
     ).toBeVisible();
-    const rulesPosition = await rules.evaluate((node) => {
-      node.scrollTop = node.scrollHeight;
-      return node.scrollTop;
+    await rules.evaluate((node) => {
+      // The bottom edge moves as the record loads. Bookmark an interior reading position.
+      node.scrollTop = node.clientHeight;
     });
-    expect(rulesPosition).toBeGreaterThan(0);
     await page.screenshot({ path: info.outputPath("long-note-footer.png") });
 
+    const rulesPosition = await rules.evaluate((node) => node.scrollTop);
+    expect(rulesPosition).toBeGreaterThan(0);
     await activate(read, info);
     const noteHeading = footer.getByRole("heading", {
       name: "Atlas Sentinel",
