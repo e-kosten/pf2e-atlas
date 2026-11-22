@@ -112,10 +112,10 @@ The host retains the requested destination and returns to setup with a retry
 action if the initial render fails. Retry uses the published workspace.
 Fresh managed setup opens the primary window on a verified keyword publication
 receipt from the setup child. The child continues semantic preparation under
-the same setup guard. A narrowly scoped product permission exposes the native
-Setup and Updates drawer and its typed maintenance actions. The host validates the WebView,
+the same setup guard. Desktop Settings and the workspace toolbar subscribe
+to the host's setup and update snapshot. The host validates the WebView,
 loopback origin, service instance, current document attachment and job on each
-action. Product documents disallow child frames. The drawer displays stored
+action. Product documents disallow child frames. Settings displays stored
 reference metadata and the bundled source pin. The bundled setup child checks
 the offered workspace identity, published generation and requested
 configuration under setup and publication ownership before updating the
@@ -123,8 +123,9 @@ current-format workspace. The host owns the job across all windows and
 reconciles the committed generation after it ends. A generation change tells
 mounted product views to refresh reference queries in place. Asset repairs
 with the same generation refresh readiness. The bundled surface handles first
-launch, workspace upgrades and recovery. On macOS it also owns terminal
-command linking. The Windows menu shows the installed sidecar path.
+launch, workspace upgrades and recovery. Terminal access remains available
+from the native menu during bootstrap. After attachment, Settings offers
+command linking on macOS and the bundled PowerShell command on Windows.
 The shared managed worker can warm the model on first attachment or after
 receiving an authenticated publication notification without adding a lease.
 
@@ -144,7 +145,13 @@ reads. The entity header supplies the current identity and title to its copy
 action. The native host checks the attached product document before writing the
 clipboard. Browsers copy the corresponding HTTP(S) detail URL.
 
-macOS uses AppKit window groups. The Windows tabs prototype uses one WebView2
+macOS uses AppKit window groups for workspaces and a single modeless Settings
+window outside those groups. The host remembers the selected Settings pane.
+Workspace links and copy-link commands target workspace documents. Windows
+keeps one Settings tab per window, with its own internal route and a return
+tab. The frontend mounts Settings independently of gameplay routes. The
+internal Settings routes are valid in tab snapshots. Native entity links
+continue to use the entity codec. The Windows tabs implementation uses one WebView2
 per product window and forwards protocol activations to the existing host
 process. Each Windows tab has a window-independent identity and a TanStack
 memory history over the shared route tree. The React tab shell owns live tab

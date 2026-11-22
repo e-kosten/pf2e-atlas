@@ -17,9 +17,8 @@ opening the app, then go to **System Settings → Privacy & Security → Open An
 to approve that download. See [Apple's first-open instructions](https://support.apple.com/en-us/102445).
 
 Open the app and choose **Set up Atlas** on a new workspace. For upgrades,
-quit Atlas, replace the app in Applications, reopen it, and use **Setup and
-Updates** if Atlas asks to prepare the workspace. Stable and Nightly use the same
-selected data by default. Channel switching lives in **Setup and Updates**.
+quit Atlas, replace the app in Applications, reopen it, and choose **Update workspace** if Atlas asks to prepare your data. Stable and
+Nightly use the same selected data by default.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
 Access** to link it at `~/.local/bin/atlas`. If you already installed a
@@ -31,9 +30,9 @@ To switch back, rerun the standalone installer.
 
 ## Desktop updates
 
-When a newer build is available on your installed channel, **Update** appears
-beside Setup. Open it to see the version and any setup notice. Choose
-**Install update** when you are ready to restart Atlas. If the update requires
+When a newer build is available on your installed channel, **Update available** appears
+in the workspace toolbar. Open it to see the version and any setup notice. Choose
+**Install and restart** when you are ready to restart Atlas. If the update requires
 setup afterward, follow the instructions Atlas shows on restart. An interrupted
 download can be retried in Atlas.
 
@@ -42,9 +41,9 @@ first updater-enabled release the same way you installed Atlas originally.
 
 ### Switch between Stable and Nightly
 
-Open **Setup and Updates** in Atlas Desktop. On Stable, expand **Preview builds**
-and choose **Try Nightly…**. On Nightly, choose **Change release channel** to return
-to Stable. Choose which data to use and check the other channel's compatibility.
+On macOS, open **PF2e Atlas → Settings…** (⌘,), select **Updates**, and open
+**Release channel**. On Windows, open **Settings** (Ctrl+,) and select
+**Release channel**. Choose which data to use and check the other channel's compatibility.
 Atlas shows the version and any setup requirements before installing.
 
 Choose **Use my current data** to keep the same campaign on
@@ -69,7 +68,7 @@ explicit `--index` path; Terminal and agent access shows the app's current path.
 If Stable cannot open the selected workspace, choose **Stay on this build and
 wait for the next Stable release** to stop checking for Nightly updates, or **Keep checking for Nightly updates
 while waiting**. Atlas saves the choice across restarts and asks before
-installing a compatible Stable. Change or cancel the request in Setup and Updates.
+installing a compatible Stable. Change or cancel the request under **Release channel**.
 
 Guided switching requires release builds with signed workspace compatibility.
 If an installer was interrupted, close it before resuming the previous workspace.
@@ -88,7 +87,7 @@ unsigned, so Windows may show a warning when you open it.
 
 Run the installer, open **PF2e Atlas** from the Start menu, and choose **Set up
 Atlas** for a new workspace. To update, close Atlas and run the installer from
-the newer release. When Atlas reopens, use **Setup and Updates** if prompted.
+the newer release. When Atlas reopens, choose **Update workspace** if prompted.
 
 ## Standalone CLI
 

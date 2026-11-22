@@ -73,7 +73,7 @@ Choose **Set up Atlas** when the workspace is empty. The app downloads the
 pinned reference data and opens the workspace in the same window as soon as
 the keyword index is ready. You can browse and search while Atlas prepares
 semantic search. Saves are paused across Atlas sessions during setup and resume
-when setup ends. Open **Setup and Updates** in the toolbar to see progress or cancel.
+when setup ends. Select the setup activity in the toolbar to see progress or cancel.
 If you cancel after keyword search is ready, use **Resume semantic setup** to
 continue later. If precomputed embeddings are unavailable, choose
 **Retry download** or **Build embeddings locally**. The local build can take an
@@ -84,7 +84,10 @@ use the prepared workspace. If Atlas asks you to upgrade
 a workspace, close any other Atlas sessions using that workspace and choose
 **Update workspace**.
 
-The toolbar and **PF2e Atlas → Setup and Updates** open the same drawer.
+On macOS, **PF2e Atlas → Settings…** (⌘,) opens a separate window. Use its
+**Search & data** pane for workspace maintenance. On Windows, open **Settings**
+(Ctrl+,) and choose **Search and reference data**. Close the Settings tab to
+return to your work.
 Each Atlas build pins a Foundry PF2e revision. After installing a build with
 a different pin, confirm **Apply bundled reference data** to prepare that
 build's reference data. Use **Check and repair reference data** to check the
