@@ -10,6 +10,10 @@ and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 The roster shows Draft until the encounter runs. Eight macOS references expose
 the affected caption, six in desktop Chromium and two in tablet WebKit. These
 were captured on macOS 27.2.1 arm64 with Playwright 1.65.0 at `ddaa2d90a`.
+On Ubuntu 24.04, six desktop Chromium and six tablet WebKit frames show the
+caption. These references come from the
+[Linux capture for PR #412](https://github.com/e-kosten/pf2e-atlas/actions/runs/45272875299)
+using Playwright 1.65.0 and the PR merge candidate `ea375fc6a`.
 
 ## Characters in global navigation
 
