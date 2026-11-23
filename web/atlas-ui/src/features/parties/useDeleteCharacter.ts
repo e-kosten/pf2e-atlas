@@ -15,7 +15,8 @@ export function useDeleteCharacter(onDeleted?: () => Promise<void>) {
     confirm({
       title: `Delete ${character.name}?`,
       okText: "Delete character",
-      content: "Removes this character from parties and unlinks their encounter rules.",
+      content:
+        "Removes this character from all parties. Existing encounters keep their stats and lose access to their abilities.",
       onConfirm: async () => {
         try {
           await deleteCharacter(character.character_key, {
