@@ -299,8 +299,16 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
                     println!("No saved encounters.");
                 }
                 for encounter in view.encounters {
+                    let archived = if encounter.archived {
+                        " · Archived"
+                    } else {
+                        ""
+                    };
+                    let progress = output::turn_progress(&encounter)
+                        .map(|value| format!(" · {value}"))
+                        .unwrap_or_default();
                     println!(
-                        "{} · {} ({} participants)",
+                        "{} · {} ({} participants){progress}{archived}",
                         encounter.slug, encounter.name, encounter.participant_count
                     );
                 }

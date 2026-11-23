@@ -389,3 +389,95 @@ fn creation_receipts_remain_with_the_owner_after_copy_and_deletion() -> crate::L
     assert_eq!(local.creation_receipt("same", &digest)?, Some(key));
     Ok(())
 }
+
+#[test]
+fn legacy_encounter_import_maps_each_saved_phase_and_exports_only_v3() -> crate::LocalStateResult<()>
+{
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/encounter-v1.json"))?;
+    let target = TestStore::open(temp_path("legacy-archive-membership"))?;
+    let mut db = target.connection()?;
+    let tx = db.transaction()?;
+    let writer = EncountersWrite::from_connection(&tx, 1);
+    for version in [1, 2] {
+        for phase in ["draft", "running", "complete", "archived"] {
+            let mut old = fixture.clone();
+            old["version"] = version.into();
+            old["snapshot"]["encounter"]["status"] = phase.into();
+            let imported = writer.import_document(
+                EncounterDocument::read(old.to_string().as_bytes())?,
+                Some(format!("copy-{version}-{phase}")),
+            )?;
+            assert_eq!(imported.archived, phase == "archived");
+            assert_eq!((imported.revision, imported.round_number), (8, 3));
+            let new: serde_json::Value = serde_json::from_slice(
+                &writer.export_document(&imported.encounter_key)?.encode()?,
+            )?;
+            assert_eq!(new["version"], 3);
+            let frozen = new.pointer("/outgoing/turn/snapshot/encounter").unwrap();
+            assert_eq!(frozen["archived"], false);
+            assert_eq!(frozen["revision"], 6);
+            for path in ["/snapshot/encounter", "/outgoing/turn/snapshot/encounter"] {
+                let root = new.pointer(path).unwrap();
+                assert!(root.get("status").is_none());
+                assert!(root["archived"].is_boolean());
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn encounter_file_version_requires_matching_live_and_frozen_archive_fields() {
+    let document: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/encounter-v1.json")).unwrap();
+    for path in ["/snapshot/encounter", "/outgoing/turn/snapshot/encounter"] {
+        for replacement in [
+            serde_json::json!({"status":"typo"}),
+            serde_json::json!({"status":"draft","archived":false}),
+            serde_json::json!({"archived":false}),
+            serde_json::json!({}),
+        ] {
+            let mut value = document.clone();
+            let root = value.pointer_mut(path).unwrap().as_object_mut().unwrap();
+            root.remove("status");
+            root.extend(replacement.as_object().unwrap().clone());
+            assert!(EncounterDocument::read(value.to_string().as_bytes()).is_err());
+        }
+    }
+    let mut value = document;
+    value["version"] = 3.into();
+    assert!(EncounterDocument::read(value.to_string().as_bytes()).is_err());
+}
+
+#[test]
+fn direct_document_encode_and_import_check_the_declared_membership_version()
+-> crate::LocalStateResult<()> {
+    let fixture = include_str!("../../tests/fixtures/encounter-v1.json");
+    let target = TestStore::open(temp_path("direct-document-membership"))?;
+    let mut db = target.connection()?;
+    let tx = db.transaction()?;
+    let writer = EncountersWrite::from_connection(&tx, 1);
+    let mut invalid: serde_json::Value = serde_json::from_str(fixture)?;
+    invalid["version"] = 3.into();
+    let mut wrong: EncounterDocument = serde_json::from_value(invalid)?;
+    assert!(wrong.encode().is_err());
+    assert!(writer.import_document(wrong, None).is_err());
+    assert!(writer.list()?.is_empty());
+
+    let mut old: EncounterDocument = serde_json::from_str(fixture)?;
+    let encoded: serde_json::Value = serde_json::from_slice(&old.encode()?)?;
+    assert_eq!(encoded["version"], 3);
+    assert_eq!(encoded["snapshot"]["encounter"]["archived"], true);
+    let old: EncounterDocument = serde_json::from_str(fixture)?;
+    let copy = writer.import_document(old, None)?;
+    let copied_turn: String = tx.query_row(
+        "SELECT payload_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE e.encounter_key=?1",
+        [&copy.encounter_key], |row| row.get(0),
+    )?;
+    let stored: serde_json::Value = serde_json::from_str(&copied_turn)?;
+    let root = &stored["payload"]["snapshot"]["encounter"];
+    assert_eq!(root["archived"], false);
+    assert!(root.get("status").is_none());
+    Ok(())
+}

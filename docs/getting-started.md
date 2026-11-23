@@ -55,7 +55,13 @@ members together.
 See [saved parties](#saved-parties) for roster and character management.
 
 Use the encounter controls to set initiative, move through turns, adjust HP,
-track conditions and spell resources, and roll dice.
+track conditions and spell resources, and roll dice. Close an encounter between
+sessions and reopen it to resume from the saved round and participant.
+
+When you're done, choose **Archive** from the encounter or its row in Encounters.
+It moves to the **Archived** tab and disappears from the ordinary add-to-encounter
+picker. Choose **Restore** to return it to **Active** with its roster and turn
+intact. To replay the encounter from round one, use the separate reset action.
 
 Select a participant and choose **Add tracker** under Trackers for reminders such
 as “Breath Weapon.” Enter a duration and choose whose turn counts it down, at its

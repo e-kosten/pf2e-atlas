@@ -168,7 +168,7 @@ impl EncountersWrite<'_> {
             if end_turn || reset_encounter {
                 self.connection.execute("DELETE FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2)", params![key,self.owner_id])?;
             }
-            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),status=CASE WHEN ?2 THEN 'draft' ELSE status END,round_number=CASE WHEN ?2 THEN 1 ELSE round_number END,current_turn_participant_key=CASE WHEN ?3 OR ?2 THEN NULL ELSE current_turn_participant_key END WHERE encounter_key=?1 AND owner_id=?4", params![key,reset_encounter,end_turn,self.owner_id])?;
+            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),round_number=CASE WHEN ?2 THEN 1 ELSE round_number END,current_turn_participant_key=CASE WHEN ?3 OR ?2 THEN NULL ELSE current_turn_participant_key END WHERE encounter_key=?1 AND owner_id=?4", params![key,reset_encounter,end_turn,self.owner_id])?;
             Ok(())
         })
     }

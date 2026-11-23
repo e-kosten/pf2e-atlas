@@ -5,13 +5,14 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
-## Draft encounter caption
+## Draft encounter caption in PR #412
 
-The roster shows Draft until the encounter runs. Eight macOS references expose
-the affected caption, six in desktop Chromium and two in tablet WebKit. These
-were captured on macOS 27.2.1 arm64 with Playwright 1.65.0 at `ddaa2d90a`.
-On Ubuntu 24.04, six desktop Chromium and six tablet WebKit frames show the
-caption. These references come from the
+PR #412 hid the round number on the Draft caption until the encounter ran.
+PR #413 subsequently removed that caption, as documented under [Encounter turn summary](#encounter-turn-summary).
+Eight macOS references showed the earlier caption, six in desktop Chromium and
+two in tablet WebKit. These were captured on macOS 27.2.1 arm64 with Playwright 1.65.0 at `ddaa2d90a`.
+On Ubuntu 24.04, six desktop Chromium and six tablet WebKit frames showed the
+caption. Those references came from the
 [Linux capture for PR #412](https://github.com/e-kosten/pf2e-atlas/actions/runs/45272875299)
 using Playwright 1.65.0 and the PR merge candidate `ea375fc6a`.
 
@@ -861,3 +862,19 @@ c0cc04d0655f04ca434d42352b1f502bf827fb4d on Ubuntu 24.04 x64.
 The macOS references were captured from the resolved PR worktree with the
 encounter-action guard restored on macOS 27.2 arm64. Both used Playwright 1.65.0
 and all four device projects.
+
+## Encounter turn summary
+
+PR #413 removes the draft and running labels from the roster and displays the
+round and current participant together once a turn starts. The longer label
+wraps in the roster and moves the participant rows below it. Twenty desktop
+Chromium and tablet WebKit references per platform incorporate the affected
+roster pixels. The condition and recovery surfaces retain their previous
+references outside that region. Both phone projects retain their existing PNGs.
+
+The [Linux capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45278561699)
+used the fixture from [PR CI](https://github.com/e-kosten/pf2e-atlas/actions/runs/45275215394),
+merge commit e34245c98f23cd4a494c0b6a7964ed08a49c722e on Ubuntu 24.04 x64.
+The macOS capture used PR head c52274659 on macOS 27.2.1 arm64. Both used
+Playwright 1.65.0. All 40 Linux capture frames matched the revised references
+with the suite's regular image comparator and zero permitted differing pixels.

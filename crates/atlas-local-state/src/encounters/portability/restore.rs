@@ -8,6 +8,7 @@ impl EncountersWrite<'_> {
         slug: Option<String>,
     ) -> LocalStateResult<Encounter> {
         let mut identities = document.validate()?;
+        document.normalize_membership();
         let db = self.connection;
         crate::atomic_action::run(db, || {
             let root = &document.snapshot.encounter;
@@ -49,12 +50,12 @@ pub(super) fn write_document(
     }
     let root = &document.snapshot.encounter;
     db.execute(
-        "UPDATE encounters SET status=?2,round_number=?3,current_turn_participant_key=?4,
+        "UPDATE encounters SET archived=?2,round_number=?3,current_turn_participant_key=?4,
          created_at=?5,updated_at=?6,revision=?7,difficulty_party_level=?8,
          difficulty_party_size=?9,round_duration_seconds=?10 WHERE id=?1",
         params![
             id,
-            root.status.as_str(),
+            root.archived,
             root.round_number,
             root.current_turn_participant_key,
             root.created_at,

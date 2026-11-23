@@ -867,7 +867,7 @@ fn imported_references_refresh_once_across_shared_parties_encounters_and_recover
         .unwrap();
     let bytes = capture_archive(service.workspace_path());
     let raw: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(raw["version"], "5.0");
+    assert_eq!(raw["version"], "7.0");
     let mut invalid = raw.clone();
     invalid["version"] = json!("4.0");
     assert!(WorkspaceArchive::read(invalid.to_string().as_bytes()).is_err());
@@ -984,7 +984,7 @@ fn deleted_character_creation_history_round_trips_without_recreating_it() {
 }
 
 #[test]
-fn historical_encounter_addition_alone_requires_v4_and_replays_without_recreation() {
+fn historical_encounter_addition_replays_without_recreation() {
     let (directory, service) = service();
     let encounter_key = encounter(&service);
     let request = AddEncounterCharacterRequest {
@@ -1011,7 +1011,7 @@ fn historical_encounter_addition_alone_requires_v4_and_replays_without_recreatio
         .unwrap();
     let bytes = capture_archive(service.workspace_path());
     let archive: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(archive["version"], "4.0");
+    assert_eq!(archive["version"], "7.0");
     let pc_history = &archive["saved"]["owners"][0]["pc"];
     assert!(pc_history.get("characters").is_none());
     assert!(pc_history.get("creation_receipts").is_none());
@@ -1311,7 +1311,7 @@ fn legacy_pathbuilder_receipts_replay_without_replacing_the_saved_character() {
 
     let bytes = capture_archive(service.workspace_path());
     let archive: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(archive["version"], "4.0");
+    assert_eq!(archive["version"], "7.0");
     let restored_path = directory.path().join("restored-legacy.sqlite");
     restore_archive(&restored_path, &bytes);
     let restored = service_at(&restored_path);

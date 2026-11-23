@@ -26,11 +26,12 @@ fn validate_adjustments(adjustments: &[EncounterAdjustment]) -> LocalStateResult
 
 impl EncounterDocument {
     pub(super) fn validate(&mut self) -> LocalStateResult<Identities> {
-        if !matches!(self.version, VERSION | ADJUSTMENT_VERSION)
-            || (self.version == VERSION && self.requires_adjustment_support())
+        if !matches!(self.version, LEGACY_VERSION | ADJUSTMENT_VERSION | VERSION)
+            || (self.version == LEGACY_VERSION && self.requires_adjustment_support())
         {
             return Err(invalid("unsupported encounter file version"));
         }
+        self.require_membership_shape(self.version < VERSION)?;
         let root = &self.snapshot.encounter;
         crate::slug::validate_slug(&root.slug)?;
         let participants = validate_snapshot(&self.snapshot)?;
@@ -172,7 +173,7 @@ impl EncounterDocument {
     }
 }
 
-fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<BTreeSet<&str>> {
+fn validate_snapshot(snapshot: &ArchiveSnapshot) -> LocalStateResult<BTreeSet<&str>> {
     let root = &snapshot.encounter;
     if root.encounter_key.is_empty()
         || !(0..i64::MAX).contains(&root.revision)
@@ -450,7 +451,7 @@ impl Identities {
         }
     }
 
-    fn snapshot(&mut self, snapshot: &mut EncounterWithParticipants) {
+    fn snapshot(&mut self, snapshot: &mut ArchiveSnapshot) {
         if let Some((key, slug)) = &self.encounter_identity {
             snapshot.encounter.encounter_key.clone_from(key);
             snapshot.encounter.slug.clone_from(slug);

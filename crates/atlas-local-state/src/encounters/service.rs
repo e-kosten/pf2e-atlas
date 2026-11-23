@@ -287,11 +287,12 @@ impl EncountersWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(encounter_ref)?;
             let transaction = self.connection;
-            let result = storage::set_current_turn(
+            let result = storage::set_turn_state(
                 transaction,
                 self.owner_id,
                 encounter_ref,
                 participant_key,
+                None,
             )?;
 
             Ok(result)
@@ -303,7 +304,6 @@ impl EncountersWrite<'_> {
         encounter_ref: &str,
         participant_key: Option<&str>,
         round_number: i64,
-        mark_running: bool,
     ) -> LocalStateResult<bool> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(encounter_ref)?;
@@ -314,7 +314,6 @@ impl EncountersWrite<'_> {
                 encounter_ref,
                 participant_key,
                 Some(round_number),
-                mark_running,
             )?;
 
             Ok(result)
@@ -343,7 +342,6 @@ impl EncountersWrite<'_> {
                 encounter_ref,
                 turn.participant_key.as_deref(),
                 Some(turn.round_number),
-                turn.mark_running,
             )?;
             let result = storage::get(transaction, self.owner_id, encounter_ref)?;
 
@@ -384,7 +382,6 @@ impl EncountersWrite<'_> {
                     encounter_ref,
                     turn.participant_key.as_deref(),
                     Some(turn.round_number),
-                    turn.mark_running,
                 )?;
             }
             let result = storage::get(transaction, self.owner_id, encounter_ref)?;

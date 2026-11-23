@@ -190,13 +190,13 @@ fn major_minor_admission_and_conflicting_configuration_leave_no_partial_restore(
         &input,
         &serde_json::json!({
             "format": "pf2e-atlas-workspace",
-            "version": "7.0",
+            "version": "8.0",
             "future_saved_state": {}
         }),
     );
     failure(
         workspace_command(&db, "restore", &input, &[]),
-        "Unsupported workspace archive version 7.0",
+        "Unsupported workspace archive version 8.0",
     );
     archive["version"] = "1.10".into();
     archive["saved"]["owners"][0]["lists"][0]["future_display_hint"] = "ignored".into();
@@ -267,11 +267,11 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
         INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
             SELECT id,'bestiary:aaaaaaaaaaaaaaaa',13,'Keep this note','Saved title','added','edited'
             FROM saved_lists WHERE list_key='guest-list';
-        INSERT INTO encounters(owner_id,encounter_key,slug,name,status,round_number,created_at,updated_at,revision)
-            SELECT id,'enc-running','live','Live','running',4,'created','updated',8
+        INSERT INTO encounters(owner_id,encounter_key,slug,name,archived,round_number,created_at,updated_at,revision)
+            SELECT id,'enc-running','live','Live',0,4,'created','updated',8
             FROM principals WHERE principal_key='guest';
-        INSERT INTO encounters(owner_id,encounter_key,slug,name,status,round_number,created_at,updated_at)
-            SELECT id,'enc-archived','enc-running','Archived','archived',6,'created','updated'
+        INSERT INTO encounters(owner_id,encounter_key,slug,name,archived,round_number,created_at,updated_at)
+            SELECT id,'enc-archived','enc-running','Archived',1,6,'created','updated'
             FROM principals WHERE principal_key='guest';
         INSERT INTO encounter_participants(encounter_id,participant_key,record_key,participant_kind,
                     position,display_name,initiative,initiative_order,created_at,updated_at)
@@ -317,7 +317,7 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
         2
     );
     assert_eq!(original["saved"]["condition_floor"], 73);
-    assert_eq!(original["version"], "4.0");
+    assert_eq!(original["version"], "7.0");
     assert_eq!(original["saved"]["owners"][0]["lists"][0]["archived"], true);
     assert!(
         original["saved"]["owners"][0]["encounters"]
@@ -348,11 +348,11 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
     let encounters = incompatible["saved"]["owners"][0]["encounters"]
         .as_array_mut()
         .unwrap();
-    encounters[0]["snapshot"]["encounter"]["status"] = "future_status".into();
+    encounters[0]["snapshot"]["encounter"]["archived"] = "yes".into();
     write_archive(&recovered, &incompatible);
     failure(
         workspace_command(&dest, "restore", &recovered, &[]),
-        "future_status",
+        "boolean",
     );
     fs::remove_file(&recovered).unwrap();
 
@@ -467,8 +467,16 @@ fn rich_sample_round_trips_and_retries_through_the_app_offline() {
 
     success(workspace_command(&db, "export", &reexported, &[]));
     let mut expected = read_archive(&sample);
-    expected["version"] = "4.0".into();
+    expected["version"] = "7.0".into();
     for owner in expected["saved"]["owners"].as_array_mut().unwrap() {
+        for encounter in owner["encounters"].as_array_mut().unwrap() {
+            for path in ["/snapshot/encounter", "/outgoing/turn/snapshot/encounter"] {
+                if let Some(root) = encounter.pointer_mut(path).and_then(Value::as_object_mut) {
+                    let old_status = root.remove("status").unwrap();
+                    root.insert("archived".into(), Value::Bool(old_status == "archived"));
+                }
+            }
+        }
         let mut characters = Vec::new();
         let mut memberships = Vec::new();
         for party in owner["parties"].as_array_mut().unwrap() {

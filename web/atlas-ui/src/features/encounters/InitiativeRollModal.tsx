@@ -134,6 +134,7 @@ export function InitiativePopover({
     >
       <Button
         ref={trigger}
+        block
         type="text"
         size="small"
         disabled={disabled}

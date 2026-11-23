@@ -7,7 +7,7 @@ const encounter: EncounterSummaryView = {
   encounter_key: "clock",
   slug: "clock",
   name: "Clock encounter",
-  status: "draft",
+  archived: false,
   round_number: 1,
   round_duration_seconds: 6,
   participant_count: 0,

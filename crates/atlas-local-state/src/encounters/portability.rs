@@ -1,4 +1,5 @@
 //! A versioned encounter document. Storage IDs are scoped to the document.
+mod archive_membership;
 mod identities;
 mod restore;
 mod snapshot;
@@ -6,6 +7,7 @@ pub(crate) mod workspace;
 
 use super::*;
 use crate::{LocalStateError, LocalStateResult};
+use archive_membership::{ArchiveRoot, ArchiveSnapshot, ArchiveTurn, LegacyPhase};
 use serde::{
     Deserialize, Serialize,
     de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor},
@@ -13,7 +15,8 @@ use serde::{
 use serde_json::Value;
 use std::io::{Read, Write};
 
-const VERSION: u32 = 1;
+const VERSION: u32 = 3;
+const LEGACY_VERSION: u32 = 1;
 const ADJUSTMENT_VERSION: u32 = 2;
 const BYTE_LIMIT: usize = 64 * 1024 * 1024;
 const ENTRY_LIMIT: usize = 100_000;
@@ -22,7 +25,7 @@ const ENTRY_LIMIT: usize = 100_000;
 #[serde(deny_unknown_fields)]
 pub struct EncounterDocument {
     version: u32,
-    snapshot: EncounterWithParticipants,
+    snapshot: ArchiveSnapshot,
     baselines: Vec<Baseline>,
     pending: Vec<SavedPendingConsequence>,
     applications: Vec<Application>,
@@ -84,7 +87,7 @@ enum ReceiptOutcome {
 struct Outgoing {
     request_id: String,
     requires_review: bool,
-    turn: SavedOutgoingTurn,
+    turn: ArchiveTurn,
 }
 
 fn invalid(message: impl Into<String>) -> LocalStateError {
@@ -92,6 +95,28 @@ fn invalid(message: impl Into<String>) -> LocalStateError {
 }
 
 impl EncounterDocument {
+    fn require_membership_shape(&self, legacy: bool) -> LocalStateResult<()> {
+        if self.snapshot.encounter.legacy_phase.is_some() != legacy
+            || self
+                .outgoing
+                .as_ref()
+                .is_some_and(|row| row.turn.snapshot.encounter.legacy_phase.is_some() != legacy)
+        {
+            return Err(invalid(
+                "encounter archive membership disagrees with file version",
+            ));
+        }
+        Ok(())
+    }
+
+    fn normalize_membership(&mut self) {
+        self.version = VERSION;
+        self.snapshot.encounter.legacy_phase = None;
+        if let Some(row) = &mut self.outgoing {
+            row.turn.snapshot.encounter.legacy_phase = None;
+        }
+    }
+
     fn requires_adjustment_support(&self) -> bool {
         has_adjustments(&self.snapshot)
             || self
@@ -120,11 +145,13 @@ impl EncounterDocument {
         let mut document: Self =
             serde_json::from_slice(&bytes).map_err(|err| invalid(err.to_string()))?;
         document.validate()?.check_budget(remaining)?;
+        document.normalize_membership();
         Ok(document)
     }
 
     pub fn encode(&mut self) -> LocalStateResult<Vec<u8>> {
         let identities = self.validate()?;
+        self.normalize_membership();
         let mut output = BoundedDocument(Vec::new());
         serde_json::to_writer(&mut output, &self).map_err(|err| invalid(err.to_string()))?;
         output.write_all(b"\n")?;
@@ -145,7 +172,7 @@ impl EncounterDocument {
     }
 }
 
-fn has_adjustments(snapshot: &EncounterWithParticipants) -> bool {
+fn has_adjustments(snapshot: &ArchiveSnapshot) -> bool {
     snapshot
         .participants
         .iter()
@@ -157,7 +184,7 @@ fn is_adjustment_intent(intent: &Value) -> bool {
 }
 
 fn snapshot_markdown_keys(
-    snapshot: &EncounterWithParticipants,
+    snapshot: &ArchiveSnapshot,
 ) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
     snapshot
         .participants
@@ -167,7 +194,7 @@ fn snapshot_markdown_keys(
 }
 
 fn snapshot_record_keys(
-    snapshot: &EncounterWithParticipants,
+    snapshot: &ArchiveSnapshot,
     outgoing: Option<&Outgoing>,
 ) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
     let historical = outgoing

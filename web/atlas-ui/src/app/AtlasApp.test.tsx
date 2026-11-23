@@ -1361,7 +1361,7 @@ describe("AtlasApp routing", () => {
             encounter_key: "enc_ambush",
             slug: "ambush",
             name: "Ambush",
-            status: "draft",
+            archived: false,
           },
         ],
       });

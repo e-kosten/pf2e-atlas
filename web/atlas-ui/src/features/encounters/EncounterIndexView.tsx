@@ -8,19 +8,27 @@ import { useRouterState } from "@tanstack/react-router";
 import { encounterIndexSearch } from "../../app/routeSearch";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Tooltip, Button, Tabs } from "antd";
+import { Button, Tabs } from "antd";
 import type { ColumnType, ColumnsType } from "antd/es/table";
-import { Edit2, Plus, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { Edit2, Plus } from "lucide-react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
 import type { EncounterDetailView, EncounterSummaryView } from "../../generated/atlas";
 import { formatDate } from "../../shared/ui/formatDate";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
-import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
+import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
+import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
+import { isUnconfirmedMutation } from "../../api/apiError";
+import { canFocusTabElement, useTabCloseGuard } from "../../app/DesktopTabContext";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 
-import { displayRound, encounterStatusLabels } from "./encounterStatus";
+import {
+  archiveNeedsRefresh,
+  encounterTurnText,
+  setEncounterArchived,
+  useArchiveError,
+} from "./encounterSummary";
 import { CreateEncounterModal } from "./EncounterModals";
 import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
 import { useCanonicalEncounter } from "./useEncounterQuery";
@@ -45,9 +53,73 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   });
   const { view } = encounterIndexSearch(search);
   const encounters = useQuery({ queryKey: ["encounters"], queryFn: getEncounters });
+  const archiveOpener = useRef<HTMLButtonElement | null>(null);
+  const tabs = useRef<HTMLDivElement>(null);
   const visible = (encounters.data?.encounters ?? []).filter(
-    (encounter) => (view === "archived") === (encounter.status === "archived"),
+    (encounter) => (view === "archived") === encounter.archived,
   );
+  useLayoutEffect(() => {
+    const opener = archiveOpener.current;
+    if (!opener || opener.isConnected) return;
+    archiveOpener.current = null;
+    const tab = tabs.current?.querySelector<HTMLElement>(
+      '[role="tab"][aria-selected="true"]',
+    );
+    if (canFocusTabElement(tab)) restoreOverlayFocus(tab, undefined);
+  }, [view, encounters.data]);
+  const [archiveRefreshFailure, setArchiveRefreshFailure] = useState<{
+    error: unknown;
+    outcome: "saved" | "changed" | "uncertain";
+  }>();
+  const archiveMutation = useMutation({
+    onMutate: ({ opener }) => {
+      archiveOpener.current = opener;
+      setArchiveRefreshFailure(undefined);
+    },
+    retry: false,
+    mutationFn: ({
+      encounter,
+    }: {
+      encounter: EncounterSummaryView;
+      opener: HTMLButtonElement;
+    }) => setEncounterArchived(encounter.encounter_key, !encounter.archived),
+    onSettled: async (_receipt, error, { encounter }) => {
+      if (error && !archiveNeedsRefresh(error)) return;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["encounters"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["encounter", encounter.encounter_key],
+          exact: true,
+        }),
+      ]);
+      const readError = queryClient.getQueryState(["encounters"])?.error;
+      if (readError) {
+        setArchiveRefreshFailure({
+          error: readError,
+          outcome: !error
+            ? "saved"
+            : isUnconfirmedMutation(error)
+              ? "uncertain"
+              : "changed",
+        });
+      }
+    },
+  });
+  const archiveOutcome =
+    encounters.error && encounters.error === archiveRefreshFailure?.error
+      ? archiveRefreshFailure.outcome
+      : undefined;
+  const archiveTarget = archiveMutation.variables?.encounter;
+  const observedMembership = encounters.data?.encounters.find(
+    (row) => row.encounter_key === archiveTarget?.encounter_key,
+  )?.archived;
+  const archiveError = useArchiveError(
+    archiveMutation.error,
+    archiveTarget && !archiveTarget.archived,
+    encounters.error ? undefined : observedMembership,
+    archiveMutation.reset,
+  );
+  useTabCloseGuard(() => (archiveMutation.isPending ? "pending" : undefined));
   const deleteMutation = useMutation({
     retry: false,
     mutationFn: (encounter: EncounterSummaryView) =>
@@ -112,28 +184,39 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           : undefined
       }
       toolbar={
-        <Tabs
-          aria-label="Encounter views"
-          activeKey={view}
-          onChange={(view) =>
-            navigateDestination(
-              encountersDestination({ view: view as "active" | "archived" }),
-              undefined,
-              atlasRouter,
-            )
-          }
-          items={[
-            { key: "active", label: "Active" },
-            { key: "archived", label: "Archived" },
-          ]}
-        />
+        <div ref={tabs}>
+          <Tabs
+            aria-label="Encounter views"
+            activeKey={view}
+            onChange={(view) =>
+              navigateDestination(
+                encountersDestination({ view: view as "active" | "archived" }),
+                undefined,
+                atlasRouter,
+              )
+            }
+            items={[
+              { key: "active", label: "Active" },
+              { key: "archived", label: "Archived" },
+            ]}
+          />
+        </div>
       }
       title="Encounters"
     >
       {encounters.error && (
         <ErrorNotice
           error={encounters.error}
-          title="Encounters could not load"
+          title={
+            archiveOutcome === "saved"
+              ? "Saved, but encounters could not refresh"
+              : archiveOutcome === "uncertain"
+                ? "Archive change could not be confirmed"
+                : archiveOutcome === "changed"
+                  ? "Encounter changed and could not refresh"
+                  : "Encounters could not load"
+          }
+          outcome={archiveOutcome}
           action={
             <Button
               onClick={() => void encounters.refetch()}
@@ -142,6 +225,12 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
               Retry encounters
             </Button>
           }
+        />
+      )}
+      {archiveError && !archiveOutcome && (
+        <ErrorNotice
+          error={archiveError}
+          title="Archive change could not be confirmed"
         />
       )}
       {deleteMutation.error && (
@@ -169,7 +258,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             if (editing.ref === encounter.encounter_key) editing.abandon();
             return deleteMutation.mutateAsync(encounter);
           },
-          paused || deleteMutation.isPending,
+          (encounter, opener) => archiveMutation.mutate({ encounter, opener }),
+          paused ||
+            deleteMutation.isPending ||
+            archiveMutation.isPending ||
+            !!encounters.error,
           editing.preparing ? editing.ref : undefined,
         )}
         dataSource={visible}
@@ -229,7 +322,8 @@ function EncounterIndexEditor({
 function encounterColumns(
   onEdit: (encounter: EncounterSummaryView, opener: HTMLElement) => void,
   onDelete: (encounter: EncounterSummaryView) => Promise<unknown>,
-  deleting: boolean,
+  onArchive: (encounter: EncounterSummaryView, opener: HTMLButtonElement) => void,
+  disabled: boolean,
   openingKey?: string,
 ) {
   const nameLink = (encounter: EncounterSummaryView) => (
@@ -241,21 +335,14 @@ function encounterColumns(
     {
       title: "Name",
       minWidth: 240,
-      width: 280,
       dataIndex: "name",
       render: (_, encounter) => nameLink(encounter),
     },
     {
-      title: "Status",
-      dataIndex: "status",
-      width: 120,
-      render: (_, encounter) => encounterStatusLabels[encounter.status],
-    },
-    {
-      title: "Round",
-      dataIndex: "round_number",
-      width: 90,
-      render: (_, encounter) => displayRound(encounter),
+      title: "Turn",
+      key: "turn",
+      width: 260,
+      render: (_, encounter) => encounterTurnText(encounter),
     },
     { title: "Participants", dataIndex: "participant_count", width: 120 },
     { title: "Updated", dataIndex: "updated_at", width: 180, render: formatDate },
@@ -269,7 +356,7 @@ function encounterColumns(
         <PaneIconButton
           label={`Edit ${encounter.name}`}
           aria-busy={openingKey === encounter.encounter_key}
-          disabled={deleting}
+          disabled={disabled}
           loading={openingKey === encounter.encounter_key ? { delay: 200 } : false}
           size="small"
           icon={<Edit2 size={14} />}
@@ -278,22 +365,12 @@ function encounterColumns(
             onEdit(encounter, event.currentTarget);
           }}
         />
-        <Tooltip title={`Delete ${encounter.name}`} trigger={["hover", "focus"]}>
-          <DangerActionButton
-            disabled={deleting}
-            aria-label={`Delete ${encounter.name}`}
-            confirmContent="This permanently deletes the encounter."
-            confirmOkText="Delete"
-            confirmTitle={`Delete ${encounter.name}?`}
-            icon={<Trash2 size={14} />}
-            onBeforeConfirm={(event) => {
-              stopIndexRowAction(event);
-            }}
-            onConfirm={() => onDelete(encounter)}
-            type="text"
-            size="small"
-          />
-        </Tooltip>
+        <EncounterRowMenu
+          encounter={encounter}
+          disabled={disabled}
+          onArchive={onArchive}
+          onDelete={onDelete}
+        />
       </span>
     ),
   };
@@ -305,25 +382,65 @@ function encounterColumns(
         {
           title: "Name",
           dataIndex: "name",
-          render: (_, encounter) => {
-            const round = displayRound(encounter);
-            return (
-              <div className="index-row-summary">
-                {nameLink(encounter)}
-                <div className="index-row-summary__facts">
-                  <span>{encounterStatusLabels[encounter.status]}</span>
-                  {round && <span>Round {round}</span>}
-                  <span>
-                    {encounter.participant_count.toLocaleString()}{" "}
-                    {encounter.participant_count === 1 ? "participant" : "participants"}
-                  </span>
-                </div>
+          render: (_, encounter) => (
+            <div className="index-row-summary">
+              {nameLink(encounter)}
+              <div className="index-row-summary__facts">
+                {encounterTurnText(encounter) && (
+                  <span>{encounterTurnText(encounter)}</span>
+                )}
+                <span>
+                  {encounter.participant_count.toLocaleString()}{" "}
+                  {encounter.participant_count === 1 ? "participant" : "participants"}
+                </span>
               </div>
-            );
-          },
+            </div>
+          ),
         },
         { ...actions, width: 96 },
       ] satisfies ColumnsType<EncounterSummaryView>,
     },
   };
+}
+
+function EncounterRowMenu({
+  encounter,
+  disabled,
+  onArchive,
+  onDelete,
+}: {
+  encounter: EncounterSummaryView;
+  disabled: boolean;
+  onArchive: (encounter: EncounterSummaryView, opener: HTMLButtonElement) => void;
+  onDelete: (encounter: EncounterSummaryView) => Promise<unknown>;
+}) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const { confirm, dialog } = useConfirmDangerAction();
+  return (
+    <>
+      <EntityActionsMenu
+        label={`More actions for ${encounter.name}`}
+        trigger={trigger}
+        disabled={disabled}
+        items={[
+          {
+            key: "archive",
+            label: encounter.archived ? "Restore encounter" : "Archive encounter",
+          },
+          { key: "delete", label: "Delete encounter", danger: true },
+        ]}
+        onAction={(key, opener) => {
+          if (key === "archive") onArchive(encounter, opener);
+          else
+            confirm({
+              title: `Delete ${encounter.name}?`,
+              content: "This permanently deletes the encounter.",
+              okText: "Delete",
+              onConfirm: () => onDelete(encounter),
+            });
+        }}
+      />
+      {dialog}
+    </>
+  );
 }

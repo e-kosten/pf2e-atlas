@@ -148,7 +148,7 @@ function AddToRecordModal({
   const paused = useSavedWritesPaused();
   const [destinationKind, setKind] = useState<DestinationKind>("list");
   const kind = encounterOnly ? "encounter" : canAddEncounter ? destinationKind : "list";
-  const [selected, setSelected] = useState<Destination | null>(null);
+  const [selection, setSelected] = useState<Destination | null>(null);
   const [creating, setCreating] = useState(false);
   const [createdList, setCreatedList] = useState(false);
   const [listCreateUncertain, setListCreateUncertain] = useState(false);
@@ -216,6 +216,15 @@ function AddToRecordModal({
     queryFn: getEncounters,
     enabled: open && kind === "encounter",
   });
+  const selected =
+    kind === "encounter" &&
+    !frozen &&
+    encounters.data &&
+    !encounters.data.encounters.some(
+      (row) => row.encounter_key === selection?.key && !row.archived,
+    )
+      ? null
+      : selection;
   const encounterKey =
     open && kind === "encounter" && !creating ? selected?.key : undefined;
   const encounter = useQuery({
@@ -301,7 +310,7 @@ function AddToRecordModal({
           slug: list.slug,
         }))
       : (encounters.data?.encounters ?? [])
-          .filter((encounter) => encounter.status !== "archived")
+          .filter((encounter) => !encounter.archived)
           .map((encounter) => ({
             key: encounter.encounter_key,
             name: encounter.name,

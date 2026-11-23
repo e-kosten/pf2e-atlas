@@ -2,18 +2,15 @@ import type { FormInstance } from "antd";
 import { useLayoutEffect, useRef, useState } from "react";
 import type {
   EncounterDetailView,
-  EncounterStatusView,
   EncounterSummaryView,
   UpdateEncounterRequest,
 } from "../../generated/atlas";
 import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
-import { encounterStatusLabels } from "./encounterStatus";
 
 type SavedSettings = {
   name: string;
   description: string | null;
   note: string | null;
-  status: EncounterStatusView;
   round_duration_seconds: number;
 };
 
@@ -37,7 +34,6 @@ const labels = {
   name: "Name",
   description: "Description",
   note: "Note",
-  status: "Status",
   round_duration_seconds: "Round duration",
 } satisfies Record<Setting, string>;
 
@@ -55,7 +51,6 @@ function savedSettings(
     name: encounter.name,
     description: encounter.description ?? null,
     note: note ?? null,
-    status: encounter.status,
     round_duration_seconds: encounter.round_duration_seconds,
   };
 }
@@ -69,8 +64,7 @@ function formValues(saved: SavedSettings): EncounterSettingsValues {
   };
 }
 
-function describe(setting: Setting, value: SavedSettings[Setting] | number): string {
-  if (setting === "status") return encounterStatusLabels[value as EncounterStatusView];
+function describe(value: SavedSettings[Setting]): string {
   return value == null || value === "" ? "Empty" : String(value);
 }
 
@@ -144,14 +138,12 @@ export function useEncounterSettingsDraft({
     const name = edit("name", (value) => value);
     const description = edit("description", (value) => value || null);
     const note = edit("note", (value) => value || null);
-    const status = edit("status", (value) => value);
     const roundDuration = edit("round_duration_seconds", (value) => value);
     try {
       await onSave({
         ...(name && { name }),
         ...(description && { description }),
         ...(note && { note }),
-        ...(status && { status }),
         ...(roundDuration && { round_duration_seconds: roundDuration }),
       });
       form.setFields(fields.map((field) => ({ name: field, touched: false })));
@@ -194,8 +186,8 @@ export function useEncounterSettingsDraft({
     return conflict.fields.map((field) => ({
       field,
       label: labels[field],
-      saved: describe(field, saved[field]),
-      draft: describe(field, form.getFieldValue(field)),
+      saved: describe(saved[field]),
+      draft: describe(form.getFieldValue(field)),
       onUseSaved: () => resolve(field, saved, true),
       onKeepMine: () => resolve(field, saved, false),
     }));

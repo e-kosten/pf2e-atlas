@@ -21,7 +21,6 @@ fn advance(
                         turn: EncounterTurnState {
                             participant_key: Some(key.into()),
                             round_number: current.round_number + 1,
-                            mark_running: true,
                         },
                         manual_trackers: vec![],
                         durations: vec![],
@@ -210,7 +209,6 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
                     turn: EncounterTurnState {
                         participant_key: Some(actor.participant_key.clone()),
                         round_number: 1,
-                        mark_running: true,
                     },
                     durations: vec![],
                     start_event: None,
@@ -246,7 +244,6 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
                             turn: EncounterTurnState {
                                 participant_key: Some(actor.participant_key.clone()),
                                 round_number: 2,
-                                mark_running: true
                             },
                             durations: vec![],
                             start_event: None,
@@ -282,7 +279,6 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
                         turn: EncounterTurnState {
                             participant_key: Some(actor.participant_key.clone()),
                             round_number: 2,
-                            mark_running: true,
                         },
                         durations: vec![],
                         start_event: None,
@@ -381,7 +377,6 @@ fn receipt_recovery_scopes_shared_slugs_and_request_ids_to_the_owner() -> crate:
                     turn: EncounterTurnState {
                         participant_key: Some(actor.participant_key),
                         round_number: 2,
-                        mark_running: true,
                     },
                     manual_trackers: vec![],
                     durations: vec![],
@@ -527,7 +522,6 @@ fn a_turn_callback_cannot_tick_a_condition_in_another_encounter() -> crate::Loca
                     turn: EncounterTurnState {
                         participant_key: Some(actor.participant_key),
                         round_number: 2,
-                        mark_running: true,
                     },
                     durations: vec![(condition_id, 1)],
                     manual_trackers: vec![],
@@ -549,5 +543,56 @@ fn a_turn_callback_cannot_tick_a_condition_in_another_encounter() -> crate::Loca
             .is_none()
     );
     assert!(local.latest_outgoing_turn("test")?.is_none());
+    Ok(())
+}
+
+#[test]
+fn archiving_mid_round_preserves_frozen_review_and_later_turns_stay_archived()
+-> crate::LocalStateResult<()> {
+    let store = fixture("archive-turn-review")?;
+    let actor = store
+        .encounters()
+        .add_participant("test", creature("Actor", Some(15), 25))?;
+    let other = store
+        .encounters()
+        .add_participant("test", creature("Other", Some(10), 30))?;
+    let running = advance(&store, &actor.participant_key, "start", true)?;
+    let connection = store.connection()?;
+    let read = EncountersRead::from_connection(&connection, 1);
+    let review = read.latest_outgoing_turn("test")?.unwrap();
+
+    let mut writer = store.connection()?;
+    let transaction = writer.transaction()?;
+    let archived = EncountersWrite::from_connection(&transaction, 1)
+        .update(UpdateEncounter {
+            encounter_key: running.encounter_key,
+            slug: running.slug,
+            name: running.name,
+            description: running.description,
+            note: running.note,
+            round_duration_seconds: None,
+            archived: true,
+        })?
+        .unwrap();
+    transaction.commit()?;
+    assert!(archived.archived);
+    assert_eq!(
+        archived.current_turn_participant_key.as_deref(),
+        Some(actor.participant_key.as_str())
+    );
+    assert_eq!(archived.round_number, running.round_number);
+    assert_eq!(read.latest_outgoing_turn("test")?.unwrap(), review);
+    assert_eq!(
+        advance(&store, &actor.participant_key, "start", true)?,
+        archived
+    );
+
+    let next = advance(&store, &other.participant_key, "advance", true)?;
+    assert!(next.archived);
+    assert_eq!(
+        next.current_turn_participant_key.as_deref(),
+        Some(other.participant_key.as_str())
+    );
+    assert_eq!(next.round_number, archived.round_number + 1);
     Ok(())
 }

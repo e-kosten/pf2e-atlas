@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct RecoveryEncounter {
-    snapshot: EncounterWithParticipants,
+    snapshot: ArchiveSnapshot,
     baselines: Vec<RecoveryBaseline>,
     pending: Vec<SavedPendingConsequence>,
     applications: Vec<RecoveryApplication>,
@@ -20,8 +20,38 @@ impl RecoveryEncounter {
         db: &Connection,
         owner: i64,
         has_adjustment_table: bool,
+        has_archive_column: bool,
     ) -> LocalStateResult<Vec<Self>> {
-        storage::list(db, owner)?
+        let roots = if has_archive_column {
+            storage::list(db, owner)?
+                .into_iter()
+                .map(|encounter| ArchiveRoot {
+                    encounter,
+                    legacy_phase: None,
+                })
+                .collect()
+        } else {
+            let mut statement = db.prepare(
+                "SELECT encounter_key, slug, name, description, note, status='archived', round_number,
+                        current_turn_participant_key, created_at, updated_at, revision, difficulty_party_level,
+                        difficulty_party_size, round_duration_seconds, status
+                 FROM encounters WHERE owner_id=?1 ORDER BY updated_at DESC, slug ASC",
+            )?;
+            statement
+                .query_map([owner], |row| {
+                    Ok((storage::encounter_from_row(row)?, row.get::<_, String>(14)?))
+                })?
+                .map(|row| {
+                    let (encounter, status) = row?;
+                    let phase: LegacyPhase = serde_json::from_value(Value::String(status))?;
+                    Ok(ArchiveRoot {
+                        encounter,
+                        legacy_phase: Some(phase),
+                    })
+                })
+                .collect::<LocalStateResult<Vec<_>>>()?
+        };
+        roots
             .into_iter()
             .map(|encounter| Self::capture(db, owner, encounter, has_adjustment_table))
             .collect()
@@ -30,7 +60,7 @@ impl RecoveryEncounter {
     fn capture(
         db: &Connection,
         owner: i64,
-        encounter: Encounter,
+        encounter: ArchiveRoot,
         has_adjustment_table: bool,
     ) -> LocalStateResult<Self> {
         let key = &encounter.encounter_key;
@@ -56,7 +86,7 @@ impl RecoveryEncounter {
         let document = snapshot::capture_document(
             db,
             id,
-            EncounterWithParticipants {
+            ArchiveSnapshot {
                 encounter,
                 participants,
             },
@@ -90,6 +120,18 @@ impl RecoveryEncounter {
                 .iter()
                 .flat_map(|row| snapshot_markdown_keys(&row.turn.snapshot)),
         )
+    }
+
+    pub(crate) fn has_current_archive_flag(&self) -> bool {
+        self.snapshot.encounter.legacy_phase.is_none()
+    }
+
+    pub(crate) fn matches_archive_format(&self, current: bool) -> bool {
+        self.has_current_archive_flag() == current
+            && self
+                .outgoing
+                .as_ref()
+                .is_none_or(|row| row.turn.snapshot.encounter.legacy_phase.is_none() == current)
     }
 
     pub(crate) fn requires_adjustment_support(&self) -> bool {
@@ -135,11 +177,7 @@ impl RecoveryEncounter {
             ));
         }
         let mut document = EncounterDocument {
-            version: if self.requires_adjustment_support() {
-                ADJUSTMENT_VERSION
-            } else {
-                VERSION
-            },
+            version: VERSION,
             snapshot: self.snapshot,
             baselines: self.baselines.into_iter().map(Into::into).collect(),
             pending: self.pending,
@@ -150,6 +188,7 @@ impl RecoveryEncounter {
             source_fingerprint: None,
             record_sources: Vec::new(),
         };
+        document.normalize_membership();
         let condition_floor = document.validate()?.condition_floor();
         Ok(ValidatedEncounter {
             document,
@@ -195,7 +234,7 @@ impl ValidatedEncounter {
     pub(crate) fn restore(&self, db: &Connection, owner: i64) -> LocalStateResult<()> {
         let root = self.root();
         db.execute(
-            "INSERT INTO encounters(owner_id,encounter_key,slug,name,description,note,status,
+            "INSERT INTO encounters(owner_id,encounter_key,slug,name,description,note,archived,
                                     round_number,created_at,updated_at)
              VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
             params![
@@ -205,7 +244,7 @@ impl ValidatedEncounter {
                 root.name,
                 root.description,
                 root.note,
-                root.status.as_str(),
+                root.archived,
                 root.round_number,
                 root.created_at,
                 root.updated_at
@@ -221,8 +260,8 @@ impl ValidatedEncounter {
 }
 
 fn recovery_record_keys<'a>(
-    snapshot: &'a EncounterWithParticipants,
-    outgoing: Option<&'a SavedOutgoingTurn>,
+    snapshot: &'a ArchiveSnapshot,
+    outgoing: Option<&'a ArchiveTurn>,
     baselines: impl Iterator<Item = &'a ParticipantGameplay>,
 ) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
     let participants = snapshot.participants.iter().chain(
@@ -303,7 +342,7 @@ recovery_row!(
     Outgoing {
         request_id: String,
         requires_review: bool,
-        turn: SavedOutgoingTurn,
+        turn: ArchiveTurn,
     }
 );
 recovery_row!(

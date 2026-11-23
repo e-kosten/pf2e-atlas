@@ -24,6 +24,7 @@ const ARCHIVED_LIST_VERSION: &str = "2.0";
 const ADJUSTMENT_ARCHIVE_VERSION: &str = "3.0";
 const CHARACTER_VERSION: &str = "4.0";
 const FULL_PATHBUILDER_VERSION: &str = "5.0";
+const ENCOUNTER_ARCHIVE_VERSION: &str = "7.0";
 const ENCOUNTER_CREATION_VERSION: &str = "6.0";
 
 #[derive(Serialize)]
@@ -119,7 +120,9 @@ impl WorkspaceArchive {
         let reference_config = read_requested_reference_config_snapshot(snapshot)
             .map_err(message)?
             .map(ReferenceConfig::from);
-        let version = if saved.has_encounter_creation_receipts() {
+        let version = if saved.has_current_encounter_archive_flags() {
+            ENCOUNTER_ARCHIVE_VERSION
+        } else if saved.has_encounter_creation_receipts() {
             ENCOUNTER_CREATION_VERSION
         } else if saved.has_full_pathbuilder_imports() {
             FULL_PATHBUILDER_VERSION
@@ -220,6 +223,9 @@ impl WorkspaceArchive {
         if major < 3 && saved.has_encounter_adjustments() {
             return Err("GM adjustments require workspace archive version 3.0 or later".into());
         }
+        saved
+            .validate_encounter_archive_format(major >= 7)
+            .map_err(message)?;
         let config = archive
             .reference_config
             .map(|value| {
@@ -270,7 +276,7 @@ fn validate_version(version: &str) -> Result<u32, String> {
         .split_once('.')
         .and_then(|(major, minor)| Some((component(major)?, component(minor)?)))
         .ok_or_else(|| format!("Invalid workspace archive version {version:?}"))?;
-    if !matches!(major, 1..=6) {
+    if !matches!(major, 1..=7) {
         return Err(format!("Unsupported workspace archive version {version}"));
     }
     Ok(major)
@@ -520,8 +526,8 @@ mod tests {
         write.connection().execute_batch(
             "INSERT INTO record_identity(key,last_known_name,availability)
                 VALUES('bestiary:aaaaaaaaaaaaaaaa','Old title','unavailable');
-             INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at,revision)
-                VALUES(1,'stable-key','encounter','Encounter','running','created','updated',5);
+             INSERT INTO encounters(owner_id,encounter_key,slug,name,archived,created_at,updated_at,revision)
+                VALUES(1,'stable-key','encounter','Encounter',0,'created','updated',5);
              INSERT INTO encounter_participants(encounter_id,participant_key,record_key,participant_kind,
                 position,display_name,record_title_snapshot,initiative,initiative_order,created_at,updated_at)
                 SELECT id,'stable-participant','bestiary:aaaaaaaaaaaaaaaa','creature',1,'Old title','Old title',10,1,'created','updated'
@@ -557,7 +563,6 @@ mod tests {
                             turn: EncounterTurnState {
                                 participant_key: Some("stable-participant".into()),
                                 round_number: 2,
-                                mark_running: true,
                             },
                             durations: vec![],
                         },
@@ -569,7 +574,7 @@ mod tests {
         write.commit().unwrap();
 
         let mut archive = capture_json(runtime(&source).capture_workspace_archive().unwrap());
-        archive["version"] = "1.1".into();
+        assert_eq!(archive["version"], "7.0");
         archive["saved"]["owners"][0]["encounters"][0]["receipts"][0]["outcome"]["display_hint"] =
             "optional".into();
         let archive =
@@ -620,7 +625,7 @@ mod tests {
     }
 
     #[test]
-    fn gm_adjustments_use_archive_v3_and_round_trip() {
+    fn gm_adjustments_round_trip_with_archive_membership() {
         use atlas_local_state::{AdjustmentChange, EncounterAdjustment, PreparedConditionEvent};
 
         let dir = tempfile::tempdir().unwrap();
@@ -630,8 +635,8 @@ mod tests {
         initialize_workspace(&dest).unwrap();
         let write = from.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         write.connection().execute_batch(
-            "INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
-                VALUES(1,'enc','example','Example','running','created','updated');
+            "INSERT INTO encounters(owner_id,encounter_key,slug,name,archived,created_at,updated_at)
+                VALUES(1,'enc','example','Example',0,'created','updated');
              INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,
                 position,display_name,initiative,initiative_order,created_at,updated_at)
                 SELECT id,'actor','pc',1,'Actor',10,1,'created','updated' FROM encounters;",
@@ -668,7 +673,7 @@ mod tests {
         write.commit().unwrap();
 
         let mut archive = capture_json(runtime(&source).capture_workspace_archive().unwrap());
-        assert_eq!(archive["version"], "3.0");
+        assert_eq!(archive["version"], "7.0");
         let validated =
             WorkspaceArchive::read(serde_json::to_vec(&archive).unwrap().as_slice()).unwrap();
         archive["version"] = "2.0".into();
