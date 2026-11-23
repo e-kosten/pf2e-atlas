@@ -40,14 +40,11 @@ impl Opponent {
             format!("--record={record}"),
             format!("--quantity={}", self.quantity),
         ];
-        if let Some(adjustment) = self.adjustment {
-            args.push(format!(
-                "--adjustment={}",
-                adjustment
-                    .to_possible_value()
-                    .expect("every adjustment is a CLI value")
-                    .get_name()
-            ));
+        if let Some(value) = self
+            .adjustment
+            .and_then(|adjustment| adjustment.to_possible_value())
+        {
+            args.push(format!("--adjustment={}", value.get_name()));
         }
         args.extend_from_slice(workspace);
         args.extend_from_slice(flags);
