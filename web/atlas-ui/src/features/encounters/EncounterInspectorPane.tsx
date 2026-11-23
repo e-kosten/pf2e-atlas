@@ -288,16 +288,16 @@ function ParticipantNotes({ source }: { source: string }) {
   const [open, setOpen] = useState(false);
   const long = source.length > 650 || source.split("\n").length > 8;
   return (
-    <section className="encounter-reference__notes" aria-label="GM notes">
-      <h2>GM notes</h2>
+    <section className="encounter-reference__notes" aria-label="Notes">
+      <h2>Notes</h2>
       {long ? (
         <>
           <Button type="text" onClick={() => setOpen(true)}>
-            Read GM notes
+            Read notes
           </Button>
           <AtlasDrawer
             open={open}
-            title="GM notes"
+            title="Notes"
             size="min(760px, 100vw)"
             onClose={() => setOpen(false)}
           >
@@ -542,7 +542,7 @@ function EncounterParticipantSurface({
   const statusControl =
     participant.participant_kind === "hazard" ? (
       <Button
-        size="small"
+        size={hasHp ? "small" : undefined}
         disabled={disabled}
         onClick={() =>
           void updateParticipant({
