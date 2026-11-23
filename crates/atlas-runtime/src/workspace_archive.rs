@@ -24,6 +24,7 @@ const ARCHIVED_LIST_VERSION: &str = "2.0";
 const ADJUSTMENT_ARCHIVE_VERSION: &str = "3.0";
 const CHARACTER_VERSION: &str = "4.0";
 const FULL_PATHBUILDER_VERSION: &str = "5.0";
+const ENCOUNTER_CREATION_VERSION: &str = "6.0";
 
 #[derive(Serialize)]
 pub struct WorkspaceArchive {
@@ -118,7 +119,9 @@ impl WorkspaceArchive {
         let reference_config = read_requested_reference_config_snapshot(snapshot)
             .map_err(message)?
             .map(ReferenceConfig::from);
-        let version = if saved.has_full_pathbuilder_imports() {
+        let version = if saved.has_encounter_creation_receipts() {
+            ENCOUNTER_CREATION_VERSION
+        } else if saved.has_full_pathbuilder_imports() {
             FULL_PATHBUILDER_VERSION
         } else if saved.has_characters() {
             CHARACTER_VERSION
@@ -197,6 +200,11 @@ impl WorkspaceArchive {
         if major == 1 && saved.has_archived_lists() {
             return Err("Archived lists require workspace archive version 2.0 or later".into());
         }
+        if major < 6 && saved.has_encounter_creation_receipts() {
+            return Err(
+                "Encounter creation receipts require workspace archive version 6.0 or later".into(),
+            );
+        }
         if major < 5 && saved.has_full_pathbuilder_imports() {
             return Err(
                 "Complete Pathbuilder imports require workspace archive version 5.0 or later"
@@ -262,7 +270,7 @@ fn validate_version(version: &str) -> Result<u32, String> {
         .split_once('.')
         .and_then(|(major, minor)| Some((component(major)?, component(minor)?)))
         .ok_or_else(|| format!("Invalid workspace archive version {version:?}"))?;
-    if !matches!(major, 1..=5) {
+    if !matches!(major, 1..=6) {
         return Err(format!("Unsupported workspace archive version {version}"));
     }
     Ok(major)
@@ -393,6 +401,66 @@ mod tests {
         let mut bytes = Vec::new();
         archive.write(&mut bytes).unwrap();
         serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[test]
+    fn historical_encounter_creation_receipt_requires_archive_six_and_blocks_a_second_restore() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = initialize_workspace(dir.path().join("source.sqlite")).unwrap();
+        let target = initialize_workspace(dir.path().join("target.sqlite")).unwrap();
+        let write = source.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let encounters = LocalStateWrite::for_local(&write).unwrap().encounters();
+        let key = encounters
+            .create(atlas_local_state::NewEncounter {
+                slug: "patrol".into(),
+                name: "Patrol".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter_key;
+        let digest = "a".repeat(64);
+        encounters
+            .save_creation_receipt("first", &digest, &key)
+            .unwrap();
+        assert!(encounters.delete(&key).unwrap());
+        write.commit().unwrap();
+
+        let raw = capture_json(runtime(source.path()).capture_workspace_archive().unwrap());
+        assert_eq!(raw["version"], "6.0");
+        let read =
+            |value: &Value| WorkspaceArchive::read(serde_json::to_vec(value).unwrap().as_slice());
+        let mut downgraded = raw.clone();
+        downgraded["version"] = "5.0".into();
+        assert!(read(&downgraded).err().unwrap().contains("version 6.0"));
+        let mut corrupt = raw.clone();
+        corrupt["saved"]["owners"][0]["encounter_creation_receipts"][0]["intent_digest"] =
+            "invalid".into();
+        assert!(
+            read(&corrupt)
+                .err()
+                .unwrap()
+                .contains("invalid encounter creation receipt")
+        );
+        let restored = runtime(target.path());
+        let preflight = restored.preflight_workspace_restore().unwrap();
+        restored
+            .restore_workspace_archive(&read(&raw).unwrap(), &preflight, false)
+            .unwrap();
+        assert!(
+            restored
+                .preflight_workspace_restore()
+                .err()
+                .unwrap()
+                .contains("already contains saved state")
+        );
+        let snapshot = target.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let encounters = LocalStateRead::for_local(&snapshot).unwrap().encounters();
+        assert!(encounters.get(&key).unwrap().is_none());
+        assert_eq!(
+            encounters.creation_receipt("first", &digest).unwrap(),
+            Some(key)
+        );
     }
 
     #[test]

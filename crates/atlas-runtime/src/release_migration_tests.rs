@@ -112,6 +112,7 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     assert_eq!(reference_rows.remove("party_members").unwrap().len(), 1);
     assert_eq!(migrated.remove("encounter_pc_characters"), Some(vec![]));
     assert_eq!(migrated.remove("character_creation_receipts"), Some(vec![]));
+    assert_eq!(migrated.remove("encounter_creation_receipts"), Some(vec![]));
     assert_eq!(
         migrated.remove("party_character_memberships"),
         Some(vec![vec![
@@ -211,6 +212,7 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
         "party_character_memberships",
         "encounter_pc_characters",
         "character_creation_receipts",
+        "encounter_creation_receipts",
     ] {
         expected.insert(table.into(), vec![]);
     }
@@ -631,7 +633,10 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     assert_eq!(backup["version"], "3.0");
     let migrated = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let applied = sql_rows(migrated.connection(), LEDGER);
-    assert_eq!(applied.len(), ledger.len() + 3);
+    assert_eq!(
+        applied.len(),
+        ledger.len() + (WORKSPACE_SCHEMA_VERSION - 46) as usize
+    );
     assert_eq!(applied[..ledger.len()], ledger);
     assert_eq!(
         applied[ledger.len()][0],
@@ -639,7 +644,7 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     );
     assert_eq!(
         applied.last().unwrap()[0],
-        rusqlite::types::Value::Integer(49)
+        rusqlite::types::Value::Integer(i64::from(WORKSPACE_SCHEMA_VERSION))
     );
 
     let state = atlas_local_state::LocalStateRead::for_local(&migrated).unwrap();
@@ -963,7 +968,10 @@ fn schema_48_upgrade_preserves_all_receipts_and_boundary_children() {
     initialize_workspace(workspace.path()).unwrap();
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let applied = sql_rows(read.connection(), LEDGER);
-    assert_eq!(applied.len(), ledger.len() + 1);
+    assert_eq!(
+        applied.len(),
+        ledger.len() + (WORKSPACE_SCHEMA_VERSION - 48) as usize
+    );
     assert_eq!(applied[..ledger.len()], ledger);
     assert_eq!(tables.map(|query| sql_rows(read.connection(), query)), rows);
     assert!(sql_rows(read.connection(), "PRAGMA foreign_key_check").is_empty());

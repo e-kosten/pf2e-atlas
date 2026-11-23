@@ -62,6 +62,14 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
                 apply: |_| Ok(()),
             }),
         },
+        Migration {
+            version: 50,
+            name: "encounter-creation-receipts",
+            sql: include_str!(
+                "../../atlas-local-state/src/release/encounter_creation_receipts.sql"
+            ),
+            backfill: None,
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };
