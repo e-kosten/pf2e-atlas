@@ -3208,18 +3208,10 @@ export interface EncounterConditionCatalogView {
   standard_persistent_recovery_dc: number;
 }
 
-export type EncounterStatusView = typeof EncounterStatusView[keyof typeof EncounterStatusView];
-
-
-export const EncounterStatusView = {
-  draft: 'draft',
-  running: 'running',
-  complete: 'complete',
-  archived: 'archived',
-} as const;
-
 export interface EncounterSummaryView {
+  archived: boolean;
   created_at: string;
+  current_turn_participant_name?: string;
   description?: string;
   encounter_key: string;
   name: string;
@@ -3228,7 +3220,6 @@ export interface EncounterSummaryView {
   round_duration_seconds: number;
   round_number: number;
   slug: string;
-  status: EncounterStatusView;
   updated_at: string;
 }
 
@@ -4381,34 +4372,6 @@ export const FacetUnavailableReason = {
   negative_condition: 'negative_condition',
   text_context: 'text_context',
 } as const;
-
-export type FieldEditEncounterStatusViewExpected = typeof FieldEditEncounterStatusViewExpected[keyof typeof FieldEditEncounterStatusViewExpected];
-
-
-export const FieldEditEncounterStatusViewExpected = {
-  draft: 'draft',
-  running: 'running',
-  complete: 'complete',
-  archived: 'archived',
-} as const;
-
-export type FieldEditEncounterStatusViewValue = typeof FieldEditEncounterStatusViewValue[keyof typeof FieldEditEncounterStatusViewValue];
-
-
-export const FieldEditEncounterStatusViewValue = {
-  draft: 'draft',
-  running: 'running',
-  complete: 'complete',
-  archived: 'archived',
-} as const;
-
-/**
- * One proposed change and the saved value observed when editing began.
- */
-export interface FieldEditEncounterStatusView {
-  expected: FieldEditEncounterStatusViewExpected;
-  value: FieldEditEncounterStatusViewValue;
-}
 
 /**
  * One proposed change and the saved value observed when editing began.
@@ -6051,12 +6014,12 @@ export interface UpdateEncounterParticipantEdit {
 }
 
 export interface UpdateEncounterRequest {
+  archived?: FieldEditBool;
   description?: FieldEditOptionString;
   name?: FieldEditString;
   note?: FieldEditOptionString;
   round_duration_seconds?: FieldEditI64;
   slug?: FieldEditString;
-  status?: FieldEditEncounterStatusView;
 }
 
 export interface UpdatePartyRequest {

@@ -2188,8 +2188,8 @@ fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
              VALUES('actions:cccccccccccccccc','Removed record','available');
              INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
              VALUES(1,'actions:cccccccccccccccc',0,'Keep this note','Removed record','now','now');
-             INSERT INTO encounters(id,owner_id,encounter_key,slug,name,status,note,created_at,updated_at)
-             VALUES(1,1,'fight','fight','Saved encounter','draft','Keep encounter note','now','now');
+             INSERT INTO encounters(id,owner_id,encounter_key,slug,name,archived,note,created_at,updated_at)
+             VALUES(1,1,'fight','fight','Saved encounter',0,'Keep encounter note','now','now');
              INSERT INTO saved_list_tags VALUES(1,'keep','now');
              INSERT INTO parties(party_key,owner_id,name) VALUES('kept-party',1,'Kept party');
              INSERT INTO characters(character_key,owner_id,name) VALUES('kept-member',1,'Kept member');
@@ -2787,7 +2787,8 @@ fn encounter_exchange_handles_collisions_without_overwriting() {
     assert!(export.status.success(), "{export:?}");
     let bytes = fs::read(&file).unwrap();
     let mut document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["version"], 1);
+    assert_eq!(document["version"], 3);
+    assert_eq!(document["snapshot"]["encounter"]["archived"], false);
     assert!(document.get("status").is_none());
     let collision = source.command(
         &[

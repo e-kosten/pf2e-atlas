@@ -15,11 +15,13 @@ pub(super) fn encode<T: Serialize>(payload: &T) -> LocalStateResult<String> {
     })?)
 }
 pub(super) fn decode<T: DeserializeOwned>(encoded: &str) -> LocalStateResult<T> {
-    let envelope: Envelope<serde_json::Value> = serde_json::from_str(encoded)?;
+    // Decode directly from the original payload. A Value would collapse duplicate
+    // fields before the typed reader could reject an ambiguous saved receipt.
+    let envelope: Envelope<&serde_json::value::RawValue> = serde_json::from_str(encoded)?;
     if envelope.version != VERSION {
         return Err(LocalStateError::UnsupportedReceiptVersion(envelope.version));
     }
-    Ok(serde_json::from_value(envelope.payload)?)
+    Ok(serde_json::from_str(envelope.payload.get())?)
 }
 #[cfg(test)]
 mod tests {

@@ -18,6 +18,7 @@ import { Dice5, Play } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounterConditionDefinitions } from "../../api/atlasApi";
 import { useEncounterStrike } from "./useEncounterStrike";
+import { useArchiveError } from "./encounterSummary";
 import { useEncounterMutations } from "./useEncounterMutations";
 import { useEncounterQuery } from "./useEncounterQuery";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
@@ -145,6 +146,14 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
   }, [encounter.data]);
   usePageTitle(encounter.data?.encounter.name ?? "Encounter");
   const mutations = useEncounterMutations(route.slug, encounterKey);
+  const archiveError = useArchiveError(
+    mutations.errorKind === "archive" ? mutations.error : null,
+    mutations.archiveTarget,
+    encounter.error || mutations.refreshError
+      ? undefined
+      : encounter.data?.encounter.archived,
+    mutations.clearArchiveError,
+  );
   const [openedSettings, setOpenedSettings] = useState(false);
   const showPreparedSettings = editing.open && (openedSettings || !mutations.pending);
   if (showPreparedSettings !== openedSettings) setOpenedSettings(showPreparedSettings);
@@ -382,6 +391,13 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                           ? [{ key: "copy", label: "Copy link" }]
                           : []),
                         { type: "divider" },
+                        {
+                          key: "archive",
+                          label: encounterSummary.archived
+                            ? "Restore encounter"
+                            : "Archive encounter",
+                          disabled,
+                        },
                         { key: "rest", label: "Rest overnight", disabled },
                         { key: "reset", label: "Reset encounter", disabled },
                       ]}
@@ -389,6 +405,21 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                         recoveryTrigger.current = opener;
                         if (key === "copy") {
                           copy?.();
+                        } else if (key === "archive") {
+                          void mutations
+                            .run({
+                              kind: "archive",
+                              archived: !encounterSummary.archived,
+                            })
+                            .catch(() => {
+                              // The mutation owner presents the failure and refreshes uncertain writes.
+                            })
+                            .finally(() =>
+                              restoreOverlayFocus(
+                                () => (canFocusTabElement(opener) ? opener : null),
+                                undefined,
+                              ),
+                            );
                         } else if (key === "edit") {
                           if (encounterKey) {
                             mutations.clearSettingsError();
@@ -449,6 +480,12 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                   Retry turn review
                 </Button>
               }
+            />
+          )}
+          {archiveError && !mutations.refreshError && (
+            <ErrorNotice
+              error={archiveError}
+              title="Archive change could not be confirmed"
             />
           )}
           {mutations.errorMessage &&

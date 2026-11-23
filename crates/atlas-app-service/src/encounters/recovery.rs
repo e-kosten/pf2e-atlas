@@ -205,7 +205,7 @@ impl AtlasAppService {
                 .as_deref()
                 .is_some_and(|k| keys.contains(k));
         let changes = if reset_encounter {
-            vec!["Return to Draft at round 1 and clear turn reminders.".into()]
+            vec!["Return to round 1 and clear the current turn and its reminders.".into()]
         } else if end_turn && snapshot.encounter.current_turn_participant_key.is_some() {
             vec!["End the current turn and clear turn reminders.".into()]
         } else {

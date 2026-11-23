@@ -382,6 +382,22 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
                 },
             )
             .unwrap();
+        worker
+            .update_encounter(
+                &key,
+                UpdateEncounterRequest {
+                    archived: Some(FieldEdit {
+                        expected: false,
+                        value: true,
+                    }),
+                    slug: None,
+                    name: None,
+                    note: None,
+                    description: None,
+                    round_duration_seconds: None,
+                },
+            )
+            .unwrap();
         let first = AdvanceEncounterTurnRequest {
             request_id: "first-lifetime-turn".into(),
             expected_revision: worker.encounter(&key).unwrap().revision,
@@ -397,6 +413,15 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
             )
             .unwrap();
         let current = worker.encounter(&key).unwrap();
+        assert!(current.encounter.archived);
+        assert_eq!(
+            current.encounter.current_turn_participant_name.as_deref(),
+            Some(current.participants[0].display_name.as_str())
+        );
+        assert_eq!(
+            worker.encounters().unwrap().encounters[0],
+            current.encounter
+        );
         let action = if reset {
             EncounterRecoveryAction::ResetEncounter
         } else {
@@ -423,6 +448,8 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
                     .unwrap())
             })
             .unwrap();
+        assert!(saved.encounter.archived);
+        assert!(saved.encounter.current_turn_participant_key.is_none());
         let workspace = atlas_runtime::initialize_workspace(path).unwrap();
         let write = workspace
             .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)

@@ -482,25 +482,9 @@ fn pristine_variant_edit_uses_conditioned_capacity_at_the_new_level() {
 }
 
 #[test]
-fn running_variant_edit_preserves_damage_below_conditioned_capacity() {
+fn wounded_variant_edit_preserves_damage_below_conditioned_capacity() {
     let (service, _artifact, key) = fixture_with_drained(true);
     let initial = service.encounter(&key).unwrap();
-    service
-        .update_encounter(
-            &key,
-            UpdateEncounterRequest {
-                round_duration_seconds: None,
-                slug: None,
-                name: None,
-                description: None,
-                note: None,
-                status: Some(FieldEdit {
-                    expected: initial.encounter.status,
-                    value: EncounterStatusView::Running,
-                }),
-            },
-        )
-        .unwrap();
     let participant = &initial.participants[0];
     service
         .apply_encounter_hp_action(

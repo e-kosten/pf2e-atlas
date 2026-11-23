@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 use atlas_app_model::{
     AppErrorCode, EncounterDetailView, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, InherentConditionView, InherentConditionsView,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterSummaryView,
+    InherentConditionView, InherentConditionsView,
 };
 use atlas_local_state::{
-    Encounter, EncounterParticipant, EncounterParticipantCondition, EncounterStatus,
-    ParticipantKind, ParticipantSide, ParticipantVariant,
+    Encounter, EncounterParticipant, EncounterParticipantCondition, ParticipantKind,
+    ParticipantSide, ParticipantVariant,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
@@ -81,6 +81,12 @@ pub(super) fn encounter_detail_from_records(
         super::hydration::roster_source_conditions(&participants, &records_by_key);
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
+    let current_turn_participant_name = current_turn_participant_key.as_ref().and_then(|key| {
+        participants
+            .iter()
+            .find(|p| &p.participant_key == key)
+            .map(|p| p.display_name.clone())
+    });
     let note = encounter.note.clone();
     let difficulty =
         super::difficulty::project(encounter.difficulty_reference, &participants, |key| {
@@ -92,7 +98,7 @@ pub(super) fn encounter_detail_from_records(
         difficulty,
         revision: encounter.revision,
         artifact_generation,
-        encounter: encounter_summary(encounter, participant_count),
+        encounter: encounter_summary(encounter, participant_count, current_turn_participant_name),
         note,
         current_turn_participant_key: current_turn_participant_key.clone(),
         participants: participants
@@ -120,6 +126,7 @@ pub(super) fn encounter_detail_from_records(
 pub(super) fn encounter_summary(
     encounter: Encounter,
     participant_count: u32,
+    current_turn_participant_name: Option<String>,
 ) -> EncounterSummaryView {
     EncounterSummaryView {
         round_duration_seconds: encounter.round_duration_seconds,
@@ -127,7 +134,8 @@ pub(super) fn encounter_summary(
         slug: encounter.slug,
         name: encounter.name,
         description: encounter.description,
-        status: encounter_status(encounter.status),
+        archived: encounter.archived,
+        current_turn_participant_name,
         round_number: encounter.round_number,
         participant_count,
         created_at: encounter.created_at,
@@ -410,15 +418,6 @@ pub(super) fn encounter_not_found(encounter_ref: &str) -> AppServiceError {
     )
 }
 
-pub(super) fn encounter_status_local(status: EncounterStatusView) -> EncounterStatus {
-    match status {
-        EncounterStatusView::Draft => EncounterStatus::Draft,
-        EncounterStatusView::Running => EncounterStatus::Running,
-        EncounterStatusView::Complete => EncounterStatus::Complete,
-        EncounterStatusView::Archived => EncounterStatus::Archived,
-    }
-}
-
 pub(super) fn participant_side(side: EncounterParticipantSideView) -> ParticipantSide {
     match side {
         EncounterParticipantSideView::Pc => ParticipantSide::Pc,
@@ -568,15 +567,6 @@ fn condition_view(
         note: condition.note,
         created_at: condition.created_at,
         updated_at: condition.updated_at,
-    }
-}
-
-fn encounter_status(status: EncounterStatus) -> EncounterStatusView {
-    match status {
-        EncounterStatus::Draft => EncounterStatusView::Draft,
-        EncounterStatus::Running => EncounterStatusView::Running,
-        EncounterStatus::Complete => EncounterStatusView::Complete,
-        EncounterStatus::Archived => EncounterStatusView::Archived,
     }
 }
 

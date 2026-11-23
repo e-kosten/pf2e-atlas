@@ -55,13 +55,15 @@ const encounter = {
   encounter_key: "enc_ambush",
   slug: "ambush",
   name: "Ambush",
-  status: "draft",
+  archived: false,
 };
-function setup(record = creature, tab: DesktopTabRuntime | null = null) {
+function setup(
+  record = creature,
+  tab: DesktopTabRuntime | null = null,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={client}>
       <ConfigProvider theme={{ token: { motion: false } }}>
         <App>
           <DesktopTabContext.Provider value={tab}>
@@ -98,6 +100,33 @@ beforeEach(() => {
     encounter_adjustment: "normal",
   });
 });
+it("removes an archived encounter from an open destination picker", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  api.getEncounters.mockResolvedValue({ encounters: [encounter] });
+  setup(creature, null, client);
+  fireEvent.click(screen.getByRole("tab", { name: "Encounters" }));
+  const picker = screen.getByRole("combobox", { name: "Encounter" });
+  await waitFor(() => expect(picker).toBeEnabled());
+  fireEvent.mouseDown(picker);
+  fireEvent.change(picker, { target: { value: "Ambush" } });
+  fireEvent.click(await screen.findByText("Ambush"));
+  await waitFor(() =>
+    expect(api.getEncounter).toHaveBeenCalledWith(encounter.encounter_key),
+  );
+  await act(async () => {
+    client.setQueryData(["encounters"], {
+      encounters: [{ ...encounter, archived: true }],
+    });
+  });
+  expect(
+    await screen.findByText(
+      "No active encounters. Create an encounter to add this record.",
+    ),
+  ).toBeVisible();
+  expect(picker).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+});
+
 it("creates and adds to a list in one submission, preserving the browsing location and returning focus", async () => {
   api.createSavedList.mockResolvedValue({ list });
   api.addSavedListItem.mockResolvedValue({

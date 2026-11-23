@@ -47,7 +47,7 @@ pub use model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, ConditionAction, ConditionDuration,
     ConditionDurationUnit, ConditionExtraAction, ConditionScope, ConditionTiming,
     ConditionTurnEvent, Encounter, EncounterDifficultyReference, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
+    EncounterParticipantCondition, EncounterTurnState, EncounterTurnUpdate,
     EncounterWithParticipantCount, EncounterWithParticipants, NewEncounter, ParticipantHpOrigin,
     ParticipantKind, ParticipantSide, ParticipantVariant, ParticipantVariantOrigin,
     ReorderEncounterParticipant, SpellResource, UpdateEncounter, UpdateEncounterParticipant,

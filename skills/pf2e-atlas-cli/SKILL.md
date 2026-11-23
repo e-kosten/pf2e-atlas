@@ -550,7 +550,10 @@ context does not return it.
 ## Encounter prep
 
 Use `encounters list` to find an encounter slug and `encounters show` to read
-its roster and difficulty. Create an encounter or add opponents when the caller
+its roster and difficulty. The list includes archived encounters. In JSON,
+`archived` is a boolean and `current_turn_participant_name` is present when
+a participant holds the turn. The web encounter and its index row offer Archive
+and Restore. Create an encounter or add opponents when the caller
 requests a saved-state change:
 
 ```sh

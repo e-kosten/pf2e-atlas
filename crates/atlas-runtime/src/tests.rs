@@ -79,7 +79,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool) {
         name: "Kept encounter".into(),
         description: None,
         note: Some("In progress".into()),
-        status: EncounterStatus::Draft,
+        archived: false,
         round_number: 1,
         current_turn_participant_key: None,
         created_at: "2026-01-01T00:00:00Z".into(),
@@ -90,13 +90,14 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool) {
     write
         .connection()
         .execute(
-            "INSERT INTO encounters(encounter_key,slug,name,note,status,created_at,updated_at,owner_id)
-         VALUES (?1,?2,?3,?4,'draft',?5,?6,(SELECT id FROM principals WHERE principal_key='local'))",
+            "INSERT INTO encounters(encounter_key,slug,name,note,archived,created_at,updated_at,owner_id)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,(SELECT id FROM principals WHERE principal_key='local'))",
             rusqlite::params![
                 encounter.encounter_key,
                 encounter.slug,
                 encounter.name,
                 encounter.note,
+                encounter.archived,
                 encounter.created_at,
                 encounter.updated_at
             ],

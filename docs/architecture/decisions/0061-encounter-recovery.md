@@ -24,10 +24,10 @@ uncertain response, the browser reloads and requires a new review before another
 rest or reset. Committed event and Next-turn receipts survive rest/reset so old
 retries cannot reapply events or advance a restarted encounter.
 
-Whole reset returns to Draft/round 1 and releases all boundary claims. Participant
+Whole reset returns to round 1, clears the current turn and releases all boundary claims. Participant
 reset preserves the encounter's round and ends its active turn only when that
-participant owns it. Rest ends the active turn while preserving encounter status,
-round and initiative. Either operation clears the current turn boundary snapshot.
+participant owns it. Rest ends the active turn while preserving round and initiative.
+Both reset and rest preserve archive membership. Either operation clears the current turn boundary snapshot.
 Snapshots for turns with a pending review keep the full frozen roster. A new
 snapshot without a review keeps the frozen encounter, outgoing participant and
 incoming participant, which are enough to use the explicit boundary. Portable

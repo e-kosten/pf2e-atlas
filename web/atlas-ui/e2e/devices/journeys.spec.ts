@@ -1722,16 +1722,12 @@ test("named parties add everyone directly and archive views stay separate", asyn
     await expect(page.locator("[data-participant-key]")).toHaveCount(3);
     await page.reload();
     await expect(page.locator("[data-participant-key]")).toHaveCount(3);
-    const current = await (await page.request.get(path)).json();
-    expect(
-      (
-        await page.request.patch(path, {
-          data: {
-            status: { expected: current.encounter.status, value: "archived" },
-          },
-        })
-      ).ok(),
-    ).toBeTruthy();
+    await activate(page.getByRole("button", { name: "Encounter actions" }), info);
+    await activate(page.getByRole("menuitem", { name: "Archive encounter" }), info);
+    await activate(page.getByRole("button", { name: "Encounter actions" }), info);
+    await expect(
+      page.getByRole("menuitem", { name: "Restore encounter" }),
+    ).toBeVisible();
     await page.goto("/encounters");
     await expect(
       page.getByRole("tab", { name: "Active", exact: true }),
@@ -1904,24 +1900,106 @@ test(
 );
 
 test(
-  "encounter archive tabs push history and restore on reload",
+  "encounter archive actions retain the current turn across tabs and reload",
   { tag: "@engine" },
   async ({ page }, info) => {
-    await page.goto("/encounters");
-    const active = page.getByRole("tab", { name: "Active", exact: true });
-    const archived = page.getByRole("tab", { name: "Archived", exact: true });
-    await expect(active).toHaveAttribute("aria-selected", "true");
-    await activate(archived, info);
-    await expect(page).toHaveURL((url) => url.searchParams.get("view") === "archived");
-    await expect(archived).toHaveAttribute("aria-selected", "true");
-    await page.goBack();
-    await expect(active).toHaveAttribute("aria-selected", "true");
-    await expect(page).toHaveURL((url) => !url.searchParams.has("view"));
-    await page.goForward();
-    await expect(archived).toHaveAttribute("aria-selected", "true");
-    await page.reload();
-    await expect(archived).toHaveAttribute("aria-selected", "true");
-    await noPageOverflow(page);
+    const name = `Turn review ${info.project.name} ${Date.now()}`;
+    const created = await page.request.post("/api/encounters", { data: { name } });
+    expect(created.ok()).toBeTruthy();
+    const { encounter } = await created.json();
+    const path = `/api/encounters/${encounter.encounter_key}`;
+    const active = page.getByRole("tab", { name: /\bActive$/ });
+    const archived = page.getByRole("tab", { name: /\bArchived$/ });
+    const title = page.getByRole("link", { name, exact: true });
+    try {
+      await page.goto("/encounters");
+      const row = page.getByRole("row").filter({ has: title });
+      await expect(row).toBeVisible();
+      await expect(row).not.toContainText(/Round 1|Draft|Preparing/);
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: { display_name: "Meris", initiative: 20, max_hp: 24, current_hp: 17 },
+          })
+        ).ok(),
+      ).toBeTruthy();
+      const detail = await (await page.request.get(path)).json();
+      const actor = detail.participants[0].participant_key;
+      expect(
+        (
+          await page.request.post(`${path}/turn`, { data: { participant_key: actor } })
+        ).ok(),
+      ).toBeTruthy();
+      await page.reload();
+      const turn = "Round 1 · Meris’s turn";
+      await expect(row).toContainText(turn);
+      const menu = row.getByRole("button", { name: `More actions for ${name}` });
+      if (info.project.use.hasTouch) await menu.tap();
+      else {
+        await menu.focus();
+        await menu.press("Enter");
+      }
+      const archiveItem = page.getByRole("menuitem", { name: "Archive encounter" });
+      if (info.project.use.hasTouch) await archiveItem.tap();
+      else {
+        await expect(archiveItem).toBeFocused();
+        await archiveItem.press("Enter");
+      }
+      await expect(title).toHaveCount(0);
+      await expect(active).toHaveAttribute("aria-selected", "true");
+      if (!info.project.use.hasTouch) await expect(active).toBeFocused();
+      await activate(archived, info);
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get("view") === "archived",
+      );
+      await expect(row).toContainText(turn);
+      await page.goBack();
+      await expect(active).toHaveAttribute("aria-selected", "true");
+      await expect(page).toHaveURL((url) => !url.searchParams.has("view"));
+      await page.goForward();
+      await page.reload();
+      await expect(archived).toHaveAttribute("aria-selected", "true");
+      await expect(row).toContainText(turn);
+      await page.screenshot({ path: info.outputPath("archived-encounter-index.png") });
+      await activate(title, info);
+      await expect(page.locator(".encounter-roster__turn-summary")).toHaveText(turn);
+      await expect(
+        page.getByRole("button", { name: "Next turn", exact: true }),
+      ).toBeEnabled();
+      const actions = page.getByRole("button", { name: "Encounter actions" });
+      await activate(actions, info);
+      await activate(page.getByRole("menuitem", { name: "Restore encounter" }), info);
+      await activate(actions, info);
+      await expect(
+        page.getByRole("menuitem", { name: "Archive encounter" }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".encounter-roster__turn-summary")).toHaveText(turn);
+      await page.screenshot({ path: info.outputPath("restored-encounter-turn.png") });
+      const restored = await (await page.request.get(path)).json();
+      expect(restored.encounter.archived).toBe(false);
+      expect(restored.current_turn_participant_key).toBe(actor);
+      expect(restored.participants[0].current_hp).toBe(17);
+      await page.goto("/encounters");
+      await expect(row).toContainText(turn);
+      await noPageOverflow(page);
+      await page.goto(`/records/${sentinel}`);
+      await activate(
+        page.getByRole("button", { name: "Add to list or encounter" }),
+        info,
+      );
+      const picker = page.getByRole("dialog", { name: "Add to…" });
+      await activate(picker.getByRole("tab", { name: "Encounters" }), info);
+      const choices = picker.getByRole("combobox", { name: "Encounter" });
+      await expect(choices).toBeEnabled();
+      await activate(choices, info);
+      await choices.fill(name);
+      await activate(page.getByText(name, { exact: true }).last(), info);
+      await expect(picker.getByTitle(name, { exact: true })).toBeVisible();
+      await noPageOverflow(page);
+    } finally {
+      await page.request.delete(path);
+    }
   },
 );
 

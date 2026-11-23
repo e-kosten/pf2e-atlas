@@ -2,14 +2,14 @@ use atlas_app_model::{
     AddEncounterInitiativeEntryRequest, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AdvanceEncounterTurnRequest, AppErrorCode,
     CreateEncounterRequest, DeleteEncounterView, EncounterCreateView, EncounterDetailView,
-    EncounterIndexView, EncounterMutationView, EncounterTurnReviewView, FieldEdit,
+    EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
     ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest,
 };
 use atlas_local_state::{
-    AddEncounterParticipant, Encounter, EncounterParticipantCondition, EncounterStatus,
-    NewEncounter, ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
+    AddEncounterParticipant, Encounter, EncounterParticipantCondition, NewEncounter,
+    ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
     UpdateEncounter as LocalUpdateEncounter, UpdateEncounterParticipant, derive_slug,
 };
 
@@ -21,8 +21,8 @@ use super::conditions::{condition_catalog, modeled_condition_by_ref};
 use super::hydration::{prepare_participant_records, resolve_record_ref};
 use super::mechanics::effective_max;
 use super::projection::{
-    encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
-    participant_side, participant_variant,
+    encounter_detail_view, encounter_not_found, encounter_summary, participant_side,
+    participant_variant,
 };
 use super::timing::{turn_review, turn_update};
 use super::turns::next_turn_after_removed;
@@ -50,7 +50,7 @@ struct EncounterMetadataEdit {
     name: Option<String>,
     description: Option<Option<String>>,
     note: Option<Option<String>>,
-    status: Option<EncounterStatus>,
+    archived: Option<bool>,
     round_duration_seconds: Option<i64>,
 }
 
@@ -112,7 +112,13 @@ impl AtlasAppService {
                 .encounters()
                 .list_with_participant_counts()?
                 .into_iter()
-                .map(|row| encounter_summary(row.encounter, row.participant_count))
+                .map(|row| {
+                    encounter_summary(
+                        row.encounter,
+                        row.participant_count,
+                        row.current_turn_participant_name,
+                    )
+                })
                 .collect();
             Ok(EncounterIndexView {
                 encounters: details,
@@ -208,7 +214,7 @@ impl AtlasAppService {
                 note: request.note,
             })?;
             Ok(EncounterCreateView {
-                encounter: encounter_summary(encounter, 0),
+                encounter: encounter_summary(encounter, 0, None),
             })
         })
     }
@@ -268,16 +274,9 @@ impl AtlasAppService {
             let note = request
                 .note
                 .map(|edit| check.value("note", &current.note, edit));
-            let status = request.status.map(|edit| {
-                check.value(
-                    "status",
-                    &current.status,
-                    FieldEdit {
-                        expected: encounter_status_local(edit.expected),
-                        value: encounter_status_local(edit.value),
-                    },
-                )
-            });
+            let archived = request
+                .archived
+                .map(|edit| check.value("archived", &current.archived, edit));
             let round_duration_seconds = request.round_duration_seconds.map(|edit| {
                 check.value(
                     "round_duration_seconds",
@@ -291,7 +290,7 @@ impl AtlasAppService {
                 name,
                 description,
                 note,
-                status,
+                archived,
                 round_duration_seconds,
             })
         })
@@ -325,7 +324,7 @@ impl AtlasAppService {
                     .as_ref()
                     .is_some_and(|description| description != &current.description)
                 || edit.note.as_ref().is_some_and(|note| note != &current.note)
-                || edit.status.is_some_and(|status| status != current.status);
+                || edit.archived.is_some_and(|value| value != current.archived);
             if changed {
                 encounters
                     .update(LocalUpdateEncounter {
@@ -335,7 +334,7 @@ impl AtlasAppService {
                         name: edit.name.unwrap_or(current.name),
                         description: edit.description.unwrap_or(current.description),
                         note: edit.note.unwrap_or(current.note),
-                        status: edit.status.unwrap_or(current.status),
+                        archived: edit.archived.unwrap_or(current.archived),
                     })?
                     .ok_or_else(|| encounter_not_found(encounter_ref))?;
             }
@@ -580,31 +579,22 @@ impl AtlasAppService {
             }
             let new_capacity = capacity(&adjusted);
             max_hp = derived;
-            current_hp = if detail.encounter.status == EncounterStatus::Draft
-                && hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
+            let untouched_full = hp_origin
+                == atlas_local_state::ParticipantHpOrigin::DerivedPristine
                 && !current_edited
+                && old_capacity
+                    .is_some_and(|capacity| capacity >= 0 && Some(capacity) == existing.current_hp);
+            if !current_edited
+                && let (Some(old), Some(current), Some(new)) =
+                    (old_capacity, existing.current_hp, new_capacity)
+                && current >= 0
+                && current <= old
             {
-                new_capacity
-            } else if !current_edited {
-                match (old_capacity, existing.current_hp, new_capacity) {
-                    (Some(old), Some(current), Some(new))
-                        if old >= 0 && current >= 0 && current <= old =>
-                    {
-                        old.checked_sub(current)
-                            .and_then(|damage| new.checked_sub(damage))
-                            .map(|n| n.max(0))
-                    }
-                    _ => existing.current_hp,
-                }
-            } else {
-                current_hp
-            };
+                current_hp = Some(new.saturating_sub(old - current).max(0));
+            }
             hp_origin = if derived.is_none() {
                 atlas_local_state::ParticipantHpOrigin::Unknown
-            } else if hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
-                && !current_edited
-                && detail.encounter.status == EncounterStatus::Draft
-            {
+            } else if untouched_full && new_capacity.is_some() {
                 atlas_local_state::ParticipantHpOrigin::DerivedPristine
             } else {
                 atlas_local_state::ParticipantHpOrigin::DerivedEdited
@@ -783,7 +773,6 @@ impl AtlasAppService {
                     atlas_local_state::EncounterTurnState {
                         participant_key: Some(request.participant_key),
                         round_number: snapshot.encounter.round_number,
-                        mark_running: false,
                     }
                 })?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;

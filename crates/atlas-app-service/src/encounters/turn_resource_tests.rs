@@ -165,7 +165,7 @@ fn turn_preparation_cannot_retarget_a_reassigned_slug() {
                     name: None,
                     description: None,
                     note: None,
-                    status: None,
+                    archived: None,
                 },
             )
             .unwrap();

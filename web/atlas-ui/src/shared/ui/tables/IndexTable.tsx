@@ -65,6 +65,8 @@ export function IndexTable<Row extends object>({
         className: "index-row",
         onClick: (event) => {
           if (
+            !(event.target instanceof Node) ||
+            !event.currentTarget.contains(event.target) ||
             event.defaultPrevented ||
             event.button !== 0 ||
             event.altKey ||

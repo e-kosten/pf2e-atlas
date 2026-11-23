@@ -1,7 +1,7 @@
 use atlas_app_model::{
     AddSavedListItemRequest, AppErrorCode, CreateEncounterRequest, CreateSavedListRequest,
-    EncounterStatusView, FieldEdit, RemoveSavedListItemRequest, ReorderSavedListItemRequest,
-    UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
+    FieldEdit, RemoveSavedListItemRequest, ReorderSavedListItemRequest, UpdateEncounterRequest,
+    UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
 
 use crate::AtlasAppService;
@@ -255,13 +255,13 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
         name: None,
         description: None,
         note: None,
-        status: None,
+        archived: None,
     };
     worker
         .update_encounter(
             &original.encounter_key,
             UpdateEncounterRequest {
-                status: Some(edit(original.status, EncounterStatusView::Running)),
+                archived: Some(edit(original.archived, true)),
                 ..request()
             },
         )
@@ -289,16 +289,13 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
             .unwrap()
     };
     let before_conflict = saved();
-    assert_eq!(
-        before_conflict.status,
-        atlas_local_state::EncounterStatus::Running
-    );
+    assert!(before_conflict.archived);
     assert_eq!(before_conflict.note, None);
     let error = worker
         .update_encounter(
             &original.encounter_key,
             UpdateEncounterRequest {
-                status: Some(edit(original.status, EncounterStatusView::Archived)),
+                archived: Some(edit(original.archived, true)),
                 description: Some(edit(Some("Bridge".into()), None)),
                 ..request()
             },
@@ -308,7 +305,7 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
     assert_eq!(error.code, AppErrorCode::SavedEditConflict);
     assert_eq!(
         error.details.unwrap()["fields"],
-        serde_json::json!(["status"])
+        serde_json::json!(["archived"])
     );
     assert_eq!(saved(), before_conflict);
 

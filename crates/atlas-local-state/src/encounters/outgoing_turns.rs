@@ -134,7 +134,6 @@ impl EncountersWrite<'_> {
                 encounter_ref,
                 update.turn.participant_key.as_deref(),
                 Some(update.turn.round_number),
-                update.turn.mark_running,
             )?;
             if let Some(start) = update.start_event {
                 let current = storage::get(self.connection, self.owner_id, encounter_ref)?

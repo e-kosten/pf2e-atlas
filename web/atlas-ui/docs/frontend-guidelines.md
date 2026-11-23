@@ -2315,8 +2315,8 @@ reorder is saved and refreshed. Keep reorder writes serialized and refresh feedb
 outside the row layout. Saved-list handles disappear under active filters; moving
 members writes their persisted positions, including unavailable records, without
 changing their snapshots or notes. Drag previews retain the complete member layout.
-Draft encounters show their status without a round in the directory and roster.
-The other statuses retain their round number.
+The encounter directory and roster show the saved round and current participant.
+With no current participant, show the round only after round one.
 Current turn uses the strong filled row treatment with `aria-current` and
 an accessible label; preview selection uses a separate outline. Each row's
 actions menu offers Set turn. The adjacent removal control acts directly, without

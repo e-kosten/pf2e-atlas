@@ -26,7 +26,7 @@ pub use encounters::{
     ConditionScope, ConditionSubject, ConditionTiming, ConditionTurnEvent,
     ConsumedConditionApplication, DamageLethality, DamageMultiplier, Encounter,
     EncounterBoundaryClaim, EncounterBoundaryKind, EncounterEventReceipt, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
+    EncounterParticipantCondition, EncounterTurnState, EncounterTurnUpdate,
     EncounterWithParticipantCount, EncounterWithParticipants, EncountersRead, EncountersWrite,
     FrightenedRecovery, InitiativeRollReceipt, LifecycleCheckPurpose, MortalityState, NewEncounter,
     ParticipantAbilityState, ParticipantEventChange, ParticipantHpOrigin,

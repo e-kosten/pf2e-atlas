@@ -67,7 +67,9 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
             VALUES('kept-member','kept-party',0,'Retained member',2);
          INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
             VALUES(1,'running','running','Running encounter','running','before','before'),
-                  (1,'archived','archived','Archived encounter','archived','before','before');
+                  (1,'archived','archived','Archived encounter','archived','before','before'),
+                  (1,'draft','draft','Draft encounter','draft','before','before'),
+                  (1,'complete','complete','Complete encounter','complete','before','before');
          DELETE FROM reference_component_digests WHERE record_id=(SELECT min(record_id) FROM records);",
     ).unwrap();
     write.commit().unwrap();
@@ -91,6 +93,10 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     reference_rows.remove("reference_component_digests");
     for list in reference_rows.get_mut("saved_lists").unwrap() {
         list.push(rusqlite::types::Value::Integer(0));
+    }
+    for encounter in reference_rows.get_mut("encounters").unwrap() {
+        let phase = encounter.remove(7);
+        encounter.push((phase == rusqlite::types::Value::Text("archived".into())).into());
     }
     drop(before);
 
@@ -150,13 +156,24 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     let source = runtime(&workspace);
     let preserved: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(preserved["version"], "1.1");
+    let phases: Vec<_> = preserved["saved"]["owners"][0]["encounters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| {
+            let root = &row["snapshot"]["encounter"];
+            assert!(root.get("archived").is_none());
+            root["status"].as_str().unwrap()
+        })
+        .collect();
+    assert_eq!(phases, ["archived", "complete", "draft", "running"]);
     assert_eq!(
         preserved["saved"]["owners"][0]["parties"][0]["members"][0]["key"],
         "kept-member"
     );
     assert_eq!(
         archived_json(source.capture_workspace_archive().unwrap())["version"],
-        "4.0"
+        "7.0"
     );
     let target = initialize_workspace(directory.path().join("restore.sqlite")).unwrap();
     let target = runtime(&target);
@@ -582,18 +599,18 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
         )
         .unwrap();
     let state = atlas_local_state::LocalStateWrite::for_local(&write).unwrap();
-    let encounter = state
-        .encounters()
-        .create(atlas_local_state::NewEncounter {
-            name: "Existing fight".into(),
-            slug: "existing-fight".into(),
-            note: None,
-            description: None,
-        })
+    let key = "existing-fight";
+    write
+        .connection()
+        .execute(
+            "INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
+         VALUES(1,?1,?1,'Existing fight','complete','before','before')",
+            [key],
+        )
         .unwrap();
     let pc = state
         .encounters()
-        .add_participant(&encounter.encounter_key, old_combatant())
+        .add_participant(key, old_combatant())
         .unwrap();
     let adjustment = atlas_local_state::EncounterAdjustment {
         adjustment_key: "gm-armor".into(),
@@ -604,28 +621,18 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
         timing: None,
     };
     let adjustment_intent = serde_json::json!({"action": "gm_adjustment"});
-    let encounters = state.encounters();
-    let revision = encounters
-        .get(&encounter.encounter_key)
-        .unwrap()
-        .unwrap()
-        .revision;
-    encounters
-        .apply_condition_event(
-            &encounter.encounter_key,
-            "gm-adjustment",
-            &adjustment_intent,
-            revision,
-            atlas_local_state::PreparedConditionEvent {
-                adjustments: vec![atlas_local_state::AdjustmentChange {
-                    participant_key: pc.participant_key.clone(),
-                    adjustment_key: adjustment.adjustment_key.clone(),
-                    value: Some(adjustment.clone()),
-                }],
-                ..Default::default()
-            },
-        )
-        .unwrap();
+    write.connection().execute(
+        "INSERT INTO encounter_adjustments(participant_key,adjustment_key,payload_json,position)
+         VALUES (?1,'gm-armor',?2,1)",
+        rusqlite::params![pc.participant_key, serde_json::json!({"version":1,"payload":adjustment}).to_string()],
+    ).unwrap();
+    write.connection().execute(
+        "INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,receipt_json)
+         SELECT id,'event','gm-adjustment',?2,?3 FROM encounters WHERE encounter_key=?1",
+        rusqlite::params![key, adjustment_intent.to_string(), serde_json::json!({"version":1,"payload":{
+            "encounter_key":key,"request_id":"gm-adjustment","added_condition_ids":[],"outcomes":[],"pending":[]
+        }}).to_string()],
+    ).unwrap();
     write.commit().unwrap();
     initialize_workspace(workspace.path()).unwrap();
     let mut backup: serde_json::Value =
@@ -669,13 +676,13 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     assert!(
         state
             .characters()
-            .encounter_character(&encounter.encounter_key, &pc.participant_key)
+            .encounter_character(key, &pc.participant_key)
             .unwrap()
             .is_none()
     );
     let saved = state
         .encounters()
-        .get_with_participants(&encounter.encounter_key)
+        .get_with_participants(key)
         .unwrap()
         .unwrap();
     assert_eq!(saved.participants[0].current_hp, Some(23));
@@ -688,11 +695,7 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     assert!(
         state
             .encounters()
-            .condition_event_receipt(
-                &encounter.encounter_key,
-                "gm-adjustment",
-                &adjustment_intent
-            )
+            .condition_event_receipt(key, "gm-adjustment", &adjustment_intent)
             .unwrap()
             .is_some()
     );
@@ -700,17 +703,11 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     let add_turn_receipt = "INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,boundary_key) SELECT id,'turn',?2,'{}','migration-test-boundary' FROM encounters WHERE encounter_key=?1";
     write
         .connection()
-        .execute(
-            add_turn_receipt,
-            [&encounter.encounter_key, "first-turn-receipt"],
-        )
+        .execute(add_turn_receipt, [key, "first-turn-receipt"])
         .unwrap();
     let duplicate_boundary = write
         .connection()
-        .execute(
-            add_turn_receipt,
-            [&encounter.encounter_key, "second-turn-receipt"],
-        )
+        .execute(add_turn_receipt, [key, "second-turn-receipt"])
         .unwrap_err();
     assert_eq!(
         duplicate_boundary.sqlite_error().unwrap().extended_code,
@@ -762,7 +759,7 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
         .local_state()
         .unwrap()
         .encounters()
-        .get_with_participants(&encounter.encounter_key)
+        .get_with_participants(key)
         .unwrap()
         .unwrap();
     assert_eq!(restored.participants[0].adjustments, [adjustment]);
@@ -777,7 +774,7 @@ fn schema_46_promotes_party_members_and_preserves_encounter_state() {
     assert_eq!(
         state
             .characters()
-            .encounter_character(&encounter.encounter_key, &pc.participant_key)
+            .encounter_character(key, &pc.participant_key)
             .unwrap()
             .as_deref(),
         Some("old-pc")
@@ -882,83 +879,55 @@ fn old_combatant() -> atlas_local_state::AddEncounterParticipant {
 
 #[test]
 fn schema_48_upgrade_preserves_all_receipts_and_boundary_children() {
-    use atlas_local_state::{
-        EncounterBoundaryClaim, EncounterBoundaryKind, EncounterTurnState, EncounterTurnUpdate,
-        LocalStateWrite, NewEncounter, PcAdditionReceipt,
-    };
+    use atlas_local_state::LocalStateWrite;
     let directory = tempfile::tempdir().unwrap();
     let workspace = workspace_at_schema(&directory.path().join("workspace.sqlite"), 48);
     let write = workspace.write(48).unwrap();
     let ledger = sql_rows(write.connection(), LEDGER);
     let encounters = LocalStateWrite::for_local(&write).unwrap().encounters();
-    let root = encounters
-        .create(NewEncounter {
-            name: "Migration".into(),
-            slug: "migration".into(),
-            note: None,
-            description: None,
-        })
+    let key = "migration";
+    write
+        .connection()
+        .execute(
+            "INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
+         VALUES(1,?1,?1,'Migration','archived','before','before')",
+            [key],
+        )
         .unwrap();
-    let key = &root.encounter_key;
-    let pc = encounters
-        .add_participant(key, old_combatant())
-        .unwrap()
-        .participant_key;
+    let actor = encounters.add_participant(key, old_combatant()).unwrap();
+    let pc = &actor.participant_key;
     let intent = serde_json::json!({"turn":"next"});
-    encounters
-        .advance_turn_once(
-            key,
-            "old-turn",
-            &intent,
-            encounters.get(key).unwrap().unwrap().revision,
-            |_| {
-                Ok((
-                    EncounterTurnUpdate {
-                        turn: EncounterTurnState {
-                            participant_key: Some(pc.clone()),
-                            round_number: 1,
-                            mark_running: true,
-                        },
-                        durations: vec![],
-                        manual_trackers: vec![],
-                        adjustments: vec![],
-                        start_event: Some(Default::default()),
-                        start_claims: vec![EncounterBoundaryClaim {
-                            participant_key: pc.clone(),
-                            round_number: 1,
-                            kind: EncounterBoundaryKind::TurnStart,
-                            scope_key: "turn-start".into(),
-                        }],
-                    },
-                    true,
-                ))
-            },
-        )
-        .unwrap();
     let digest = serde_json::json!({"digest": "a".repeat(64)});
-    encounters
-        .record_pc_addition(
-            key,
-            "add-pc",
-            &digest,
-            &PcAdditionReceipt {
-                characters: vec!["historical-character".into()],
-                participants: vec![pc],
-            },
-        )
-        .unwrap();
-    let start_id = format!(
-        "start:{}",
-        encounters
-            .latest_outgoing_turn(key)
-            .unwrap()
-            .unwrap()
-            .boundary_key
-    );
+    let start_id = "start:old-boundary";
+    let frozen = serde_json::json!({"version":1,"payload":{
+        "boundary_key":"old-boundary","next_participant_key":pc, "snapshot":{
+            "encounter":{"revision":1,"encounter_key":key,"slug":key,"name":"Migration","status":"running",
+                "round_number":1,"created_at":"before","updated_at":"before"},
+            "participants":[actor]
+        }
+    }});
+    let db = write.connection();
+    db.execute("INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,boundary_key)
+        VALUES (1,'turn','old-turn',?1,'old-boundary')", [intent.to_string()]).unwrap();
+    db.execute("INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,receipt_json)
+        VALUES (1,'event',?1,?2,?3)", rusqlite::params![start_id,intent.to_string(),
+        serde_json::json!({"version":1,"payload":{"encounter_key":key,"request_id":start_id,
+            "added_condition_ids":[],"outcomes":[],"pending":[]}}).to_string()]).unwrap();
+    db.execute("INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,receipt_json)
+        VALUES (1,'pc_addition','add-pc',?1,?2)", rusqlite::params![digest.to_string(),
+        serde_json::json!({"version":1,"payload":{"characters":["historical-character"],"participants":[pc]}}).to_string()]).unwrap();
+    db.execute("INSERT INTO encounter_boundary_claims(encounter_id,participant_key,round_number,kind,scope_key,request_id)
+        VALUES (1,?1,1,'turn_start','turn-start',?2)", [pc.as_str(),start_id]).unwrap();
+    db.execute(
+        "INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review)
+        VALUES (1,'old-turn',?1,1)",
+        [frozen.to_string()],
+    )
+    .unwrap();
     let tables = [
         "SELECT * FROM encounter_command_receipts ORDER BY encounter_id,family,request_id",
         "SELECT * FROM encounter_boundary_claims",
-        "SELECT * FROM encounter_outgoing_turns",
+        "SELECT encounter_id,request_id,requires_review,receipt_family FROM encounter_outgoing_turns",
         "SELECT * FROM pragma_index_list('encounter_command_receipts') ORDER BY name",
     ];
     let rows = tables.map(|query| sql_rows(write.connection(), query));
@@ -976,16 +945,27 @@ fn schema_48_upgrade_preserves_all_receipts_and_boundary_children() {
     assert_eq!(tables.map(|query| sql_rows(read.connection(), query)), rows);
     assert!(sql_rows(read.connection(), "PRAGMA foreign_key_check").is_empty());
     let backup = std::fs::read(archive_path(&workspace)).unwrap();
+    let mut original: serde_json::Value = serde_json::from_slice(&backup).unwrap();
+    let old = &mut original["saved"]["owners"][0]["encounters"][0];
+    for (pointer, phase, archived) in [
+        ("/snapshot/encounter", "archived", true),
+        ("/outgoing/turn/snapshot/encounter", "running", false),
+    ] {
+        let root = old.pointer_mut(pointer).unwrap().as_object_mut().unwrap();
+        assert_eq!(root.remove("status").unwrap(), phase);
+        assert!(root.insert("archived".into(), archived.into()).is_none());
+    }
+    original["version"] = "7.0".into();
     assert_eq!(
         archived_json(WorkspaceArchive::capture(&read).unwrap()),
-        serde_json::from_slice::<serde_json::Value>(&backup).unwrap()
+        original
     );
     drop(read);
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     let encounters = LocalStateWrite::for_local(&write).unwrap().encounters();
     assert!(
         encounters
-            .condition_event_receipt(key, &start_id, &intent)
+            .condition_event_receipt(key, start_id, &intent)
             .unwrap()
             .is_some()
     );
@@ -997,11 +977,11 @@ fn schema_48_upgrade_preserves_all_receipts_and_boundary_children() {
     );
     assert!(
         !encounters
-            .record_addition_committed(key, &start_id, &intent)
+            .record_addition_committed(key, start_id, &intent)
             .unwrap()
     );
     encounters
-        .save_record_addition_receipt(key, &start_id, &intent)
+        .save_record_addition_receipt(key, start_id, &intent)
         .unwrap();
     let doc = encounters.export_document(key).unwrap();
     let copy = encounters
@@ -1025,7 +1005,7 @@ fn schema_48_upgrade_preserves_all_receipts_and_boundary_children() {
     );
     assert!(
         encounters
-            .record_addition_committed(&copy, &start_id, &intent)
+            .record_addition_committed(&copy, start_id, &intent)
             .unwrap()
     );
     assert!(
@@ -1033,4 +1013,72 @@ fn schema_48_upgrade_preserves_all_receipts_and_boundary_children() {
             .record_addition_committed(&copy, &copied_start, &intent)
             .unwrap()
     );
+}
+
+#[test]
+fn schema_50_rejects_corrupt_frozen_membership_before_replacing_backup_or_live_state() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = workspace_at_schema(&directory.path().join("workspace.sqlite"), 50);
+    let write = workspace.write(50).unwrap();
+    let db = write.connection();
+    db.execute_batch(
+        "INSERT INTO encounters(id,owner_id,encounter_key,slug,name,status,created_at,updated_at)
+         VALUES(1,1,'fight','fight','Fight','archived','before','before');
+         INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,boundary_key)
+         VALUES(1,'turn','old-turn','{}','old-boundary');",
+    ).unwrap();
+    write.commit().unwrap();
+    let backup = archive_path(&workspace);
+    std::fs::write(&backup, b"previous backup").unwrap();
+    for (fields, version, expected_error) in [
+        (
+            r#""status":"complete","archived":true"#,
+            1,
+            "both status and archived",
+        ),
+        (
+            r#""status":"complete","status":"archived""#,
+            1,
+            "duplicate encounter metadata field",
+        ),
+        (
+            r#""archived":true,"archived":false"#,
+            1,
+            "duplicate encounter metadata field",
+        ),
+        (r#""status":"other""#, 1, "unknown variant"),
+        (r#""revision_marker":1"#, 1, "missing field"),
+        (r#""status":"complete""#, 2, "receipt version 2"),
+    ] {
+        // Build raw JSON so duplicate field names survive all the way to SQLite.
+        let payload = r#"{"version":VERSION,"payload":{"boundary_key":"old-boundary","next_participant_key":null,
+            "snapshot":{"encounter":{"revision":2,"encounter_key":"fight","slug":"fight","name":"Fight",
+            FIELDS,"round_number":3,"created_at":"before","updated_at":"before"},"participants":[]}}}"#
+            .replace("VERSION", &version.to_string()).replace("FIELDS", fields);
+        let write = workspace.write(50).unwrap();
+        write.connection().execute(
+            "INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review)
+             VALUES(1,'old-turn',?1,0) ON CONFLICT(encounter_id) DO UPDATE SET payload_json=excluded.payload_json",
+            [&payload],
+        ).unwrap();
+        write.commit().unwrap();
+        let error = initialize_workspace(workspace.path())
+            .unwrap_err()
+            .to_string();
+        assert!(error.to_lowercase().contains(expected_error), "{error}");
+        assert_eq!(std::fs::read(&backup).unwrap(), b"previous backup");
+        // The SQL guard must also roll back when another ledger consumer has its own capture step.
+        assert!(
+            workspace
+                .migrate_history_with_capture(RELEASE_HISTORY, |_| Ok(()), |_| Ok(()))
+                .is_err()
+        );
+        let old = workspace.read(50).unwrap();
+        let (phase, frozen): (String,String) = old.connection().query_row(
+            "SELECT e.status,t.payload_json FROM encounters e JOIN encounter_outgoing_turns t ON e.id=t.encounter_id",
+            [], |row| Ok((row.get(0)?,row.get(1)?)),
+        ).unwrap();
+        assert_eq!(phase, "archived");
+        assert_eq!(frozen, payload);
+    }
 }

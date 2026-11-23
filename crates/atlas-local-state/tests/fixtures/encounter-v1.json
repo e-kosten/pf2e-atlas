@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "snapshot": {
+    "encounter": {
+      "encounter_key": "old-fight", "slug": "archive-test", "name": "Old fight",
+      "revision": 8, "status": "archived", "round_number": 3,
+      "created_at": "before", "updated_at": "after"
+    },
+    "participants": []
+  },
+  "baselines": [], "pending": [], "applications": [], "claims": [],
+  "receipts": [{"request_id": "old-turn", "intent": {}, "outcome": {"kind": "turn", "boundary_key": "old-boundary"}}],
+  "outgoing": {
+    "request_id": "old-turn", "requires_review": false,
+    "turn": {
+      "boundary_key": "old-boundary", "next_participant_key": null,
+      "snapshot": {
+        "encounter": {
+          "encounter_key": "old-fight", "slug": "archive-test", "name": "Old fight",
+          "revision": 6, "status": "running", "round_number": 3,
+          "created_at": "before", "updated_at": "before"
+        },
+        "participants": []
+      }
+    }
+  },
+  "record_sources": []
+}

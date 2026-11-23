@@ -46,11 +46,13 @@ test("encounter titles and plain row clicks navigate once in the same document",
     await page.keyboard.press(tab);
     await expect(edit).toBeFocused();
     await page.keyboard.press(tab);
-    await expect(row.getByRole("button", { name: `Delete ${name}` })).toBeFocused();
+    await expect(
+      row.getByRole("button", { name: `More actions for ${name}` }),
+    ).toBeFocused();
     for (const activation of ["click", "link Enter", "row click"]) {
       if (activation === "click") await title.click();
       else if (activation === "link Enter") await title.press("Enter");
-      else await row.getByText("Draft", { exact: true }).click();
+      else await row.getByText(/^0(?: participants)?$/).click();
       await expect(page).toHaveURL(new RegExp(`${href}$`));
       await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
       expect(await documentIdentity(page)).toEqual(identity);

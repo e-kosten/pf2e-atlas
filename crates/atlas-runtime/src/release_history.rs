@@ -70,6 +70,12 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
             ),
             backfill: None,
         },
+        Migration {
+            version: 51,
+            name: "encounter-archiving",
+            sql: include_str!("../../atlas-local-state/src/release/encounter_archiving.sql"),
+            backfill: None,
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };
