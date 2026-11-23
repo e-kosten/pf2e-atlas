@@ -1,8 +1,6 @@
 import { Button } from "antd";
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useLayoutEffect, useRef, useState } from "react";
-import { deleteCharacter } from "../../api/atlasApi";
 import { PcAbilityBrowser, type AbilityNavigation } from "./PcAbilityBrowser";
 import { charactersDestination } from "../../app/destinations";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
@@ -12,13 +10,12 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
-import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
+import { useDeleteCharacter } from "./useDeleteCharacter";
 import { SavedCharacterSheet } from "./CharacterSheet";
 import { CharacterEditor } from "./CharacterEditor";
 import { CharacterMemberships } from "./CharactersPage";
 import {
   characterQueryKey,
-  refreshCharacters,
   useCharacter,
   useSavedAbilityLink,
 } from "./characterQueries";
@@ -178,8 +175,7 @@ function CharacterDocument({
     characterQueryKey(character.character_key),
   );
   const navigate = useNavigate();
-  const client = useQueryClient();
-  const deletion = useConfirmDangerAction();
+  const deletion = useDeleteCharacter(() => navigate(charactersDestination()));
   const [edit, setEdit] = useState<{
     mode: "edit" | "import";
     baseline: PcReferenceView;
@@ -220,19 +216,7 @@ function CharacterDocument({
               if (key === "edit" || key === "import") {
                 show(key, opener);
               } else {
-                deletion.confirm({
-                  title: `Delete ${character.name}?`,
-                  okText: "Delete character",
-                  content:
-                    "This removes the character from all parties and detaches its live rules from encounters. Encounter participants keep their names, levels, HP and initiative.",
-                  onConfirm: async () => {
-                    await deleteCharacter(character.character_key, {
-                      expected_revision: character.character_revision,
-                    });
-                    await navigate(charactersDestination());
-                    await refreshCharacters(client);
-                  },
-                });
+                deletion.confirmDelete(character, character.character_revision);
               }
             }}
           />

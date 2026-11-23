@@ -164,6 +164,7 @@ select two level-7 PCs, enter level 8, then choose **Set 2 characters to level 8
 Shared characters receive the new level in every party they belong to.
 
 Removing a character from a party or deleting a party preserves the characters.
-**Actions → Delete character** removes its memberships
-and detaches its live rules. PCs already in encounters keep their names, levels,
+To delete a saved character, open **All characters**, select the trash button
+beside their name, and confirm with **Delete character**. This removes their party
+memberships and detaches their live rules. PCs already in encounters keep their names, levels,
 HP and initiative.

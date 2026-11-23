@@ -1,4 +1,5 @@
 import { Button } from "antd";
+import { Trash2 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { AtlasLink } from "../../app/AtlasLink";
 import { characterDestination, partyDestination } from "../../app/destinations";
@@ -6,8 +7,12 @@ import type { CharacterPartyView, CharacterSummaryView } from "../../generated/a
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
-import { IndexTable } from "../../shared/ui/tables/IndexTable";
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
+import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
+import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import type { TableProps } from "antd";
+import type { ColumnType } from "antd/es/table";
+import { useDeleteCharacter } from "./useDeleteCharacter";
 import { CharacterSectionNav } from "./CharacterSectionNav";
 import { AddCharacter } from "./AddCharacter";
 import { useCharacters } from "./characterQueries";
@@ -37,7 +42,7 @@ function CharacterName({ character }: { character: CharacterSummaryView }) {
   );
 }
 
-const columns: TableProps<CharacterSummaryView>["columns"] = [
+const columns: NonNullable<TableProps<CharacterSummaryView>["columns"]> = [
   {
     title: "Character",
     key: "name",
@@ -77,6 +82,27 @@ export function CharactersPage() {
   usePageTitle("Characters");
   const query = useCharacters();
   const navigate = useNavigate();
+  const paused = useSavedWritesPaused();
+  const deletion = useDeleteCharacter();
+  const actions: ColumnType<CharacterSummaryView> = {
+    title: <span className="sr-only">Actions</span>,
+    key: "actions",
+    width: 56,
+    render: (_, character) => (
+      <PaneIconButton
+        danger
+        tooltip={false}
+        disabled={paused}
+        icon={<Trash2 size={16} />}
+        label={`Delete ${character.name}`}
+        onClick={(event) => {
+          stopIndexRowAction(event);
+          event.currentTarget.focus({ preventScroll: true });
+          deletion.confirmDelete(character, character.revision);
+        }}
+      />
+    ),
+  };
   return (
     <EntityIndexPage
       className="characters-index-view"
@@ -100,8 +126,8 @@ export function CharactersPage() {
         onActivateRow={(character) =>
           void navigate(characterDestination(character.character_key))
         }
-        columns={columns}
-        compact={{ below: 520, columns: compactColumns }}
+        columns={[...columns, actions]}
+        compact={{ below: 520, columns: [...compactColumns, actions] }}
         dataSource={query.data?.characters ?? []}
         loading={query.isFetching}
         locale={{
@@ -111,6 +137,7 @@ export function CharactersPage() {
               : "No saved characters yet. Add a PC to get started.",
         }}
       />
+      {deletion.dialog}
     </EntityIndexPage>
   );
 }

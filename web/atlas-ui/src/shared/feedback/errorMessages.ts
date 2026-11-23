@@ -15,6 +15,8 @@ const explanations: Partial<Record<AppErrorCode, string>> = {
     "This list address is already in use. Choose another address.",
   saved_list_name_conflict:
     "A list with this name already exists. Choose another name.",
+  character_conflict:
+    "This character changed. Review the updated character, then start the action again.",
   party_not_found: "This party is no longer available.",
   party_conflict: "This party changed. Review its current values before trying again.",
   encounter_not_found: "This encounter is no longer available. Return to Encounters.",
