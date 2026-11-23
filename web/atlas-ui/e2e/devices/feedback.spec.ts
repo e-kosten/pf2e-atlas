@@ -79,8 +79,7 @@ test("a lost write response preserves the draft and reconnecting never replays t
     });
     const offline = dialog.getByText("Unable to connect to Atlas", { exact: true });
     const createAnother = dialog.getByRole("button", {
-      name: "Create another list",
-      exact: true,
+      name: /Create another list$/,
     });
     await expect(uncertain).toBeVisible();
     await expect(offline).toBeVisible();
