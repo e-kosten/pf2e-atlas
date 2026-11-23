@@ -20,7 +20,7 @@ import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 
-import { encounterStatusLabels } from "./encounterStatus";
+import { displayRound, encounterStatusLabels } from "./encounterStatus";
 import { CreateEncounterModal } from "./EncounterModals";
 import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
 import { useCanonicalEncounter } from "./useEncounterQuery";
@@ -255,7 +255,7 @@ function encounterColumns(
       title: "Round",
       dataIndex: "round_number",
       width: 90,
-      render: (round: number) => round.toLocaleString(),
+      render: (_, encounter) => displayRound(encounter),
     },
     { title: "Participants", dataIndex: "participant_count", width: 120 },
     { title: "Updated", dataIndex: "updated_at", width: 180, render: formatDate },
@@ -305,19 +305,22 @@ function encounterColumns(
         {
           title: "Name",
           dataIndex: "name",
-          render: (_, encounter) => (
-            <div className="index-row-summary">
-              {nameLink(encounter)}
-              <div className="index-row-summary__facts">
-                <span>{encounterStatusLabels[encounter.status]}</span>
-                <span>Round {encounter.round_number.toLocaleString()}</span>
-                <span>
-                  {encounter.participant_count.toLocaleString()}{" "}
-                  {encounter.participant_count === 1 ? "participant" : "participants"}
-                </span>
+          render: (_, encounter) => {
+            const round = displayRound(encounter);
+            return (
+              <div className="index-row-summary">
+                {nameLink(encounter)}
+                <div className="index-row-summary__facts">
+                  <span>{encounterStatusLabels[encounter.status]}</span>
+                  {round && <span>Round {round}</span>}
+                  <span>
+                    {encounter.participant_count.toLocaleString()}{" "}
+                    {encounter.participant_count === 1 ? "participant" : "participants"}
+                  </span>
+                </div>
               </div>
-            </div>
-          ),
+            );
+          },
         },
         { ...actions, width: 96 },
       ] satisfies ColumnsType<EncounterSummaryView>,
