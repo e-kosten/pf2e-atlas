@@ -70,6 +70,20 @@ test("selection clear preserves criteria and full-page navigation never flashes 
   ).toHaveCount(0);
 });
 
+test("a narrow deep-linked selection can be cleared without a visible result row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/search/records/${seed}`);
+  const reader = page.getByRole("region", { name: "Record preview" });
+  await reader.getByRole("button", { name: "Results", exact: true }).click();
+  const results = page.getByRole("region", { name: "Search results" });
+  await expect(results.locator("[data-record-key]")).toHaveCount(0);
+  await results.getByRole("button", { name: "Clear selection" }).press("Enter");
+  await expect(page).toHaveURL((url) => url.pathname === "/search");
+  await expect(results).toBeFocused();
+});
+
 test("Similar entry and applied link chips reflow without changing search-control height", async ({
   page,
 }) => {
@@ -219,7 +233,7 @@ test("search and filter rows align and the results bar keeps its wide-screen chr
         .locator(".reference-browser__toolbar")
         .evaluate((bar) => {
           const caption = bar.querySelector(".result-pane-header > span")!;
-          const sort = bar.querySelector(".result-pane-header button")!;
+          const sort = bar.querySelector('.result-pane-header [aria-label^="Sort:"]')!;
           const a = caption.getBoundingClientRect();
           const b = sort.getBoundingClientRect();
           return {

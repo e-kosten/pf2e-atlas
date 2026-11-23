@@ -287,10 +287,16 @@ test("theme dismissal returns focus without stealing the next modal's focus", as
   await expect(name).toBeFocused();
   await expect(page.getByText("Dark", { exact: true })).toBeHidden();
   await page.keyboard.press("Escape");
+  const keep = dialog.getByRole("button", { name: "Keep editing" });
+  await expect(keep).toBeFocused();
+  await activate(keep, info);
+  await expect(name).toHaveValue("Retained draft");
+  await page.keyboard.press("Escape");
+  await activate(dialog.getByRole("button", { name: "Discard", exact: true }), info);
   await expect(dialog).toBeHidden();
   await expect(create).toBeFocused();
   await activate(create, info);
-  await expect(name).toHaveValue("Retained draft");
+  await expect(name).toHaveValue("");
 });
 
 test("both list creation forms accept Unicode display names and use their returned destinations", async ({

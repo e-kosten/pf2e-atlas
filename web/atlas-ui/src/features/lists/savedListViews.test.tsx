@@ -222,6 +222,22 @@ describe("list views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
   });
 
+  it("counts name matches within the current archive scope", async () => {
+    const [active, archived] = savedListIndexFixture().lists;
+    apiMocks.getSavedLists.mockImplementation(async (includeArchived: boolean) => ({
+      lists: includeArchived ? [active, { ...archived, archived: true }] : [active],
+    }));
+    render(<ListIndexView route={{}} />, { wrapper: queryClientWrapper() });
+    await screen.findByText("1 saved list");
+    const search = screen.getByRole("textbox", { name: "Search saved lists" });
+    fireEvent.change(search, { target: { value: archived.name } });
+    expect(await screen.findByText("Matches 0 of 1")).toBeVisible();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show archived" }));
+    expect(await screen.findByText("Matches 1 of 2")).toBeVisible();
+    fireEvent.change(search, { target: { value: "" } });
+    expect(await screen.findByText("2 saved lists")).toBeVisible();
+  });
+
   it("routes from the saved-list index when clicking the row", async () => {
     render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
@@ -348,7 +364,7 @@ describe("list views", () => {
         expect(screen.queryByText("Encounters")).not.toBeInTheDocument(),
       );
       expect(screen.getByText("Research")).toBeInTheDocument();
-      expect(screen.getByText("1 saved list")).toBeInTheDocument();
+      expect(screen.getByText("Matches 1 of 2")).toBeInTheDocument();
     },
   );
 
@@ -367,9 +383,9 @@ describe("list views", () => {
         name: "Tags: arc-two, neutral; activate to include",
       }),
     );
-    expect(screen.getByText("2 saved lists")).toBeVisible();
+    expect(screen.getByText("Matches 2 of 2")).toBeVisible();
     fireEvent.click(one);
-    expect(screen.getByText("1 saved list")).toBeVisible();
+    expect(screen.getByText("Matches 1 of 2")).toBeVisible();
     expect(screen.queryByText("Campaign prep")).toBeNull();
     expect(screen.getByText("Fight prep")).toBeVisible();
     fireEvent.change(screen.getByRole("textbox", { name: "Search tags choices" }), {
@@ -508,6 +524,7 @@ describe("list views", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Retry lists" }));
     expect(await screen.findByText("No lists match these filters")).toBeVisible();
+    expect(screen.getByText("Matches 0 of 1")).toBeVisible();
     expect(
       screen.queryByText("No saved lists. Create a list to collect records."),
     ).toBeNull();

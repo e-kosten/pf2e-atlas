@@ -136,6 +136,17 @@ for (const width of [390, 320]) {
       expect(box!.x + box!.width).toBeLessThanOrEqual(pane!.x + pane!.width);
     }
     const navigation = results.getByRole("group", { name: "Result pages" });
+    if (width === 390) {
+      const count = await results.locator(".result-pane-header > span").boundingBox();
+      const pages = await navigation.boundingBox();
+      const sort = await results.getByRole("button", { name: /^Sort:/ }).boundingBox();
+      const size = await results
+        .getByRole("combobox", { name: "Records per page" })
+        .boundingBox();
+      expect(count!.y + count!.height / 2).toBeCloseTo(pages!.y + pages!.height / 2, 0);
+      expect(sort!.y).toBeGreaterThan(pages!.y + pages!.height);
+      expect(size!.y + size!.height / 2).toBeCloseTo(sort!.y + sort!.height / 2, 0);
+    }
     const previous = await navigation
       .getByRole("button", { name: "Previous page" })
       .boundingBox();
@@ -145,6 +156,16 @@ for (const width of [390, 320]) {
     expect(previous).not.toBeNull();
     expect(next).not.toBeNull();
     expect(Math.abs(previous!.y - next!.y)).toBeLessThanOrEqual(1);
+    if (width === 390) {
+      const current = navigation.getByRole("textbox", { name: "Current page" });
+      await current.fill("2");
+      await page.setViewportSize({ width: 768, height: 1000 });
+      await expect(current).toBeFocused();
+      await expect(current).toHaveValue("2");
+      await page.setViewportSize({ width, height: 1000 });
+      await expect(current).toBeFocused();
+      await current.press("Escape");
+    }
     await navigation.getByRole("button", { name: "Next page" }).click();
     await expect(navigation.getByRole("textbox", { name: "Current page" })).toHaveValue(
       "2",
@@ -180,13 +201,21 @@ for (const width of [1440, 1100, 390]) {
         ? page.locator(".reference-search-entry--similar")
         : page.getByRole("searchbox", { name: "Search records", exact: true });
       await expect(search).toBeVisible();
-      const inputBox = await page.locator(".reference-search-entry").boundingBox();
+      const entry = page.locator(
+        ".reference-search-entry, .reference-search-entry--similar",
+      );
+      const inputBox = await entry.boundingBox();
       expect(inputBox).not.toBeNull();
       const settingsBox = await page
         .getByRole("button", { name: "Search settings", exact: true })
         .boundingBox();
       expect(settingsBox).not.toBeNull();
       expect(inputBox!.height).toBeGreaterThanOrEqual(settingsBox!.height);
+      const filters = page.getByRole("button", {
+        name: /^Filters(?: \(\d+\))?$/,
+        expanded: false,
+      });
+      if (await filters.isVisible()) await filters.click();
       const primaryControls = page.locator(
         ".search-model-select, .filter-toolbar .common-choice-trigger, .filter-panel-actions button",
       );
@@ -230,7 +259,20 @@ for (const width of [1440, 1100, 390]) {
         await expect(search).toBeHidden();
         await reader.getByRole("button", { name: "Results", exact: true }).click();
         await expect(row).toBeFocused();
-        await expect(row).toBeVisible();
+        await expect(row).toHaveAttribute("aria-current", "true");
+        const selectedUrl = new URL(page.url());
+        await row.press("Enter");
+        await expect(
+          reader.getByRole("button", { name: "Clear selection" }),
+        ).toHaveCount(0);
+        await reader.getByRole("button", { name: "Results", exact: true }).click();
+        const selected = results.locator(".reference-result--selected");
+        await selected.getByRole("button", { name: "Clear selection" }).press("Enter");
+        await expect(page).toHaveURL(
+          (url) => url.pathname === "/search" && url.search === selectedUrl.search,
+        );
+        await expect(row).toBeFocused();
+        await expect(row).not.toHaveAttribute("aria-current", "true");
       } else {
         const resultBox = await results.boundingBox();
         expect(box!.x).toBeGreaterThanOrEqual(resultBox!.x + resultBox!.width);
@@ -241,7 +283,7 @@ for (const width of [1440, 1100, 390]) {
       if (similar) {
         const geometry = async () =>
           Promise.all([
-            page.locator(".reference-search-entry").boundingBox(),
+            entry.boundingBox(),
             page
               .getByRole("button", { name: "Search settings", exact: true })
               .boundingBox(),
@@ -254,11 +296,20 @@ for (const width of [1440, 1100, 390]) {
         await expect(page.locator(".reference-search-entry--similar")).toHaveCount(0);
         expect(new URL(page.url()).searchParams.has("similar")).toBe(false);
         const after = await geometry();
-        for (let index = 0; index < before.length; index++) {
-          for (const dimension of ["x", "width"] as const) {
-            expect(
-              Math.abs(before[index]![dimension] - after[index]![dimension]),
-            ).toBeLessThanOrEqual(1);
+        if (width === 390) {
+          // The Similar criterion can wrap the tools to a second row on a phone.
+          expect(before[1]!.y).toBeGreaterThanOrEqual(before[0]!.y);
+          expect(after[0]!.x).toBe(before[0]!.x);
+          expect(after[1]!.y).toBe(after[0]!.y);
+          expect(after[1]!.x).toBeGreaterThanOrEqual(after[0]!.x + after[0]!.width);
+          expect(after[1]!.width).toBe(before[1]!.width);
+        } else {
+          for (let index = 0; index < before.length; index++) {
+            for (const dimension of ["x", "width"] as const) {
+              expect(
+                Math.abs(before[index]![dimension] - after[index]![dimension]),
+              ).toBeLessThanOrEqual(1);
+            }
           }
         }
         expect(after[0]!.y).toBe(before[0]!.y);

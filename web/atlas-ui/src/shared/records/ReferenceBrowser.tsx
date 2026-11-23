@@ -25,6 +25,7 @@ export function ReferenceBrowser({
   onSelect,
   reading,
   resultsHeader,
+  clearBesideSelection = false,
   recordActions,
   readerStatus,
   onReaderClose,
@@ -58,6 +59,7 @@ export function ReferenceBrowser({
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
   reading: ReferenceReading;
   resultsHeader?: ReactNode;
+  clearBesideSelection?: boolean;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
@@ -102,6 +104,9 @@ export function ReferenceBrowser({
         onReaderClose={onReaderClose}
         onClearSelection={onClearSelection}
         clearSelectionDisabled={disabled}
+        narrowClearPlacement={
+          clearBesideSelection ? (selected ? "row" : "header") : undefined
+        }
         positions={positions}
         observeWidth={observeWidth}
         showRelated={showRelated}
@@ -122,28 +127,33 @@ export function ReferenceBrowser({
           ) : undefined
         }
       >
-        {loading && !rows.length ? (
-          <LoadingStatus className="reference-loading" label={loadingLabel} />
-        ) : !rows.length && emptyMessage ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyMessage} />
-        ) : null}
-        {rows.map((row) => (
-          <ReferenceResult
-            key={row.record.record_key}
-            row={row}
-            searchCard={searchCards}
-            relationshipClauses={relationshipClauses}
-            filter={filter}
-            generation={generation}
-            onRefreshResults={onRefreshResults}
-            selected={row.record.record_key === selectedRecordKey}
-            disabled={disabled}
-            previewOnEnter={previewOnEnter}
-            onPreview={() => {
-              onSelect(row, { navigation: rootNavigation(row.record.record_key) });
-            }}
-          />
-        ))}
+        {(rowAction) => (
+          <>
+            {loading && !rows.length ? (
+              <LoadingStatus className="reference-loading" label={loadingLabel} />
+            ) : !rows.length && emptyMessage ? (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyMessage} />
+            ) : null}
+            {rows.map((row) => (
+              <ReferenceResult
+                key={row.record.record_key}
+                row={row}
+                actions={selected === row ? rowAction : null}
+                searchCard={searchCards}
+                relationshipClauses={relationshipClauses}
+                filter={filter}
+                generation={generation}
+                onRefreshResults={onRefreshResults}
+                selected={row.record.record_key === selectedRecordKey}
+                disabled={disabled}
+                previewOnEnter={previewOnEnter}
+                onPreview={() => {
+                  onSelect(row, { navigation: rootNavigation(row.record.record_key) });
+                }}
+              />
+            ))}
+          </>
+        )}
       </BrowseReader>
     </ReferenceHelpHost>
   );

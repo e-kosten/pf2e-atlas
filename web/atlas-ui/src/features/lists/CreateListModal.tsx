@@ -54,6 +54,12 @@ export function CreateListModal({
 
   const uncertain = create.isError && isUnconfirmedMutation(create.error);
   const blocked = paused || (uncertain && !directoryChecked);
+  function close() {
+    if (inFlight.current) return;
+    form.resetFields();
+    if (!uncertain) create.reset();
+    onCancel();
+  }
   return (
     <Modal
       transitionName=""
@@ -63,8 +69,14 @@ export function CreateListModal({
       keyboard={!create.isPending}
       mask={{ closable: !create.isPending }}
       okText={uncertain ? "Create another list" : "Create list"}
-      onCancel={() => {
-        if (!inFlight.current) onCancel();
+      onCancel={close}
+      confirmDiscard={{
+        when: () =>
+          Boolean(
+            form.getFieldValue("name")?.trim() ||
+            normalizeTags(form.getFieldValue("tags")).length,
+          ),
+        onDiscard: close,
       }}
       okButtonProps={{ disabled: blocked }}
       onOk={() => {

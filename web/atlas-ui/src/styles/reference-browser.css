@@ -75,6 +75,22 @@
   flex: 1;
   flex-wrap: wrap;
 }
+.search-results-toolbar {
+  reading-flow: flex-visual;
+}
+@media (min-width: 576px) {
+  .search-results-toolbar > .pager__navigation {
+    order: 1;
+  }
+}
+@media (max-width: 575px) {
+  .search-results-toolbar:has(.pager__navigation) > .pager--compact {
+    flex-basis: 100%;
+  }
+  .search-results-toolbar > .pager__navigation {
+    margin-inline-start: auto;
+  }
+}
 .reference-browser__reader-actions {
   display: flex;
   flex-wrap: wrap;

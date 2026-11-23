@@ -43,6 +43,7 @@ test("a version change keeps one reachable recovery inside an open editor and pr
   await reload.click({ trial: true });
   await noPageOverflow(page);
   await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+  await activate(dialog.getByRole("button", { name: "Discard", exact: true }), info);
   await expect(dialog).toBeHidden();
   await expect(
     page.getByRole("button", { name: "Reload page", exact: true }),
@@ -89,6 +90,13 @@ test("a lost write response preserves the draft and reconnecting never replays t
     await expect(offline).toHaveCount(0);
     await expect(uncertain).toBeVisible();
     await expect(createAnother).toBeDisabled();
+    await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+    await activate(dialog.getByRole("button", { name: "Discard", exact: true }), info);
+    await activate(page.getByRole("button", { name: "New list", exact: true }), info);
+    await expect(name).toHaveValue("");
+    await expect(uncertain).toBeVisible();
+    await expect(createAnother).toBeDisabled();
+    await name.fill(draft);
     expect(attempts).toBe(1);
 
     await activate(

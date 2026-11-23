@@ -149,6 +149,7 @@ export function SearchView({
           />
         )}
         <ReferenceBrowser
+          clearBesideSelection
           searchCards
           previewOnEnter
           showReaderPrompt={Boolean(workspace.resultPage?.rows.length)}
