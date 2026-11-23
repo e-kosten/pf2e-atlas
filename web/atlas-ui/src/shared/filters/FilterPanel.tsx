@@ -9,7 +9,7 @@ import {
   ConfigProvider,
   Form,
   Input,
-  Popover,
+  Flex,
   Select,
   Skeleton,
   Space,
@@ -85,6 +85,7 @@ import {
   type CommonCondition,
   type FilterPanelState,
 } from "./filterControls";
+import { FilterEditorPopover } from "../ui/pickers/FilterEditorPopover";
 import { CompactSelect } from "../ui/pickers/CompactSelect";
 import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
@@ -874,7 +875,7 @@ function ToolbarRange({
   }
 
   return (
-    <Popover
+    <FilterEditorPopover
       open={open}
       onOpenChange={changeOpen}
       afterOpenChange={(shown) => {
@@ -882,9 +883,6 @@ function ToolbarRange({
         if (touchOpening.current) dialog.current?.focus({ preventScroll: true });
         else minimum.current?.focus({ preventScroll: true });
       }}
-      trigger="click"
-      placement="bottom"
-      destroyOnHidden
       styles={{ root: { width: "min(360px, calc(100vw - 32px))" } }}
       title={<span id={id + "-title"}>{field.label}</span>}
       content={
@@ -896,7 +894,7 @@ function ToolbarRange({
           tabIndex={-1}
           onKeyDownCapture={closeOnEscape}
         >
-          <Space orientation="vertical" style={{ width: "100%" }}>
+          <Flex vertical gap="small">
             {field.help && (
               <Typography.Text type="secondary">{field.help}</Typography.Text>
             )}
@@ -906,10 +904,14 @@ function ToolbarRange({
               onChange={onChange}
               minimumRef={minimum}
             />
-            <Button type="text" tabIndex={0} onClick={() => onChange(["", ""])}>
-              Clear range
+            <Button
+              style={{ alignSelf: "flex-end" }}
+              tabIndex={0}
+              onClick={() => onChange(["", ""])}
+            >
+              Clear
             </Button>
-          </Space>
+          </Flex>
         </section>
       }
     >
@@ -931,7 +933,7 @@ function ToolbarRange({
       >
         {field.label}
       </Button>
-    </Popover>
+    </FilterEditorPopover>
   );
 }
 

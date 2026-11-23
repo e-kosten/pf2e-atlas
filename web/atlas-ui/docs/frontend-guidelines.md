@@ -42,7 +42,8 @@ control height as text search; truncate its source title to one line while
 retaining the complete linked title and source-preview interaction. Filter
 controls follow on their own row at their natural widths with the same spacing
 at every width; wrap when they no longer fit instead of stretching into a grid.
-Give the toolbar range filter the same disclosure cue as the choice filters.
+Toolbar range and choice editors share the arrowless filter popover and use a chevron on their triggers.
+Place the outlined Clear button after the range bounds.
 Keyboard and mouse opening focus Minimum. On touch, tapping a bound begins editing.
 Escape closes the range editor and returns focus to its trigger within the current Search or picker.
 Keep trigger labels stable as choices change. Common selections, numeric ranges

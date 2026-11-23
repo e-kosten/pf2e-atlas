@@ -680,7 +680,7 @@ test("range filter focus follows the opening input and Escape closes only the ra
   await page.keyboard.press("Tab");
   await expect(maximum).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(range.getByRole("button", { name: "Clear range" })).toBeFocused();
+  await expect(range.getByRole("button", { name: "Clear", exact: true })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
