@@ -202,10 +202,8 @@ function SettingsPage({ pane, windows }: { pane: Pane; windows: boolean }) {
   const tab = useDesktopTab();
   const active = tab?.active ?? true;
   const [error, setError] = useState<string | null>(null);
-  usePageTitle(
-    windows ? windowsTitles[pane] : paneNames[pane === "channel" ? "updates" : pane],
-    "Settings",
-  );
+  const macPane = pane === "channel" ? "updates" : pane;
+  usePageTitle(windows ? windowsTitles[pane] : paneNames[macPane], "Settings");
   useSettingsRequest(
     windows ? undefined : attachment.settingsRequest,
     attachment.token,
@@ -254,9 +252,7 @@ function SettingsPage({ pane, windows }: { pane: Pane; windows: boolean }) {
               params={{ pane: key }}
               key={key}
               replace
-              aria-current={
-                (pane === "channel" ? "updates" : pane) === key ? "page" : undefined
-              }
+              aria-current={macPane === key ? "page" : undefined}
             >
               <Icon size={20} aria-hidden="true" />
               {paneNames[key]}
@@ -264,70 +260,73 @@ function SettingsPage({ pane, windows }: { pane: Pane; windows: boolean }) {
           ))}
         </nav>
       )}
-      <div className="desktop-settings__body">
-        {windows && pane !== "updates" && (
-          <Link
-            to="/settings"
-            className="desktop-settings__back"
-            aria-label="Back to Settings"
-          >
-            <ArrowLeft size={16} /> Settings
-          </Link>
-        )}
-        <h1 className={windows ? undefined : "sr-only"} tabIndex={-1}>
-          {windows
-            ? windowsTitles[pane]
-            : paneNames[pane === "channel" ? "updates" : pane]}
-        </h1>
-        {error && <Alert type="error" title={error} />}
-        {(pane === "updates" || (!windows && pane === "channel")) && (
-          <>
-            <section className="desktop-settings__group" aria-label="App updates">
-              {windows && <h2>App updates</h2>}
-              <div className="desktop-settings__updates">
-                <DesktopUpdateSection
-                  channelDisclosure={
-                    windows
-                      ? undefined
-                      : {
-                          open: pane === "channel",
-                          onToggle: () =>
-                            void router.navigate({
-                              to: "/settings/$pane",
-                              params: {
-                                pane: pane === "channel" ? "updates" : "channel",
-                              },
-                              replace: true,
-                            }),
-                        }
-                  }
-                />
-                {windows && channel && (
-                  <SettingsRow
-                    to="/settings/channel"
-                    label="Release channel"
-                    value={channelLabel}
+      <div className="desktop-settings__content" key={windows ? undefined : macPane}>
+        <div className="desktop-settings__body">
+          {windows && pane !== "updates" && (
+            <Link
+              to="/settings"
+              className="desktop-settings__back"
+              aria-label="Back to Settings"
+            >
+              <ArrowLeft size={16} /> Settings
+            </Link>
+          )}
+          <h1 className={windows ? undefined : "sr-only"} tabIndex={-1}>
+            {windows ? windowsTitles[pane] : paneNames[macPane]}
+          </h1>
+          {error && <Alert type="error" title={error} />}
+          {(pane === "updates" || (!windows && pane === "channel")) && (
+            <>
+              <section className="desktop-settings__group" aria-label="App updates">
+                {windows && <h2>App updates</h2>}
+                <div className="desktop-settings__updates">
+                  <DesktopUpdateSection
+                    channelDisclosure={
+                      windows
+                        ? undefined
+                        : {
+                            open: pane === "channel",
+                            onToggle: () =>
+                              void router.navigate({
+                                to: "/settings/$pane",
+                                params: {
+                                  pane: pane === "channel" ? "updates" : "channel",
+                                },
+                                replace: true,
+                              }),
+                          }
+                    }
                   />
-                )}
-              </div>
-            </section>
-            {windows && (
-              <>
-                <section className="desktop-settings__group">
-                  <h2>Workspace</h2>
-                  <SettingsRow to="/settings/data" label={windowsTitles.data} />
-                </section>
-                <section className="desktop-settings__group">
-                  <h2>Tools</h2>
-                  <SettingsRow to="/settings/terminal" label={windowsTitles.terminal} />
-                </section>
-              </>
-            )}
-          </>
-        )}
-        {windows && pane === "channel" && <DesktopUpdateSection view="channel" />}
-        {pane === "data" && <SearchDataPane />}
-        {pane === "terminal" && <DesktopTerminal />}
+                  {windows && channel && (
+                    <SettingsRow
+                      to="/settings/channel"
+                      label="Release channel"
+                      value={channelLabel}
+                    />
+                  )}
+                </div>
+              </section>
+              {windows && (
+                <>
+                  <section className="desktop-settings__group">
+                    <h2>Workspace</h2>
+                    <SettingsRow to="/settings/data" label={windowsTitles.data} />
+                  </section>
+                  <section className="desktop-settings__group">
+                    <h2>Tools</h2>
+                    <SettingsRow
+                      to="/settings/terminal"
+                      label={windowsTitles.terminal}
+                    />
+                  </section>
+                </>
+              )}
+            </>
+          )}
+          {windows && pane === "channel" && <DesktopUpdateSection view="channel" />}
+          {pane === "data" && <SearchDataPane />}
+          {pane === "terminal" && <DesktopTerminal />}
+        </div>
       </div>
     </main>
   );
