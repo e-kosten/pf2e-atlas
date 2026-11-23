@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Button } from "antd";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { isPrimaryActivation } from "../../../app/navigation";
 import { IndexTable, RowTitleLink } from "./IndexTable";
 
@@ -47,15 +48,11 @@ describe("IndexTable", () => {
     expect(screen.getByText("No records")).toBe(empty);
   });
 
-  it("activates once from a plain cell click or Enter focused on the row", () => {
+  it("opens from plain row space without adding a keyboard stop", () => {
     const { onActivateRow, tableRow } = renderIndex(row.name);
     fireEvent.click(screen.getByText("Ready"));
     expect(onActivateRow).toHaveBeenCalledExactlyOnceWith(row);
-    onActivateRow.mockClear();
-
-    act(() => tableRow.focus());
-    fireEvent.keyDown(tableRow, { key: "Enter" });
-    expect(onActivateRow).toHaveBeenCalledExactlyOnceWith(row);
+    expect(tableRow.tabIndex).toBe(-1);
   });
 
   it.each(["Edit", "Delete"])(
@@ -76,6 +73,16 @@ describe("IndexTable", () => {
       expect(onActivateRow).not.toHaveBeenCalled();
     },
   );
+
+  it("leaves clicks in a row action's portaled dialog inside that dialog", () => {
+    const cancel = vi.fn();
+    const { onActivateRow } = renderIndex(
+      createPortal(<Button onClick={cancel}>Cancel</Button>, document.body),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onActivateRow).not.toHaveBeenCalled();
+  });
 
   it("does not treat typing Enter in an embedded field as row activation", () => {
     const { onActivateRow } = renderIndex(<input aria-label="Name" />);

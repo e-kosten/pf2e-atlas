@@ -1,3 +1,4 @@
+import { FilterEditorPopover } from "./FilterEditorPopover";
 import { restoreOverlayFocus } from "../overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
 import { AtlasDrawer as Drawer } from "../overlays/AtlasDrawer";
@@ -9,7 +10,7 @@ import {
   MinusOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import { Button, Grid, Input, Popover, Tag, Typography, theme } from "antd";
+import { Button, Grid, Input, Tag, Typography, theme } from "antd";
 import type { InputRef } from "antd";
 import {
   Fragment,
@@ -517,7 +518,7 @@ export function ChoicePicker({
       {narrow ? (
         anchor
       ) : (
-        <Popover
+        <FilterEditorPopover
           content={menu}
           open={visible}
           onOpenChange={setMenuOpen}
@@ -527,13 +528,9 @@ export function ChoicePicker({
               input.current?.focus();
             }
           }}
-          placement="bottom"
-          trigger="click"
-          arrow={false}
-          destroyOnHidden
         >
           {anchor}
-        </Popover>
+        </FilterEditorPopover>
       )}
       {narrow && (
         <Drawer

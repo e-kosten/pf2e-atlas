@@ -1,3 +1,21 @@
+.list-index-table {
+  container: list-index-table / inline-size;
+}
+.list-index-view__compact-description,
+.list-index-view__compact-updated {
+  display: none;
+}
+@container list-index-table (min-width: 640px) {
+  .list-index-view__compact-description {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .list-index-view__compact-updated {
+    display: inline;
+  }
+}
 .list-index-view .index-row > td {
   vertical-align: top;
 }

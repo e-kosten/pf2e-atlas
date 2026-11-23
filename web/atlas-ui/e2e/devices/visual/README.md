@@ -5,6 +5,17 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Draft encounter caption in PR #412
+
+PR #412 hid the round number on the Draft caption until the encounter ran.
+PR #413 subsequently removed that caption, as documented under [Encounter turn summary](#encounter-turn-summary).
+Eight macOS references showed the earlier caption, six in desktop Chromium and
+two in tablet WebKit. These were captured on macOS 27.2.1 arm64 with Playwright 1.65.0 at `ddaa2d90a`.
+On Ubuntu 24.04, six desktop Chromium and six tablet WebKit frames showed the
+caption. Those references came from the
+[Linux capture for PR #412](https://github.com/e-kosten/pf2e-atlas/actions/runs/45272875299)
+using Playwright 1.65.0 and the PR merge candidate `ea375fc6a`.
+
 ## Characters in global navigation
 
 The header now includes Characters after Encounters. On phones the four

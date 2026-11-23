@@ -468,10 +468,17 @@ test("directory row actions stay reachable at phone width and retain focus after
   page,
 }, info) => {
   const slug = `compact-directory-${info.project.name}-${Date.now()}`;
-  const name = "Northern Watchtower Expedition and Supplies";
+  const name = `Northern Watchtower Expedition and Supplies ${slug}`;
+  const description =
+    "Routes through the pass and supplies for the next expedition. ".repeat(5);
   const { list } = await (
     await page.request.post("/api/lists", {
-      data: { slug, name, tags: ["session prep"] },
+      data: {
+        slug,
+        name,
+        tags: ["session prep"],
+        description: `**Watchtower.** ${description}`,
+      },
     })
   ).json();
   const { encounter } = await (
@@ -541,6 +548,28 @@ test("directory row actions stay reachable at phone width and retain focus after
         await expect(page.getByRole("columnheader", { name: sample.wide })).toHaveCount(
           0,
         );
+      }
+      if (sample.route === "/lists") {
+        const excerpt = row.getByText(/^Watchtower\. Routes/);
+        const updated = row.getByText(/^Updated /);
+        await expect(excerpt).toBeHidden();
+        await expect(updated).toBeHidden();
+        await page.setViewportSize({ width: 819, height: 720 });
+        await expect(excerpt).toBeVisible();
+        await expect(excerpt).toContainText(description.trim());
+        await expect
+          .poll(() =>
+            excerpt.evaluate((element) => element.scrollWidth > element.clientWidth),
+          )
+          .toBe(true);
+        const date = await page.evaluate(
+          (stamp) =>
+            new Date(stamp).toLocaleDateString(undefined, { dateStyle: "short" }),
+          list.updated_at,
+        );
+        await expect(updated).toHaveText(`Updated ${date}`);
+        await expect(row.getByRole("link")).toHaveCount(1);
+        await noPageOverflow(page);
       }
       await activate(edit, info);
       const dialog = page.getByRole("dialog", { name: sample.dialog, exact: true });

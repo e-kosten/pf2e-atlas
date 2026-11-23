@@ -575,12 +575,14 @@ describe("encounter views", () => {
     if (!encounterRow) {
       throw new Error("encounter row was not rendered");
     }
+    expect(within(encounterRow).queryByText(/Round/)).not.toBeInTheDocument();
     fireEvent.click(encounterRow);
     await waitFor(() => expect(window.location.pathname).toBe("/encounters/ambush"));
 
     history.replaceState(null, "", "/encounters");
     fireEvent.click(screen.getByRole("tab", { name: "Archived" }));
-    expect(await screen.findByText("Old Fight")).toBeInTheDocument();
+    const archivedRow = (await screen.findByText("Old Fight")).closest("tr")!;
+    expect(within(archivedRow).getByText("Round 2")).toBeVisible();
     expect(screen.getByText("1 archived encounter")).toBeVisible();
     expect(screen.queryByText("Ambush")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Active" }));
@@ -1247,6 +1249,18 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Start turn" })).not.toBeDisabled(),
     );
+    expect(screen.queryByText(/^Round 1/)).not.toBeInTheDocument();
+    apiMocks.advanceEncounterTurn.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: {
+          ...serverEncounter.encounter,
+          current_turn_participant_name: "Goblin",
+        },
+        current_turn_participant_key: "participant_a",
+      };
+      return { encounter_key: "encounter_ambush" };
+    });
     fireEvent.click(screen.getByRole("button", { name: "Start turn" }));
     await waitFor(() =>
       expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
@@ -1254,6 +1268,7 @@ describe("encounter views", () => {
         expected_revision: 0,
       }),
     );
+    expect(await screen.findByText("Round 1 · Goblin’s turn")).toBeVisible();
   });
 
   it("reveals the canonical next participant at the top of the reader after refresh", async () => {
@@ -3818,7 +3833,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         name: "Old Fight",
         archived: true,
         round_duration_seconds: 6,
-        round_number: 1,
+        round_number: 2,
         participant_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",

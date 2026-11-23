@@ -364,7 +364,11 @@ describe("shared common and maintained advanced filters", () => {
       screen.getByRole("button", { name: "Clear Level / rank range" }),
     ).toHaveTextContent("Level / rank: -1–6");
     expect(trigger).toHaveAccessibleName("Edit Level / rank range: -1 to 6");
-    fireEvent.click(screen.getByRole("button", { name: "Clear range" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Level / rank" })).getByRole("button", {
+        name: "Clear",
+      }),
+    );
     expect(trigger).toHaveTextContent("Level / rank");
     expect(
       screen.queryByRole("button", { name: "Clear Level / rank range" }),
