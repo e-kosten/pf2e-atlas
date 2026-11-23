@@ -105,6 +105,8 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     thread::spawn(move || {
         match if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "channels") {
             run_channels(&app)
+        } else if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "same-channel") {
+            run_same_channel(&app)
         } else if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "upgrade") {
             run_upgrade(&app)
         } else if links_mode {
@@ -195,10 +197,12 @@ fn run_upgrade_flow(app: &AppHandle) -> Result<(), String> {
                 "This version needs to upgrade your data after restarting. Atlas will be unavailable until the upgrade finishes.",
             )
         })?;
+        reset_install_progress()?;
         upgrade_record(app, "awaiting-automatic-restart", None)?;
         wait_for(deadline, "signed Nightly install confirmation", || {
             click_settings_button(&window, "Install Nightly and restart")
         })?;
+        verify_install_progress(&window, deadline)?;
         return wait_for(deadline, "automatic target restart", || false);
     }
     if !installed.tag.starts_with("nightly/")
@@ -208,6 +212,7 @@ fn run_upgrade_flow(app: &AppHandle) -> Result<(), String> {
     {
         return Err("Upgrade smoke requires the reviewed Nightly target and separate copy.".into());
     }
+    require_install_progress(&installed.version)?;
     if process::probe(app)?.status != atlas_desktop_protocol::WorkspaceStatus::UpgradeRequired {
         return Err("The incoming target did not require the expected data upgrade.".into());
     }
@@ -293,6 +298,7 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
     let window = open_settings(app, &window, Destination::Channel, deadline)?;
     let stable = installed.tag.starts_with("release/");
     if stable {
+        require_install_progress(&installed.version)?;
         wait_for(deadline, "Stable channel after restart", || {
             text_visible(&window, &format!("Installed version {}", installed.version))
                 && text_visible(&window, "Current channel · Stable")
@@ -334,6 +340,7 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
     wait_for(deadline, "Stable compatibility review", || {
         click_settings_button(&window, "Check Stable compatibility")
     })?;
+    reset_install_progress()?;
     if let Err(error) = wait_for(deadline, "signed Stable install confirmation", || {
         click_settings_button(&window, "Install Stable and restart")
     }) {
@@ -352,7 +359,104 @@ fn run_channels(app: &AppHandle) -> Result<(), String> {
             .unwrap_or_default();
         return Err(format!("{error}: {detail}"));
     }
+    verify_install_progress(&window, deadline)?;
     wait_for(deadline, "installer restart", || false)
+}
+
+fn run_same_channel(app: &AppHandle) -> Result<(), String> {
+    let installed = crate::updates::installed_build().ok_or("Expected a signed test build.")?;
+    let expected = std::env::var("ATLAS_PILOT_EXPECTED_VERSION")
+        .map_err(|_| "Expected an explicit target release for the same-channel smoke.")?;
+    let origin = app
+        .get_webview_window(PRIMARY)
+        .ok_or("Primary window unavailable.")?;
+    let deadline = Instant::now() + Duration::from_secs(45);
+    let settings = open_settings(app, &origin, Destination::Channel, deadline)?;
+    if installed.version == expected {
+        require_install_progress(&expected)?;
+        wait_for(deadline, "installed target after restart", || {
+            text_visible(&settings, &format!("Installed version {expected}"))
+        })?;
+        std::fs::write(process::home()?.join("same-channel-complete"), expected)
+            .map_err(display)?;
+        return Ok(());
+    }
+    reset_install_progress()?;
+    wait_for(
+        deadline,
+        "same-channel install with Release channel expanded",
+        || {
+            evaluates_true(
+                &settings,
+                "Boolean(document.querySelector('details[open]'))",
+            ) && click_settings_button(&settings, "Install and restart")
+        },
+    )?;
+    verify_install_progress(&settings, deadline)?;
+    wait_for(deadline, "same-channel installer restart", || false)
+}
+
+// Capture the actual WKWebView immediately before the signed installer restarts
+// Atlas. A disclosure that mounts its own presenter would duplicate this text.
+fn verify_install_progress(window: &WebviewWindow, deadline: Instant) -> Result<(), String> {
+    let mut evidence = None;
+    wait_for(
+        deadline,
+        "a single install status on the expanded channel route",
+        || {
+            let (send, receive) = std::sync::mpsc::channel();
+            let script = r#"(() => {
+            const main = document.querySelector('main.desktop-settings');
+            if (!main || location.pathname !== '/settings/channel') return null;
+            const text = main.innerText;
+            const status = 'Installing and restarting…';
+            const count = text.split(status).length - 1;
+            const live = [...main.querySelectorAll('[role=status]')].filter(
+                el => el.getClientRects().length && el.textContent.trim() === status
+            ).length;
+            const version = window.__ATLAS_DESKTOP_SETUP__?.update?.version;
+            return count ? { count, live, text, version, route: location.pathname } : null;
+        })()"#;
+            if window
+                .eval_with_callback(script, move |value| {
+                    let _ = send.send(value);
+                })
+                .is_err()
+            {
+                return false;
+            }
+            evidence = receive
+                .recv_timeout(Duration::from_millis(200))
+                .ok()
+                .and_then(|value| serde_json::from_str::<serde_json::Value>(&value).ok())
+                .filter(|value| !value.is_null());
+            evidence.is_some()
+        },
+    )?;
+    let evidence = evidence.ok_or("The install status could not be recorded.")?;
+    std::fs::write(
+        process::home()?.join("install-progress.json"),
+        evidence.to_string(),
+    )
+    .map_err(display)?;
+    Ok(())
+}
+
+fn reset_install_progress() -> Result<(), String> {
+    std::fs::write(process::home()?.join("install-progress.json"), "null").map_err(display)
+}
+
+// The installer can restart while the old process is still waiting to observe
+// Settings. The incoming process therefore owns the final assertion.
+fn require_install_progress(version: &str) -> Result<(), String> {
+    let bytes = std::fs::read(process::home()?.join("install-progress.json")).map_err(display)?;
+    let evidence: serde_json::Value = serde_json::from_slice(&bytes).map_err(display)?;
+    if evidence["count"] != 1 || evidence["live"] != 1 || evidence["version"] != version {
+        return Err(format!(
+            "Expected one visible install status and one announcement: {evidence}"
+        ));
+    }
+    Ok(())
 }
 
 fn run(app: &AppHandle) -> Result<(), String> {
