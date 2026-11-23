@@ -246,6 +246,55 @@ test("the opening cover follows the resolved product scheme over the native fall
   }
 });
 
+test("product links targeting another tab open in front and modified clicks stay in the background", () => {
+  const { window } = new JSDOM("", { url: target });
+  try {
+    const { document } = window;
+    const listeners = new Map();
+    const calls = [];
+    window.addEventListener = (name, listener) => listeners.set(name, listener);
+    window.__TAURI_INTERNALS__ = {
+      invoke: async (command, args) => calls.push([command, args.url, args.foreground]),
+    };
+    const bridge = readFileSync(
+      new URL("./src-tauri/src/tab_links.js", import.meta.url), "utf8",
+    );
+    runInNewContext(bridge, {
+      window,
+      document,
+      location: window.location,
+      localStorage: window.localStorage,
+      matchMedia: () => ({ matches: false }),
+      navigator: { platform: "MacIntel" },
+      HTMLAnchorElement: window.HTMLAnchorElement,
+    });
+    const anchor = document.createElement("a");
+    anchor.href = "/lists/archived-plans";
+    const click = (metaKey = false) =>
+      listeners.get("click")({
+        isTrusted: true,
+        button: 0,
+        metaKey,
+        composedPath: () => [anchor],
+        preventDefault() {},
+        stopImmediatePropagation() {},
+      });
+    click();
+    anchor.target = "_blank";
+    click();
+    click(true);
+    const href = anchor.href;
+    anchor.href = "https://example.com/";
+    click();
+    assert.deepEqual(calls, [
+      ["desktop_tab_link", href, true],
+      ["desktop_tab_link", href, false],
+    ]);
+  } finally {
+    window.close();
+  }
+});
+
 for (const [name, resume, label] of [
   ["missing selected data", false, "Open my original workspace"],
   ["interrupted channel switch", true, "Resume my previous workspace"],

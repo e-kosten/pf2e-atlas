@@ -62,7 +62,8 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
         format!("Snapshot {}", keys[2])
     );
     assert_eq!(view.items[0].note, Some(format!("Note {}", keys[2])));
-    let export = f.worker.export_saved_list("reorder").unwrap();
+    let mut export = f.worker.export_saved_list("reorder").unwrap();
+    export.list.name = "Reorder copy".into();
     assert_eq!(
         export
             .items
@@ -732,7 +733,8 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         exhaustive.items[1029].record_key,
         "actions:0000000000001029"
     );
-    let export = f.worker.export_saved_list("large-list").unwrap();
+    let mut export = f.worker.export_saved_list("large-list").unwrap();
+    export.list.name = "Large list copy".into();
     assert_eq!(export.items[1029].record_key, "actions:0000000000001029");
     assert_eq!(export.items[1030].note.as_deref(), Some("Note 1030"));
     let imported = f

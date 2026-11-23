@@ -2451,20 +2451,38 @@ fn definition_lookup_uses_the_exact_key_exposed_by_filter_discovery() {
 }
 
 #[test]
-fn name_only_list_creation_reserves_a_new_slug_with_initial_items() {
+fn create_with_records_rejects_duplicate_names_and_suffixes_distinct_names_with_the_same_slug() {
     let f = Fixture::new();
     let original = f.data(&["lists", "create", "Garden Sentries", "--json"]);
     assert_eq!(original["list"]["slug"], "garden-sentries");
-    let duplicate_name = f.data(&[
+    let conflict = f.command(
+        &[
+            "lists",
+            "create",
+            " garden sentries ",
+            "--record",
+            "Treat Wounds",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(conflict.status.code(), Some(2));
+    let body: Value = serde_json::from_slice(&conflict.stdout).unwrap();
+    assert_eq!(body["error"]["code"], "saved_list_name_conflict");
+    assert_eq!(
+        body["error"]["details"]["list_key"],
+        original["list"]["list_key"]
+    );
+    let distinct = f.data(&[
         "lists",
         "create",
-        "Garden Sentries",
+        "Garden  Sentries",
         "--record",
         "Treat Wounds",
         "--json",
     ]);
-    assert_eq!(duplicate_name["slug"], "garden-sentries-2");
-    assert_eq!(duplicate_name["added_count"], 1);
+    assert_eq!(distinct["slug"], "garden-sentries-2");
+    assert_eq!(distinct["added_count"], 1);
     let original = f.data(&["lists", "show", "garden-sentries", "--json"]);
     assert_eq!(original["items"].as_array().unwrap().len(), 0);
 }

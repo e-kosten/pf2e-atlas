@@ -220,6 +220,7 @@ pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
         | FilterOptionInvalid
         | FilterFieldNotApplicable
         | SavedListAlreadyExists
+        | SavedListNameConflict
         | SavedEditConflict
         | EncounterAlreadyExists
         | EncounterParticipantConflict
@@ -250,6 +251,7 @@ pub(crate) fn print_error_hint(error: &atlas_app_model::AppError) {
         AppErrorCode::SavedListAlreadyExists => {
             "Choose another list id, or use `atlas lists add <ID> --record <RECORD>` to add to the existing list."
         }
+        AppErrorCode::SavedListNameConflict => "Choose a different list name.",
         AppErrorCode::SavedListNotFound => {
             "Run `atlas lists list` to see existing list ids, or `atlas lists create <NAME> --slug <ID>` to create one. Use the same --index and --path-mode options."
         }

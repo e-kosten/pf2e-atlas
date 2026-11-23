@@ -48,10 +48,11 @@ export function ListItemsPane({
   unavailable?: boolean;
 }) {
   const { token } = theme.useToken();
+  const canReorder = !filtered && items.length > 1 && Boolean(onReorder);
   const sortable = useSortableList({
     items,
     getKey: (item) => item.record_key,
-    disabled: loading || mutating || removingKey !== null || filtered || !onReorder,
+    disabled: loading || mutating || removingKey !== null || !canReorder,
     onReorder: onReorder ?? (() => Promise.resolve(false)),
   });
   const disabled = loading || mutating || removingKey !== null || sortable.saving;
@@ -159,7 +160,7 @@ export function ListItemsPane({
                 : "No saved records. Choose Add records to get started."
           }
         />
-      ) : filtered ? (
+      ) : !canReorder ? (
         items.map((item) => <div key={item.record_key}>{renderItem(item, false)}</div>)
       ) : (
         <DndContext {...sortable.context}>
@@ -173,7 +174,7 @@ export function ListItemsPane({
                 id={item.record_key}
                 disabled={sortable.disabled}
               >
-                {(bindings) => renderItem(item, Boolean(onReorder), bindings)}
+                {(bindings) => renderItem(item, true, bindings)}
               </SortableRow>
             ))}
           </SortableContext>

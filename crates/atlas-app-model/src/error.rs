@@ -48,6 +48,7 @@ pub enum AppErrorCode {
     SavedListItemNotFound,
     SavedEditConflict,
     SavedListAlreadyExists,
+    SavedListNameConflict,
     CharacterNotFound,
     CharacterConflict,
     PartyNotFound,

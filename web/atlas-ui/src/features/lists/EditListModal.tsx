@@ -13,6 +13,7 @@ import type {
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { SavedEditConflictReview } from "../../shared/feedback/SavedEditConflictReview";
 import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
+import { listNameConflictHelp } from "./listNameConflict";
 import { normalizeOptionalText, normalizeTags, savedListTagOptions } from "./listUtils";
 import {
   invalidateSavedListQueries,
@@ -258,6 +259,7 @@ function ListEditor({
   }
 
   const pending = update.isPending || deleteListMutation.isPending;
+  const nameConflict = listNameConflictHelp(update.error);
   const disabled = useSavedWritesPaused() || pending || !!readError;
   const close = (slug = saved?.slug) => {
     setEdits({});
@@ -343,10 +345,17 @@ function ListEditor({
           <Form.Item
             label="Name"
             name="name"
+            help={nameConflict}
+            validateStatus={nameConflict ? "error" : undefined}
             validateFirst
             rules={[{ required: true, whitespace: true, message: "Name is required." }]}
           >
-            <Input />
+            <Input
+              aria-invalid={nameConflict ? true : undefined}
+              onChange={() => {
+                if (nameConflict) update.reset();
+              }}
+            />
           </Form.Item>
           <Form.Item label="Description" name="description">
             <MarkdownEditor label="Description" />
@@ -397,7 +406,7 @@ function ListEditor({
             <dd>{formatDate(saved.updated_at)}</dd>
           </div>
         </dl>
-        {!review && update.error && (
+        {!review && update.error && !nameConflict && (
           <ErrorNotice
             error={update.error}
             title="List changes could not be confirmed"

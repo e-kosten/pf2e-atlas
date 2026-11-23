@@ -332,28 +332,28 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
 }
 
 #[test]
-fn concurrent_generated_list_names_allocate_distinct_owned_destinations() {
+fn concurrent_equivalent_names_create_one_list_and_identify_the_winner() {
     let service = fixture_worker().worker;
     let barrier = std::sync::Barrier::new(2);
-    let [first, second] = std::thread::scope(|threads| {
-        let create = || {
+    let mut results = std::thread::scope(|threads| {
+        let create = |name: &str| {
             barrier.wait();
-            service
-                .create_saved_list(CreateSavedListRequest {
-                    name: "Session prep".into(),
-                    slug: None,
-                    description: None,
-                    tags: vec![],
-                })
-                .unwrap()
-                .list
+            service.create_saved_list(CreateSavedListRequest {
+                name: name.into(),
+                slug: None,
+                description: None,
+                tags: vec![],
+            })
         };
-        let a = threads.spawn(create);
-        let b = threads.spawn(create);
+        let a = threads.spawn(move || create("Session prep"));
+        let b = threads.spawn(move || create(" SESSION PREP "));
         [a.join().unwrap(), b.join().unwrap()]
     });
-    assert_ne!(first.list_key, second.list_key);
-    let mut slugs = [first.slug, second.slug];
-    slugs.sort();
-    assert_eq!(slugs, ["session-prep", "session-prep-2"]);
+    results.sort_by_key(Result::is_err);
+    let [success, conflict] = results;
+    let list = success.unwrap().list;
+    let error = conflict.unwrap_err().into_app_error();
+    assert_eq!(error.code, AppErrorCode::SavedListNameConflict);
+    assert_eq!(error.details.unwrap()["list_key"], list.list_key);
+    assert_eq!(service.saved_lists(true).unwrap().lists, [list]);
 }

@@ -11,11 +11,38 @@ use super::model::{
 };
 use crate::{LocalStateError, LocalStateResult};
 
+// The caller holds the workspace write transaction across this check and the mutation.
+fn ensure_name_available(
+    connection: &Connection,
+    owner_id: i64,
+    name: &str,
+    excluded_list: Option<&str>,
+) -> LocalStateResult<()> {
+    let mut statement = connection.prepare(
+        "SELECT name, list_key, slug, archived FROM saved_lists
+         WHERE owner_id = ?1 AND list_key IS NOT ?2",
+    )?;
+    let mut candidates = statement.query(params![owner_id, excluded_list])?;
+    while let Some(row) = candidates.next()? {
+        let existing_name: String = row.get(0)?;
+        if unicase::eq(name.trim(), existing_name.trim()) {
+            return Err(LocalStateError::ListNameConflict {
+                name: existing_name,
+                list_key: row.get(1)?,
+                slug: row.get(2)?,
+                archived: row.get(3)?,
+            });
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn insert_list(
     connection: &Connection,
     owner_id: i64,
     list: NewSavedList,
 ) -> LocalStateResult<String> {
+    ensure_name_available(connection, owner_id, &list.name, None)?;
     let slug = list.slug;
     let now = now_rfc3339()?;
     for _ in 0..5 {
@@ -141,8 +168,12 @@ pub(crate) fn replace_items(
 pub(crate) fn update_list(
     connection: &Connection,
     owner_id: i64,
+    previous_name: &str,
     list: UpdateSavedList,
 ) -> LocalStateResult<bool> {
+    if previous_name != list.name {
+        ensure_name_available(connection, owner_id, &list.name, Some(&list.list_key))?;
+    }
     let now = now_rfc3339()?;
     let result = connection.execute(
         "UPDATE saved_lists

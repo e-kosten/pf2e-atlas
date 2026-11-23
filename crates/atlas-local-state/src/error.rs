@@ -56,6 +56,13 @@ pub enum LocalStateError {
     InvalidWorkspaceRecovery(String),
     #[error("saved list already exists: {0}")]
     ListAlreadyExists(String),
+    #[error("{kind} named “{name}” already exists ({slug}).", kind = if *.archived { "An archived list" } else { "A list" })]
+    ListNameConflict {
+        list_key: String,
+        slug: String,
+        name: String,
+        archived: bool,
+    },
     #[error("saved list not found: {0}")]
     ListNotFound(String),
     #[error("could not allocate a unique saved-list key")]

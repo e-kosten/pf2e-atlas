@@ -109,6 +109,15 @@ it("retains the dropped order during a slow save and refresh, blocks another mov
   expect(onReorder).toHaveBeenCalledOnce();
 });
 
+it("offers reorder once a second item is available", () => {
+  const onReorder = vi.fn();
+  const view = render(pane({ items: items.slice(0, 1), onReorder }));
+  expect(screen.getByRole("button", { name: "Remove First" })).toBeEnabled();
+  expect(screen.queryByRole("button", { name: /^Reorder/ })).toBeNull();
+  view.rerender(pane({ items: items.slice(0, 2), onReorder }));
+  expect(screen.getByRole("button", { name: "Reorder First" })).toBeEnabled();
+});
+
 it("restores canonical order after rejection and permits a fresh retry", async () => {
   const onReorder = vi
     .fn()

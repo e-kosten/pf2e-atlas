@@ -175,8 +175,8 @@ it("retains the reviewed creation request across a lost response and retries it 
   );
 });
 
-it("refreshes existing choices after an uncertain create and distinguishes equal names by URL", async () => {
-  const later = { ...list, list_key: "list_second", slug: "ambush-2" };
+it("refreshes existing choices after an uncertain create so the same list can be selected", async () => {
+  const later = { ...list, list_key: "list_second", name: "Cavern", slug: "cavern" };
   let committed = false;
   api.getSavedLists.mockImplementation(async () => ({
     lists: committed ? [list, later] : [list],
@@ -189,19 +189,20 @@ it("refreshes existing choices after an uncertain create and distinguishes equal
   setup();
   fireEvent.click(screen.getByRole("button", { name: "New list" }));
   fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), {
-    target: { value: list.name },
+    target: { value: later.name },
   });
   fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
   expect(await screen.findByText("List creation could not be confirmed")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Check list directory" }));
-  expect(
-    await screen.findByRole("link", { name: "Ambush (ambush-2)" }),
-  ).toHaveAttribute("href", "/lists/ambush-2");
+  expect(await screen.findByRole("link", { name: "Cavern (cavern)" })).toHaveAttribute(
+    "href",
+    "/lists/cavern",
+  );
   fireEvent.click(screen.getByRole("button", { name: "Choose existing list" }));
   const picker = screen.getByRole("combobox", { name: "Saved list" });
   fireEvent.mouseDown(picker);
-  fireEvent.change(picker, { target: { value: "ambush-2" } });
-  fireEvent.click(await screen.findByText("Ambush (ambush-2)", { exact: true }));
+  fireEvent.change(picker, { target: { value: later.name } });
+  fireEvent.click(await screen.findByText(later.name, { exact: true }));
   fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
   await waitFor(() =>
     expect(api.addSavedListItem).toHaveBeenCalledWith(later.list_key, {

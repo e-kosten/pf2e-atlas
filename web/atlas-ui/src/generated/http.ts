@@ -1072,6 +1072,7 @@ export const AppErrorCode = {
   saved_list_item_not_found: 'saved_list_item_not_found',
   saved_edit_conflict: 'saved_edit_conflict',
   saved_list_already_exists: 'saved_list_already_exists',
+  saved_list_name_conflict: 'saved_list_name_conflict',
   character_not_found: 'character_not_found',
   character_conflict: 'character_conflict',
   party_not_found: 'party_not_found',

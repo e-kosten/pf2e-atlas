@@ -119,6 +119,21 @@ impl From<LocalStateError> for AppServiceError {
             LocalStateError::PartyConflict => AppErrorCode::PartyConflict,
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
             LocalStateError::ListAlreadyExists(_) => AppErrorCode::SavedListAlreadyExists,
+            LocalStateError::ListNameConflict {
+                list_key,
+                slug,
+                name,
+                archived,
+            } => {
+                return AppError::new(AppErrorCode::SavedListNameConflict, error.to_string())
+                    .with_details(serde_json::json!({
+                        "list_key": list_key,
+                        "slug": slug,
+                        "name": name,
+                        "archived": archived,
+                    }))
+                    .into();
+            }
             LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,
             LocalStateError::EncounterAlreadyExists(_) => AppErrorCode::EncounterAlreadyExists,
             LocalStateError::ParticipantNotFound(_) => AppErrorCode::EncounterParticipantNotFound,

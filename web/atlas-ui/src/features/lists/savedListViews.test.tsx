@@ -1230,9 +1230,18 @@ describe("list views", () => {
   });
 
   it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {
+    const sortableList = savedListDetailFixture();
+    sortableList.items.push({
+      ...sortableList.items[0]!,
+      record_key: "actions:testAction2",
+      position: 2,
+      snapshot: { title: "Test Action 2", kind: "rule" },
+      record: summaryFixture("actions:testAction2", "Test Action 2"),
+    });
+    sortableList.list.item_count = sortableList.items.length;
     apiMocks.filterSavedList.mockImplementation(
       async (_listRef: string, request: { sort?: ResultSort }) => ({
-        ...savedListDetailFixture(),
+        ...sortableList,
         sort: request.sort ?? { kind: "saved_order" },
       }),
     );
@@ -1766,6 +1775,49 @@ describe("list views", () => {
     );
     await waitFor(() =>
       expect(window.location.pathname).toBe("/lists/boss-fight-prep"),
+    );
+  });
+
+  it("keeps the rename draft and other edits after an archived name conflict", async () => {
+    apiMocks.updateSavedList.mockRejectedValueOnce(
+      new AtlasApiError(409, "Conflict", {
+        code: "saved_list_name_conflict",
+        message: "Conflict",
+        details: {
+          list_key: "list_old",
+          name: "Treasure",
+          slug: "old-treasure",
+          archived: true,
+        },
+      }),
+    );
+    render(<ListSettingsFixture route={{ slug: "research" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const name = await screen.findByRole("textbox", { name: "Name" });
+    fireEvent.change(name, { target: { value: "treasure" } });
+    const description = screen.getByRole("textbox", { name: "Description" });
+    replaceMarkdown(description, "Next session’s finds");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("link", { name: "Treasure" })).toHaveAttribute(
+      "href",
+      "/lists/old-treasure",
+    );
+    expect(name).toHaveAccessibleDescription(
+      "An archived list named “Treasure” already exists.",
+    );
+    expect(name).toHaveValue("treasure");
+    expect(markdownSource(description)).toBe("Next session’s finds");
+    fireEvent.change(name, { target: { value: "Treasure notes" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(apiMocks.updateSavedList).toHaveBeenLastCalledWith(
+        "list_research",
+        expect.objectContaining({
+          name: expect.objectContaining({ value: "Treasure notes" }),
+          description: expect.objectContaining({ value: "Next session’s finds" }),
+        }),
+      ),
     );
   });
   it("preserves touched list fields during same-identity refresh and resets entity switches", async () => {

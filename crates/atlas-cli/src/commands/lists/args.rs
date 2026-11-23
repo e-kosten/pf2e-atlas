@@ -42,7 +42,7 @@ pub(crate) enum ListsCommand {
     after_help = "Example:\n  atlas lists create \"Fey Options\" --slug fey-options --record pathfinder-monster-core:lUBkzsSqMfQBczU1 --record pathfinder-monster-core:Ehtm5k9iBYTvSUcZ"
 )]
 pub(crate) struct ListCreateOptions {
-    #[arg(help = "Human-friendly saved-list name")]
+    #[arg(help = "List name, unique among active and archived lists")]
     pub(crate) name: String,
     #[arg(
         long,
