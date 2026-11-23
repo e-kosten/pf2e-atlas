@@ -160,7 +160,7 @@ export function ListItemsPane({
                 : "No saved records. Choose Add records to get started."
           }
         />
-      ) : !canReorder ? (
+      ) : filtered || !onReorder ? (
         items.map((item) => <div key={item.record_key}>{renderItem(item, false)}</div>)
       ) : (
         <DndContext {...sortable.context}>
@@ -174,7 +174,7 @@ export function ListItemsPane({
                 id={item.record_key}
                 disabled={sortable.disabled}
               >
-                {(bindings) => renderItem(item, true, bindings)}
+                {(bindings) => renderItem(item, canReorder, bindings)}
               </SortableRow>
             ))}
           </SortableContext>
