@@ -21,6 +21,7 @@ import {
   type ColorSchemePreference,
   type ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
+import { isSettingsPath } from "./desktopBridge";
 import { AppShell } from "./AppShell";
 import { currentSearchLocation } from "./searchLocation";
 import { searchDestination, type SearchPageInput } from "./destinations";
@@ -51,6 +52,9 @@ const SearchView = lazy(() =>
 );
 
 export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
+  const settings = useRouterState({
+    select: (state) => isSettingsPath(state.location.pathname) && "__TAURI__" in window,
+  });
   const tab = useDesktopTab();
   const active = tab?.active ?? true;
   const [colorScheme, setColorScheme] =
@@ -118,12 +122,16 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
       <GlobalFeedbackProvider>
         <App component={false}>
           <BackendCompatibilityGate>
-            <AtlasWorkspace
-              colorScheme={colorScheme}
-              onColorSchemeChange={updateColorScheme}
-              resolvedColorScheme={resolvedColorScheme}
-              routeError={routeError}
-            />
+            {settings && !routeError ? (
+              <Outlet />
+            ) : (
+              <AtlasWorkspace
+                colorScheme={colorScheme}
+                onColorSchemeChange={updateColorScheme}
+                resolvedColorScheme={resolvedColorScheme}
+                routeError={routeError}
+              />
+            )}
           </BackendCompatibilityGate>
         </App>
       </GlobalFeedbackProvider>

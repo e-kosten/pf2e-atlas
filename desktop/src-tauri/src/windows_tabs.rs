@@ -165,9 +165,10 @@ pub async fn desktop_tabs_state(
         || !snapshot.tabs.iter().all(|tab| {
             ids.insert(&tab.id)
                 && tab.id.len() == 36
-                && base
-                    .join(&tab.href)
-                    .is_ok_and(|url| tab_links::product_link(&base, &url))
+                && base.join(&tab.href).is_ok_and(|url| {
+                    tab_links::product_link(&base, &url)
+                        || crate::settings::internal_route(&base, &url)
+                })
         })
     {
         return Err("Invalid Atlas tab state.".into());

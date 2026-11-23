@@ -1,7 +1,7 @@
-import { Alert, Button, Flex, Progress, Typography } from "antd";
+import { Alert, Button, Flex, Progress, Spin, Typography } from "antd";
 import { ArrowDownToLine } from "lucide-react";
-import { useRef, useState, useSyncExternalStore } from "react";
-import { AtlasModal } from "../shared/ui/overlays/AtlasModal";
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { invokeDesktop, useDesktopAttachment } from "./desktopBridge";
 import "./desktopReleaseChannel.css";
 
 type Phase =
@@ -26,7 +26,7 @@ type ChannelAction =
   | { kind: "retry_pending" }
   | { kind: "install"; token: string };
 
-type UpdateAttachment = {
+export type UpdateAttachment = {
   token: string;
   channel?: {
     installed: { tag: string; version: string };
@@ -39,416 +39,573 @@ type UpdateAttachment = {
     busy: boolean;
     error?: string | null;
   } | null;
-  update?: { version: string; phase: Phase; error: string | null } | null;
-};
-
-type DesktopWindow = Window & {
-  __ATLAS_DESKTOP_SETUP__?: UpdateAttachment;
-  __TAURI__?: {
-    core: {
-      invoke: {
-        (
-          command: "desktop_update_action",
-          args: { action: "details" | "install"; token: string; version: string },
-        ): Promise<string | null>;
-        (
-          command: "desktop_channel_action",
-          args: { action: ChannelAction; token: string },
-        ): Promise<ChannelReview | null>;
-      };
-    };
-  };
-};
-
-function readAttachment() {
-  return (window as DesktopWindow).__ATLAS_DESKTOP_SETUP__;
-}
-
-function subscribe(callback: () => void) {
-  window.addEventListener("atlas-desktop-setup", callback);
-  return () => window.removeEventListener("atlas-desktop-setup", callback);
-}
-
-const fallbackNotice =
-  "If this update requires setup, Atlas may be temporarily unavailable after restarting.";
-
-export function DesktopUpdate() {
-  const attachment = useSyncExternalStore(subscribe, readAttachment);
-  const [selected, select] = useState<{
+  update?: {
     version: string;
-    notice?: string | null;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
+    phase: Phase;
+    error: string | null;
+    switching?: boolean;
+  } | null;
+};
+
+type Offer = NonNullable<UpdateAttachment["update"]>;
+type Channel = NonNullable<UpdateAttachment["channel"]>;
+type Impact =
+  { kind: "restart" | "upgrade" | "unknown" } | { kind: "reference"; version: string };
+
+function progressLabel(phase: Exclude<Phase, { kind: "available" }>) {
+  if (phase.kind === "installing") return "Installing and restarting…";
+  return phase.percent === null
+    ? "Downloading update…"
+    : `Downloading update · ${phase.percent}%`;
+}
+
+export function DesktopUpdateShortcut({
+  onOpen,
+}: {
+  onOpen: (destination: "updates" | "channel") => void;
+}) {
+  const attachment = useDesktopAttachment();
   const update = attachment?.update;
-  const host = (window as DesktopWindow).__TAURI__?.core;
+  const channel = attachment?.channel;
+  const active = update && update.phase.kind !== "available" ? update.phase : null;
+  const showChannel =
+    !active && (channel?.pending_version || channel?.ready || channel?.error);
+  const label = active
+    ? progressLabel(active)
+    : showChannel
+      ? channel?.pending_version
+        ? "Install pending"
+        : channel?.error
+          ? "Review update"
+          : "Stable available"
+      : update?.error
+        ? "Retry update"
+        : update
+          ? "Update available"
+          : null;
+  if (!label) return null;
+  return (
+    <Button
+      size="small"
+      type="primary"
+      icon={<ArrowDownToLine size={15} />}
+      onClick={() => onOpen(showChannel ? "channel" : "updates")}
+    >
+      {label}
+    </Button>
+  );
+}
 
-  if (!attachment || !update || !host) return null;
-  const { token } = attachment;
-  const { version, phase } = update;
-  const current = selected?.version === version;
-  const loadingDetails = selected?.notice === undefined;
-  const active = phase.kind !== "available";
+type InstallFocus = RefObject<{ token: string; version: string } | null>;
 
-  async function open() {
-    const request = { version };
-    select(request);
-    setError(null);
-    const notice = await host!
-      .invoke("desktop_update_action", {
-        action: "details",
-        token,
-        version,
-      })
-      .catch(() => null);
-    select((current) => (current === request ? { ...request, notice } : current));
+function rememberInstallFocus(
+  focusRef: InstallFocus,
+  button: HTMLElement,
+  token: string,
+  version: string,
+) {
+  focusRef.current = button === document.activeElement ? { token, version } : null;
+}
+
+function UpdateProgress({
+  phase,
+  version,
+  token,
+  installFocusRef,
+}: {
+  phase: Exclude<Phase, { kind: "available" }>;
+  version: string;
+  token: string;
+  installFocusRef: InstallFocus;
+}) {
+  const status = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const intended = installFocusRef.current;
+    installFocusRef.current = null;
+    if (
+      intended?.version === version &&
+      intended.token === token &&
+      document.hasFocus() &&
+      document.activeElement === document.body &&
+      !status.current?.closest("[hidden], [inert]")
+    )
+      status.current?.focus();
+  }, [installFocusRef, token, version]);
+  return (
+    <Flex vertical gap="small">
+      <Flex align="center" gap="small">
+        {(phase.kind === "installing" || phase.percent === null) && (
+          <Spin size="small" />
+        )}
+        <span
+          ref={status}
+          role="status"
+          tabIndex={-1}
+          className="desktop-update__phase"
+        >
+          {phase.kind === "downloading"
+            ? "Downloading update…"
+            : "Installing and restarting…"}
+        </span>
+        {phase.kind === "downloading" && phase.percent !== null && (
+          <Typography.Text aria-hidden="true">{phase.percent}%</Typography.Text>
+        )}
+      </Flex>
+      <Typography.Text type="secondary">Atlas {version}</Typography.Text>
+      {phase.kind === "downloading" && phase.percent !== null && (
+        <Progress
+          status="normal"
+          aria-label="Update download"
+          percent={phase.percent}
+          showInfo={false}
+        />
+      )}
+    </Flex>
+  );
+}
+
+function impactNotice(impact: Impact) {
+  switch (impact.kind) {
+    case "restart":
+      return null;
+    case "upgrade":
+      return "Atlas will upgrade your workspace after restarting. You can reopen it when the upgrade finishes.";
+    case "reference":
+      return `This build includes Foundry PF2e ${impact.version}. You can apply its reference data after restarting.`;
+    case "unknown":
+      return "Atlas couldn’t determine whether your workspace will need setup after restarting.";
   }
+}
 
-  async function install() {
-    if (sending || active || !current) return;
+function UpdateOffer({
+  token,
+  update,
+  installed,
+  setupRunning,
+  installFocusRef,
+}: {
+  token: string;
+  update: Offer;
+  installed?: string;
+  setupRunning: boolean;
+  installFocusRef: InstallFocus;
+}) {
+  const [impact, setImpact] = useState<Impact>();
+  const [error, setError] = useState<string>();
+  const [check, setCheck] = useState(0);
+  const [sending, setSending] = useState(false);
+  const { version } = update;
+  useEffect(() => {
+    let current = true;
+    void invokeDesktop<Impact>("desktop_update_action", {
+      action: "details",
+      token,
+      version,
+    })
+      .then((result) => {
+        if (current) setImpact(result);
+      })
+      .catch((failure) => {
+        if (current)
+          setError(failureMessage(failure, "Atlas couldn’t check this update."));
+      });
+    return () => {
+      current = false;
+    };
+  }, [check, token, version]);
+  async function install(button: HTMLElement) {
+    if (sending || !impact || setupRunning) return;
+    rememberInstallFocus(installFocusRef, button, token, version);
     setSending(true);
-    setError(null);
+    setError(undefined);
     try {
-      await host!.invoke("desktop_update_action", {
+      await invokeDesktop("desktop_update_action", {
         action: "install",
         token,
         version,
       });
     } catch (failure) {
-      setError(
-        typeof failure === "string" ? failure : "Atlas couldn’t start the update.",
-      );
+      installFocusRef.current = null;
+      setError(failureMessage(failure, "Atlas couldn’t start the update."));
     } finally {
       setSending(false);
     }
   }
+  const message = impact && impactNotice(impact);
+  const failure = error ?? update.error;
+  return (
+    <Flex vertical gap="small">
+      <div className="desktop-update__row">
+        <div>
+          <Typography.Text strong>Atlas {version} is available</Typography.Text>
+          {installed && (
+            <div>
+              <Typography.Text type="secondary">
+                Installed version {installed}
+              </Typography.Text>
+            </div>
+          )}
+        </div>
+        <Button
+          type="primary"
+          loading={sending}
+          disabled={!impact || setupRunning}
+          onClick={(event) => void install(event.currentTarget)}
+        >
+          {update.error ? "Retry install and restart" : "Install and restart"}
+        </Button>
+      </div>
+      {!impact && !error && (
+        <Typography.Text type="secondary" role="status">
+          Checking update…
+        </Typography.Text>
+      )}
+      {setupRunning && (
+        <Typography.Text type="secondary">
+          Finish setup before installing the update.
+        </Typography.Text>
+      )}
+      {message && <Typography.Text>{message}</Typography.Text>}
+      {failure && (
+        <Alert
+          type="error"
+          title={failure}
+          action={
+            !impact && (
+              <Button
+                onClick={() => {
+                  setError(undefined);
+                  setCheck((value) => value + 1);
+                }}
+              >
+                Retry check
+              </Button>
+            )
+          }
+        />
+      )}
+    </Flex>
+  );
+}
 
-  const actionError = error ?? update.error;
+type UpdatePage =
+  | { view?: "updates"; channelDisclosure?: { open: boolean; onToggle: () => void } }
+  | { view: "channel" };
+
+export function DesktopUpdateSection(page: UpdatePage) {
+  const attachment = useDesktopAttachment();
+  const installFocusRef: InstallFocus = useRef(null);
+  if (!attachment) return null;
+  const { update, channel, token, setup } = attachment;
+  if (update && update.phase.kind !== "available")
+    return (
+      <UpdateProgress
+        phase={update.phase}
+        version={update.version}
+        token={token}
+        installFocusRef={installFocusRef}
+      />
+    );
+  const channelDetail = channel ? (
+    <ChannelOptions
+      key={JSON.stringify([
+        token,
+        channel.installed.tag,
+        channel.active,
+        channel.other_exists,
+        channel.returning,
+        channel.pending_version,
+      ])}
+      channel={channel}
+      token={token}
+      installFocusRef={installFocusRef}
+    />
+  ) : (
+    <Typography.Text>Release channel information is unavailable.</Typography.Text>
+  );
+  if (page.view === "channel") return channelDetail;
+  const disclosure = page.channelDisclosure;
   return (
     <>
-      <Button
-        type="primary"
-        size="small"
-        icon={<ArrowDownToLine size={15} />}
-        onClick={open}
-      >
-        Update
-      </Button>
-      <AtlasModal
-        open={selected !== null}
-        layout="confirmation"
-        title="Update Atlas Desktop"
-        onCancel={() => select(null)}
-        cancelText={active ? "Close" : "Later"}
-        okText="Install update"
-        okButtonProps={{
-          disabled: !current || active || loadingDetails,
-          loading: sending,
-        }}
-        onOk={install}
-      >
-        <Flex gap="middle" vertical>
-          {current ? (
-            <>
-              <Typography.Text>
-                Atlas {version} is available. Atlas will restart to finish installing
-                it.
-              </Typography.Text>
-              {!loadingDetails && (
-                <Alert type="info" title={selected?.notice ?? fallbackNotice} />
-              )}
-              {phase.kind === "downloading" && (
-                <div role="status">
-                  Downloading update…
-                  {phase.percent !== null && <Progress percent={phase.percent} />}
-                </div>
-              )}
-              {phase.kind === "installing" && (
-                <div role="status">Installing and restarting…</div>
-              )}
-              {actionError && <Alert type="error" title={actionError} />}
-            </>
-          ) : (
-            <Alert
-              type="info"
-              title="A different version is available. Close this dialog and open Update again."
-            />
-          )}
-        </Flex>
-      </AtlasModal>
+      {update ? (
+        <UpdateOffer
+          key={JSON.stringify([token, update.version])}
+          update={update}
+          installFocusRef={installFocusRef}
+          token={token}
+          installed={channel?.installed.version}
+          setupRunning={setup?.status === "running" || setup?.status === "cancelling"}
+        />
+      ) : (
+        <Typography.Text>
+          {channel
+            ? `Installed version ${channel.installed.version}`
+            : "Update information is unavailable."}
+        </Typography.Text>
+      )}
+      {disclosure && (channel || disclosure.open) && (
+        <details className="desktop-settings__channel" open={disclosure.open}>
+          <summary
+            onClick={(event) => {
+              event.preventDefault();
+              disclosure.onToggle();
+            }}
+          >
+            Release channel
+          </summary>
+          {disclosure.open && channelDetail}
+        </details>
+      )}
     </>
   );
 }
 
-export function DesktopStableUpdate() {
-  return <DesktopReleaseChannel offerOnly />;
+function failureMessage(failure: unknown, fallback: string) {
+  if (typeof failure === "string") return failure;
+  if (
+    failure &&
+    typeof failure === "object" &&
+    "message" in failure &&
+    typeof failure.message === "string"
+  )
+    return failure.message;
+  return fallback;
 }
 
-export function DesktopReleaseChannel({ offerOnly = false }: { offerOnly?: boolean }) {
-  const attachment = useSyncExternalStore(subscribe, readAttachment);
-  const host = (window as DesktopWindow).__TAURI__?.core;
-  const [open, setOpen] = useState(false);
+function ChannelOptions({
+  channel,
+  token,
+  installFocusRef,
+}: {
+  channel: Channel;
+  token: string;
+  installFocusRef: InstallFocus;
+}) {
   const [selection, setSelection] = useState<Role | null>(null);
   const [review, setReview] = useState<ChannelReview | null>(null);
   const [busy, setBusy] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const requestId = useRef(0);
-  const channel = attachment?.channel;
-  if (!attachment || !channel || !host) return null;
   const installedNightly = channel.installed.tag.startsWith("nightly/");
   const target = installedNightly ? "Stable" : "Nightly";
+  const choosingWorkspace = selection !== null && !channel.returning;
+  const currentDataButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (choosingWorkspace) currentDataButton.current?.focus();
+  }, [choosingWorkspace]);
   const workspace = selection ?? channel.returning?.workspace ?? channel.active;
   const disabled = busy || channel.busy;
   const missingSelection =
     installedNightly && workspace !== channel.active && !channel.other_exists;
   const other: Role = channel.active === "original" ? "separate" : "original";
-  const channelName = installedNightly ? "Nightly" : "Stable";
-  if (offerOnly && !channel.ready && !open) return null;
-
-  async function request(action: ChannelAction) {
-    const id = ++requestId.current;
+  async function request(action: ChannelAction, button?: HTMLElement) {
+    if (disabled) return;
+    const targetVersion =
+      action.kind === "retry_pending" ? channel.pending_version : review?.version;
+    if (button && targetVersion)
+      rememberInstallFocus(installFocusRef, button, token, targetVersion);
     setBusy(true);
     setError(null);
+    setUnavailable(false);
     try {
-      const result = await host!.invoke("desktop_channel_action", {
-        token: attachment!.token,
-        action,
-      });
-      if (id === requestId.current) setReview(result);
+      setReview(
+        await invokeDesktop<ChannelReview | null>("desktop_channel_action", {
+          token,
+          action,
+        }),
+      );
     } catch (failure) {
-      if (id === requestId.current)
-        setError(
-          typeof failure === "string"
-            ? failure
-            : "Atlas couldn’t complete the channel request.",
-        );
+      if (button) installFocusRef.current = null;
+      setReview(null);
+      setError(failureMessage(failure, "Atlas couldn’t complete the channel request."));
+      setUnavailable(
+        action.kind === "review" &&
+          failure !== null &&
+          typeof failure === "object" &&
+          "kind" in failure &&
+          failure.kind === "unavailable",
+      );
     } finally {
-      if (id === requestId.current) setBusy(false);
+      setBusy(false);
     }
   }
 
-  function show() {
-    requestId.current++;
-    setBusy(false);
-    setSelection(null);
-    setReview(null);
-    setError(null);
-    setOpen(true);
-  }
-
-  function close() {
-    requestId.current++;
-    setBusy(false);
-    setOpen(false);
-  }
-
   return (
-    <>
-      {offerOnly ? (
-        <Button size="small" onClick={show}>
-          Stable available
+    <Flex vertical gap="middle" className="desktop-channel">
+      <Typography.Text type="secondary">
+        Current channel · {installedNightly ? "Nightly" : "Stable"}
+      </Typography.Text>
+      {channel.returning && (
+        <Alert
+          type="info"
+          title={
+            channel.ready
+              ? "A compatible Stable release is ready to review."
+              : channel.returning.updates === "hold"
+                ? "Waiting for a compatible Stable release. Not checking for Nightly updates."
+                : "Waiting for a compatible Stable release. Still checking for Nightly updates."
+          }
+        />
+      )}
+      {channel.pending_version ? (
+        <>
+          <Alert
+            type="info"
+            title={`Atlas ${channel.pending_version} still has a pending installation.`}
+          />
+          <Button
+            type="primary"
+            disabled={disabled}
+            onClick={(event) =>
+              void request({ kind: "retry_pending" }, event.currentTarget)
+            }
+          >
+            Retry pending install
+          </Button>
+        </>
+      ) : selection === null && !channel.returning ? (
+        <Button disabled={disabled} onClick={() => setSelection(channel.active)}>
+          Switch to {target}…
         </Button>
       ) : (
-        <section
-          className="desktop-setup__section"
-          aria-labelledby="desktop-app-updates"
-        >
-          <h2 id="desktop-app-updates">App updates</h2>
-          <Flex vertical gap="small" align="start">
-            <Typography.Text strong>{channelName}</Typography.Text>
-            <Typography.Text type="secondary">
-              Version {channel.installed.version}
-            </Typography.Text>
-            {installedNightly || channel.pending_version || channel.ready ? (
-              <Button onClick={show}>
-                {channel.ready ? "Stable available" : "Change release channel"}
-              </Button>
-            ) : (
-              <details className="desktop-channel__preview">
-                <summary>Preview builds</summary>
-                <Button onClick={show}>Try Nightly…</Button>
-              </details>
-            )}
-          </Flex>
-        </section>
-      )}
-      <AtlasModal
-        open={open}
-        layout="form"
-        title="Change release channel"
-        onCancel={close}
-        footer={null}
-      >
-        <Flex vertical gap="middle">
-          <Typography.Text strong>{channelName}</Typography.Text>
-          <Typography.Text type="secondary">
-            Version {channel.installed.version}
+        <>
+          <Typography.Text>
+            Choose which data to use after switching to {target}.
           </Typography.Text>
-          {channel.returning && (
+          {missingSelection && (
             <Alert
-              type="info"
-              title={
-                channel.returning.updates === "hold"
-                  ? "Waiting for a compatible Stable release. Not checking for Nightly updates."
-                  : "Waiting for a compatible Stable release. Still checking for Nightly updates."
-              }
+              type="error"
+              title="The earlier copy of your data is missing. Choose your current data to continue."
             />
           )}
-          {channel.pending_version ? (
+          <Flex wrap gap="small" className="desktop-channel__choices">
+            {[
+              channel.active,
+              ...(!installedNightly || channel.other_exists ? [other] : []),
+            ].map((role) => (
+              <Button
+                key={role}
+                ref={role === channel.active ? currentDataButton : undefined}
+                aria-pressed={workspace === role}
+                color={workspace === role ? "primary" : "default"}
+                variant={workspace === role ? "filled" : "outlined"}
+                disabled={disabled}
+                onClick={() => {
+                  setSelection(role);
+                  setUnavailable(false);
+                  setReview(null);
+                  setError(null);
+                }}
+              >
+                {role === channel.active
+                  ? "Use my current data"
+                  : installedNightly
+                    ? "Use an earlier copy"
+                    : channel.other_exists
+                      ? "Use the other copy"
+                      : "Use a separate copy"}
+              </Button>
+            ))}
+          </Flex>
+          {installedNightly && !missingSelection && (
+            <Typography.Text type="secondary">
+              {workspace === channel.active
+                ? "Keep the data you’ve been using in Nightly, including your latest changes."
+                : "Use an earlier, separate copy of your data. Changes made in Nightly won’t be copied over. Your current Nightly data will remain available."}
+            </Typography.Text>
+          )}
+          {!installedNightly && workspace !== channel.active && (
+            <Typography.Text type="secondary">
+              {(review ? !review.will_seed : channel.other_exists)
+                ? "Reopens your other copy with its earlier changes. Neither copy is overwritten."
+                : "Creates a copy of your current data. Changes made to either copy stay separate."}
+            </Typography.Text>
+          )}
+          {review ? (
             <>
-              <Alert
-                type="info"
-                title={`Atlas ${channel.pending_version} still has a pending installation.`}
-              />
+              <Typography.Text>
+                Atlas will install {target} {review.version} and use{" "}
+                {review.workspace === channel.active
+                  ? "your current data"
+                  : review.will_seed
+                    ? "your separate copy"
+                    : "an earlier copy of your data"}
+                .
+              </Typography.Text>
+              {(review.needs_setup || review.will_upgrade) && (
+                <Alert
+                  type="info"
+                  title={
+                    review.will_upgrade
+                      ? "This version needs to upgrade your data after restarting. Atlas will be unavailable until the upgrade finishes."
+                      : "Atlas needs to set up your data after restarting. The app will be unavailable until setup finishes."
+                  }
+                />
+              )}
               <Button
                 type="primary"
-                disabled={disabled}
-                onClick={() => void request({ kind: "retry_pending" })}
+                disabled={disabled || missingSelection}
+                onClick={(event) =>
+                  void request(
+                    { kind: "install", token: review.id },
+                    event.currentTarget,
+                  )
+                }
               >
-                Retry pending install
+                {disabled ? "Installing…" : `Install ${target} and restart`}
               </Button>
             </>
           ) : (
-            <>
-              <Typography.Text>
-                Choose which data to use after switching to {target}.
-              </Typography.Text>
-              {missingSelection && (
-                <Alert
-                  type="error"
-                  title="The earlier copy of your data is missing. Choose your current data to continue."
-                />
-              )}
-              <Flex wrap gap="small" className="desktop-channel__choices">
-                {[
-                  channel.active,
-                  ...(!installedNightly || channel.other_exists ? [other] : []),
-                ].map((role) => (
-                  <Button
-                    key={role}
-                    aria-pressed={workspace === role}
-                    color={workspace === role ? "primary" : "default"}
-                    variant={workspace === role ? "filled" : "outlined"}
-                    disabled={disabled}
-                    onClick={() => {
-                      setSelection(role);
-                      setReview(null);
-                      setError(null);
-                    }}
-                  >
-                    {role === channel.active
-                      ? "Use my current data"
-                      : installedNightly
-                        ? "Use an earlier copy"
-                        : channel.other_exists
-                          ? "Use the other copy"
-                          : "Use a separate copy"}
-                  </Button>
-                ))}
-              </Flex>
-              {installedNightly && !missingSelection && (
-                <Typography.Text type="secondary">
-                  {workspace === channel.active
-                    ? "Keep the data you’ve been using in Nightly, including your latest changes."
-                    : "Use an earlier, separate copy of your data. Changes made in Nightly won’t be copied over. Your current Nightly data will remain available."}
-                </Typography.Text>
-              )}
-              {!installedNightly && workspace !== channel.active && (
-                <Typography.Text type="secondary">
-                  {(review ? !review.will_seed : channel.other_exists)
-                    ? "Reopens your other copy with its earlier changes. Neither copy is overwritten."
-                    : "Creates a copy of your current data. Changes made to either copy stay separate."}
-                </Typography.Text>
-              )}
-              {review ? (
-                <>
-                  <Typography.Text>
-                    Atlas will install {target} {review.version} and use{" "}
-                    {review.workspace === channel.active
-                      ? "your current data"
-                      : review.will_seed
-                        ? "your separate copy"
-                        : "an earlier copy of your data"}
-                    .
-                  </Typography.Text>
-                  <Typography.Text type="secondary">
-                    After switching, the app will use your existing data.
-                  </Typography.Text>
-                  {(review.needs_setup || review.will_upgrade) && (
-                    <Alert
-                      type="info"
-                      title={
-                        review.will_upgrade
-                          ? "This version needs to upgrade your data after restarting. Atlas will be unavailable until the upgrade finishes."
-                          : "Atlas needs to set up your data after restarting. The app will be unavailable until setup finishes."
-                      }
-                    />
-                  )}
-                  <Button
-                    type="primary"
-                    disabled={disabled || missingSelection}
-                    onClick={() => void request({ kind: "install", token: review.id })}
-                  >
-                    {disabled ? "Installing…" : `Install ${target} and restart`}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  type="primary"
-                  loading={busy}
-                  disabled={channel.busy || missingSelection}
-                  onClick={() =>
-                    void request({
-                      kind: "review",
-                      workspace,
-                      seed_if_missing: !installedNightly,
-                    })
-                  }
-                >
-                  {channel.busy ? "Installing…" : `Check ${target} compatibility`}
-                </Button>
-              )}
-            </>
-          )}
-          {(error ?? channel.error) && (
-            <Alert type="error" title={error ?? channel.error} />
-          )}
-          {installedNightly && !review && !channel.pending_version && (
-            <Flex
-              vertical
-              align="start"
-              gap="small"
-              className="desktop-channel__waiting"
+            <Button
+              type="primary"
+              loading={busy}
+              disabled={channel.busy || missingSelection}
+              onClick={() =>
+                void request({
+                  kind: "review",
+                  workspace,
+                  seed_if_missing: !installedNightly,
+                })
+              }
             >
-              <Button
-                disabled={disabled || missingSelection}
-                onClick={() =>
-                  void request({ kind: "wait", workspace, updates: "hold" })
-                }
-              >
-                Stay on this build and wait for the next Stable release
-              </Button>
-              <Button
-                disabled={disabled || missingSelection}
-                onClick={() =>
-                  void request({ kind: "wait", workspace, updates: "continue" })
-                }
-              >
-                Keep checking for Nightly updates while waiting
-              </Button>
-              {channel.returning && (
-                <Button
-                  type="text"
-                  disabled={disabled}
-                  onClick={() => void request({ kind: "cancel_wait" })}
-                >
-                  Cancel return to Stable
-                </Button>
-              )}
-            </Flex>
+              {`Check ${target} compatibility`}
+            </Button>
           )}
-        </Flex>
-      </AtlasModal>
-    </>
+        </>
+      )}
+      {(error ?? channel.error) && (
+        <Alert type="error" title={error ?? channel.error} />
+      )}
+      {installedNightly &&
+        !review &&
+        !channel.pending_version &&
+        (unavailable || channel.returning) && (
+          <Flex vertical align="start" gap="small" className="desktop-channel__waiting">
+            <Button
+              disabled={disabled || missingSelection}
+              onClick={() => void request({ kind: "wait", workspace, updates: "hold" })}
+            >
+              Stay on this build and wait for the next Stable release
+            </Button>
+            <Button
+              disabled={disabled || missingSelection}
+              onClick={() =>
+                void request({ kind: "wait", workspace, updates: "continue" })
+              }
+            >
+              Keep checking for Nightly updates while waiting
+            </Button>
+            {channel.returning && (
+              <Button
+                type="text"
+                disabled={disabled}
+                onClick={() => void request({ kind: "cancel_wait" })}
+              >
+                Cancel return to Stable
+              </Button>
+            )}
+          </Flex>
+        )}
+    </Flex>
   );
 }

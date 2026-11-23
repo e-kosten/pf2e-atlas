@@ -48,6 +48,38 @@ function run(command, args, options = {}) {
 const ps = (script, env, timeout = 30_000) => run("pwsh", ["-NoProfile", "-Command", script], { env, timeout });
 const literal = (value) => "'" + value.replaceAll("'", "''") + "'";
 const installDirectory = join(root, "installed");
+// Exercise the installed window's actual menu command independently of the
+// shortcut. WebView2 receives keyboard input through its own CDP session.
+function openSettingsMenu(pid, env) {
+  ps(`Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class AtlasMenu {
+  [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr window);
+  [DllImport("user32.dll")] public static extern IntPtr GetSubMenu(IntPtr menu, int index);
+  [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr menu);
+  [DllImport("user32.dll")] public static extern uint GetMenuItemID(IntPtr menu, int index);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)] public static extern int GetMenuStringW(IntPtr menu, uint item, StringBuilder text, int length, uint flags);
+  [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr window, uint message, UIntPtr command, IntPtr parameter);
+}
+'@
+    $window = (Get-Process -Id ${pid}).MainWindowHandle
+    $menu = [AtlasMenu]::GetMenu($window)
+    for ($i = 0; $i -lt [AtlasMenu]::GetMenuItemCount($menu); $i++) {
+      $submenu = [AtlasMenu]::GetSubMenu($menu, $i)
+      for ($j = 0; $j -lt [AtlasMenu]::GetMenuItemCount($submenu); $j++) {
+        $label = [Text.StringBuilder]::new(256)
+        [void][AtlasMenu]::GetMenuStringW($submenu, $j, $label, $label.Capacity, 0x400)
+        if ($label.ToString().Replace('&', '') -match '^Settings…') {
+          $command = [AtlasMenu]::GetMenuItemID($submenu, $j)
+          if (![AtlasMenu]::PostMessageW($window, 0x0111, [UIntPtr]$command, [IntPtr]::Zero)) { throw 'Settings menu dispatch failed' }
+          return
+        }
+      }
+    }
+    throw 'Settings menu item missing from the installed Atlas window'`, env);
+}
 function installedProcesses() {
   const result = ps(`@((Get-CimInstance Win32_Process | Where-Object {
     $_.ExecutablePath -and ([IO.Path]::GetDirectoryName($_.ExecutablePath) -eq ${literal(installDirectory)}) -and
@@ -188,19 +220,64 @@ async function runCase(mode) {
     const page = await product(plan.stable);
     const runningPath = await page.evaluate(() => window.__ATLAS_DESKTOP_SETUP__?.channel?.workspace_path);
     assert.equal(windowsPath(runningPath), windowsPath(original), "The old host did not open the isolated fixture");
-    await page.getByRole("button", { name: "Setup and Updates", exact: true }).click();
-    await page.locator(".desktop-channel__preview summary").click();
-    await page.getByRole("button", { name: "Try Nightly…", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Change release channel", exact: true });
-    if (mode === "normal") await dialog.getByRole("button", { name: "Use a separate copy", exact: true }).click();
-    await dialog.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
-    await expect(dialog.getByRole("button", { name: "Install Nightly and restart", exact: true })).toBeEnabled({ timeout: 30_000 });
+    if (mode === "normal") {
+      const input = page.getByRole("searchbox", { name: "Search records" });
+      await input.fill("unsubmitted fixture search");
+      await page.keyboard.press("Control+Comma");
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+      await page.keyboard.press("Control+Comma");
+      await expect(page.getByRole("tab", { name: "Settings", exact: true })).toHaveCount(1);
+      log("settings-shortcut-reused-tab", { mode });
+      const terminalRow = page.getByRole("link", { name: "Terminal access" });
+      await terminalRow.click();
+      await expect(page.getByRole("heading", { name: "Run Atlas in PowerShell" })).toBeVisible();
+      const command = await page.getByRole("main").locator("code").innerText();
+      assert.match(command, /^& '([^']|'')+'$/);
+      assert.equal(windowsPath(command.slice(3, -1).replaceAll("''", "'")), windowsPath(join(installDirectory, "atlas.exe")));
+      await page.getByRole("button", { name: "Copy command" }).click();
+      await expect(page.getByText("Command copied.", { exact: true })).toBeVisible();
+      assert.equal(ps("Get-Clipboard -Raw", env).trimEnd(), command);
+      await page.getByRole("link", { name: "Back to Settings" }).click();
+      await expect(terminalRow).toBeFocused();
+      await page.keyboard.press("Control+w");
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue("unsubmitted fixture search");
+
+      log("settings-restored-search-draft", { mode });
+      // Keep Settings open in both windows, then deliver a record to a window
+      // whose only remaining tab is Settings. The original draft stays mounted.
+      openSettingsMenu(child.pid, env);
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+      await page.keyboard.press("Control+n");
+      const second = await nativePage(async (candidate) =>
+        candidate !== page && await candidate.getByRole("button", { name: "Settings", exact: true }).isVisible().catch(() => false));
+      await second.getByRole("button", { name: "Settings", exact: true }).click();
+      const secondSettings = second.getByRole("heading", { name: "Settings", exact: true });
+      await expect(secondSettings).toBeVisible();
+      const searchTab = second.getByRole("tab", { name: "Search", exact: true });
+      await searchTab.locator("..").getByRole("button", { name: "Close tab" }).click();
+      await expect(second.getByRole("tablist")).toHaveCount(0);
+      await expect(secondSettings).toBeVisible();
+      run(join(installDirectory, "atlas-desktop.exe"), ["pf2e-atlas://v1/record/actions%3Aaaaaaaaaaaaaaaaa"], { env, cwd: home });
+      await expect(second.getByRole("heading", { name: "Windows updater fixture", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+      await page.getByRole("tab", { name: "Search", exact: true }).click();
+      await expect(input).toHaveValue("unsubmitted fixture search");
+      log("settings-per-window-menu-and-record-link", { mode });
+    }
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("link", { name: /Release channel/ }).click();
+    const channel = page.getByRole("main").filter({ has: page.getByRole("heading", { name: "Release channel", exact: true }) });
+    await channel.getByRole("button", { name: "Switch to Nightly…", exact: true }).click();
+    if (mode === "normal") await channel.getByRole("button", { name: "Use a separate copy", exact: true }).click();
+    await channel.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
+    await expect(channel.getByRole("button", { name: "Install Nightly and restart", exact: true })).toBeEnabled({ timeout: 30_000 });
     await page.screenshot({ path: join(caseRoot, "review.png") });
     const processes = installedProcesses();
     assert(processes.some((entry) => entry.Name === "atlas-desktop.exe"));
     assert(processes.some((entry) => entry.Name === "atlas.exe" && entry.CommandLine?.includes("--desktop-launcher")));
     writeFileSync(join(caseRoot, "before-processes.json"), JSON.stringify(processes, null, 2));
-    await dialog.getByRole("button", { name: "Install Nightly and restart", exact: true }).click();
+    await channel.getByRole("button", { name: "Install Nightly and restart", exact: true }).click();
     const hook = await until("NSIS replacement and race hook", () => existsSync(join(caseRoot, "postinstall.json")) && readJson(join(caseRoot, "postinstall.json")), 90_000);
     assert.equal(hook.oldProcesses, 0);
     assert.equal(hook.hostSha256, plan.targetHostSha256);

@@ -69,11 +69,13 @@ with the upgrade archive and a separate database path.
 If your old version stored reference and saved state in separate files, follow
 the reported error and keep those files for recovery.
 
-## Manage search models in the macOS app
+## Manage search models in Atlas Desktop
 
-Open the gear next to Theme for **Setup and Updates**. **Search models** lets
+On macOS, open **PF2e Atlas → Settings…** (⌘,) and select **Search & data**.
+On Windows, open **Settings** (Ctrl+,) and select **Search and reference data**.
+**Search models** lets
 you keep BGE Base, EmbeddingGemma, both, or keyword-only search. Choose a
-default and select **Apply search models**. Automatic uses the only installed
+default and select **Apply**. Automatic uses the only installed
 model, or BGE Base when both are installed. Similar records needs a model.
 
 Adding or removing models keeps browsing and the previous search index available
@@ -84,9 +86,10 @@ An open search keeps its selected model until you submit a new search or
 choose to rerun it. A model specified in a link or your Search settings takes
 precedence over the workspace default.
 
-Use **Terminal and agent access** in the same drawer to link the bundled command
-at `~/.local/bin/atlas`. Run `command -v atlas` to see which command your shell
-uses. The native setup window still accepts a custom bin folder.
+On macOS, select **Terminal** in Settings to link the bundled command at
+`~/.local/bin/atlas` or choose a custom bin folder. Run `command -v atlas` to see
+which command your shell uses. On Windows, **Terminal access** in Settings
+provides the PowerShell command for the bundled CLI.
 
 ## Run setup without downloads
 

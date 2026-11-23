@@ -281,10 +281,12 @@ pub fn reference_status(app: &AppHandle) -> Result<ReferenceStatus, String> {
     Ok(status)
 }
 
-pub fn wait_for_upgrade(app: &AppHandle) -> Result<(), String> {
+pub fn wait_for_upgrade(app: &AppHandle) -> Result<(), serde_json::Value> {
     let probe = probe_with(app, &["--wait-for-service"])?;
     if probe.status == atlas_desktop_protocol::WorkspaceStatus::Busy {
-        return Err(probe.message);
+        return Err(
+            serde_json::json!({"code": "workspace_upgrade_busy", "message": probe.message}),
+        );
     }
     Ok(())
 }

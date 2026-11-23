@@ -73,7 +73,7 @@ Choose **Set up Atlas** when the workspace is empty. The app downloads the
 pinned reference data and opens the workspace in the same window as soon as
 the keyword index is ready. You can browse and search while Atlas prepares
 semantic search. Saves are paused across Atlas sessions during setup and resume
-when setup ends. Open **Setup and Updates** in the toolbar to see progress or cancel.
+when setup ends. Select the setup activity in the toolbar to see progress or cancel.
 If you cancel after keyword search is ready, use **Resume semantic setup** to
 continue later. If precomputed embeddings are unavailable, choose
 **Retry download** or **Build embeddings locally**. The local build can take an
@@ -84,7 +84,10 @@ use the prepared workspace. If Atlas asks you to upgrade
 a workspace, close any other Atlas sessions using that workspace and choose
 **Update workspace**.
 
-The toolbar and **PF2e Atlas → Setup and Updates** open the same drawer.
+On macOS, **PF2e Atlas → Settings…** (⌘,) opens a separate window. Use its
+**Search & data** pane for workspace maintenance. On Windows, open **Settings**
+(Ctrl+,) and choose **Search and reference data**. Close the Settings tab to
+return to your work.
 Each Atlas build pins a Foundry PF2e revision. After installing a build with
 a different pin, confirm **Apply bundled reference data** to prepare that
 build's reference data. Use **Check and repair reference data** to check the
@@ -120,11 +123,10 @@ own tabs. On macOS, you can also use `atlas open '<link>'`. Atlas opens a new ta
 in the most recently active window when the page is not open, or opens a window
 directly to the destination.
 
-On macOS, **PF2e Atlas → Terminal and Agent Access** can
-link the bundled command at `~/.local/bin/atlas` from the product drawer.
-An existing executable there can be switched to the bundled command with
-native confirmation. The startup setup screen can also link to an existing
-custom bin folder. If the folder is already
+On macOS, open **Settings → Terminal** to link the bundled command at
+`~/.local/bin/atlas`, or select **Choose bin folder…** to use another
+existing directory. During setup, use **PF2e Atlas → Terminal and Agent Access**.
+Atlas asks for confirmation before replacing an existing executable. If the folder is already
 on your shell's PATH, check that `command -v atlas` resolves to the path shown
 by the app. The command continues to work when the app is closed. Use
 `atlas open` or `atlas open '<link>'` to open the app from the terminal.
@@ -157,10 +159,11 @@ built debug bundle. The smoke test creates a fresh temporary workspace and uses
 one local fixture record. It verifies setup opens Search in the same native
 window. It also forces a failed render and a failed readiness check to verify
 that retry opens the requested record in that window. Each case runs offline and
-pauses after the keyword commit, then cancels through the product panel and
+pauses after the keyword commit, then cancels from Search & data in Settings and
 verifies that editing is available again. A separate managed-source fixture
-checks toolbar and menu access, shared cancellation, a no-op check and a
-publication observed in two windows. The link scenario sends real macOS URL
+opens Settings from two workspace windows, checks that both use the same
+Settings window, and exercises cancellation, a no-op check and reference
+publication. The link scenario sends real macOS URL
 events to an isolated app bundle. It checks a cold launch, a warm open with the
 same record in a Search preview, and reuse of the standalone record tab.
 Embedding generation is skipped.

@@ -79,7 +79,7 @@ pub struct SearchModelStatus {
     pub usable: bool,
 }
 
-/// Private, read-only metadata for the desktop setup drawer.
+/// Private, read-only metadata for desktop workspace maintenance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReferenceStatus {
     pub version: u32,

@@ -71,12 +71,17 @@ pub fn open_external(destination: &Url) {
     }
 }
 
-pub fn show_cli_path(app: &AppHandle) -> Result<(), String> {
+pub fn powershell_command() -> Result<String, String> {
     let path = process::bundled_cli()?
         .display()
         .to_string()
         .replace('\'', "''");
-    let mut details = format!("Run the bundled Atlas command in PowerShell.\n\n& '{path}'");
+    Ok(format!("& '{path}'"))
+}
+
+pub fn show_cli_path(app: &AppHandle) -> Result<(), String> {
+    let command = powershell_command()?;
+    let mut details = format!("Run the bundled Atlas command in PowerShell.\n\n{command}");
     if let Some(workspace) = app.state::<crate::Desktop>().workspace_route.index()? {
         details.push_str(&format!(
             "\n\nThe app and this command use {}.",
