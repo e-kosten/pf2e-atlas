@@ -78,14 +78,15 @@
       "xp_per_pc": null
     },
     "encounter": {
+      "archived": false,
       "created_at": "2026-01-01T00:00:00Z",
+      "current_turn_participant_name": "Kyra",
       "encounter_key": "fixture-encounter",
       "name": "Ambush",
       "participant_count": 2,
       "round_duration_seconds": 6,
       "round_number": 1,
       "slug": "ambush",
-      "status": "running",
       "updated_at": "2026-01-01T00:00:00Z"
     },
     "participants": [
