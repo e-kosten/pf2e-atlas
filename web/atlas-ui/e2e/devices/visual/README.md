@@ -5,6 +5,17 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Compact encounter panels and condition HP choices
+
+These references show compact participants without section links above HP and Turn.
+In the Drained preview, the HP table and checkbox have an 8 px gap. On short
+screens, focusing Value keeps the selected condition visible when both fit.
+
+All four device projects used Playwright 1.65.0. The macOS 27.2.1 arm64 captures
+used commit `1e401dfb5`, and all 12 scenarios passed ordinary comparison against
+the reviewed references. On Ubuntu 24.04 x64, the same scenarios passed during
+capture using merge candidate `427005102`. [Linux visual capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45289043246).
+
 ## Draft encounter caption in PR #412
 
 PR #412 hid the round number on the Draft caption until the encounter ran.
