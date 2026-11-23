@@ -2262,6 +2262,7 @@ test("record picker saves an optional entry note and brings the changed list fir
       expanded.getByRole("button", { name: "Add", exact: true }),
     ).toHaveCount(0);
     await expect(expanded.getByRole("combobox", { name: "Saved list" })).toHaveCount(0);
+    await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
     const largeNote = expanded.getByRole("textbox", { name: "Note", exact: true });
     await expect
       .poll(async () => (await largeNote.boundingBox())!.height)

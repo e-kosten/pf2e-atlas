@@ -649,7 +649,7 @@ function AddToRecordModal({
             >
               <Input ref={nameInput} autoComplete="off" />
             </Form.Item>
-          ) : (
+          ) : !expanded ? (
             <>
               <div className="record-destination-picker__choices">
                 <Select
@@ -696,7 +696,7 @@ function AddToRecordModal({
                   </Typography.Text>
                 )}
             </>
-          )}
+          ) : null}
           {kind === "encounter" && (
             <div className="record-destination-picker__encounter-fields">
               {creature && (
