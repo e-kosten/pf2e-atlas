@@ -3,7 +3,7 @@ import type { ReorderPlacement } from "../../generated/atlas";
 import { EncounterRecordAdjustment } from "./EncounterRecordAdjustment";
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { encounterStatusLabels } from "./encounterStatus";
+import { displayRound, encounterStatusLabels } from "./encounterStatus";
 import {
   InitiativeEntryEditor,
   type InitiativeEntryFields,
@@ -111,6 +111,7 @@ export function EncounterRosterPane({
   selectedParticipantKey: string | null;
   slug: string;
 }) {
+  const round = encounterSummary && displayRound(encounterSummary);
   const currentParticipant = participants.find(
     (participant) => participant.participant_key === currentTurnParticipantKey,
   );
@@ -384,8 +385,9 @@ export function EncounterRosterPane({
           <div className="encounter-roster__turn-summary">
             <span className="encounter-roster__turn-caption">
               {encounterSummary
-                ? `${encounterStatusLabels[encounterSummary.status]} · Round ${encounterSummary.round_number}`
+                ? encounterStatusLabels[encounterSummary.status]
                 : "Current turn"}
+              {round && ` · Round ${round}`}
             </span>
             <strong>
               {currentParticipant?.display_name ??

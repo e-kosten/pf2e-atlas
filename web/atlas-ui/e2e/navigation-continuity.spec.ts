@@ -13,8 +13,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("encounter titles and focused rows navigate once in the same document", async ({
+test("encounter titles and plain row clicks navigate once in the same document", async ({
   page,
+  browserName,
 }) => {
   const name = `Navigation continuity ${Date.now()}`;
   const created = await page.request.post("/api/encounters", { data: { name } });
@@ -32,10 +33,24 @@ test("encounter titles and focused rows navigate once in the same document", asy
       if (/\/api\/(compatibility|readiness)$/.test(new URL(request.url()).pathname))
         bootstrap.push(request.url());
     });
-    for (const activation of ["click", "link Enter", "row Enter"]) {
+    const row = page.getByRole("row").filter({ has: title });
+    const edit = row.getByRole("button", { name: `Edit ${name}`, exact: true });
+    // macOS WebKit uses Option+Tab to include native links in keyboard navigation.
+    const tab =
+      browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+    await title.focus();
+    await page.keyboard.press(`Shift+${tab}`);
+    await expect(row).not.toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(title).toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(edit).toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(row.getByRole("button", { name: `Delete ${name}` })).toBeFocused();
+    for (const activation of ["click", "link Enter", "row click"]) {
       if (activation === "click") await title.click();
       else if (activation === "link Enter") await title.press("Enter");
-      else await title.locator("xpath=ancestor::tr").press("Enter");
+      else await row.getByText("Draft", { exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`${href}$`));
       await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
       expect(await documentIdentity(page)).toEqual(identity);
@@ -44,7 +59,6 @@ test("encounter titles and focused rows navigate once in the same document", asy
       await expect(title).toBeVisible();
     }
     expect(bootstrap).toEqual([]);
-    const edit = page.getByRole("button", { name: `Edit ${name}`, exact: true });
     const historyLength = await page.evaluate(() => history.length);
     await edit.click();
     const editor = page.getByRole("dialog", { name: "Settings", exact: true });

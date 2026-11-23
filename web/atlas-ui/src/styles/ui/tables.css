@@ -6,10 +6,6 @@
   cursor: pointer;
 }
 
-.index-row:focus-visible > td {
-  background: var(--panel-subtle);
-}
-
 .index-row-link {
   display: grid;
   gap: 3px;

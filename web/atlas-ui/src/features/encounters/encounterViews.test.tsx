@@ -575,12 +575,14 @@ describe("encounter views", () => {
     if (!encounterRow) {
       throw new Error("encounter row was not rendered");
     }
+    expect(within(encounterRow).getAllByRole("cell")[2]).toBeEmptyDOMElement();
     fireEvent.click(encounterRow);
     await waitFor(() => expect(window.location.pathname).toBe("/encounters/ambush"));
 
     history.replaceState(null, "", "/encounters");
     fireEvent.click(screen.getByRole("tab", { name: "Archived" }));
-    expect(await screen.findByText("Old Fight")).toBeInTheDocument();
+    const archivedRow = (await screen.findByText("Old Fight")).closest("tr")!;
+    expect(within(archivedRow).getAllByRole("cell")[2]).toHaveTextContent("1");
     expect(screen.getByText("1 archived encounter")).toBeVisible();
     expect(screen.queryByText("Ambush")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Active" }));
@@ -1205,6 +1207,16 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Start turn" })).not.toBeDisabled(),
     );
+    expect(screen.getByText("Draft", { exact: true })).toBeVisible();
+    expect(screen.queryByText(/Draft · Round/)).not.toBeInTheDocument();
+    apiMocks.advanceEncounterTurn.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: { ...serverEncounter.encounter, status: "running" },
+        current_turn_participant_key: "participant_a",
+      };
+      return { encounter_key: "encounter_ambush" };
+    });
     fireEvent.click(screen.getByRole("button", { name: "Start turn" }));
     await waitFor(() =>
       expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
@@ -1212,6 +1224,7 @@ describe("encounter views", () => {
         expected_revision: 0,
       }),
     );
+    expect(await screen.findByText("Running · Round 1")).toBeVisible();
   });
 
   it("reveals the canonical next participant at the top of the reader after refresh", async () => {

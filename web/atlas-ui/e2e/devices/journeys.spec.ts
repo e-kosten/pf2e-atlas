@@ -661,6 +661,48 @@ test("list drops retain order and geometry through delayed writes and refreshes"
   }
 });
 
+test("range filter focus follows the opening input and Escape closes only the range", async ({
+  page,
+}, info) => {
+  await page.goto("/search");
+  await showSearchFilters(page, info);
+  const rangeButton = { name: /^Edit Level \/ rank range/i };
+  const trigger = page.getByRole("button", rangeButton);
+  const range = page.getByRole("dialog", { name: /^Level \/ rank$/i });
+  const minimum = range.getByRole("textbox", { name: /minimum$/i });
+  const maximum = range.getByRole("textbox", { name: /maximum$/i });
+  await activate(trigger, info);
+  if (info.project.use.hasTouch) {
+    await expect(range).toBeFocused();
+    await minimum.tap();
+  }
+  await expect(minimum).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(maximum).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(range.getByRole("button", { name: "Clear", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  await trigger.press("Space");
+  await expect(minimum).toBeFocused();
+  const search = page.getByRole("searchbox", { name: "Search records" });
+  await activate(search, info);
+  await expect(range).toBeHidden();
+  await expect(search).toBeFocused();
+
+  await activate(page.getByRole("button", { name: "Links", exact: true }), info);
+  const picker = page.getByRole("dialog", { name: "Add link condition" });
+  const nested = picker.getByRole("button", rangeButton);
+  await nested.press("Enter");
+  await expect(minimum).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(range).toBeHidden();
+  await expect(nested).toBeFocused();
+  await expect(picker).toBeVisible();
+});
+
 test("filters, exact late activity, preview dismissal and Results remain usable", async ({
   page,
 }, info) => {

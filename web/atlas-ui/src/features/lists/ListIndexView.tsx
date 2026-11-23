@@ -36,7 +36,7 @@ import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocu
 import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
 import { listCountLabel, savedListTagOptions } from "./listUtils";
-import { formatDate } from "../../shared/ui/formatDate";
+import { formatDate, formatShortDate } from "../../shared/ui/formatDate";
 type ListIndexViewProps = {
   route: Record<string, never>;
 };
@@ -282,6 +282,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
         }}
       />
       <IndexTable
+        className="list-index-table"
         {...listIndexColumns(
           atlasRouter,
           (list, opener) => {
@@ -446,10 +447,18 @@ function listIndexColumns(
           render: (_, list) => (
             <div className="index-row-summary">
               {titleLink(list, false)}
+              {list.description?.trim() && (
+                <div className="list-index-view__compact-description">
+                  <MarkdownExcerpt source={list.description} />
+                </div>
+              )}
               <div className="index-row-summary__facts">
                 <span>
                   {list.item_count.toLocaleString()}{" "}
                   {list.item_count === 1 ? "item" : "items"}
+                </span>
+                <span className="list-index-view__compact-updated">
+                  Updated {formatShortDate(list.updated_at)}
                 </span>
                 <ListTagSummary tags={list.tags} label={list.name + " tags"} />
               </div>
