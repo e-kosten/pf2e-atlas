@@ -182,6 +182,15 @@
   background: var(--bg);
   color: var(--text);
 }
+.desktop-settings--mac {
+  display: grid;
+  height: 100dvh;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.desktop-settings--mac .desktop-settings__content {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 .desktop-settings__body {
   max-width: 46rem;
   margin-inline: auto;
@@ -240,9 +249,6 @@
   justify-content: center;
   gap: 4px;
   padding: 6px 8px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
   border-bottom: 1px solid var(--line);
   background: var(--shell-bg);
 }
