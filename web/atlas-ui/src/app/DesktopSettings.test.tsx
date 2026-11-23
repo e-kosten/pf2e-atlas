@@ -53,7 +53,7 @@ const invoke = vi.fn(
       return { command: '& "C:\\Atlas\\atlas.exe"' };
   },
 );
-function attach(attachment: DesktopAttachment, windows: boolean) {
+function attach(attachment: DesktopAttachment | undefined, windows: boolean) {
   vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", attachment);
   vi.stubGlobal("__ATLAS_WINDOWS_TABS__", windows);
   vi.stubGlobal("__TAURI__", { core: { invoke } });
@@ -79,6 +79,45 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
+
+it.each([false, true])(
+  "delivers an early Windows shortcut once and honors an existing destination (targeted: %s)",
+  async (targeted) => {
+    attach(undefined, true);
+    open("/settings", true);
+    const shortcut = () => fireEvent.keyDown(window, { key: ",", ctrlKey: true });
+    shortcut();
+    shortcut();
+    const opens = () =>
+      invoke.mock.calls.filter(([command]) => command === "desktop_settings_open");
+    expect(opens()).toEqual([]);
+
+    await act(async () => {
+      attach(
+        {
+          ...desktop,
+          settingsRequest: targeted ? { id: 1, destination: "terminal" } : null,
+        },
+        true,
+      );
+      window.dispatchEvent(new Event("atlas-desktop-setup"));
+    });
+    if (targeted)
+      expect(
+        await screen.findByRole("heading", { name: "Terminal access" }),
+      ).toBeVisible();
+    const expected = targeted
+      ? []
+      : [["desktop_settings_open", { token: desktop.token, destination: "general" }]];
+    expect(opens()).toEqual(expected);
+
+    await act(async () => {
+      attach({ ...desktop, token: "reattached-document", settingsRequest: null }, true);
+      window.dispatchEvent(new Event("atlas-desktop-setup"));
+    });
+    expect(opens()).toEqual(expected);
+  },
+);
 
 it("delivers an early request to a single Windows Settings tab and returns focus to the originating row", async () => {
   attach({ ...desktop, settingsRequest: { id: 1, destination: "terminal" } }, true);

@@ -873,7 +873,10 @@ fn display(error: impl std::fmt::Display) -> String {
 }
 
 fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    #[cfg(target_os = "macos")]
     let settings = MenuItem::with_id(app, "setup", "Settings…", true, Some("CmdOrCtrl+,"))?;
+    #[cfg(windows)]
+    let settings = MenuItem::with_id(app, "setup", "Settings…\tCtrl+,", true, None::<&str>)?;
     #[cfg(target_os = "macos")]
     let window = MenuItem::with_id(app, "new", "New Window", true, Some("CmdOrCtrl+N"))?;
     // Keep the Windows menu hints while the focused tab shell handles the shortcuts.

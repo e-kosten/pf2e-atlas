@@ -16,11 +16,12 @@ import {
 import { createAtlasRouter } from "./router";
 import { antDesignTheme, type ResolvedColorScheme } from "../shared/theme/atlasTheme";
 import {
+  isSettingsPath,
+  readDesktopAttachment,
   settingsPath,
   useDesktopAttachment,
   useSettingsRequest,
 } from "./desktopBridge";
-import { isSettingsPath } from "./desktopBridge";
 import { DesktopTabBar, desktopTabButtonId, desktopTabPanelId } from "./DesktopTabBar";
 import {
   DesktopTabContext,
@@ -113,6 +114,25 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
   const closeFocus = useRef<"tab" | "content" | null>(null);
   const settingsOrigin = useRef<string | null>(null);
   const attachment = useDesktopAttachment();
+  const pendingSettingsShortcut = useRef(false);
+  const openSettings = useCallback(() => {
+    const current = readDesktopAttachment();
+    if (!current?.token) {
+      pendingSettingsShortcut.current = true;
+      return;
+    }
+    const hostAlreadyRequestedSettings =
+      pendingSettingsShortcut.current && current.settingsRequest;
+    pendingSettingsShortcut.current = false;
+    if (!hostAlreadyRequestedSettings) {
+      void invoke("desktop_settings_open", { destination: "general" }).catch(
+        reportCommandFailure,
+      );
+    }
+  }, []);
+  useEffect(() => {
+    if (attachment?.token && pendingSettingsShortcut.current) openSettings();
+  }, [attachment?.token, openSettings]);
   const positions = useRef(
     new Map<string, { x: number; y: number; focus: HTMLElement | null }>(),
   );
@@ -367,12 +387,14 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
         select(tabs[(index + offset + tabs.length) % tabs.length].id);
       } else if (!event.shiftKey) {
         const key = event.key.toLowerCase();
-        if (key !== "t" && key !== "w" && key !== "n") return;
+        if (key !== "t" && key !== "w" && key !== "n" && key !== ",") return;
         event.preventDefault();
         if (event.repeat) return;
         if (key === "t") open("/search", true);
         else if (key === "w") close(active.id);
-        else void invoke("desktop_tabs_new_window").catch(reportCommandFailure);
+        else if (key === "n")
+          void invoke("desktop_tabs_new_window").catch(reportCommandFailure);
+        else openSettings();
       }
     }
 
@@ -387,7 +409,7 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
       window.removeEventListener(commandEvent, receive);
       window.removeEventListener("keydown", keydown, true);
     };
-  }, [active, close, closeWindow, open, select, tabs]);
+  }, [active, close, closeWindow, open, openSettings, select, tabs]);
 
   const title = useCallback((id: string, name: string) => {
     setTitles((previous) =>

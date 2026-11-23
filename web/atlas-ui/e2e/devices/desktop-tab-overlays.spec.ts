@@ -234,10 +234,17 @@ test("Settings reopens in one tab and returns to the focused encounter draft", a
       });
     });
     await page.goto("/search");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    const search = page.getByRole("searchbox", { name: "Search records", exact: true });
+    await search.press("Control+,");
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
     ).toBeVisible();
+    await page.getByRole("link", { name: "Terminal access" }).click();
+    const terminal = page.getByRole("heading", {
+      name: "Terminal access",
+      exact: true,
+    });
+    await expect(terminal).toBeVisible();
     await page.keyboard.press("Control+t");
     await page.getByRole("link", { name: "Encounters", exact: true }).click();
     await page.getByRole("link", { name: encounter.name, exact: true }).click();
@@ -246,23 +253,9 @@ test("Settings reopens in one tab and returns to the focused encounter draft", a
     const turn = page.getByRole("dialog", { name: "Add custom turn", exact: true });
     const notes = turn.getByRole("textbox", { name: "Notes", exact: true });
     await replaceMarkdown(notes, "Retain this turn across Settings");
-    await notes.focus();
-    // The real accelerator belongs to the native host, which delivers this command.
-    await page.evaluate(() => {
-      const host = window as Window & {
-        __TAURI__: {
-          core: { invoke: (command: string, args: object) => Promise<void> };
-        };
-      };
-      return host.__TAURI__.core.invoke("desktop_settings_open", {
-        destination: "terminal",
-      });
-    });
-    const terminal = page.getByRole("heading", {
-      name: "Terminal access",
-      exact: true,
-    });
+    await notes.press("Control+,");
     await expect(terminal).toBeVisible();
+    await page.keyboard.press("Control+,");
     await expect(page.getByRole("tab")).toHaveCount(3);
     await page.getByRole("link", { name: "Back to Settings" }).click();
     await expect(page.getByRole("link", { name: "Terminal access" })).toBeFocused();
