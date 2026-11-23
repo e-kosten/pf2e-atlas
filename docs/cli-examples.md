@@ -390,11 +390,19 @@ atlas encounters preview garden-sentries --record PACK:ID --quantity 2 --adjustm
 ```
 
 The result compares current and projected difficulty, opposition XP and award
-per PC. Level and size report their individual sources. `encounters show` includes
+per PC. Run the printed **Add as reviewed** command to save that addition. It
+uses the resolved record key, encounter revision, reference generation and a
+request ID. Running the same command again confirms the original addition.
+A stale preview gives you a command to preview the current encounter. For a
+comparison with party overrides, use the original **Repeat preview** command to
+keep those assumptions. JSON exposes the invocations as `data.add_args` and,
+when overrides are present, `data.repeat_preview_args`.
+
+Level and size report their individual sources. `encounters show` includes
 GM notes, initiative, revision and the current roster. Use `--participant KEY`
 for one participant's details or `--detail full` for the complete encounter.
 
-Each `encounters add` invocation generates a new request ID. For a script that
+Direct `encounters add` invocations generate a request ID when you omit it. For a script that
 may retry after losing the response, copy `data.encounter.encounter_key` from
 `encounters show garden-sentries --json` and generate a UUID for this intended
 addition. Retry with that key, UUID and the same options, even if the encounter

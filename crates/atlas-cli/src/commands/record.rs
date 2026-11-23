@@ -159,7 +159,28 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         for outcome in &batch.results {
             match outcome {
                 batch::Outcome::Ok { .. } => {}
-                batch::Outcome::Error { input, error } => eprintln!("{input}: {}", error.message),
+                batch::Outcome::Error { input, error } => {
+                    eprintln!("{input}: {}", error.message);
+                    if error.code == atlas_app_model::AppErrorCode::InvalidRecordKey
+                        && o.navigation.is_none()
+                        && !input.trim().is_empty()
+                        && !input.contains(':')
+                    {
+                        match super::followup::workspace_args(o.path_mode, o.index.as_deref()) {
+                            Ok(workspace) => {
+                                let mut args =
+                                    vec!["atlas".into(), "record".into(), "resolve".into()];
+                                args.extend(workspace);
+                                args.extend(["--".into(), input.clone()]);
+                                eprintln!(
+                                    "Resolve by name: {}",
+                                    super::followup::shell_command(&args)
+                                );
+                            }
+                            Err(reason) => eprintln!("{reason}"),
+                        }
+                    }
+                }
                 batch::Outcome::Unprocessed { input, .. } => {
                     eprintln!("{input}: not processed after runtime failure")
                 }

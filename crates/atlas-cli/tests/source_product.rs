@@ -1437,7 +1437,45 @@ fn record_batch_terminal_continues_after_misses_and_invalid_inputs() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(stderr.contains("actions:missing000000001"));
         assert!(stderr.contains("not-a-key"));
+        let hints: Vec<_> = stderr
+            .lines()
+            .filter(|line| line.starts_with("Resolve by name:"))
+            .collect();
+        assert_eq!(hints.len(), 1, "{stderr}");
+        assert!(hints[0].ends_with("-- not-a-key"));
     }
+}
+
+#[test]
+fn record_get_name_hint_preserves_a_quoted_workspace_and_option_like_name() {
+    let mut f = Fixture::new();
+    let renamed = f.root.join("my workspace.sqlite");
+    fs::rename(&f.index, &renamed).unwrap();
+    f.index = renamed;
+    let name = "-Tovin's Blade";
+    let output = f
+        .isolated_repo_command()
+        .args(["record", "get", "--path-mode", "repo", "--index"])
+        .arg(&f.index)
+        .args(["--", name])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let hint = stderr
+        .lines()
+        .find_map(|line| line.strip_prefix("Resolve by name: "))
+        .unwrap();
+    let quoted_name = if cfg!(windows) {
+        "'-Tovin''s Blade'"
+    } else {
+        "'-Tovin'\"'\"'s Blade'"
+    };
+    assert!(
+        hint.ends_with(&format!("--path-mode=repo -- {quoted_name}")),
+        "{hint}"
+    );
+    assert!(hint.contains("my workspace.sqlite'"), "{hint}");
 }
 
 #[test]
@@ -2613,6 +2651,94 @@ fn encounter_add_reuses_a_script_id_but_generates_a_fresh_id_for_each_ordinary_c
             .len(),
         5
     );
+}
+
+#[test]
+fn reviewed_encounter_commands_run_in_the_original_workspace_and_recover_from_conflicts() {
+    let f = Fixture::new();
+    install_encounter_guard(&f);
+    f.data(&["encounters", "create", "Garden", "--json"]);
+    let preview = f.data(&[
+        "encounters",
+        "preview",
+        "garden",
+        "--record",
+        "Local Guard",
+        "--adjustment",
+        "weak",
+        "--quantity",
+        "2",
+        "--party-size",
+        "5",
+        "--party-level",
+        "2",
+        "--json",
+    ]);
+    let follow = |args: &Value, expected_exit| {
+        let args: Vec<_> = args
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|arg| arg.as_str().unwrap())
+            .collect();
+        assert_eq!(args[0], "atlas");
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(&args[1..])
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(expected_exit),
+            "{args:?}: {output:?}"
+        );
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()
+    };
+    let add = &preview["add_args"];
+    assert!(
+        add.as_array()
+            .unwrap()
+            .iter()
+            .any(|arg| arg == "--record=creatures:dddddddddddddddd")
+    );
+    let repeated = follow(&preview["repeat_preview_args"], 0);
+    assert_eq!(repeated["data"]["projected"], preview["projected"]);
+    assert_ne!(repeated["data"]["add_args"], *add);
+    let added = follow(add, 0);
+    assert_eq!(
+        added["data"]["participant_keys"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(follow(add, 0)["data"]["outcome"], "already_committed");
+
+    let stale = follow(&repeated["data"]["add_args"], 2);
+    assert_eq!(stale["error"]["code"], "encounter_turn_conflict");
+    let fresh = follow(&stale["error"]["details"]["preview_args"], 0);
+    assert!(fresh["data"]["revision"].as_i64().unwrap() > preview["revision"].as_i64().unwrap());
+    assert!(fresh["data"].get("repeat_preview_args").is_none());
+    let after = f.data(&["encounters", "show", "garden", "--json"]);
+    assert_eq!(after["participants"].as_array().unwrap().len(), 2);
+    assert!(after["participants"].as_array().unwrap().iter().all(|row| {
+        row["display_name"]
+            .as_str()
+            .unwrap()
+            .contains("Weak Local Guard")
+    }));
+
+    // Publish a new reference generation without changing the encounter revision.
+    fs::write(
+        f.root.join("packs/actions/extra.json"),
+        r#"{"_id":"eeeeeeeeeeeeeeee","name":"New Action","type":"action","system":{}}"#,
+    )
+    .unwrap();
+    let rebuild = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(rebuild.status.success(), "{rebuild:?}");
+    let changed = follow(&fresh["data"]["add_args"], 3);
+    assert_eq!(changed["error"]["code"], "artifact_generation_changed");
+    assert_ne!(
+        follow(&changed["error"]["details"]["preview_args"], 0)["data"]["artifact_generation"],
+        fresh["data"]["artifact_generation"]
+    );
+    assert_eq!(follow(add, 0)["data"]["outcome"], "already_committed");
 }
 
 #[test]

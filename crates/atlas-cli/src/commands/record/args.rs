@@ -29,7 +29,7 @@ pub(crate) enum RecordCommand {
 }
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail full\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --json"
+    after_help = "Examples:\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail full\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --json\n\nFor a name, use atlas record resolve \"Treat Wounds\" and open a returned key."
 )]
 pub(crate) struct RecordGetOptions {
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=10), help = "Preview a spell at this rank")]

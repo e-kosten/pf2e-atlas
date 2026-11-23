@@ -566,7 +566,14 @@ atlas encounters preview garden-sentries --record PACK:ID --quantity 2 --adjustm
 
 Compare the current and projected difficulty against the same party. Level and
 size each report whether they came from preview flags, a saved reference, the
-roster or an unknown input. `encounters show` includes the note and compact
+roster or an unknown input. When asked to save the reviewed addition, execute
+`data.add_args` as an argument vector. It binds the canonical record, roster
+revision, reference generation and request ID. Reuse those exact arguments to
+confirm a retry. For a stale preview, use `error.details.preview_args` to review
+again, or use the original `data.repeat_preview_args` to keep supplied party
+level and size. Those party options apply only to the comparison.
+
+`encounters show` includes the note and compact
 roster. Use `--participant KEY` for one expanded participant or `--detail full`
 for the entire encounter. For an addition, choose a request ID before the first
 write and reuse the canonical encounter key, request ID and same inputs on a
