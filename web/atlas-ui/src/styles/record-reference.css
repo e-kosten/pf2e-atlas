@@ -214,6 +214,10 @@
 .record-reference__kind.spell-rank-control {
   font-weight: 600;
 }
+.spell-rank-control .lucide-chevron-down {
+  stroke-width: 3;
+  transform: scale(1.18);
+}
 .record-reference__header .record-reference__kind {
   margin: 0 0 0 auto;
 }
