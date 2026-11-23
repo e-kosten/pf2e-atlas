@@ -114,6 +114,7 @@ export function CreatureReference({
     hasStatistics ||
     hasActorActivities(overviewActor) ||
     Boolean(landing && !conditionLanding);
+  const runtimeOnly = encounter && !hasRules && !prose;
   const hasDefenses =
     authoredConditions.length > 0 ||
     hasReadingFact(actor.size) ||
@@ -144,6 +145,7 @@ export function CreatureReference({
     ...(activities.some((a) => a.kind === "other") ? [["other", "Other entries"]] : []),
     ...(encounter && prose ? [["description", "Description"]] : []),
   ];
+  const showOutline = !runtimeOnly && sections.length > (encounter ? 1 : 0);
   const sectionHref = (name: string) =>
     `${
       encounter
@@ -157,10 +159,10 @@ export function CreatureReference({
   return (
     <div
       ref={container}
-      className={`creature-reference${encounter ? " creature-reference--encounter" : ""}${encounter && !hasRules && !prose ? " creature-reference--runtime-only" : ""}`}
+      className={`creature-reference${encounter ? " creature-reference--encounter" : ""}${runtimeOnly ? " creature-reference--runtime-only" : ""}`}
     >
       <div className="creature-reference__layout">
-        {(encounter ? sections.length > 1 : sections.length > 0) && (
+        {showOutline && (
           <nav
             className={`document-outline creature-reference__outline`}
             aria-label="Creature sections"
