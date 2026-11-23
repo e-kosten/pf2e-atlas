@@ -401,7 +401,8 @@ atlas lists add undead-research --record 'Skeleton Guard' --note 'A basic guard 
 atlas lists show undead-research --json
 atlas lists show undead-research --sort level_asc --json
 atlas lists export undead-research --output undead-research.json
-atlas lists import undead-research.json --id undead-research-copy --json
+# In the destination workspace
+atlas lists import undead-research.json --index /path/to/destination/workspace.sqlite --json
 ```
 
 `lists create` also accepts repeated `--record` inputs to initialize a new list.
@@ -421,7 +422,11 @@ inputs in `data.retry_inputs` and retry them with `lists add` against that list.
 for unavailable entries.
 
 `lists export` writes portable JSON to stdout. With `--output PATH`, choose a new file.
-Importing an existing id fails unless `--replace` is explicitly requested.
+List names are unique across active and archived lists, ignoring capitalization
+and surrounding whitespace. On a name conflict, use the returned list key for
+the existing list or choose a new name. To import a second copy in the same
+workspace, change `list.name` in the exported JSON and supply a new `--id`.
+Use `--replace` to replace the list at the target id.
 Use `lists edit ID` for name, description, tags or id changes. To hide a list
 without deleting it, use `lists edit ID --archive`; discover it with
 `lists list --include-archived` and restore it with `lists edit ID --restore`.

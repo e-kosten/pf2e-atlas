@@ -12,6 +12,8 @@ const explanations: Partial<Record<AppErrorCode, string>> = {
     "More than one record matches. Choose a specific record.",
   saved_list_not_found: "This list is no longer available. Return to Lists.",
   saved_list_already_exists:
+    "This list address is already in use. Choose another address.",
+  saved_list_name_conflict:
     "A list with this name already exists. Choose another name.",
   party_not_found: "This party is no longer available.",
   party_conflict: "This party changed. Review its current values before trying again.",

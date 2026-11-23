@@ -85,7 +85,7 @@ test("a records-only workspace supports Search, trait browse and the list picker
 
   const slug = `keyword-${info.project.name}`;
   const created = await page.request.post("/api/lists", {
-    data: { name: "Keyword test list", slug, tags: [] },
+    data: { name: `Keyword test list ${info.project.name}`, slug, tags: [] },
   });
   expect(created.ok()).toBe(true);
   await page.goto(`/lists/${slug}`);
@@ -222,7 +222,7 @@ test("retains a canceled draft on paging and cancels a pager edit on Escape", as
 test("keeps newer search text in the Add records picker", async ({ page }, info) => {
   const slug = `draft-${info.project.name}`;
   const created = await page.request.post("/api/lists", {
-    data: { name: "Picker draft test", slug, tags: [] },
+    data: { name: `Picker draft test ${info.project.name}`, slug, tags: [] },
   });
   expect(created.ok()).toBe(true);
   await page.goto(`/lists/${slug}`);

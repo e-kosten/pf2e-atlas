@@ -22,7 +22,7 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
     let second = SavedListsWrite::from_connection(&transaction, 2);
     let original = first.import(ImportSavedList {
         slug: "supplies".into(),
-        name: "First supplies".into(),
+        name: "Supplies".into(),
         description: None,
         tags: vec!["first".into()],
         replace: false,
@@ -515,6 +515,64 @@ fn import_creates_saved_list_with_dense_positions() -> Result<(), Box<dyn std::e
     assert_eq!(imported.items[0].note.as_deref(), Some("Review"));
     assert_eq!(imported.items[1].record_key, "actions:first");
     assert_eq!(imported.items[1].position, 2);
+    Ok(())
+}
+
+#[test]
+fn name_conflict_preserves_the_target_of_a_rename_or_replacement()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = TestStore::open(temp_path("saved-list-name-conflict"))?;
+    let lists = store.saved_lists();
+    let original = lists.import(ImportSavedList {
+        slug: "original".into(),
+        name: "Wilderness".into(),
+        description: None,
+        tags: vec!["prep".into()],
+        replace: false,
+        items: vec![imported_item(
+            "actions:first",
+            Some("Bring rope"),
+            "First",
+            None,
+        )],
+    })?;
+    let reserved = lists.create(NewSavedList {
+        name: "Straße".into(),
+        slug: "street".into(),
+        description: None,
+        tags: vec![],
+    })?;
+    let rename = lists.update(UpdateSavedList {
+        list_key: original.list.list_key.clone(),
+        slug: "new-id".into(),
+        name: " STRASSE ".into(),
+        description: Some("New description".into()),
+        archived: true,
+        tags: Some(vec!["edited".into()]),
+    });
+    assert!(
+        matches!(rename, Err(LocalStateError::ListNameConflict { list_key, .. }) if list_key == reserved.list_key)
+    );
+    let mut incoming = ImportSavedList {
+        slug: original.list.slug.clone(),
+        name: " Straẞe ".into(),
+        description: None,
+        tags: vec![],
+        replace: true,
+        items: vec![],
+    };
+    assert!(
+        matches!(lists.import(incoming.clone()), Err(LocalStateError::ListNameConflict { list_key, .. }) if list_key == reserved.list_key)
+    );
+    assert_eq!(
+        lists.get_with_items(&original.list.list_key)?,
+        Some(original.clone())
+    );
+    incoming.name = "WILDERNESS".into();
+    let replaced = lists.import(incoming)?;
+    assert_eq!(replaced.list.list_key, original.list.list_key);
+    assert_eq!(replaced.list.name, "WILDERNESS");
+    assert!(replaced.items.is_empty());
     Ok(())
 }
 

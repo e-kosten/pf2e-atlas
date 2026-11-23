@@ -240,16 +240,31 @@ export function CharacterEditor({
       }}
     />
   );
+  function cancelInline() {
+    if (dirty()) setConfirmInline(true);
+    else onClose();
+  }
   if (inline)
     return (
-      <section className="character-inline-editor">
+      // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape from a focused editor control cancels the inline form.
+      <section
+        className="character-inline-editor"
+        onKeyDown={(event) => {
+          if (
+            event.key === "Escape" &&
+            !blocked &&
+            !event.defaultPrevented &&
+            event.currentTarget.contains(event.target as Node)
+          ) {
+            event.stopPropagation();
+            cancelInline();
+          }
+        }}
+      >
         <h3>New character</h3>
         {content}
         <Space>
-          <Button
-            disabled={blocked}
-            onClick={() => (dirty() ? setConfirmInline(true) : onClose())}
-          >
+          <Button disabled={blocked} onClick={cancelInline}>
             Cancel
           </Button>
           <Button

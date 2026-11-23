@@ -1,4 +1,5 @@
 import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
+import { AtlasApiError } from "../../api/apiError";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -152,6 +153,38 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
     record_ref: "spells:light",
     note: "  Prepare for the night watch.  ",
   });
+});
+
+it("keeps the record note and links the conflicting list from the name field", async () => {
+  const existing = lists.lists[0]!;
+  api.createSavedList.mockRejectedValueOnce(
+    new AtlasApiError(409, "Duplicate", {
+      code: "saved_list_name_conflict",
+      message: "Duplicate",
+      details: existing,
+    }),
+  );
+  setup(<AddToRecordButton recordKey="spells:light" />);
+  fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+  fireEvent.click(screen.getByRole("button", { name: "New list" }));
+  const name = screen.getByRole("textbox", { name: "New list name" });
+  fireEvent.change(name, { target: { value: "review" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add a note" }));
+  const note = screen.getByRole("textbox", { name: "Note" });
+  replaceMarkdown(note, "For next session");
+  fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
+  const link = await screen.findByRole("link", { name: existing.name });
+  expect(link).toHaveAttribute("href", "/lists/review");
+  expect(name).toHaveAccessibleDescription("A list named “Review” already exists.");
+  expect(name).toHaveAttribute("aria-invalid", "true");
+  expect(name).toHaveValue("review");
+  fireEvent.change(name, { target: { value: "Next session" } });
+  await waitFor(() =>
+    expect(screen.queryByRole("link", { name: existing.name })).toBeNull(),
+  );
+  expect(name).not.toHaveAttribute("aria-invalid", "true");
+  expect(markdownSource(note)).toBe("For next session");
+  expect(api.addSavedListItem).not.toHaveBeenCalled();
 });
 
 it("keeps the entry note when creation succeeds but adding fails, then resets after close", async () => {

@@ -383,30 +383,20 @@ impl AtlasAppService {
             });
         }
         let creating = create.is_some();
-        let generate_slug = create
-            .as_ref()
-            .is_some_and(|request| request.slug.is_none());
         let (list_key, resolved, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
-                let existing = if generate_slug {
+                let list_key = if creating {
                     None
                 } else {
-                    session
-                        .local_state()?
-                        .saved_lists()
-                        .get(&request.list_ref)?
-                };
-                let list_key = match (creating, existing) {
-                    (true, Some(_)) => {
-                        return Err(atlas_local_state::LocalStateError::ListAlreadyExists(
-                            request.list_ref,
-                        )
-                        .into());
-                    }
-                    (true, None) => None,
-                    (false, Some(list)) => Some(list.list_key),
-                    (false, None) => return Err(saved_list_not_found(&request.list_ref)),
+                    Some(
+                        session
+                            .local_state()?
+                            .saved_lists()
+                            .get(&request.list_ref)?
+                            .ok_or_else(|| saved_list_not_found(&request.list_ref))?
+                            .list_key,
+                    )
                 };
                 let resolved = request
                     .items

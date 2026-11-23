@@ -1,5 +1,5 @@
-import { Button, Dropdown } from "antd";
-import { useState, type Ref } from "react";
+import { useRef, useState, type RefObject } from "react";
+import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
 import type { PartyView } from "../../generated/atlas";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { CharacterEditor } from "./CharacterEditor";
@@ -16,31 +16,29 @@ export function AddCharacter({
   party?: PartyView;
   onSaved?: (key: string) => void;
   disabled?: boolean;
-  triggerRef?: Ref<HTMLButtonElement>;
+  triggerRef?: RefObject<HTMLButtonElement | null>;
   onManual?: () => void;
 }) {
   const paused = useSavedWritesPaused();
+  const localTrigger = useRef<HTMLButtonElement>(null);
   const [mode, setMode] = useState<string>();
   return (
     <>
-      <Dropdown
-        trigger={["click"]}
-        menu={{
-          items: [
-            ...(party ? [{ key: "existing", label: "Existing character" }] : []),
-            { key: "pathbuilder", label: "From Pathbuilder" },
-            { key: "manual", label: "Enter manually" },
-          ],
-          onClick: ({ key }) => {
-            if (key === "manual" && onManual) onManual();
-            else setMode(key);
-          },
+      <EntityActionsMenu
+        label="Add PC"
+        appearance="primary"
+        trigger={triggerRef ?? localTrigger}
+        disabled={paused || disabled}
+        items={[
+          ...(party ? [{ key: "existing", label: "Existing character" }] : []),
+          { key: "pathbuilder", label: "From Pathbuilder" },
+          { key: "manual", label: "Enter manually" },
+        ]}
+        onAction={(key) => {
+          if (key === "manual" && onManual) onManual();
+          else setMode(key);
         }}
-      >
-        <Button ref={triggerRef} type="primary" disabled={paused || disabled}>
-          Add PC
-        </Button>
-      </Dropdown>
+      />
       {mode === "manual" && (
         <CharacterEditor
           party={party}

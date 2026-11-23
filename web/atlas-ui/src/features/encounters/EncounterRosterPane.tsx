@@ -14,7 +14,7 @@ import { Button, Dropdown, Form, InputNumber, Tooltip, Typography } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
-import { Dice5, Ellipsis, Eye, EyeOff, GripVertical, Play, Trash2 } from "lucide-react";
+import { Ellipsis, Eye, EyeOff, GripVertical, Play, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   AddEncounterRecordParticipantRequest,
@@ -58,7 +58,7 @@ export function EncounterRosterPane({
   recovery,
   turnAction,
   needsInitiative = false,
-  onRollInitiative,
+  rollInitiativeAction,
   onRemove,
   onReorder,
   onSelect,
@@ -91,7 +91,7 @@ export function EncounterRosterPane({
   recovery?: React.ReactNode;
   turnAction: React.ReactNode;
   needsInitiative?: boolean;
-  onRollInitiative?: (participantKey?: string) => void;
+  rollInitiativeAction: React.ReactNode;
   onRemove: (participant: EncounterParticipantView, opener: HTMLElement) => void;
   onReorder: (
     participantKey: string,
@@ -475,23 +475,7 @@ export function EncounterRosterPane({
             }
             onAddPc={setPcAddMode}
           />
-          {onRollInitiative && (
-            <Button
-              disabled={
-                disabled ||
-                participants.every(
-                  (p) =>
-                    p.participant_kind === "pc" ||
-                    p.participant_kind === "initiative_entry",
-                )
-              }
-              icon={<Dice5 size={14} />}
-              type="text"
-              onClick={() => onRollInitiative()}
-            >
-              Roll initiative
-            </Button>
-          )}
+          {rollInitiativeAction}
         </PrimaryToolbar>
       </footer>
       <SearchPickerModal<AddRecordForm>

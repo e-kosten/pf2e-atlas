@@ -213,6 +213,12 @@ recovery. Verify the parent before inspecting a stored receipt, then preserve
 receipt recovery before the existing revision and reference checks. Import uses
 the destination scope.
 
+Saved-list display names are unique within the destination owner, including archived
+lists. Compare names case-insensitively after trimming surrounding whitespace.
+Check creates, renames and portable imports inside the saved write transaction.
+An explicit import replacement can retain the destination list's name. Slugs and
+stable keys continue to address lists independently of this display-name check.
+
 Public reference-only reads do not acquire a saved owner. Workspace-wide
 maintenance, migrations and backups operate on the complete workspace. When
 adding saved access paths, cover the scope using a foreign owner's key or child

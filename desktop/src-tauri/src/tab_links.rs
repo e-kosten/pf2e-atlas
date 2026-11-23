@@ -22,17 +22,17 @@ impl Link {
             .ok_or_else(|| "This link does not belong to the active Atlas workspace.".into())
     }
 
-    fn open(self, app: &AppHandle) -> Result<(), String> {
+    fn open(self, app: &AppHandle, foreground: bool) -> Result<(), String> {
         let source = self.validate(app)?;
         #[cfg(target_os = "macos")]
-        return crate::open_product(app, self.destination.as_str(), Some((&source, false)))
+        return crate::open_product(app, self.destination.as_str(), Some((&source, foreground)))
             .map(|_| ());
         #[cfg(windows)]
         crate::windows_tabs::send(
             &source,
             crate::windows_tabs::Command::Open {
                 href: self.destination.as_str(),
-                foreground: false,
+                foreground,
                 delivery: None,
             },
         )
@@ -44,6 +44,7 @@ pub async fn desktop_tab_link(
     window: WebviewWindow,
     url: Url,
     context: bool,
+    foreground: bool,
 ) -> Result<(), String> {
     let request = Link {
         source: window.label().into(),
@@ -54,7 +55,7 @@ pub async fn desktop_tab_link(
         let result = if context {
             show_menu(app, request)
         } else {
-            request.open(app)
+            request.open(app, foreground)
         };
         if let Err(error) = result {
             window_host::report("Could not open Atlas link", &error);
@@ -75,7 +76,7 @@ fn show_menu(app: &AppHandle, request: Link) -> Result<(), String> {
 
 pub fn open_context_link(app: &AppHandle) -> Result<(), String> {
     let request = lock(&app.state::<Desktop>().context_link).take();
-    request.map_or(Ok(()), |request| request.open(app))
+    request.map_or(Ok(()), |request| request.open(app, false))
 }
 
 pub(crate) fn product_link(base: &Url, destination: &Url) -> bool {

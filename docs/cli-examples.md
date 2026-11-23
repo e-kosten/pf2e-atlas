@@ -205,13 +205,20 @@ atlas lists create 'Undead Research' --slug undead-research --json
 atlas lists add undead-research --record 'Skeleton Guard' --json
 atlas lists show undead-research --json
 atlas lists export undead-research --output undead-research.json
-atlas lists import undead-research.json --id undead-copy --json
+# In the destination workspace
+atlas lists import undead-research.json --index /path/to/destination/workspace.sqlite --json
 ```
 
 The v2 export preserves saved item order, keys, notes, and snapshots. It can be
 written to a new file without loading reference records. An existing output file is preserved. Import accepts v2 files. A new list
 imported from one of these files starts active. Use a full workspace backup to
 carry archive status between workspaces.
+
+Each list needs a unique name among your active and archived lists. Atlas ignores
+capitalization and surrounding whitespace when comparing names. To keep a copy in
+the same workspace, give the exported JSON's `list.name` a new name and pass a new
+ID with `lists import FILE --id NEW-ID`. To replace the content of the original
+list, import the original export with `--replace`.
 
 Archive a list when you want to keep its contents and hide it from the default
 list view. You can still open it with `lists show`.

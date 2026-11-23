@@ -60,6 +60,7 @@ import type {
 } from "../../generated/atlas";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { CheckListDirectory } from "../lists/CheckListDirectory";
+import { listNameConflictHelp } from "../lists/listNameConflict";
 import { invalidateSavedListQueries, useSavedLists } from "../lists/savedListQueries";
 
 type DestinationKind = "list" | "encounter";
@@ -310,19 +311,9 @@ function AddToRecordModal({
     selected && !destinations.some((item) => item.key === selected.key)
       ? [selected, ...destinations]
       : destinations;
-  const nameCounts = new Map<string, number>();
-  if (kind === "list") {
-    for (const { name } of choices) {
-      const normalized = name.normalize().toLocaleLowerCase();
-      nameCounts.set(normalized, (nameCounts.get(normalized) ?? 0) + 1);
-    }
-  }
   const options = choices.map((item) => ({
     value: item.key,
-    label:
-      (nameCounts.get(item.name.normalize().toLocaleLowerCase()) ?? 0) > 1
-        ? `${item.name} (${item.slug})`
-        : item.name,
+    label: item.name,
   }));
   const submit = useMutation({
     retry: false,
@@ -466,6 +457,8 @@ function AddToRecordModal({
       inFlight.current = false;
     },
   });
+  const nameConflict =
+    creating && kind === "list" ? listNameConflictHelp(submit.error) : undefined;
   const run = (name?: string) => {
     if (expanded || inFlight.current) return;
     inFlight.current = true;
@@ -645,9 +638,18 @@ function AddToRecordModal({
               style={{ marginBottom: 0 }}
               name="name"
               label={kind === "list" ? "New list name" : "New encounter name"}
+              help={nameConflict}
+              validateStatus={nameConflict ? "error" : undefined}
               rules={[{ required: true, whitespace: true, message: "Enter a name." }]}
             >
-              <Input ref={nameInput} autoComplete="off" />
+              <Input
+                ref={nameInput}
+                autoComplete="off"
+                aria-invalid={nameConflict ? true : undefined}
+                onChange={() => {
+                  if (nameConflict) submit.reset();
+                }}
+              />
             </Form.Item>
           ) : !expanded ? (
             <>
@@ -864,7 +866,7 @@ function AddToRecordModal({
             }
           />
         )}
-        {submit.error && (
+        {submit.error && !nameConflict && (
           <ErrorNotice
             error={submit.error}
             outcome={

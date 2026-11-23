@@ -64,20 +64,19 @@
       anchor.classList.contains("skip-link")
     )
       return;
-    const destination = new URL(anchor.href);
-    if (destination.origin !== location.origin) return;
-    return destination;
+    if (anchor.origin === location.origin) return anchor;
   }
 
-  function request(event, context) {
-    const destination = link(event);
-    if (!destination) return;
+  function request(event, context, foreground = false) {
+    const anchor = link(event);
+    if (!anchor || (foreground && anchor.target.toLowerCase() !== "_blank")) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     window.__TAURI_INTERNALS__
       .invoke("desktop_tab_link", {
-        url: destination.href,
+        url: anchor.href,
         context,
+        foreground,
       })
       .catch((error) => console.error("Could not open Atlas link", error));
   }
@@ -86,13 +85,11 @@
   window.addEventListener(
     "click",
     (event) => {
-      if (
-        event.button === 0 &&
-        (windows ? event.ctrlKey && !event.metaKey : event.metaKey && !event.ctrlKey) &&
-        !event.altKey &&
-        !event.shiftKey
-      )
+      if (event.button !== 0 || event.altKey || event.shiftKey) return;
+      if (windows ? event.ctrlKey && !event.metaKey : event.metaKey && !event.ctrlKey)
         request(event, false);
+      else if (!event.ctrlKey && !event.metaKey)
+        request(event, false, true);
     },
     true,
   );

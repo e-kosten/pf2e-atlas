@@ -1,6 +1,7 @@
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { CheckListDirectory } from "./CheckListDirectory";
+import { listNameConflictHelp } from "./listNameConflict";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -53,6 +54,7 @@ export function CreateListModal({
   });
 
   const uncertain = create.isError && isUnconfirmedMutation(create.error);
+  const nameConflict = listNameConflictHelp(create.error);
   const blocked = paused || (uncertain && !directoryChecked);
   function close() {
     if (inFlight.current) return;
@@ -102,10 +104,17 @@ export function CreateListModal({
         <Form.Item
           label="Name"
           name="name"
+          help={nameConflict}
+          validateStatus={nameConflict ? "error" : undefined}
           validateFirst
           rules={[{ required: true, whitespace: true, message: "Name is required." }]}
         >
-          <Input />
+          <Input
+            aria-invalid={nameConflict ? true : undefined}
+            onChange={() => {
+              if (nameConflict) create.reset();
+            }}
+          />
         </Form.Item>
         <Form.Item
           label="Tags"
@@ -137,7 +146,7 @@ export function CreateListModal({
           />
         </Form.Item>
       </Form>
-      {create.error && (
+      {create.error && !nameConflict && (
         <ErrorNotice
           error={create.error}
           outcome={uncertain ? "uncertain" : undefined}

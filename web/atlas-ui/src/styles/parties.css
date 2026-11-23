@@ -66,6 +66,21 @@
 .party-roster-pane {
   min-inline-size: 0;
 }
+.party-roster-pane {
+  container: party-roster / inline-size;
+}
+.party-roster .party-roster__compact-facts {
+  display: none;
+}
+@container party-roster (max-width: 32.5rem) {
+  .party-roster__column-fact {
+    display: none;
+  }
+  .party-roster .party-roster__compact-facts {
+    display: block;
+    margin-block-start: var(--space-micro);
+  }
+}
 .party-roster-pane > .party-page-heading {
   flex-wrap: wrap;
 }

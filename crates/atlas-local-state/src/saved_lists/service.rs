@@ -101,7 +101,7 @@ impl SavedListsWrite<'_> {
                 return Ok(Some(current));
             }
             let list_key = list.list_key.clone();
-            if !storage::update_list(transaction, self.owner_id, list)? {
+            if !storage::update_list(transaction, self.owner_id, &current.name, list)? {
                 return Ok(None);
             }
             storage::get(transaction, self.owner_id, &list_key)
@@ -123,6 +123,7 @@ impl SavedListsWrite<'_> {
                     storage::update_list(
                         transaction,
                         self.owner_id,
+                        &existing.name,
                         UpdateSavedList {
                             list_key: existing.list_key.clone(),
                             slug: import.slug.clone(),

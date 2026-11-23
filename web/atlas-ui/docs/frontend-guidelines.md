@@ -463,13 +463,20 @@ that section, keep All characters and Parties in the same order and position acr
 both directories, saved sheets and selected parties. Highlight Characters in the
 main navigation on all of these routes. On a compact selected-party view, put
 the roster identity and Add PC ahead of the roster. Keep New party in the
-directory view. The encounter runner keeps its combat toolbar. Use the toolbar below a directory heading for filters or archive
+directory view. Add PC identifies its menu with a chevron and transfers keyboard
+focus into the chosen editor. On compact rosters, put level and reference source
+beneath the character name, between the reorder and remove controls. A manual
+character with only an empty Stats section shows the import action directly below
+its identity header. The encounter runner keeps its combat toolbar. Use the toolbar below a directory heading for filters or archive
 views.
 
 When an index has insufficient width for its detailed columns, keep the linked name,
 identifying facts and row actions together in a compact row. Measure the table's
 available width. Keep a single set of interactive controls and preserve focus when a
 settings dialog spans a resize. List tags retain their measured disclosure.
+Show a duplicate list name beside its field with a link to the conflicting list,
+including its archived status. Opening that list preserves the draft. Offer a
+reorder handle when the saved order contains at least two movable entries.
 
 Shared Ant button and link primitives pass native event props and React refs to
 the underlying Ant control, preserving its DOM target for Tooltip and Popover
@@ -2185,7 +2192,10 @@ borderless, centered inline field with a visible focus outline; creature totals
 use the same numeric alignment and retain their roll/set popover. Accessible movement
 actions disclose the target initiative. Phone layouts drill into a selected
 participant and restore roster focus/scroll on Back. The mobile participant toolbar
-uses the same primary Start/Next turn action, label and availability as the roster.
+shows Roll initiative when missing initiative prevents starting and the encounter
+has a rollable participant. It opens the roster’s initiative dialog. Closing the
+dialog returns focus to the available turn or initiative action. Otherwise the
+toolbar uses the roster’s Start/Next turn action.
 Following the canonical server-selected participant keeps the reader focused and
 both mobile toolbar buttons visible for successive turns. Turn progression skips participants without initiative scores, as well as defeated,
 disabled and dead participants. Missing initiative must be explained where it prevents

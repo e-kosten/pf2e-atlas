@@ -1303,6 +1303,43 @@ test("encounter references retain their owner, scroll and native destination", a
   }
 });
 
+test("the narrow inspector returns from initiative to the available turn action", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Inspector initiative ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const added = await page.request.post(`${path}/participants/record`, {
+      data: { request_id: crypto.randomUUID(), record_ref: sentinel, quantity: 1 },
+    });
+    expect(added.ok()).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(page.locator("[data-participant-key]").first(), info);
+    const toolbar = page.locator(".encounter-mobile-navigation");
+    const roll = toolbar.getByRole("button", { name: "Roll initiative" });
+    await activate(roll, info);
+    const dialog = page.getByRole("dialog", { name: "Initiative", exact: true });
+    const close = dialog.getByRole("button", { name: "Close", exact: true }).last();
+    await activate(close, info);
+    await expect(roll).toBeFocused();
+    await activate(roll, info);
+    const total = dialog.getByRole("textbox", { name: /initiative total$/ });
+    await total.fill("17");
+    await total.press("Enter");
+    const start = toolbar.getByRole("button", { name: "Start turn" });
+    await expect(start).toBeEnabled();
+    await activate(close, info);
+    await expect(start).toBeFocused();
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
 test("encounter roster, repeated Add, settings focus and HP intents survive narrow layouts", async ({
   page,
 }, info) => {

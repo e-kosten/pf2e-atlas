@@ -1201,6 +1201,21 @@ async fn archived_lists_are_opt_in_and_keep_their_owned_detail() {
     let (status, index) = fixture.json(Method::GET, "/api/lists", None).await;
     assert_eq!(status, StatusCode::OK, "{index}");
     assert_eq!(index["lists"], json!([]));
+    let (status, conflict) = fixture
+        .json(
+            Method::POST,
+            "/api/lists",
+            Some(json!({"name":"  RESEARCH  "})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{conflict}");
+    assert_eq!(conflict["code"], "saved_list_name_conflict");
+    assert_eq!(
+        conflict["details"],
+        json!({
+            "list_key": fixture.list_key, "slug": "research", "name": "Research", "archived": true
+        })
+    );
 
     let (status, index) = fixture
         .json(Method::GET, "/api/lists?include_archived=true", None)

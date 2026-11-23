@@ -318,6 +318,9 @@ export function CharacterSheet({
     label: sectionLabels.stats,
     children: <div className="character-sheet__pane">{renderSection("stats")}</div>,
   };
+  if (saved && !saved.imported && !sheet && visible.size === 1 && emptySheetAction) {
+    return <div className="character-sheet">{stats.children}</div>;
+  }
   const lookup = {
     key: "abilities",
     label: "Abilities",
