@@ -63,7 +63,6 @@ export function IndexTable<Row extends object>({
       pagination={false}
       onRow={(row) => ({
         className: "index-row",
-        tabIndex: 0,
         onClick: (event) => {
           if (
             event.defaultPrevented ||
@@ -81,20 +80,10 @@ export function IndexTable<Row extends object>({
                   'a, button, input, select, textarea, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="combobox"], [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"])',
                 )
               : null;
-          if (interactive && interactive !== event.currentTarget) {
+          if (interactive && event.currentTarget.contains(interactive)) {
             return;
           }
           onActivateRow(row);
-        },
-        onKeyDown: (event) => {
-          if (
-            event.key === "Enter" &&
-            event.target === event.currentTarget &&
-            !event.defaultPrevented
-          ) {
-            event.preventDefault();
-            onActivateRow(row);
-          }
         },
       })}
       rowKey={rowKey}

@@ -47,15 +47,11 @@ describe("IndexTable", () => {
     expect(screen.getByText("No records")).toBe(empty);
   });
 
-  it("activates once from a plain cell click or Enter focused on the row", () => {
+  it("opens from plain row space without adding a keyboard stop", () => {
     const { onActivateRow, tableRow } = renderIndex(row.name);
     fireEvent.click(screen.getByText("Ready"));
     expect(onActivateRow).toHaveBeenCalledExactlyOnceWith(row);
-    onActivateRow.mockClear();
-
-    act(() => tableRow.focus());
-    fireEvent.keyDown(tableRow, { key: "Enter" });
-    expect(onActivateRow).toHaveBeenCalledExactlyOnceWith(row);
+    expect(tableRow.tabIndex).toBe(-1);
   });
 
   it.each(["Edit", "Delete"])(
