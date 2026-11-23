@@ -29,6 +29,7 @@ import {
   useContext,
   useId,
   type CSSProperties,
+  type KeyboardEvent,
   type ReactNode,
   type RefObject,
   useMemo,
@@ -795,41 +796,12 @@ function CommonFilter({
             compact={compactPane}
           />
         ) : (
-          <Popover
-            trigger="click"
-            placement="bottom"
-            styles={{ root: { width: "min(360px, calc(100vw - 32px))" } }}
-            title={field.label}
-            content={
-              <Space orientation="vertical" style={{ width: "100%" }}>
-                {field.help && (
-                  <Typography.Text type="secondary">{field.help}</Typography.Text>
-                )}
-                <CommonRange
-                  field={field}
-                  range={range ?? ["", ""]}
-                  onChange={onRangeChange}
-                />
-                <Button
-                  type="text"
-                  onClick={() => {
-                    onRangeChange(["", ""]);
-                  }}
-                >
-                  Clear range
-                </Button>
-              </Space>
-            }
-          >
-            <Button
-              ref={rangeTrigger}
-              aria-label={
-                "Edit " + field.label + " range: " + rangeSummary(range, "words")
-              }
-            >
-              {field.label}
-            </Button>
-          </Popover>
+          <ToolbarRange
+            field={field}
+            range={range}
+            onChange={onRangeChange}
+            trigger={rangeTrigger}
+          />
         )
       ) : (
         <CommonChoicePicker
@@ -869,6 +841,100 @@ function CommonFilter({
   );
 }
 
+function ToolbarRange({
+  field,
+  range,
+  onChange,
+  trigger,
+}: {
+  field: FilterEditorFieldView;
+  range: [string, string] | null;
+  onChange: (range: [string, string]) => void;
+  trigger: RefObject<HTMLButtonElement | null>;
+}) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const dialog = useRef<HTMLElement>(null);
+  const minimum = useRef<InputRef>(null);
+  const touchOpening = useRef(false);
+  const focusAtOpen = useRef<Element | null>(null);
+
+  function changeOpen(next: boolean) {
+    if (next) focusAtOpen.current = document.activeElement;
+    else restoreOverlayFocus(trigger.current, dialog.current);
+    setOpen(next);
+  }
+
+  function closeOnEscape(event: KeyboardEvent<HTMLElement>) {
+    if (open && event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      changeOpen(false);
+    }
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={changeOpen}
+      afterOpenChange={(shown) => {
+        if (!shown || !open || document.activeElement !== focusAtOpen.current) return;
+        if (touchOpening.current) dialog.current?.focus({ preventScroll: true });
+        else minimum.current?.focus({ preventScroll: true });
+      }}
+      trigger="click"
+      placement="bottom"
+      destroyOnHidden
+      styles={{ root: { width: "min(360px, calc(100vw - 32px))" } }}
+      title={<span id={id + "-title"}>{field.label}</span>}
+      content={
+        <section
+          ref={dialog}
+          id={id}
+          role="dialog"
+          aria-labelledby={id + "-title"}
+          tabIndex={-1}
+          onKeyDownCapture={closeOnEscape}
+        >
+          <Space orientation="vertical" style={{ width: "100%" }}>
+            {field.help && (
+              <Typography.Text type="secondary">{field.help}</Typography.Text>
+            )}
+            <CommonRange
+              field={field}
+              range={range ?? ["", ""]}
+              onChange={onChange}
+              minimumRef={minimum}
+            />
+            <Button type="text" tabIndex={0} onClick={() => onChange(["", ""])}>
+              Clear range
+            </Button>
+          </Space>
+        </section>
+      }
+    >
+      <Button
+        ref={trigger}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        aria-label={"Edit " + field.label + " range: " + rangeSummary(range, "words")}
+        icon={<DownOutlined aria-hidden="true" />}
+        iconPlacement="end"
+        onPointerDown={(event) => {
+          touchOpening.current = event.pointerType === "touch";
+        }}
+        onKeyDown={(event) => {
+          touchOpening.current = false;
+          closeOnEscape(event);
+        }}
+      >
+        {field.label}
+      </Button>
+    </Popover>
+  );
+}
+
 function rangeSummary(
   range: [string, string] | null,
   format: "symbols" | "words" = "symbols",
@@ -891,10 +957,12 @@ function CommonRange({
   range,
   onChange,
   compact = false,
+  minimumRef,
 }: {
   field: FilterEditorFieldView;
   range: [string, string];
   compact?: boolean;
+  minimumRef?: RefObject<InputRef | null>;
   onChange: (range: [string, string]) => void;
 }) {
   const id = useId();
@@ -920,6 +988,7 @@ function CommonRange({
         <label className="filter-range__bound" htmlFor={id + "-minimum"}>
           {!compact && <span>Minimum</span>}
           <Input
+            ref={minimumRef}
             id={id + "-minimum"}
             prefix={
               compact ? (
