@@ -213,7 +213,7 @@ export function useConditionEventPreview(
             );
           if (onlyHp)
             return (
-              <p key={index}>
+              <p key={index} className="encounter-condition-hp-choice">
                 <Checkbox
                   checked={!correction}
                   disabled={loading || !!error}

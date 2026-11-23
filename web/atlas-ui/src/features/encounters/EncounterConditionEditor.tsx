@@ -13,6 +13,7 @@ import {
   Input,
   InputNumber,
   Select,
+  type RefSelectProps,
   Space,
   Tooltip,
   Typography,
@@ -21,7 +22,14 @@ import { createPortal } from "react-dom";
 import { EncounterPersistentPrecedence } from "./EncounterPersistentPrecedence";
 import { EncounterDurationFields } from "./EncounterDurationFields";
 import { ConditionValueInput } from "./ConditionValueInput";
-import { useEffect, useEffectEvent, useId, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type {
   EncounterConditionDefinitionView,
   EncounterParticipantConditionView,
@@ -76,6 +84,7 @@ export function EncounterConditionEditor({
   onRemove?: () => void;
   onReload?: () => void;
 }) {
+  const conditionPicker = useRef<RefSelectProps>(null);
   const actors = participants.filter((p) => p.participant_kind !== "initiative_entry");
   const preview = useConditionEventPreview(participants, onPreview);
   const review = (
@@ -400,11 +409,13 @@ export function EncounterConditionEditor({
       >
         {!condition && (
           <Form.Item
+            className="encounter-condition-field"
             name="conditionRef"
             label="Condition"
             rules={[{ required: true, message: "Choose a condition." }]}
           >
             <Select
+              ref={conditionPicker}
               aria-label="Add condition"
               showSearch={{ optionFilterProp: "label" }}
               options={definitions.map((d) => ({
@@ -662,6 +673,7 @@ export function EncounterConditionEditor({
         )}
         {hasValue && !durationInstead && !persistentEditor && (
           <Form.Item
+            className="encounter-condition-field"
             name="value"
             label="Value"
             rules={[
@@ -675,7 +687,28 @@ export function EncounterConditionEditor({
               },
             ]}
           >
-            <ConditionValueInput name="Condition value" onRemove={onRemove} />
+            <ConditionValueInput
+              name="Condition value"
+              onRemove={onRemove}
+              onFocus={(event) => {
+                const field = event.target;
+                const body = field.closest(".ant-modal-body");
+                const picker = conditionPicker.current?.nativeElement;
+                if (!body || !picker) return;
+                // Account for the browser's own focus scroll before revealing the pair.
+                requestAnimationFrame(() => {
+                  if (document.activeElement !== field) return;
+                  const top = picker.getBoundingClientRect().top;
+                  const viewport = body.getBoundingClientRect();
+                  if (
+                    top < viewport.top &&
+                    field.getBoundingClientRect().bottom - top <= body.clientHeight
+                  ) {
+                    body.scrollTop += top - viewport.top;
+                  }
+                });
+              }}
+            />
           </Form.Item>
         )}
         {definition?.scope_label && (

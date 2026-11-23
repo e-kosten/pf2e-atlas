@@ -11,6 +11,7 @@ export function ConditionValueInput({
   size = "middle",
   name,
   onBlur,
+  onFocus,
   onKeyDown,
   onStep,
 }: {
@@ -25,6 +26,7 @@ export function ConditionValueInput({
   name: string;
   onStep?: (value: number) => void;
   onBlur?: () => void;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }) {
   const removesCondition = minimum === 1 && value === 1 && !!onRemove;
@@ -74,6 +76,7 @@ export function ConditionValueInput({
         readOnly={readOnly}
         onChange={onChange}
         onBlur={onBlur}
+        onFocus={onFocus}
         onKeyDown={onKeyDown}
         style={{ width: size === "small" ? 44 : 64 }}
         styles={{ input: { textAlign: "center" } }}
