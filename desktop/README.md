@@ -123,11 +123,10 @@ own tabs. On macOS, you can also use `atlas open '<link>'`. Atlas opens a new ta
 in the most recently active window when the page is not open, or opens a window
 directly to the destination.
 
-On macOS, **PF2e Atlas → Terminal and Agent Access** can
-link the bundled command at `~/.local/bin/atlas` from the product drawer.
-An existing executable there can be switched to the bundled command with
-native confirmation. The startup setup screen can also link to an existing
-custom bin folder. If the folder is already
+On macOS, open **Settings → Terminal** to link the bundled command at
+`~/.local/bin/atlas`, or select **Choose bin folder…** to use another
+existing directory. During setup, use **PF2e Atlas → Terminal and Agent Access**.
+Atlas asks for confirmation before replacing an existing executable. If the folder is already
 on your shell's PATH, check that `command -v atlas` resolves to the path shown
 by the app. The command continues to work when the app is closed. Use
 `atlas open` or `atlas open '<link>'` to open the app from the terminal.
