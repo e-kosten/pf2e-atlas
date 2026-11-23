@@ -42,6 +42,9 @@ control height as text search; truncate its source title to one line while
 retaining the complete linked title and source-preview interaction. Filter
 controls follow on their own row at their natural widths with the same spacing
 at every width; wrap when they no longer fit instead of stretching into a grid.
+Give the toolbar range filter the same disclosure cue as the choice filters.
+Keyboard and mouse opening focus Minimum. On touch, tapping a bound begins editing.
+Escape closes the range editor and returns focus to its trigger within the current Search or picker.
 Keep trigger labels stable as choices change. Common selections, numeric ranges
 and link conditions share a separate wrapping area, so values do not create holes
 beneath individual controls. Use compact joined edit/remove link chips; keep each
@@ -301,7 +304,7 @@ unfinished editors and do not carry a new dismissal intent.
 Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. Shared primitives should normally compose Ant components instead of recreating generic control behavior with plain elements and local CSS. Current shared primitives include:
 
 - `PrimaryToolbar.tsx`: top-aligned wrapping primary control rows that inherit the root Ant sizes.
-- `tables/IndexTable.tsx`: clickable, keyboard-activatable index tables.
+- `tables/IndexTable.tsx`: clickable table rows with native title links for keyboard navigation.
 - `pages/EntityIndexPage.tsx`: common index page structure for title, summary, actions, and table content.
 - `forms/EditableCommitField.tsx`: inline draft fields that commit on blur or Enter and revert on Escape.
 - `pickers/SearchPickerModal.tsx`: modal record browsing and preview, with an explicit candidate and feature-owned Add form.
@@ -472,7 +475,10 @@ views.
 
 When an index has insufficient width for its detailed columns, keep the linked name,
 identifying facts and row actions together in a compact row. Measure the table's
-available width. Keep a single set of interactive controls and preserve focus when a
+available width. The title link is the keyboard stop for opening a row. Keep
+other links and actions independently reachable. At intermediate widths, Saved
+Lists retain a short Updated date and one line of description when available.
+Keep a single set of interactive controls and preserve focus when a
 settings dialog spans a resize. List tags retain their measured disclosure.
 Show a duplicate list name beside its field with a link to the conflicting list,
 including its archived status. Opening that list preserves the draft. Offer a
@@ -2308,6 +2314,8 @@ reorder is saved and refreshed. Keep reorder writes serialized and refresh feedb
 outside the row layout. Saved-list handles disappear under active filters; moving
 members writes their persisted positions, including unavailable records, without
 changing their snapshots or notes. Drag previews retain the complete member layout.
+Draft encounters show their status without a round in the directory and roster.
+The other statuses retain their round number.
 Current turn uses the strong filled row treatment with `aria-current` and
 an accessible label; preview selection uses a separate outline. Each row's
 actions menu offers Set turn. The adjacent removal control acts directly, without
