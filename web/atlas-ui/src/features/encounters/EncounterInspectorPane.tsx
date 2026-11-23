@@ -289,7 +289,7 @@ function ParticipantNotes({ source }: { source: string }) {
   const long = source.length > 650 || source.split("\n").length > 8;
   return (
     <section className="encounter-reference__notes" aria-label="Notes">
-      <h2>Notes</h2>
+      <h3 className="reading-section-heading">Notes</h3>
       {long ? (
         <>
           <Button type="text" onClick={() => setOpen(true)}>

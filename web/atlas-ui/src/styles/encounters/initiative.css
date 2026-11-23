@@ -152,7 +152,7 @@
   gap: var(--space-control);
 }
 
-.encounter-reference__notes > :is(h2, p) {
+.encounter-reference__notes > :is(h3, p) {
   margin-block: 0;
 }
 

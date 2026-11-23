@@ -301,7 +301,10 @@
 }
 .record-reference h3 {
   margin: 0 0 8px;
-  font-size: max(var(--reading-body-size), var(--reading-section-size));
+}
+.record-reference h3,
+.reading-section-heading {
+  font-size: max(var(--reading-body-size), var(--reading-section-size, 1.25rem));
   font-weight: 700;
   line-height: 1.35;
 }
