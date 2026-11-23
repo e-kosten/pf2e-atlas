@@ -5,14 +5,12 @@ pub(super) fn next_turn(detail: &EncounterWithParticipants) -> EncounterTurnStat
     let eligible = eligible_turn_participants(&detail.participants);
     if eligible.is_empty() {
         return EncounterTurnState {
-            mark_running: true,
             participant_key: None,
             round_number: detail.encounter.round_number,
         };
     }
     let Some(current_key) = current_key else {
         return EncounterTurnState {
-            mark_running: true,
             participant_key: Some(eligible[0].participant_key.clone()),
             round_number: detail.encounter.round_number,
         };
@@ -29,7 +27,6 @@ pub(super) fn next_turn(detail: &EncounterWithParticipants) -> EncounterTurnStat
         })
     });
     EncounterTurnState {
-        mark_running: true,
         participant_key: Some(following.unwrap_or(eligible[0]).participant_key.clone()),
         round_number: detail.encounter.round_number
             + i64::from(current_index.is_some() && following.is_none()),
@@ -54,7 +51,6 @@ pub(super) fn next_turn_after_removed(
             .any(|e| e.participant_key == p.participant_key)
     });
     Some(EncounterTurnState {
-        mark_running: true,
         participant_key: following
             .or_else(|| eligible.first().copied())
             .map(|p| p.participant_key.clone()),

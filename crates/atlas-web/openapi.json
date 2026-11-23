@@ -7404,15 +7404,6 @@
         ],
         "type": "object"
       },
-      "EncounterStatusView": {
-        "enum": [
-          "draft",
-          "running",
-          "complete",
-          "archived"
-        ],
-        "type": "string"
-      },
       "EncounterStrikeActionContextView": {
         "properties": {
           "confused": {
@@ -7601,7 +7592,13 @@
       },
       "EncounterSummaryView": {
         "properties": {
+          "archived": {
+            "type": "boolean"
+          },
           "created_at": {
+            "type": "string"
+          },
+          "current_turn_participant_name": {
             "type": "string"
           },
           "description": {
@@ -7629,9 +7626,6 @@
           "slug": {
             "type": "string"
           },
-          "status": {
-            "$ref": "#/components/schemas/EncounterStatusView"
-          },
           "updated_at": {
             "type": "string"
           }
@@ -7641,7 +7635,7 @@
           "encounter_key",
           "slug",
           "name",
-          "status",
+          "archived",
           "round_number",
           "participant_count",
           "created_at",
@@ -10298,35 +10292,6 @@
         },
         "required": [
           "state",
-          "value"
-        ],
-        "type": "object"
-      },
-      "FieldEdit_EncounterStatusView": {
-        "additionalProperties": false,
-        "description": "One proposed change and the saved value observed when editing began.",
-        "properties": {
-          "expected": {
-            "enum": [
-              "draft",
-              "running",
-              "complete",
-              "archived"
-            ],
-            "type": "string"
-          },
-          "value": {
-            "enum": [
-              "draft",
-              "running",
-              "complete",
-              "archived"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "expected",
           "value"
         ],
         "type": "object"
@@ -21286,6 +21251,9 @@
       "UpdateEncounterRequest": {
         "additionalProperties": false,
         "properties": {
+          "archived": {
+            "$ref": "#/components/schemas/FieldEdit_bool"
+          },
           "description": {
             "$ref": "#/components/schemas/FieldEdit_Option_String"
           },
@@ -21300,9 +21268,6 @@
           },
           "slug": {
             "$ref": "#/components/schemas/FieldEdit_String"
-          },
-          "status": {
-            "$ref": "#/components/schemas/FieldEdit_EncounterStatusView"
           }
         },
         "type": "object"

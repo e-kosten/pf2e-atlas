@@ -205,7 +205,19 @@ fn timed_gm_adjustment_expires_once_and_standalone_import_remaps_its_anchor() {
     );
     let exported = f.worker.export_encounter(&encounter).unwrap();
     let mut document: serde_json::Value = serde_json::from_slice(&exported).unwrap();
-    assert_eq!(document["version"], 2);
+    assert_eq!(document["version"], 3);
+    for path in ["/snapshot/encounter", "/outgoing/turn/snapshot/encounter"] {
+        if let Some(root) = document
+            .pointer_mut(path)
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            assert_eq!(
+                root.remove("archived"),
+                Some(serde_json::Value::Bool(false))
+            );
+            root.insert("status".into(), "running".into());
+        }
+    }
     document["version"] = 1.into();
     let mislabeled = serde_json::to_vec(&document).unwrap();
     assert!(f.worker.import_encounter(&mislabeled[..], None).is_err());

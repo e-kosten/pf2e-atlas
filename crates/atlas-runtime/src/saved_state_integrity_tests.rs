@@ -6,9 +6,9 @@ fn populated_workspace() -> (tempfile::TempDir, Workspace) {
     let workspace = initialize_workspace(directory.path().join("integrity.sqlite")).unwrap();
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     write.connection().execute_batch(r#"
-        INSERT INTO encounters(id,owner_id,encounter_key,slug,name,status,round_number,created_at,updated_at)
-        VALUES (1,1,'one','one','One','running',4,'before','after'),
-               (2,1,'two','two','Two','draft',1,'before','after');
+        INSERT INTO encounters(id,owner_id,encounter_key,slug,name,archived,round_number,created_at,updated_at)
+        VALUES (1,1,'one','one','One',0,4,'before','after'),
+               (2,1,'two','two','Two',0,1,'before','after');
         INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at)
         VALUES (11,1,'actor','pc',1,'Actor',1,'before','after'),
                (22,2,'foreign','creature',1,'Foreign',1,'before','after');
@@ -30,7 +30,7 @@ fn integrity_constraints_reject_invalid_writes_and_defer_current_turn_until_comm
     let (_directory, workspace) = populated_workspace();
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     for sql in [
-        "UPDATE encounters SET status='runnning' WHERE id=1",
+        "UPDATE encounters SET archived=2 WHERE id=1",
         "UPDATE encounter_participants SET participant_kind='hazrad' WHERE id=11",
         "UPDATE encounter_participants SET participant_variant='eliet' WHERE id=11",
         "UPDATE encounter_participants SET side='allly' WHERE id=11",

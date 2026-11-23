@@ -9,7 +9,7 @@ use super::*;
 use crate::TestStore;
 
 #[test]
-fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
+fn encounter_summaries_preserve_archive_turn_counts_and_order_without_roster_hydration()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = TestStore::open(temp_path("encounter-counts"))?;
     for slug in ["empty", "running", "archived", "other-owner"] {
@@ -26,6 +26,9 @@ fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
     store
         .encounters()
         .add_participant("running", creature("Second", None, 20))?;
+    store
+        .encounters()
+        .set_current_turn("running", Some(&first.participant_key))?;
     let mut manual = creature("Manual", None, 0);
     manual.record_key = None;
     manual.participant_kind = ParticipantKind::Pc;
@@ -39,8 +42,8 @@ fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
         "INSERT INTO principals VALUES(2, 'other', 'Other owner');
          UPDATE encounters SET owner_id=2 WHERE slug='other-owner';
          UPDATE encounters SET updated_at='2026-10-29T00:00:00Z';
-         UPDATE encounters SET status='running', updated_at='2026-10-29T01:00:00Z' WHERE slug='running';
-         UPDATE encounters SET status='archived' WHERE slug='archived';",
+         UPDATE encounters SET updated_at='2026-10-29T01:00:00Z' WHERE slug='running';
+         UPDATE encounters SET archived=1 WHERE slug='archived';",
     )?;
     // An unreadable child must not make roster size unavailable. The detail path
     // demonstrably fails, so this guards against restoring count-by-hydration.
@@ -55,14 +58,15 @@ fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
         rows.iter()
             .map(|row| (
                 row.encounter.slug.as_str(),
-                row.encounter.status,
-                row.participant_count
+                row.encounter.archived,
+                row.participant_count,
+                row.current_turn_participant_name.as_deref()
             ))
             .collect::<Vec<_>>(),
         vec![
-            ("running", EncounterStatus::Running, 2),
-            ("archived", EncounterStatus::Archived, 1),
-            ("empty", EncounterStatus::Draft, 0),
+            ("running", false, 2, Some("First")),
+            ("archived", true, 1, None),
+            ("empty", false, 0, None),
         ]
     );
     assert_eq!(
@@ -775,6 +779,9 @@ fn quantity_failure_rolls_back_every_insert_and_encounter_touch()
 fn failed_replacement_turn_rolls_back_removal_conditions_and_order()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("remove-rollback")?;
+    store
+        .connection()?
+        .execute("UPDATE encounters SET archived=1 WHERE slug='test'", [])?;
     let rows = store.encounters().add_participants(
         "test",
         vec![
@@ -810,7 +817,6 @@ fn failed_replacement_turn_rolls_back_removal_conditions_and_order()
         Some(EncounterTurnState {
             participant_key: Some(snapshot.participants[1].participant_key.clone()),
             round_number: snapshot.encounter.round_number,
-            mark_running: true,
         })
     };
     assert!(
@@ -837,6 +843,7 @@ fn failed_replacement_turn_rolls_back_removal_conditions_and_order()
     let after = store.encounters().get_with_participants("test")?.unwrap();
     assert_eq!(after.participants.len(), 1);
     assert_eq!(after.encounter, committed);
+    assert!(committed.archived);
     assert_eq!(after.participants[0].position, 1);
     Ok(())
 }
@@ -1010,7 +1017,6 @@ fn concurrent_turn_advances_each_use_the_committed_predecessor()
                     EncounterTurnState {
                         participant_key: Some(snapshot.participants[next].participant_key.clone()),
                         round_number: snapshot.encounter.round_number + i64::from(next == 0),
-                        mark_running: true,
                     }
                 })
             })
@@ -1181,7 +1187,6 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
                                 turn: EncounterTurnState {
                                     participant_key: Some(key),
                                     round_number: 2,
-                                    mark_running: true,
                                 },
                                 durations: vec![(id, 1)],
                             },
@@ -1273,7 +1278,6 @@ fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
                         turn: EncounterTurnState {
                             participant_key: Some(key.clone()),
                             round_number: 1,
-                            mark_running: true,
                         },
                         durations: vec![],
                         start_claims: vec![],
@@ -1398,7 +1402,6 @@ fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn st
                             turn: EncounterTurnState {
                                 participant_key: Some(p.participant_key),
                                 round_number: 2,
-                                mark_running: true,
                             },
                             durations: vec![(condition.condition_id, 0)],
                         },
@@ -1459,7 +1462,6 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
                     turn: EncounterTurnState {
                         participant_key: Some(p.participant_key.clone()),
                         round_number: 1,
-                        mark_running: true,
                     },
                     durations: vec![(c.condition_id, 2)],
                 },
@@ -2508,7 +2510,6 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
             "test",
             Some(&one.participant_key),
             4,
-            true,
         )?;
         tx.commit()?;
     }
@@ -2589,6 +2590,9 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
 fn recovery_keeps_unchanged_ties_reserved_while_restoring_changed_initiatives()
 -> crate::LocalStateResult<()> {
     let store = fixture("recovery-tied-initiatives")?;
+    store
+        .connection()?
+        .execute("UPDATE encounters SET archived=1 WHERE slug='test'", [])?;
     let mut participants = vec![];
     for name in ["One", "Two", "Three"] {
         participants.push(
@@ -2638,6 +2642,7 @@ fn recovery_keeps_unchanged_ties_reserved_while_restoring_changed_initiatives()
     })?;
     transaction.commit()?;
     let after = store.encounters().get_with_participants("test")?.unwrap();
+    assert!(after.encounter.archived);
     assert!(after.participants.iter().all(|p| p.initiative == Some(10)));
     assert_eq!(
         after
@@ -2808,13 +2813,13 @@ fn stored_closed_enums_reject_corruption_instead_of_reinterpreting_saved_gamepla
             rusqlite::params![valid, participant.participant_key],
         )?;
     }
-    connection.execute("UPDATE encounters SET status='corrupt'", [])?;
+    connection.execute("UPDATE encounters SET archived=2", [])?;
     assert!(
         EncountersRead::from_connection(&connection, 1)
             .get("test")
             .unwrap_err()
             .to_string()
-            .contains("status")
+            .contains("archived")
     );
     Ok(())
 }

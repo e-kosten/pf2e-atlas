@@ -5,10 +5,9 @@ import {
   useEncounterSettingsDraft,
   type EncounterSettingsValues,
 } from "./useEncounterSettingsDraft";
-import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, InputNumber, Select } from "antd";
+import { Button, Form, Input, InputNumber } from "antd";
 import type { FormInstance } from "antd";
 import {
   useId,
@@ -23,7 +22,6 @@ import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { createEncounter } from "../../api/atlasApi";
 import type {
   EncounterDetailView,
-  EncounterStatusView,
   EncounterSummaryView,
   UpdateEncounterRequest,
 } from "../../generated/atlas";
@@ -281,14 +279,6 @@ export function EditEncounterForm({
         <span id={`${formId}-duration-unit`} hidden>
           In seconds
         </span>
-        <Form.Item name="status" label="Status" rules={[{ required: true }]}>
-          <Select<EncounterStatusView>
-            options={["draft", "running", "complete", "archived"].map((value) => ({
-              value: value as EncounterStatusView,
-              label: encounterStatusLabels[value as EncounterStatusView],
-            }))}
-          />
-        </Form.Item>
         {!hideActions && (
           <EncounterEditActions
             name={encounter.name}

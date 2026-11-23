@@ -10,14 +10,14 @@ impl EncountersRead<'_> {
         let id =
             storage::encounter_id(connection, self.owner_id, &snapshot.encounter.encounter_key)?
                 .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
-        capture_document(connection, id, snapshot, Some(ENTRY_LIMIT))
+        capture_document(connection, id, snapshot.into(), Some(ENTRY_LIMIT))
     }
 }
 
 pub(super) fn capture_document(
     connection: &Connection,
     id: i64,
-    snapshot: EncounterWithParticipants,
+    snapshot: ArchiveSnapshot,
     limit: Option<usize>,
 ) -> LocalStateResult<EncounterDocument> {
     let baselines = rows(
@@ -108,7 +108,7 @@ pub(super) fn capture_document(
             .optional()?.map(|(request_id, requires_review, payload)| {
                 Ok::<_, LocalStateError>(Outgoing { request_id, requires_review, turn: decode(&payload, "outgoing turn")? })
             }).transpose()?;
-    let mut document = EncounterDocument {
+    let document = EncounterDocument {
         version: VERSION,
         snapshot,
         baselines,
@@ -120,9 +120,7 @@ pub(super) fn capture_document(
         source_fingerprint: None,
         record_sources: Vec::new(),
     };
-    if document.requires_adjustment_support() {
-        document.version = ADJUSTMENT_VERSION;
-    }
+    document.require_membership_shape(document.snapshot.encounter.legacy_phase.is_some())?;
     Ok(document)
 }
 

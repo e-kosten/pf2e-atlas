@@ -3,7 +3,7 @@ import type { ReorderPlacement } from "../../generated/atlas";
 import { EncounterRecordAdjustment } from "./EncounterRecordAdjustment";
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { encounterStatusLabels } from "./encounterStatus";
+import { encounterTurnText } from "./encounterSummary";
 import {
   InitiativeEntryEditor,
   type InitiativeEntryFields,
@@ -111,9 +111,7 @@ export function EncounterRosterPane({
   selectedParticipantKey: string | null;
   slug: string;
 }) {
-  const currentParticipant = participants.find(
-    (participant) => participant.participant_key === currentTurnParticipantKey,
-  );
+  const turnText = encounterSummary && encounterTurnText(encounterSummary);
   const sortable = useSortableList({
     items: participants,
     getKey: (participant) => participant.participant_key,
@@ -382,19 +380,10 @@ export function EncounterRosterPane({
       <header className="encounter-roster__header">
         <PrimaryToolbar className="encounter-roster__turn-bar">
           <div className="encounter-roster__turn-summary">
-            <span className="encounter-roster__turn-caption">
-              {encounterSummary
-                ? `${encounterStatusLabels[encounterSummary.status]} · Round ${encounterSummary.round_number}`
-                : "Current turn"}
-            </span>
-            <strong>
-              {currentParticipant?.display_name ??
-                (loading
-                  ? "Loading…"
-                  : needsInitiative && participants.length > 0
-                    ? "Initiative not set"
-                    : "Not started")}
-            </strong>
+            {turnText && <strong>{turnText}</strong>}
+            {needsInitiative && participants.length > 0 && (
+              <span className="encounter-roster__turn-caption">Initiative not set</span>
+            )}
           </div>
           {turnAction}
         </PrimaryToolbar>

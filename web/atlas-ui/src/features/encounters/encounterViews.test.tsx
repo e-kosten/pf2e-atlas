@@ -602,6 +602,48 @@ describe("encounter views", () => {
     await waitFor(() => expect(opener).toHaveFocus());
   });
 
+  it("recovers an index archive with a lost write response using only a fresh read", async () => {
+    const index = encounterIndexFixture();
+    const initial = {
+      ...index.encounters[0],
+      current_turn_participant_name: "Meris",
+      round_number: 3,
+    };
+    const archived = { ...initial, archived: true };
+    apiMocks.getEncounters.mockResolvedValue({ encounters: [initial] });
+    apiMocks.updateEncounter.mockImplementationOnce(async () => {
+      apiMocks.getEncounters
+        .mockRejectedValueOnce(new Error("read unavailable"))
+        .mockResolvedValue({ encounters: [archived] });
+      throw new Error("write response lost");
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<EncounterIndexView route={{}} />, { wrapper: queryClientWrapper(client) });
+    const menu = await screen.findByRole("button", { name: "More actions for Ambush" });
+    expect(screen.getByText("Round 3 · Meris’s turn")).toBeVisible();
+    fireEvent.click(menu);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Archive encounter" }));
+    const retry = await screen.findByRole("button", { name: "Retry encounters" });
+    expect(menu).toBeDisabled();
+    fireEvent.click(retry);
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: "Ambush" })).toBeNull(),
+    );
+    expect(screen.queryByText("Archive change could not be confirmed")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Archived" }));
+    expect(await screen.findByText("Round 3 · Meris’s turn")).toBeVisible();
+    apiMocks.getEncounters.mockResolvedValue({ encounters: [initial] });
+    await act(() => client.invalidateQueries({ queryKey: ["encounters"] }));
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: "Ambush" })).toBeNull(),
+    );
+    expect(screen.queryByText("Archive change could not be confirmed")).toBeNull();
+    expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
+      "encounter_ambush",
+      { archived: { expected: false, value: true } },
+    );
+  });
+
   it("uses the router for encounter titles and leaves modified activation native", async () => {
     render(<EncounterIndexView route={{}} />, { wrapper: queryClientWrapper() });
     const title = await screen.findByRole("link", { name: "Ambush" });
@@ -839,7 +881,7 @@ describe("encounter views", () => {
     fireEvent.change(name, { target: { value: "My name" } });
     view.rerender(
       <EditEncounterForm
-        encounter={{ ...summary, name: "New server name", status: "running" }}
+        encounter={{ ...summary, name: "New server name", archived: true }}
         encounterNote=" New server note "
         onSave={onSave}
         onRefreshConflict={onRefreshConflict}
@@ -1848,30 +1890,71 @@ describe("encounter views", () => {
     );
   });
 
-  it("keeps encounter lifecycle actions in the edit modal", async () => {
+  it("archives and restores the open encounter without disturbing the turn", async () => {
+    apiMocks.updateEncounter.mockImplementation(async (key, request) => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: { ...serverEncounter.encounter, archived: request.archived!.value },
+      };
+      return { encounter_key: key };
+    });
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
+    const actions = await screen.findByRole("button", { name: "Encounter actions" });
+    for (const [label, archived] of [
+      ["Archive encounter", true],
+      ["Restore encounter", false],
+    ] as const) {
+      await waitFor(() => expect(actions).toBeEnabled());
+      fireEvent.click(actions);
+      fireEvent.click(await screen.findByRole("menuitem", { name: label }));
+      await waitFor(() =>
+        expect(apiMocks.updateEncounter).toHaveBeenLastCalledWith("encounter_ambush", {
+          archived: { expected: !archived, value: archived },
+        }),
+      );
+      expect(screen.getByRole("button", { name: "Next turn" })).toBeVisible();
+    }
+  });
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Encounter actions" }),
-      ).not.toBeDisabled(),
+  it("clears a recovered detail archive error before another window restores the encounter", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    apiMocks.updateEncounter.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: { ...serverEncounter.encounter, archived: true },
+      };
+      apiMocks.getEncounter.mockRejectedValueOnce(new Error("refresh unavailable"));
+      throw new Error("write response lost");
+    });
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(client),
+    });
+    const menu = await screen.findByRole("button", { name: "Encounter actions" });
+    await waitFor(() => expect(menu).toBeEnabled());
+    fireEvent.click(menu);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Archive encounter" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Retry encounter refresh" }),
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Encounter actions" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
-    const dialog = await screen.findByRole("dialog", { name: "Settings" });
-    await selectOption(within(dialog).getByRole("combobox"), "Complete");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-
-    await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
-        "encounter_ambush",
-        {
-          status: { expected: "draft", value: "complete" },
-        },
-      ),
+    await waitFor(() => expect(menu).toBeEnabled());
+    fireEvent.click(menu);
+    expect(
+      await screen.findByRole("menuitem", { name: "Restore encounter" }),
+    ).toBeVisible();
+    serverEncounter = {
+      ...serverEncounter,
+      encounter: { ...serverEncounter.encounter, archived: false },
+    };
+    await act(() =>
+      client.invalidateQueries({ queryKey: ["encounter", "encounter_ambush"] }),
     );
+    expect(
+      await screen.findByRole("menuitem", { name: "Archive encounter" }),
+    ).toBeVisible();
+    expect(screen.queryByText("Archive change could not be confirmed")).toBeNull();
+    expect(apiMocks.updateEncounter).toHaveBeenCalledOnce();
   });
 
   it("dismisses linked previews on participant changes and allows reopening", async () => {
@@ -3351,7 +3434,8 @@ describe("encounter views", () => {
     render(<EncounterIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
-    fireEvent.click(await screen.findByLabelText("Delete Ambush"));
+    fireEvent.click(await screen.findByLabelText("More actions for Ambush"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Delete encounter" }));
     const dialog = await screen.findByRole("dialog", { name: "Delete Ambush?" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() =>
@@ -3360,10 +3444,10 @@ describe("encounter views", () => {
       ),
     );
     expect(dialog).toBeInTheDocument();
-    expect(screen.getByLabelText("Delete Ambush")).toBeDisabled();
+    expect(screen.getByLabelText("More actions for Ambush")).toBeDisabled();
     await act(async () => deleting.reject(new Error("Delete unavailable")));
     await waitFor(() =>
-      expect(screen.getByLabelText("Delete Ambush")).not.toBeDisabled(),
+      expect(screen.getByLabelText("More actions for Ambush")).not.toBeDisabled(),
     );
     expect(dialog).toBeInTheDocument();
     expect(screen.getAllByText("Delete could not be confirmed").length).toBeGreaterThan(
@@ -3721,7 +3805,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         slug: "ambush",
         name: "Ambush",
         description: "Road fight",
-        status: "draft",
+        archived: false,
         round_duration_seconds: 6,
         round_number: 1,
         participant_count: 2,
@@ -3732,7 +3816,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         encounter_key: "encounter_old",
         slug: "old-fight",
         name: "Old Fight",
-        status: "archived",
+        archived: true,
         round_duration_seconds: 6,
         round_number: 1,
         participant_count: 1,

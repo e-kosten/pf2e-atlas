@@ -60,6 +60,11 @@ impl SavedWorkspace {
             [],
             |row| row.get::<_, bool>(0),
         )?;
+        let has_encounter_archive_column = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('encounters') WHERE name='archived')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )?;
         let has_adjustment_table = db.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='encounter_adjustments')",
             [],
@@ -82,7 +87,7 @@ impl SavedWorkspace {
             .into_iter()
             .map(|(id, key, name)| {
                 let lists = List::capture(db, id, has_archive_column)?;
-                let encounters = RecoveryEncounter::capture_all(db, id, has_adjustment_table)?;
+                let encounters = RecoveryEncounter::capture_all(db, id, has_adjustment_table, has_encounter_archive_column)?;
                 keys.extend(lists.iter().flat_map(List::record_keys).map(str::to_owned));
                 markdown_keys.extend(
                     lists
@@ -142,6 +147,27 @@ impl SavedWorkspace {
             references,
             condition_floor: condition_floor(db)?,
         })
+    }
+
+    pub fn has_current_encounter_archive_flags(&self) -> bool {
+        self.owners.iter().any(|owner| {
+            owner
+                .encounters
+                .iter()
+                .any(RecoveryEncounter::has_current_archive_flag)
+        })
+    }
+
+    pub fn validate_encounter_archive_format(&self, current: bool) -> LocalStateResult<()> {
+        require(
+            self.owners.iter().all(|owner| {
+                owner
+                    .encounters
+                    .iter()
+                    .all(|e| e.matches_archive_format(current))
+            }),
+            "encounter archive membership disagrees with workspace archive version",
+        )
     }
 
     pub fn has_encounter_creation_receipts(&self) -> bool {

@@ -7,9 +7,9 @@ use time::format_description::well_known::Rfc3339;
 use super::model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, ConditionDuration,
     ConditionDurationUnit, ConditionTiming, ConditionTurnEvent, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterWithParticipants, NewEncounter,
-    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderEncounterParticipant,
-    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
+    EncounterParticipantCondition, EncounterWithParticipants, NewEncounter, ParticipantKind,
+    ParticipantSide, ParticipantVariant, ReorderEncounterParticipant, UpdateEncounter,
+    UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 use crate::slug::validate_slug;
 use crate::{LocalStateError, LocalStateResult};
@@ -26,10 +26,10 @@ pub(crate) fn insert_encounter(
         let encounter_key = new_encounter_key();
         let result = connection.execute(
             "INSERT INTO encounters (
-                encounter_key, slug, name, description, note, status,
+                encounter_key, slug, name, description, note, archived,
                 round_number, current_turn_participant_key, created_at, updated_at, owner_id
              )
-             VALUES (?1, ?2, ?3, ?4, ?5, 'draft', 1, NULL, ?6, ?6, ?7)",
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, 1, NULL, ?6, ?6, ?7)",
             params![
                 encounter_key,
                 slug,
@@ -57,7 +57,7 @@ pub(crate) fn insert_encounter(
 
 pub(crate) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<Vec<Encounter>> {
     let mut statement = connection.prepare(
-        "SELECT encounter_key, slug, name, description, note, status, round_number,
+        "SELECT encounter_key, slug, name, description, note, archived, round_number,
                 current_turn_participant_key, created_at, updated_at, revision, difficulty_party_level, difficulty_party_size, round_duration_seconds
          FROM encounters
          WHERE owner_id = ?1
@@ -73,10 +73,12 @@ pub(crate) fn list_with_participant_counts(
 ) -> LocalStateResult<Vec<super::EncounterWithParticipantCount>> {
     let mut statement = connection.prepare(
         "SELECT encounter.encounter_key, encounter.slug, encounter.name, encounter.description,
-                encounter.note, encounter.status, encounter.round_number,
+                encounter.note, encounter.archived, encounter.round_number,
                 encounter.current_turn_participant_key, encounter.created_at, encounter.updated_at,
                 encounter.revision, encounter.difficulty_party_level, encounter.difficulty_party_size, encounter.round_duration_seconds,
-                COUNT(participant.id)
+                COUNT(participant.id),
+                MAX(CASE WHEN participant.participant_key = encounter.current_turn_participant_key
+                         THEN participant.display_name END)
          FROM encounters encounter
          LEFT JOIN encounter_participants participant ON participant.encounter_id = encounter.id
          WHERE encounter.owner_id = ?1
@@ -87,6 +89,7 @@ pub(crate) fn list_with_participant_counts(
         Ok(super::EncounterWithParticipantCount {
             encounter: encounter_from_row(row)?,
             participant_count: row.get(14)?,
+            current_turn_participant_name: row.get(15)?,
         })
     })?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
@@ -99,7 +102,7 @@ pub(crate) fn get(
 ) -> LocalStateResult<Option<Encounter>> {
     connection
         .query_row(
-            "SELECT encounter_key, slug, name, description, note, status, round_number,
+            "SELECT encounter_key, slug, name, description, note, archived, round_number,
                     current_turn_participant_key, created_at, updated_at, revision, difficulty_party_level, difficulty_party_size, round_duration_seconds
              FROM encounters
              WHERE owner_id = ?2 AND (encounter_key = ?1 OR slug = ?1)",
@@ -142,14 +145,14 @@ pub(crate) fn update_encounter(
     let now = now_rfc3339()?;
     let result = connection.execute(
         "UPDATE encounters
-         SET slug = ?1, name = ?2, description = ?3, note = ?4, status = ?5, updated_at = ?6, revision = revision + 1,round_duration_seconds=COALESCE(?8,round_duration_seconds)
+         SET slug = ?1, name = ?2, description = ?3, note = ?4, archived = ?5, updated_at = ?6, revision = revision + 1,round_duration_seconds=COALESCE(?8,round_duration_seconds)
          WHERE encounter_key = ?7 AND owner_id = ?9",
         params![
             encounter.slug,
             encounter.name,
             encounter.description,
             encounter.note,
-            encounter.status.as_str(),
+            encounter.archived,
             now,
             encounter.encounter_key,
             encounter.round_duration_seconds,
@@ -589,29 +592,12 @@ pub(crate) fn remove_condition(
     Ok(removed > 0)
 }
 
-pub(crate) fn set_current_turn(
-    connection: &Connection,
-    owner_id: i64,
-    encounter_ref: &str,
-    participant_key: Option<&str>,
-) -> LocalStateResult<bool> {
-    set_turn_state(
-        connection,
-        owner_id,
-        encounter_ref,
-        participant_key,
-        None,
-        false,
-    )
-}
-
 pub(crate) fn set_turn_state(
     connection: &Connection,
     owner_id: i64,
     encounter_ref: &str,
     participant_key: Option<&str>,
     round_number: Option<i64>,
-    mark_running: bool,
 ) -> LocalStateResult<bool> {
     let Some(encounter_id) = encounter_id(connection, owner_id, encounter_ref)? else {
         return Err(LocalStateError::EncounterNotFound(
@@ -626,30 +612,18 @@ pub(crate) fn set_turn_state(
         ));
     }
     let now = now_rfc3339()?;
-    if let Some(round_number) = round_number {
-        let status = if mark_running { Some("running") } else { None };
-        connection.execute(
-            "UPDATE encounters
-             SET current_turn_participant_key = ?1, round_number = ?2,
-                 status = COALESCE(?3, status), updated_at = ?4, revision = revision + 1
-             WHERE id = ?5",
-            params![
-                participant_key,
-                round_number.max(1),
-                status,
-                now,
-                encounter_id
-            ],
-        )?;
-    } else {
-        let status = if mark_running { Some("running") } else { None };
-        connection.execute(
-            "UPDATE encounters
-             SET current_turn_participant_key = ?1, status = COALESCE(?2, status), updated_at = ?3, revision = revision + 1
-             WHERE id = ?4",
-            params![participant_key, status, now, encounter_id],
-        )?;
-    }
+    connection.execute(
+        "UPDATE encounters
+         SET current_turn_participant_key = ?1, round_number = COALESCE(?2, round_number),
+             updated_at = ?3, revision = revision + 1
+         WHERE id = ?4",
+        params![
+            participant_key,
+            round_number.map(|round| round.max(1)),
+            now,
+            encounter_id
+        ],
+    )?;
     Ok(true)
 }
 
@@ -721,8 +695,21 @@ fn stored_enum_error(index: usize, error: LocalStateError) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(index, rusqlite::types::Type::Text, Box::new(error))
 }
 
-fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
-    let status: String = row.get(5)?;
+pub(super) fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
+    let archived = match row.get::<_, i64>(5)? {
+        0 => false,
+        1 => true,
+        value => {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                5,
+                rusqlite::types::Type::Integer,
+                Box::new(LocalStateError::UnsupportedMetadata {
+                    key: "archived",
+                    value: value.to_string(),
+                }),
+            ));
+        }
+    };
     Ok(Encounter {
         difficulty_reference: super::EncounterDifficultyReference {
             party_level: row.get(11)?,
@@ -735,7 +722,7 @@ fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
         name: row.get(2)?,
         description: row.get(3)?,
         note: row.get(4)?,
-        status: EncounterStatus::from_str(&status).map_err(|error| stored_enum_error(5, error))?,
+        archived,
         round_number: row.get(6)?,
         current_turn_participant_key: row.get(7)?,
         created_at: row.get(8)?,

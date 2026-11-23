@@ -21,7 +21,7 @@ pub struct Encounter {
     pub name: String,
     pub description: Option<String>,
     pub note: Option<String>,
-    pub status: EncounterStatus,
+    pub archived: bool,
     pub round_number: i64,
     pub current_turn_participant_key: Option<String>,
     pub created_at: String,
@@ -33,42 +33,7 @@ pub struct Encounter {
 pub struct EncounterWithParticipantCount {
     pub encounter: Encounter,
     pub participant_count: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum EncounterStatus {
-    #[serde(rename = "draft")]
-    Draft,
-    #[serde(rename = "running")]
-    Running,
-    #[serde(rename = "complete")]
-    Complete,
-    #[serde(rename = "archived")]
-    Archived,
-}
-
-impl EncounterStatus {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Draft => "draft",
-            Self::Running => "running",
-            Self::Complete => "complete",
-            Self::Archived => "archived",
-        }
-    }
-
-    pub(crate) fn from_str(value: &str) -> crate::LocalStateResult<Self> {
-        match value {
-            "draft" => Ok(Self::Draft),
-            "running" => Ok(Self::Running),
-            "complete" => Ok(Self::Complete),
-            "archived" => Ok(Self::Archived),
-            _ => Err(crate::LocalStateError::UnsupportedMetadata {
-                key: "status",
-                value: value.into(),
-            }),
-        }
-    }
+    pub current_turn_participant_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -308,7 +273,6 @@ pub struct EncounterWithParticipants {
 pub struct EncounterTurnState {
     pub participant_key: Option<String>,
     pub round_number: i64,
-    pub mark_running: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -327,7 +291,7 @@ pub struct UpdateEncounter {
     pub name: String,
     pub description: Option<String>,
     pub note: Option<String>,
-    pub status: EncounterStatus,
+    pub archived: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

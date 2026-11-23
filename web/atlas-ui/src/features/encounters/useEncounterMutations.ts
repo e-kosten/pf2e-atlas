@@ -1,3 +1,4 @@
+import { setEncounterArchived } from "./encounterSummary";
 import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
 import { conditionEventPreviewKey } from "./useConditionEventPreview";
@@ -125,6 +126,7 @@ export type EncounterMutationCommand =
       kind: "difficulty";
       request: import("../../generated/atlas").SetEncounterDifficultyRequest;
     }
+  | { kind: "archive"; archived: boolean }
   | { kind: "metadata"; request: UpdateEncounterRequest }
   | {
       kind: "participant";
@@ -340,6 +342,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           });
         case "difficulty":
           return setEncounterDifficulty(currentRef, command.request);
+        case "archive":
+          return setEncounterArchived(currentRef, command.archived);
         case "metadata":
           return updateEncounter(currentRef, command.request);
         case "participant":
@@ -465,15 +469,23 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           queryKey: ["encounter-adjustment-preview"],
         });
       const conflict =
+        (command.kind === "archive" && savedEditConflictFields(error) !== null) ||
         isEncounterConflict(error) ||
         (command.kind === "gm-adjustment" && isArtifactGenerationChanged(error));
       const uncertain =
-        (command.kind === "initiative" ||
+        (command.kind === "archive" ||
+          command.kind === "initiative" ||
           command.kind === "recovery" ||
           command.kind === "add-initiative-entry") &&
         isUnconfirmedMutation(error);
       if (conflict || uncertain) {
-        setRefreshOrigin(uncertain ? "uncertain" : "conflict");
+        setRefreshOrigin(
+          uncertain
+            ? "uncertain"
+            : command.kind === "archive"
+              ? "metadata-conflict"
+              : "conflict",
+        );
         await attemptRefresh();
       }
     },
@@ -581,6 +593,9 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     pending: mutation.isPending || refreshing,
     error: mutation.error,
     errorKind: mutation.variables?.kind,
+    clearArchiveError: mutation.reset,
+    archiveTarget:
+      mutation.variables?.kind === "archive" ? mutation.variables.archived : undefined,
     errorMessage: metadataConflict
       ? undefined
       : conflict

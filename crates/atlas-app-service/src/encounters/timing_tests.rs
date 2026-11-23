@@ -1547,7 +1547,7 @@ fn set_round_seconds(
             name: None,
             description: None,
             note: None,
-            status: None,
+            archived: None,
             round_duration_seconds: seconds.map(|value| FieldEdit {
                 expected: view.encounter.round_duration_seconds,
                 value,

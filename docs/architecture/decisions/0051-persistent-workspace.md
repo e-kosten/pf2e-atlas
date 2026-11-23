@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 50. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 51. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -183,7 +183,11 @@ model memory and observed process RSS remain separate measurements.
 
 ## Saved-domain integrity
 
-Encounter status and participant kind, variant and side are closed SQL enums.
+The encounter root has one checked archive flag. Only an explicit archive or restore
+edit changes membership during play. Schema 51 maps the former Archived phase to
+true and Draft, Running and Complete to false. Each frozen turn snapshot retains
+its own membership. Before upgrade, the recovery archive retains the historical
+status on each live and frozen root. Participant kind, variant and side are closed SQL enums.
 Readers reject unknown saved values, including provenance enums, rather than
 interpreting them as defaults. A participant's encounter/key pair is unique;
 pending consequences, boundary claims and consumed application markers reference
@@ -308,7 +312,8 @@ validates the archive and applies it to an empty saved state in one transaction
 on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
-Archive versions advance independently of the database schema. Capture emits
+Archive versions advance independently of the database schema. Backups containing
+current-format encounters use `7.0`. Without those encounters, capture emits
 `6.0` for encounter creation receipts, including deleted encounters, and
 `5.0` for original Pathbuilder exports or their versioned receipt history.
 Backups that carry complete imports contain the original JSON, including
@@ -319,11 +324,13 @@ history, `2.0` for archived lists and `1.1` for other saved state. Readers that
 predate a required archive major reject it before restore. Current readers
 can restore historical member-owned PC references from version `3.0` and treat
 lists in backups from before schema 44 as active.
-Standalone encounter exports with adjustment state or history use version 2.
+Version 3 standalone encounter exports and workspace archive 7.0 encode archive
+membership as a boolean. Readers import historical standalone v1/v2 and workspace
+archives through 6.x by translating their saved phase. Historical standalone
+exports with adjustment state or history required version 2.
 Custom turns use a detectable participant kind value. Older readers reject
 archives and standalone encounter files containing that kind before writing.
-Bump the minor version for compatible additions, including new encounter
-statuses. Older readers can ignore optional data when doing so preserves saved
+Bump the minor version for compatible additions. Older readers can ignore optional data when doing so preserves saved
 behavior. Use a detectable behavioral value for new behavior that an older
 reader must reject before writing. Bump the major version for incompatible
 changes that cannot be represented safely under that contract. Translate

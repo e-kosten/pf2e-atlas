@@ -458,7 +458,10 @@ atlas encounters import garden-sentries.json --slug garden-sentries-copy --json
 atlas encounters show garden-sentries-copy
 ```
 
-Export writes a versioned JSON document to stdout by default. A named output
+Export writes a version 3 JSON document to stdout by default. It preserves
+archive membership, the saved round and the current participant. Import accepts
+earlier supported documents. Atlas builds predating version 3 cannot import a
+new encounter file. A named output
 file must be new. Import uses the exported slug unless you supply `--slug`
 and fails if that slug is already in use. The result reports missing or
 changed reference records. Saved participants and state survive missing
@@ -503,7 +506,9 @@ encounters, and requested reference configuration. When a character has a
 complete Pathbuilder import, the archive includes the original JSON, including
 any biography and custom fields supplied by the player. Share these archives
 with people who should have access to that character data. It includes archived lists, archived
-encounters and the state needed to resume a running encounter. Backups
+encounters and the state needed to resume a running encounter. New backups
+containing encounters use workspace archive 7.0 and require a reader that
+supports that format. Backups
 containing archived lists require a version of Atlas that supports list
 archiving. The archive contains saved display
 snapshots and record keys. Atlas prepares reference records, indexes, and

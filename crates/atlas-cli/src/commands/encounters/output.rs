@@ -5,13 +5,22 @@ use crate::commands::saved_workspace::write_text;
 use atlas_app_model::{
     EncounterAbilityStateKindView, EncounterDetailView, EncounterDifficultyComparison,
     EncounterDifficultyView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantView, EncounterRecordAdditionResult, EncounterStatusView,
+    EncounterParticipantView, EncounterRecordAdditionResult, EncounterSummaryView,
     MortalityStateView,
 };
 use atlas_cli_support::write_json_data;
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::fmt::{Display, Write};
+
+pub(super) fn turn_progress(encounter: &EncounterSummaryView) -> Option<String> {
+    let round = encounter.round_number;
+    match &encounter.current_turn_participant_name {
+        Some(name) => Some(format!("Round {round} · {name}’s turn")),
+        None if round > 1 => Some(format!("Round {round}")),
+        None => None,
+    }
+}
 
 pub(super) fn added(result: EncounterRecordAdditionResult, json: bool) -> Result<(), String> {
     let outcome = match &result.participant_keys {
@@ -257,10 +266,14 @@ pub(super) fn show(
         }));
     }
     let mut text = format!(
-        "{} ({}) · {:?}\n{} · revision {}\n",
+        "{} ({}){}\n{} · revision {}\n",
         view.encounter.name,
         view.encounter.slug,
-        view.encounter.status,
+        if view.encounter.archived {
+            " · Archived"
+        } else {
+            ""
+        },
         view.encounter.encounter_key,
         view.revision
     );
@@ -270,11 +283,8 @@ pub(super) fn show(
     if let Some(note) = &view.note {
         let _ = writeln!(text, "GM note: {note}");
     }
-    if matches!(
-        view.encounter.status,
-        EncounterStatusView::Running | EncounterStatusView::Complete
-    ) {
-        let _ = writeln!(text, "Round {}", view.encounter.round_number);
+    if let Some(progress) = turn_progress(&view.encounter) {
+        let _ = writeln!(text, "{progress}");
     }
     if let Some(error) = &view.reference_error {
         let _ = writeln!(text, "Reference data: {}", error.message);

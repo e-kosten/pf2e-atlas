@@ -1857,7 +1857,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
             ],
         )
         .unwrap();
-    before.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,description,created_at,updated_at) VALUES(1,1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,owner_id,encounter_key,slug,name,note,status,created_at,updated_at,revision) VALUES(1,1,'encounter','encounter','Saved encounter','Keep this note','running','now','now',4);").unwrap();
+    before.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,description,created_at,updated_at) VALUES(1,1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,owner_id,encounter_key,slug,name,note,archived,created_at,updated_at,revision) VALUES(1,1,'encounter','encounter','Saved encounter','Keep this note',1,'now','now',4);").unwrap();
     let identity: i64 = before
         .query_row(
             "SELECT record_id FROM records WHERE key='actions:aaaaaaaaaaaaaaaa'",
@@ -1894,7 +1894,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
         .unwrap(),
         identity
     );
-    let saved: (String,String,String,String,i64) = c.query_row("SELECT l.name,l.description,i.note,e.note,e.revision FROM saved_lists l JOIN saved_list_items i ON i.list_id=l.id CROSS JOIN encounters e", [], |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap();
+    let saved: (String,String,String,String,bool,i64) = c.query_row("SELECT l.name,l.description,i.note,e.note,e.archived,e.revision FROM saved_lists l JOIN saved_list_items i ON i.list_id=l.id CROSS JOIN encounters e", [], |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))).unwrap();
     assert_eq!(
         saved,
         (
@@ -1902,6 +1902,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
             "Retain notes".into(),
             "Legacy reference".into(),
             "Keep this note".into(),
+            true,
             4
         )
     );

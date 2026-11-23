@@ -26,7 +26,10 @@ pub struct EncounterSummaryView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub description: Option<String>,
-    pub status: EncounterStatusView,
+    pub archived: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub current_turn_participant_name: Option<String>,
     pub round_number: i64,
     pub participant_count: u32,
     pub created_at: String,
@@ -288,16 +291,6 @@ pub enum EncounterConditionCategoryView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum EncounterStatusView {
-    Draft,
-    Running,
-    Complete,
-    Archived,
-}
-
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum EncounterParticipantKindView {
     Creature,
     Hazard,
@@ -520,7 +513,7 @@ pub struct UpdateEncounterRequest {
         deserialize_with = "crate::field_edit::optional_edit"
     )]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
-    pub status: Option<crate::FieldEdit<EncounterStatusView>>,
+    pub archived: Option<crate::FieldEdit<bool>>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",

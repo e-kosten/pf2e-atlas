@@ -1295,7 +1295,7 @@ async fn encounter_routes_use_real_router_wiring() {
         fixture.participant_key
     );
     let receipt = json!({"encounter_key":fixture.encounter_key});
-    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"slug":{"expected":"ambush","value":"renamed-ambush"},"name":{"expected":"Ambush","value":"Renamed Ambush"},"description":{"expected":null,"value":"Updated"},"note":{"expected":null,"value":"Updated note"},"status":{"expected":"draft","value":"complete"}}))).await;
+    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"slug":{"expected":"ambush","value":"renamed-ambush"},"name":{"expected":"Ambush","value":"Renamed Ambush"},"description":{"expected":null,"value":"Updated"},"note":{"expected":null,"value":"Updated note"},"archived":{"expected":false,"value":true}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let path = format!("/api/encounters/{}", fixture.encounter_key);
@@ -2122,6 +2122,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
 #[tokio::test]
 async fn saved_edit_routes_reject_blind_and_malformed_updates_without_a_compatibility_header() {
     let fixture = Fixture::new();
+    let before = fixture.service.encounter(&fixture.encounter_key).unwrap();
     for (path, request) in [
         (
             format!("/api/lists/{}", fixture.list_key),
@@ -2129,7 +2130,11 @@ async fn saved_edit_routes_reject_blind_and_malformed_updates_without_a_compatib
         ),
         (
             format!("/api/encounters/{}", fixture.encounter_key),
-            json!({"name":"Overwrite","slug":"ambush","status":"draft"}),
+            json!({"name":"Overwrite","slug":"ambush"}),
+        ),
+        (
+            format!("/api/encounters/{}", fixture.encounter_key),
+            json!({"status":{"expected":"draft","value":"running"}, "note":{"expected":null,"value":"Should not be written"}}),
         ),
         (
             format!("/api/lists/{}/items/{ACTION}/note", fixture.list_key),
@@ -2148,6 +2153,9 @@ async fn saved_edit_routes_reject_blind_and_malformed_updates_without_a_compatib
         assert_eq!(status, StatusCode::BAD_REQUEST, "{path}: {body}");
         assert_eq!(body["code"], "invalid_request");
     }
+    let after = fixture.service.encounter(&fixture.encounter_key).unwrap();
+    assert_eq!(before.revision, after.revision);
+    assert_eq!(before.note, after.note);
 }
 
 #[tokio::test]
@@ -2383,8 +2391,8 @@ async fn source_free_saved_state_works_without_reference_readiness() {
          INSERT INTO principals VALUES (1, 'other', 'Other');
          INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at)
          VALUES (1,'foreign-list','offline','Other list','now','now');
-         INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
-         VALUES (1,'foreign-encounter','offline','Other encounter','draft','now','now');",
+         INSERT INTO encounters(owner_id,encounter_key,slug,name,archived,created_at,updated_at)
+         VALUES (1,'foreign-encounter','offline','Other encounter',0,'now','now');",
         )
         .unwrap();
     write.commit().unwrap();

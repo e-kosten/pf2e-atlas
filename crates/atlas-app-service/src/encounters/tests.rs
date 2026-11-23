@@ -474,9 +474,9 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                         value: Some("Updated".into()),
                     }),
                     note: None,
-                    status: Some(FieldEdit {
-                        expected: encounter.status,
-                        value: EncounterStatusView::Running,
+                    archived: Some(FieldEdit {
+                        expected: encounter.archived,
+                        value: true,
                     }),
                 },
             )
@@ -1888,9 +1888,9 @@ fn inherited_elite_applies_once_and_unrecognized_adjustment_defaults_to_normal()
                 name: None,
                 description: None,
                 note: None,
-                status: Some(FieldEdit {
-                    expected: e.status,
-                    value: EncounterStatusView::Running,
+                archived: Some(FieldEdit {
+                    expected: e.archived,
+                    value: true,
                 }),
             },
         )
@@ -1912,7 +1912,7 @@ fn inherited_elite_applies_once_and_unrecognized_adjustment_defaults_to_normal()
     }
     .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(60)));
-    assert_eq!(p.hp_origin, "derived_edited");
+    assert_eq!(p.hp_origin, "derived_pristine");
     let detail = add("Unknown adjustment");
     let p = detail
         .participants
