@@ -57,33 +57,58 @@ test("a lost write response preserves the draft and reconnecting never replays t
   await activate(page.getByRole("button", { name: "New list", exact: true }), info);
   const dialog = page.getByRole("dialog", { name: "New list", exact: true });
   const name = dialog.getByRole("textbox", { name: /Name$/ });
-  await name.fill("Unconfirmed draft");
+  const draft = `Unconfirmed draft ${info.project.name}`;
+  await name.fill(draft);
   let attempts = 0;
+  const committed: { list_key: string; slug: string }[] = [];
   await page.route("**/api/lists", async (route) => {
     if (route.request().method() !== "POST") return route.continue();
     attempts++;
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    committed.push((await response.json()).list);
     await route.abort("connectionreset");
   });
-  await activate(
-    dialog.getByRole("button", { name: "Create list", exact: true }),
-    info,
-  );
-  await expect(
-    dialog.getByText("Change could not be confirmed", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    dialog.getByText("Unable to connect to Atlas", { exact: true }),
-  ).toBeVisible();
-  await expect(name).toHaveValue("Unconfirmed draft");
-  await activate(dialog.getByRole("button", { name: "Retry", exact: true }), info);
-  await expect(
-    dialog.getByText("Unable to connect to Atlas", { exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    dialog.getByText("Change could not be confirmed", { exact: true }),
-  ).toBeVisible();
-  expect(attempts).toBe(1);
-  await noPageOverflow(page);
+  try {
+    await activate(
+      dialog.getByRole("button", { name: "Create list", exact: true }),
+      info,
+    );
+    const uncertain = dialog.getByText("List creation could not be confirmed", {
+      exact: true,
+    });
+    const offline = dialog.getByText("Unable to connect to Atlas", { exact: true });
+    const createAnother = dialog.getByRole("button", {
+      name: "Create another list",
+      exact: true,
+    });
+    await expect(uncertain).toBeVisible();
+    await expect(offline).toBeVisible();
+    await expect(name).toHaveValue(draft);
+    await expect(createAnother).toBeDisabled();
+    await activate(dialog.getByRole("button", { name: "Retry", exact: true }), info);
+    await expect(offline).toHaveCount(0);
+    await expect(uncertain).toBeVisible();
+    await expect(createAnother).toBeDisabled();
+    expect(attempts).toBe(1);
+
+    await activate(
+      dialog.getByRole("button", { name: "Check list directory", exact: true }),
+      info,
+    );
+    const directory = dialog.getByRole("region", { name: "List directory" });
+    const { slug } = committed[0];
+    await expect(
+      directory.getByRole("link", { name: `${draft} (${slug})`, exact: true }),
+    ).toHaveAttribute("href", `/lists/${slug}`);
+    await expect(name).toHaveValue(draft);
+    await expect(createAnother).toBeEnabled();
+    expect(attempts).toBe(1);
+    await noPageOverflow(page);
+  } finally {
+    for (const list of committed)
+      await page.request.delete(`/api/lists/${list.list_key}`);
+  }
 });
 
 test("blocked reference readiness has one notice without false model or empty-result states", async ({
