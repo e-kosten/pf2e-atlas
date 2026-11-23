@@ -79,7 +79,7 @@ it("keeps a new-list draft during one pending submission and a failed attempt", 
     created = vi.fn();
   setup(<CreateListModal open onCancel={cancel} onCreated={created} />);
   const name = screen.getByRole("textbox", { name: /Name$/ });
-  fireEvent.change(name, { target: { value: "Expedition" } });
+  fireEvent.change(name, { target: { value: "森林" } });
   const form = name.closest("form")!;
   fireEvent.submit(form);
   fireEvent.submit(form);
@@ -93,16 +93,20 @@ it("keeps a new-list draft during one pending submission and a failed attempt", 
   expect(cancel).not.toHaveBeenCalled();
   await act(async () => reject(new Error("Service unavailable")));
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "List could not be created",
+    "List creation could not be confirmed",
   );
-  expect(name).toHaveValue("Expedition");
+  expect(name).toHaveValue("森林");
   expect(name).toBeEnabled();
   expect(created).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Create list" }));
+  const another = screen.getByRole("button", { name: "Create another list" });
+  expect(another).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Check list directory" }));
+  await waitFor(() => expect(another).toBeEnabled());
+  fireEvent.click(another);
   await waitFor(() => expect(created).toHaveBeenCalledWith("expedition"));
   expect(api.createSavedList.mock.calls).toEqual([
-    [{ slug: "expedition", name: "Expedition", tags: [] }],
-    [{ slug: "expedition", name: "Expedition", tags: [] }],
+    [{ name: "森林", tags: [] }],
+    [{ name: "森林", tags: [] }],
   ]);
 });
 
@@ -119,6 +123,7 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   });
   setup(<AddToRecordButton recordKey="spells:light" />);
   const selector = await chooseList();
+  fireEvent.click(screen.getByRole("button", { name: "Add a note" }));
   const note = screen.getByRole("textbox", { name: "Note" });
   replaceMarkdown(note, "  Prepare for the night watch.  ");
   const dialog = screen.getByRole("dialog", { name: "Add to list" });
@@ -156,6 +161,7 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
     .mockResolvedValueOnce({ list_key: "list_review", slug: "review" });
   setup(<AddToRecordButton recordKey="spells:light" />);
   fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add a note" }));
   replaceMarkdown(
     screen.getByRole("textbox", { name: "Note" }),
     "Watch duty\nKeep a light ready.",
@@ -189,13 +195,14 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
     ],
   ]);
   fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
-  expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe("");
+  expect(screen.getByRole("button", { name: "Add a note" })).toBeVisible();
 });
 
 it("omits a whitespace-only entry note", async () => {
   api.addSavedListItem.mockResolvedValue({ list_key: "list_review", slug: "review" });
   setup(<AddToRecordButton recordKey="spells:light" />);
   await chooseList();
+  fireEvent.click(screen.getByRole("button", { name: "Add a note" }));
   replaceMarkdown(screen.getByRole("textbox", { name: "Note" }), " \n ");
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
   await waitFor(() =>

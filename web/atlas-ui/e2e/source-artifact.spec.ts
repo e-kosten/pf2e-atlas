@@ -242,23 +242,34 @@ test("record reader creates an encounter, previews its creature and confirms the
   await picker
     .getByRole("textbox", { name: "New encounter name" })
     .fill(`Confirm reader addition ${Date.now()}`);
-  const creation = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith("/api/encounters"),
+  const add = picker.getByRole("button", { name: "Create & add", exact: true });
+  await expect(add).toBeEnabled();
+  await expect(
+    picker.getByRole("region", { name: "Encounter addition preview" }),
+  ).toContainText("1 ×");
+  const name = await picker
+    .getByRole("textbox", { name: "New encounter name" })
+    .inputValue();
+  await picker.press("Escape");
+  await expect(picker).toBeHidden();
+  const index = await (await page.request.get("/api/encounters")).json();
+  expect(index.encounters.some((entry: { name: string }) => entry.name === name)).toBe(
+    false,
   );
-  await picker.getByRole("button", { name: "Create & preview" }).click();
-  const { encounter } = await (await creation).json();
-  const path = `/api/encounters/${encounter.encounter_key}`;
+  await trigger.click();
+  await picker.getByRole("tab", { name: "Encounters" }).click();
+  await picker.getByRole("button", { name: "New encounter" }).click();
+  await picker.getByRole("textbox", { name: "New encounter name" }).fill(name);
+  let path = "";
   try {
-    const add = picker.getByRole("button", { name: /^(?:loading )?Add$/ });
-    await expect(add).toBeEnabled();
     let original;
     await page.route(
-      "**/participants/record",
+      "**/api/encounter-drafts/create",
       async (route) => {
         original = route.request().postDataJSON();
-        expect((await route.fetch()).ok()).toBeTruthy();
+        const response = await route.fetch();
+        expect(response.ok()).toBeTruthy();
+        path = `/api/encounters/${(await response.json()).encounter_key}`;
         await route.fulfill({
           status: 504,
           json: { code: "operation_timeout", message: "Timed out" },
@@ -270,9 +281,13 @@ test("record reader creates an encounter, previews its creature and confirms the
     const retry = picker.getByRole("button", { name: /Retry to confirm$/ });
     await expect(retry).toBeEnabled();
     expect(original).toMatchObject({
-      record_ref: recordKey,
-      request_id: expect.any(String),
-      creature_scenario: { expected: { record_key: expect.any(String) } },
+      name,
+      expected_artifact_generation: expect.any(String),
+      addition: {
+        record_ref: recordKey,
+        request_id: expect.any(String),
+        creature_scenario: { expected: { record_key: expect.any(String) } },
+      },
     });
     await picker.getByRole("button", { name: "Cancel" }).click();
     await expect(picker).toBeHidden();
@@ -283,14 +298,14 @@ test("record reader creates an encounter, previews its creature and confirms the
       contentType: "image/png",
     });
     const replay = page.waitForRequest((request) =>
-      request.url().endsWith(`${path}/participants/record`),
+      request.url().endsWith("/api/encounter-drafts/create"),
     );
     await retry.click();
     expect((await replay).postDataJSON()).toEqual(original);
     await expect(picker).toBeHidden();
     expect((await (await page.request.get(path)).json()).participants).toHaveLength(1);
   } finally {
-    expect((await page.request.delete(path)).ok()).toBeTruthy();
+    if (path) expect((await page.request.delete(path)).ok()).toBeTruthy();
   }
 });
 

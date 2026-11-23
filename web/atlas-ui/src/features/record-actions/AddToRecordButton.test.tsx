@@ -1,4 +1,13 @@
-import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
+import {
+  DesktopTabContext,
+  type DesktopTabRuntime,
+  type TabCloseGuard,
+} from "../../app/DesktopTabContext";
+import {
+  markdownSource,
+  replaceMarkdown,
+  selectMarkdown,
+} from "../../test/markdownEditor";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -19,11 +28,15 @@ const api = vi.hoisted(() => ({
   getEncounter: vi.fn(),
   getRecordDetail: vi.fn(),
   createSavedList: vi.fn(),
-  createEncounter: vi.fn(),
+  createEncounterWithAddition: vi.fn(),
+  previewDraftEncounterAddition: vi.fn(),
   addSavedListItem: vi.fn(),
   addEncounterRecordParticipant: vi.fn(),
 }));
-vi.mock("../../api/atlasApi", () => api);
+vi.mock("../../api/atlasApi", async () => ({
+  ...api,
+  ...(await import("../../api/apiError")),
+}));
 const creature: RecordSummaryView = {
   record_key: "creatures:goblin",
   title: "Goblin",
@@ -44,14 +57,16 @@ const encounter = {
   name: "Ambush",
   status: "draft",
 };
-function setup(record = creature) {
+function setup(record = creature, tab: DesktopTabRuntime | null = null) {
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ConfigProvider theme={{ token: { motion: false } }}>
         <App>
-          <AddToRecordButton recordKey={record.record_key} record={record} />
+          <DesktopTabContext.Provider value={tab}>
+            <AddToRecordButton recordKey={record.record_key} record={record} />
+          </DesktopTabContext.Provider>
         </App>
       </ConfigProvider>
     </QueryClientProvider>,
@@ -70,6 +85,14 @@ beforeEach(() => {
   api.getSavedLists.mockResolvedValue({ lists: [] });
   api.getEncounters.mockResolvedValue({ encounters: [] });
   api.getEncounter.mockResolvedValue(null);
+  api.previewDraftEncounterAddition.mockResolvedValue({
+    artifact_generation: "generation",
+    projected: {
+      opposition: [{ name: "Goblin" }],
+      party_size: null,
+      party_level: null,
+    },
+  });
   api.getRecordDetail.mockResolvedValue({
     ...detailFixture(creature.record_key),
     encounter_adjustment: "normal",
@@ -87,12 +110,11 @@ it("creates and adds to a list in one submission, preserving the browsing locati
   fireEvent.click(screen.getByRole("button", { name: "New list" }));
   const name = screen.getByRole("textbox", { name: "New list name" });
   await waitFor(() => expect(name).toHaveFocus());
-  fireEvent.change(name, { target: { value: "Ambush" } });
+  fireEvent.change(name, { target: { value: "森林" } });
   fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(api.createSavedList).toHaveBeenCalledWith({
-    name: "Ambush",
-    slug: "ambush",
+    name: "森林",
     tags: [],
   });
   expect(api.addSavedListItem).toHaveBeenCalledWith(list.list_key, {
@@ -109,41 +131,138 @@ it("creates and adds to a list in one submission, preserving the browsing locati
   fireEvent.click(destination, { ctrlKey: true });
   expect(window.location.href).toBe(location);
 });
-it("retains a created destination after an add failure and retries only the add", async () => {
-  api.createEncounter.mockResolvedValue({ encounter });
-  api.addEncounterRecordParticipant
+it("retains the reviewed creation request across a lost response and retries it unchanged", async () => {
+  api.createEncounterWithAddition
     .mockRejectedValueOnce(new Error("Disconnected"))
-    .mockResolvedValueOnce({ encounter_key: encounter.encounter_key });
-  setup();
+    .mockResolvedValueOnce({ encounter_key: encounter.encounter_key, available: true });
+  const trigger = setup();
   fireEvent.click(screen.getByRole("tab", { name: "Encounters" }));
   fireEvent.click(screen.getByRole("button", { name: "New encounter" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "New encounter name" }), {
-    target: { value: "Ambush" },
-  });
+  const name = screen.getByRole("textbox", { name: "New encounter name" });
+  fireEvent.change(name, { target: { value: "Ambush" } });
   const submit = screen.getByRole("button", { name: "Create & add" });
   await waitFor(() => expect(submit).toBeEnabled());
+  expect(screen.getByText("1 × Goblin")).toBeVisible();
   fireEvent.click(submit);
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Ambush was created. Adding the record could not be confirmed.",
+    "Encounter creation could not be confirmed",
   );
-  expect(
-    screen.getByRole("combobox", { name: "Encounter" }).parentElement,
-  ).toHaveTextContent("Ambush");
+  expect(name).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(trigger);
   fireEvent.click(screen.getByRole("button", { name: "Retry to confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  expect(api.createEncounter).toHaveBeenCalledOnce();
-  expect(api.addEncounterRecordParticipant).toHaveBeenCalledTimes(2);
-  expect(api.addEncounterRecordParticipant.mock.calls[1]).toEqual(
-    api.addEncounterRecordParticipant.mock.calls[0],
+  expect(api.createEncounterWithAddition).toHaveBeenCalledTimes(2);
+  expect(api.createEncounterWithAddition.mock.calls[1]).toEqual(
+    api.createEncounterWithAddition.mock.calls[0],
   );
-  expect(api.addEncounterRecordParticipant).toHaveBeenLastCalledWith(
-    encounter.encounter_key,
-    {
+  expect(api.createEncounterWithAddition).toHaveBeenCalledWith({
+    name: "Ambush",
+    expected_artifact_generation: "generation",
+    addition: {
       request_id: expect.any(String),
       record_ref: creature.record_key,
       quantity: 1,
     },
+  });
+  expect(api.addEncounterRecordParticipant).not.toHaveBeenCalled();
+  fireEvent.click(trigger);
+  expect(screen.queryByRole("button", { name: "Retry to confirm" })).toBeNull();
+  expect(screen.getByRole("tab", { name: "Lists" })).toHaveAttribute(
+    "aria-selected",
+    "true",
   );
+});
+
+it("refreshes existing choices after an uncertain create and distinguishes equal names by URL", async () => {
+  const later = { ...list, list_key: "list_second", slug: "ambush-2" };
+  let committed = false;
+  api.getSavedLists.mockImplementation(async () => ({
+    lists: committed ? [list, later] : [list],
+  }));
+  api.createSavedList.mockImplementation(async () => {
+    committed = true;
+    throw new Error("Lost response");
+  });
+  api.addSavedListItem.mockResolvedValue({ ...later, outcome: "added" });
+  setup();
+  fireEvent.click(screen.getByRole("button", { name: "New list" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), {
+    target: { value: list.name },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
+  expect(await screen.findByText("List creation could not be confirmed")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Check list directory" }));
+  expect(
+    await screen.findByRole("link", { name: "Ambush (ambush-2)" }),
+  ).toHaveAttribute("href", "/lists/ambush-2");
+  fireEvent.click(screen.getByRole("button", { name: "Choose existing list" }));
+  const picker = screen.getByRole("combobox", { name: "Saved list" });
+  fireEvent.mouseDown(picker);
+  fireEvent.change(picker, { target: { value: "ambush-2" } });
+  fireEvent.click(await screen.findByText("Ambush (ambush-2)", { exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+  await waitFor(() =>
+    expect(api.addSavedListItem).toHaveBeenCalledWith(later.list_key, {
+      record_ref: creature.record_key,
+    }),
+  );
+  expect(api.createSavedList).toHaveBeenCalledOnce();
+});
+it("reuses the new list after its record attachment fails", async () => {
+  api.createSavedList.mockResolvedValue({ list });
+  api.addSavedListItem
+    .mockRejectedValueOnce(new Error("Disconnected"))
+    .mockResolvedValueOnce({ ...list, outcome: "added" });
+  setup();
+  fireEvent.click(screen.getByRole("button", { name: "New list" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), {
+    target: { value: list.name },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Ambush was created");
+  fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(api.createSavedList).toHaveBeenCalledOnce();
+  expect(api.addSavedListItem.mock.calls[0]).toEqual(
+    api.addSavedListItem.mock.calls[1],
+  );
+});
+
+it("cannot submit a stale hazard quantity while its replacement preview is pending", async () => {
+  let finish!: (value: unknown) => void;
+  const preview = {
+    artifact_generation: "g",
+    projected: { opposition: [{ name: "Rune" }], party_level: null, party_size: null },
+  };
+  api.previewDraftEncounterAddition
+    .mockResolvedValueOnce(preview)
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+  setup({ ...creature, kind: "hazard" });
+  fireEvent.click(screen.getByRole("tab", { name: "Encounters" }));
+  fireEvent.click(screen.getByRole("button", { name: "New encounter" }));
+  expect(await screen.findByText("1 × Rune")).toBeVisible();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Quantity" }), {
+    target: { value: "2" },
+  });
+  const submit = screen.getByRole("button", { name: "Create & add" });
+  await waitFor(() => expect(submit).toBeDisabled());
+  expect(screen.queryByText("1 × Rune")).toBeNull();
+  await act(async () =>
+    finish({
+      ...preview,
+      projected: { ...preview.projected, opposition: [{ name: "2 × Rune" }] },
+    }),
+  );
+  expect(await screen.findByText("2 × Rune")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(api.createEncounterWithAddition).not.toHaveBeenCalled();
 });
 it("guards a pending create-and-add against repeat submissions and dismissal", async () => {
   let finish!: (value: unknown) => void;
@@ -215,6 +334,65 @@ it("blocks adding a creature while its adjustment lookup is unavailable and lets
   expect(screen.getByText("Normal", { exact: true })).toBeVisible();
 });
 
+it("protects an unsaved new list name when its empty note is expanded", async () => {
+  const guards = new Set<TabCloseGuard>();
+  setup(creature, {
+    id: "tab",
+    active: true,
+    activation: 0,
+    panel: () => document.body,
+    title: vi.fn(),
+    theme: vi.fn(),
+    guard: (guard) => {
+      guards.add(guard);
+      return () => guards.delete(guard);
+    },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "New list" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), {
+    target: { value: "Expedition" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add a note" }));
+  fireEvent.click(screen.getByRole("button", { name: "Expand editor" }));
+  expect([...guards].map((guard) => guard())).toContain("dirty");
+  fireEvent.click(screen.getByRole("button", { name: "Collapse editor" }));
+  expect([...guards].map((guard) => guard())).toContain("dirty");
+});
+it("resizes the same note editor and returns to the destination without submitting", async () => {
+  setup();
+  fireEvent.click(screen.getByRole("button", { name: "New list" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), {
+    target: { value: "Expedition" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add a note" }));
+  const note = screen.getByRole("textbox", { name: "Note" });
+  replaceMarkdown(note, "Keep a map");
+  selectMarkdown(note, 7, 10);
+  const expand = screen.getByRole("button", { name: "Expand editor" });
+  fireEvent.click(expand);
+  const document = screen.getByRole("dialog", { name: "List entry note" });
+  expect(within(document).getByRole("textbox", { name: "Note" })).toBe(note);
+  expect(within(document).queryByRole("button", { name: "Create & add" })).toBeNull();
+  fireEvent.submit(note.closest("form")!);
+  fireEvent.click(within(document).getByRole("button", { name: "Bold" }));
+  expect(markdownSource(note)).toBe("Keep a **map**");
+  fireEvent.click(within(document).getByRole("button", { name: "Undo" }));
+  expect(markdownSource(note)).toBe("Keep a map");
+  fireEvent.click(within(document).getByRole("radio", { name: "Preview" }));
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(expand).toHaveFocus();
+  expect(screen.getByRole("region", { name: "Markdown preview" })).toHaveTextContent(
+    "Keep a map",
+  );
+  expect(screen.getByRole("textbox", { name: "New list name" })).toHaveValue(
+    "Expedition",
+  );
+  fireEvent.click(expand);
+  fireEvent.click(screen.getByRole("button", { name: "Collapse editor" }));
+  expect(expand).toHaveFocus();
+  expect(api.createSavedList).not.toHaveBeenCalled();
+  expect(api.addSavedListItem).not.toHaveBeenCalled();
+});
 type Dismissal = "Escape" | "backdrop" | "Cancel" | "Close";
 
 function dismiss(dialog: HTMLElement, via: Dismissal) {
@@ -242,11 +420,18 @@ it.each(dismissals)("asks before discarding a list note via %s", async (via) => 
   const opener = setup();
   const dialog = screen.getByRole("dialog", { name: "Add to…" });
   const note = "A note with enough detail to keep.\nSecond line.";
+  expect(within(dialog).queryByRole("textbox", { name: "Note" })).toBeNull();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Add a note" }));
   const field = within(dialog).getByRole("textbox", { name: "Note" });
-  act(() => field.focus());
+  expect(field).toHaveFocus();
   replaceMarkdown(field, note);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Hide note" }));
+  expect(
+    within(dialog).getByRole("button", { name: "Edit note (included)" }),
+  ).toBeVisible();
   fireEvent.click(within(dialog).getByRole("tab", { name: "Encounters" }));
   fireEvent.click(within(dialog).getByRole("tab", { name: "Lists" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Edit note (included)" }));
   expect(markdownSource(within(dialog).getByRole("textbox", { name: "Note" }))).toBe(
     note,
   );
@@ -265,5 +450,5 @@ it.each(dismissals)("asks before discarding a list note via %s", async (via) => 
   fireEvent.click(within(dialog).getByRole("button", { name: "Discard" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   fireEvent.click(opener);
-  expect(markdownSource(screen.getByRole("textbox", { name: "Note" }))).toBe("");
+  expect(screen.getByRole("button", { name: "Add a note" })).toBeVisible();
 });

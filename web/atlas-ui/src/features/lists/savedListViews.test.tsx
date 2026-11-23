@@ -1743,7 +1743,6 @@ describe("list views", () => {
 
     await waitFor(() =>
       expect(apiMocks.createSavedList).toHaveBeenCalledWith({
-        slug: "boss-fight-prep",
         name: "Boss Fight Prep!",
         tags: [],
       }),

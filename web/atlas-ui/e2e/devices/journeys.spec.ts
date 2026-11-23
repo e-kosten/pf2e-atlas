@@ -293,6 +293,52 @@ test("theme dismissal returns focus without stealing the next modal's focus", as
   await expect(name).toHaveValue("Retained draft");
 });
 
+test("both list creation forms accept Unicode display names and use their returned destinations", async ({
+  page,
+}, info) => {
+  const created: string[] = [];
+  const createResponse = () =>
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/lists" &&
+        response.request().method() === "POST",
+    );
+  try {
+    await page.goto("/lists");
+    await activate(page.getByRole("button", { name: "New list", exact: true }), info);
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("textbox", { name: /Name$/ }).fill("森林");
+    const first = createResponse();
+    await activate(dialog.getByRole("button", { name: "Create list" }), info);
+    const { list: directoryList } = await (await first).json();
+    created.push(directoryList.list_key);
+    await expect(page).toHaveURL(
+      (url) => url.pathname === `/lists/${directoryList.slug}`,
+    );
+    await page.goto(`/records/${sentinel}`);
+    await activate(
+      page.getByRole("button", { name: "Add to list or encounter" }),
+      info,
+    );
+    await activate(dialog.getByRole("button", { name: "New list", exact: true }), info);
+    await dialog.getByRole("textbox", { name: "New list name" }).fill("海");
+    const second = createResponse();
+    await activate(dialog.getByRole("button", { name: "Create & add" }), info);
+    const { list: recordList } = await (await second).json();
+    created.push(recordList.list_key);
+    expect(directoryList.slug).not.toBe(recordList.slug);
+    await expect(dialog).toBeHidden();
+    const saved = await (
+      await page.request.get(`/api/lists/${recordList.list_key}`)
+    ).json();
+    expect(saved.items.map((item: { record_key: string }) => item.record_key)).toEqual([
+      sentinel,
+    ]);
+  } finally {
+    for (const key of created) await page.request.delete(`/api/lists/${key}`);
+  }
+});
+
 test("a long saved-list choice stays bounded through a pending and failed Add", async ({
   page,
 }, info) => {
@@ -1931,28 +1977,9 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       if (!info.project.use.hasTouch) {
         await name.press("Tab");
         if (kind === "list") {
-          await expect(
-            dialog.getByRole("radiogroup", { name: "Document editor mode" }),
-          ).toBeFocused();
-          await page.keyboard.press("Tab");
-          await expect(dialog.getByRole("radio", { name: "Write" })).toBeFocused();
-          for (const label of [
-            "Heading",
-            "Bold",
-            "Italic",
-            "Bulleted list",
-            "Numbered list",
-            "Record link",
-          ]) {
-            await page.keyboard.press("Tab");
-            await expect(
-              dialog.getByRole("button", { name: label, exact: true }),
-            ).toBeFocused();
-          }
-          await page.keyboard.press("Tab");
-          const note = dialog.getByRole("textbox", { name: "Note" });
-          await expect(note).toBeFocused();
-          await note.press("Tab");
+          const disclosure = dialog.getByRole("button", { name: "Add a note" });
+          await expect(disclosure).toBeFocused();
+          await disclosure.press("Tab");
         } else {
           const adjustment = dialog.getByRole("combobox", { name: "Adjustment" });
           const quantity = dialog.getByRole("spinbutton", { name: "Quantity" });
@@ -2137,6 +2164,7 @@ test("record picker keeps its top edge stable across tabs and growing forms", as
   await expectStableTop();
   await activate(dialog.getByRole("button", { name: "New list", exact: true }), info);
   await expectStableTop();
+  await activate(dialog.getByRole("button", { name: "Add a note" }), info);
   await dialog
     .getByRole("textbox", { name: "Note", exact: true })
     .fill("One\nTwo\nThree\nFour\nFive\nSix");
@@ -2220,10 +2248,47 @@ test("record picker saves an optional entry note and brings the changed list fir
     await expect(
       dialog.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
+    await activate(dialog.getByRole("button", { name: "Add a note" }), info);
     const note = dialog.getByRole("textbox", { name: "Note" });
+    await expect(note).toBeFocused();
     const firstLine = "  Discuss before the next session.";
     const noteText = firstLine + "\n\nBring the map.\n";
     await replaceMarkdown(note, firstLine);
+    const compactBox = (await note.boundingBox())!;
+    const expand = dialog.getByRole("button", { name: "Expand editor" });
+    await activate(expand, info);
+    const expanded = page.getByRole("dialog", { name: "List entry note" });
+    await expect(
+      expanded.getByRole("button", { name: "Add", exact: true }),
+    ).toHaveCount(0);
+    await expect(expanded.getByRole("combobox", { name: "Saved list" })).toHaveCount(0);
+    const largeNote = expanded.getByRole("textbox", { name: "Note", exact: true });
+    await expect
+      .poll(async () => (await largeNote.boundingBox())!.height)
+      .toBeGreaterThan(compactBox.height + 100);
+    await expect.poll(() => markdownSource(largeNote)).toBe(firstLine);
+    await noPageOverflow(page);
+    await info.attach("Expanded list note", {
+      body: await expanded.screenshot(),
+      contentType: "image/png",
+    });
+    await activate(expanded.getByText("Preview", { exact: true }), info);
+    await expect(expanded.getByRole("region", { name: "Note preview" })).toContainText(
+      firstLine.trim(),
+    );
+    await activate(expanded.getByRole("button", { name: "Collapse editor" }), info);
+    await expect(expand).toBeFocused();
+    await expect(
+      dialog.getByRole("region", { name: "Markdown preview" }),
+    ).toContainText(firstLine.trim());
+    await activate(dialog.getByText("Write", { exact: true }), info);
+    await activate(expand, info);
+    await largeNote.press("Escape");
+    await expect(expand).toBeFocused();
+    await expect(dialog.locator(".record-destination-picker__select")).toContainText(
+      `Zulu ${suffix}`,
+    );
+
     for (const suffix of ["\n", "\n\n"]) {
       await note.press("Enter");
       // Android CodeMirror processes Enter after observing the native input frame.
@@ -2280,9 +2345,7 @@ test("record picker saves an optional entry note and brings the changed list fir
     expect(saved.ok()).toBeTruthy();
     expect((await saved.json()).note).toBe(noteText);
     await activate(trigger, info);
-    await expect
-      .poll(() => markdownSource(dialog.getByRole("textbox", { name: "Note" })))
-      .toBe("");
+    await expect(dialog.getByRole("button", { name: "Add a note" })).toBeVisible();
     await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
     await expect(choices.first()).toHaveText(`Zulu ${suffix}`);
     await page.keyboard.press("Escape");
