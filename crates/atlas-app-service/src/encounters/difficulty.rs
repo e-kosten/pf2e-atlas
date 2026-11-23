@@ -354,7 +354,7 @@ fn rating(xp: u32, budgets: &[EncounterDifficultyBudgetView]) -> String {
         .unwrap_or_else(|| "Above Extreme".into())
 }
 
-fn guard_revision(
+pub(super) fn guard_revision(
     encounter: &atlas_local_state::Encounter,
     expected_revision: i64,
 ) -> AppServiceResult<()> {

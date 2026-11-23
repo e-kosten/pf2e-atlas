@@ -229,6 +229,34 @@ pub(crate) async fn create_encounter(
     ))
 }
 
+#[utoipa::path(post, path = "/api/encounter-drafts/preview", operation_id = "previewDraftEncounterAddition", request_body = atlas_app_model::EncounterDifficultyAddition, responses((status = 200, description = "Successful response", body = atlas_app_model::DraftEncounterPreviewView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn preview_draft_encounter_addition(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::EncounterDifficultyAddition>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    Ok(Json(
+        call_service(state, move |service| {
+            service.preview_draft_encounter_addition(request)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(post, path = "/api/encounter-drafts/create", operation_id = "createEncounterWithAddition", request_body = atlas_app_model::CreateEncounterWithAdditionRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::CreatedEncounterAdditionView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn create_encounter_with_addition(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::CreateEncounterWithAdditionRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    Ok(Json(
+        call_service(state, move |service| {
+            service.create_encounter_with_addition(request)
+        })
+        .await?,
+    ))
+}
+
 #[utoipa::path(delete, path = "/api/encounters/{encounter_ref}", operation_id = "deleteEncounter", params(("encounter_ref" = String, Path)), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteEncounterView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn delete_encounter(
     State(state): State<AtlasWebState>,

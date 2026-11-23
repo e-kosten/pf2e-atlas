@@ -386,7 +386,7 @@ mod tests {
         fixture
             .worker
             .create_saved_list(atlas_app_model::CreateSavedListRequest {
-                slug: "retained".into(),
+                slug: Some("retained".into()),
                 name: "Retained".into(),
                 description: None,
                 tags: vec![],

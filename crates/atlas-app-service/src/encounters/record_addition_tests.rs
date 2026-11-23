@@ -195,3 +195,81 @@ fn failed_record_addition_saves_neither_participants_nor_a_receipt() {
         .unwrap();
     assert_eq!(service.encounter(key).unwrap().participants.len(), 3);
 }
+
+#[test]
+fn draft_encounter_creation_rolls_back_the_batch_and_replays_concurrent_submissions() {
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(2, 16);
+    let service = crate::test_support::fixture_worker_with_executor(executor).worker;
+    let preview = service
+        .preview_draft_encounter_addition(EncounterDifficultyAddition {
+            creature_scenario: None,
+            record_ref: "Test Hazard 1".into(),
+            quantity: 2,
+            participant_variant: None,
+        })
+        .unwrap();
+    let request = CreateEncounterWithAdditionRequest {
+        name: "Passage".into(),
+        expected_artifact_generation: preview.artifact_generation,
+        addition: AddEncounterRecordParticipantRequest {
+            request_id: "confirm-passage".into(),
+            record_ref: "Test Hazard 1".into(),
+            quantity: 2,
+            participant_variant: None,
+            initiative: None,
+            creature_scenario: None,
+        },
+    };
+    let before = service.encounters().unwrap();
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let execute = |sql: &str| {
+        let write = workspace
+            .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        write.connection().execute_batch(sql).unwrap();
+        write.commit().unwrap();
+    };
+    execute(
+        "CREATE TRIGGER stop_creation BEFORE INSERT ON encounter_creation_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END;",
+    );
+    assert!(
+        service
+            .create_encounter_with_addition(request.clone())
+            .is_err()
+    );
+    assert_eq!(service.encounters().unwrap(), before);
+    execute("DROP TRIGGER stop_creation");
+    let barrier = std::sync::Barrier::new(2);
+    let [first, second] = std::thread::scope(|threads| {
+        let submit = || {
+            barrier.wait();
+            service
+                .create_encounter_with_addition(request.clone())
+                .unwrap()
+        };
+        let a = threads.spawn(submit);
+        let b = threads.spawn(submit);
+        [a.join().unwrap(), b.join().unwrap()]
+    });
+    assert_eq!(first, second);
+    assert_eq!(
+        service
+            .encounter(&first.encounter_key)
+            .unwrap()
+            .participants
+            .len(),
+        2
+    );
+    let changed = CreateEncounterWithAdditionRequest {
+        name: "Other passage".into(),
+        ..request
+    };
+    assert_eq!(
+        service
+            .create_encounter_with_addition(changed)
+            .unwrap_err()
+            .app_error()
+            .code,
+        AppErrorCode::EncounterAdditionConflict
+    );
+}

@@ -32,6 +32,7 @@ pub use encounter_recovery::{
 };
 mod encounter_difficulty;
 pub use encounter_difficulty::{
+    CreateEncounterWithAdditionRequest, CreatedEncounterAdditionView, DraftEncounterPreviewView,
     EncounterDifficultyAddition, EncounterDifficultyBudgetView, EncounterDifficultyComparison,
     EncounterDifficultyOpponentView, EncounterDifficultyReferenceInput,
     EncounterDifficultyReferenceView, EncounterDifficultyRuleView, EncounterDifficultyView,

@@ -1,11 +1,11 @@
 use atlas_app_model::{
     AddEncounterInitiativeEntryRequest, AddEncounterManualParticipantRequest,
-    AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
-    AdvanceEncounterTurnRequest, AppErrorCode, CreateEncounterRequest, DeleteEncounterView,
-    EncounterCreateView, EncounterDetailView, EncounterIndexView, EncounterMutationView,
-    EncounterTurnReviewView, FieldEdit, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantEdit, UpdateEncounterRequest,
+    AddEncounterParticipantConditionRequest, AdvanceEncounterTurnRequest, AppErrorCode,
+    CreateEncounterRequest, DeleteEncounterView, EncounterCreateView, EncounterDetailView,
+    EncounterIndexView, EncounterMutationView, EncounterTurnReviewView, FieldEdit,
+    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
+    UpdateEncounterRequest,
 };
 use atlas_local_state::{
     AddEncounterParticipant, Encounter, EncounterParticipantCondition, EncounterStatus,
@@ -342,146 +342,6 @@ impl AtlasAppService {
             Ok(EncounterMutationView {
                 encounter_key: current.encounter_key,
             })
-        })
-    }
-
-    pub fn add_encounter_record_participant(
-        &self,
-        encounter_ref: &str,
-        request: AddEncounterRecordParticipantRequest,
-    ) -> AppServiceResult<atlas_app_model::EncounterRecordAdditionResult> {
-        let intent = serde_json::json!({
-            "record_ref": request.record_ref,
-            "quantity": request.quantity,
-            "initiative": request.initiative,
-            "participant_variant": request.participant_variant,
-            "creature_scenario": request.creature_scenario,
-        });
-        let (receipt, committed) = self.with_state(|session| {
-            let store = session.local_state()?.encounters();
-            let receipt = encounter_receipt(&store, encounter_ref)?;
-            let committed = store.record_addition_committed(
-                &receipt.encounter_key,
-                &request.request_id,
-                &intent,
-            )?;
-            Ok((receipt, committed))
-        })?;
-        let request_id = request.request_id.clone();
-        let participant_keys = if committed {
-            None
-        } else {
-            match self.commit_record_addition(&receipt.encounter_key, request, &intent) {
-                Ok(keys) => keys,
-                Err(error) => {
-                    // A concurrent writer can commit the intent while this read resolves its record.
-                    let committed = self.with_state(|session| {
-                        Ok(session
-                            .local_state()?
-                            .encounters()
-                            .record_addition_committed(
-                                &receipt.encounter_key,
-                                &request_id,
-                                &intent,
-                            )?)
-                    })?;
-                    if !committed {
-                        return Err(error);
-                    }
-                    None
-                }
-            }
-        };
-        Ok(atlas_app_model::EncounterRecordAdditionResult {
-            encounter_key: receipt.encounter_key,
-            request_id,
-            participant_keys,
-        })
-    }
-
-    fn commit_record_addition(
-        &self,
-        encounter_key: &str,
-        request: AddEncounterRecordParticipantRequest,
-        intent: &serde_json::Value,
-    ) -> AppServiceResult<Option<Vec<String>>> {
-        let record_ref = request.record_ref.clone();
-        let expected = request
-            .creature_scenario
-            .as_ref()
-            .and_then(|scenario| scenario.expected.clone());
-        let (record, baseline, variant, revision) = self.with_workspace(
-            &crate::ReadExecutionContext::uncancellable(),
-            move |session| {
-                let base = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
-                let replacement = super::record_addition::published_replacement(
-                    session.retrieval_mut(),
-                    &base,
-                    request.participant_variant,
-                    request.creature_scenario.as_ref(),
-                )?;
-                let (record, variant) = match replacement {
-                    Some(record) => (record, None),
-                    None => (base, request.participant_variant),
-                };
-                let baseline = super::hydration::source_baseline(
-                    &record.source,
-                    session.retrieval_mut(),
-                    None,
-                )?;
-                Ok((record, baseline, variant, session.reference_revision()?))
-            },
-        )?;
-        super::record_addition::validate_quantity(request.quantity)?;
-        let template = super::record_addition::prepare(&record, variant)?;
-        if let Some(expected) = expected
-            && super::record_addition::prepared_choice(&template).as_ref() != Some(&expected)
-        {
-            return Err(crate::AppServiceError::invalid_request(
-                "The creature version changed. Refresh the encounter preview before adding it.",
-            ));
-        }
-        let participants = (0..request.quantity)
-            .map(|index| {
-                let mut participant = template.clone();
-                if request.quantity > 1 {
-                    participant.display_name = format!("{} {}", template.display_name, index + 1);
-                }
-                participant.initiative = request.initiative;
-                participant
-            })
-            .collect();
-        self.with_write(|session| {
-            let store = session.local_state()?.encounters();
-            if store.record_addition_committed(encounter_key, &request.request_id, intent)? {
-                return Ok(None);
-            }
-            session.require_reference_revision(revision)?;
-            let added = store.add_participants(encounter_key, participants)?;
-            if let Some(baseline) = &baseline {
-                let adjustment_applicable = super::hydration::adjustment_applicable(&record.source);
-                for participant in added.iter().filter(|participant| {
-                    participant.hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
-                }) {
-                    let level = super::rules::effective_participant_level(
-                        participant,
-                        baseline.level.as_ref(),
-                        adjustment_applicable,
-                    )
-                    .as_ref()
-                    .and_then(serde_json::Number::as_i64);
-                    let capacity = super::rules::effective_hp_maximum(
-                        participant,
-                        &baseline.source_conditions,
-                        level,
-                    );
-                    if capacity != participant.current_hp {
-                        store.initialize_participant_hp(&participant.participant_key, capacity)?;
-                    }
-                }
-            }
-            store.save_record_addition_receipt(encounter_key, &request.request_id, intent)?;
-            Ok(Some(added.into_iter().map(|p| p.participant_key).collect()))
         })
     }
 
@@ -1177,7 +1037,7 @@ fn ensure_participant_in_encounter(
     }
 }
 
-fn encounter_receipt(
+pub(super) fn encounter_receipt(
     encounters: &atlas_local_state::EncountersRead<'_>,
     encounter_ref: &str,
 ) -> AppServiceResult<EncounterMutationView> {

@@ -47,6 +47,8 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::pending_condition_recoveries))
         .routes(routes!(crate::handlers::set_encounter_difficulty))
         .routes(routes!(crate::handlers::preview_encounter_difficulty))
+        .routes(routes!(crate::handlers::preview_draft_encounter_addition))
+        .routes(routes!(crate::handlers::create_encounter_with_addition))
         .routes(routes!(crate::handlers::pending_encounter_hp_lifecycle))
         .routes(routes!(crate::handlers::preview_encounter_hp_lifecycle))
         .routes(routes!(crate::handlers::resolve_encounter_hp_lifecycle))

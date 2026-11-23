@@ -144,24 +144,9 @@ impl AtlasAppService {
         &self,
         request: CreateSavedListRequest,
     ) -> AppServiceResult<SavedListMutationView> {
-        self.create_saved_list_inner(request, false)
-    }
-
-    pub fn create_saved_list_with_generated_slug(
-        &self,
-        request: CreateSavedListRequest,
-    ) -> AppServiceResult<SavedListMutationView> {
-        self.create_saved_list_inner(request, true)
-    }
-
-    fn create_saved_list_inner(
-        &self,
-        request: CreateSavedListRequest,
-        generate_slug: bool,
-    ) -> AppServiceResult<SavedListMutationView> {
         self.with_write(move |session| {
             let store = session.local_state()?;
-            let list = create_list(&store.saved_lists(), request, generate_slug)?;
+            let list = create_list(&store.saved_lists(), request)?;
             Ok(SavedListMutationView {
                 list: saved_list_summary(list),
             })
@@ -360,7 +345,7 @@ impl AtlasAppService {
         &self,
         request: BatchAddSavedListItemsRequest,
     ) -> AppServiceResult<BatchSavedListItemMutationView> {
-        self.write_saved_list_items(request, None, false)
+        self.write_saved_list_items(request, None)
     }
 
     /// Create a new list and commit all successfully resolved inputs in one write.
@@ -368,15 +353,13 @@ impl AtlasAppService {
         &self,
         request: CreateSavedListRequest,
         items: Vec<BatchSavedListItemInput>,
-        generate_slug: bool,
     ) -> AppServiceResult<BatchSavedListItemMutationView> {
         self.write_saved_list_items(
             BatchAddSavedListItemsRequest {
-                list_ref: request.slug.clone(),
+                list_ref: request.slug.clone().unwrap_or_default(),
                 items,
             },
             Some(request),
-            generate_slug,
         )
     }
 
@@ -384,7 +367,6 @@ impl AtlasAppService {
         &self,
         request: BatchAddSavedListItemsRequest,
         create: Option<CreateSavedListRequest>,
-        generate_slug: bool,
     ) -> AppServiceResult<BatchSavedListItemMutationView> {
         if create.is_none()
             && let [item] = request.items.as_slice()
@@ -401,6 +383,9 @@ impl AtlasAppService {
             });
         }
         let creating = create.is_some();
+        let generate_slug = create
+            .as_ref()
+            .is_some_and(|request| request.slug.is_none());
         let (list_key, resolved, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
@@ -438,7 +423,7 @@ impl AtlasAppService {
             session.require_reference_revision(revision)?;
             let store = session.local_state()?;
             let list = if let Some(request) = create {
-                create_list(&store.saved_lists(), request, generate_slug)?
+                create_list(&store.saved_lists(), request)?
             } else {
                 let list_key = list_key.ok_or_else(|| {
                     AppServiceError::invalid_request("saved-list key is required")
@@ -1127,10 +1112,13 @@ fn saved_list_item_status(status: SavedListItemStatus) -> SavedListItemStatusVie
 fn create_list(
     lists: &atlas_local_state::SavedListsWrite<'_>,
     request: CreateSavedListRequest,
-    generate_slug: bool,
 ) -> AppServiceResult<SavedList> {
+    if request.name.trim().is_empty() {
+        return Err(AppServiceError::invalid_request("List name is required."));
+    }
+    let generate_slug = request.slug.is_none();
     let list = NewSavedList {
-        slug: request.slug,
+        slug: request.slug.unwrap_or_default(),
         name: request.name,
         description: request.description,
         tags: request.tags,
