@@ -225,8 +225,12 @@ function PartyRoster({ party }: { party: PartyView }) {
                   <span className="sr-only">Order</span>
                 </th>
                 <th scope="col">Character</th>
-                <th scope="col">Level</th>
-                <th scope="col">Reference</th>
+                <th scope="col" className="party-roster__column-fact">
+                  Level
+                </th>
+                <th scope="col" className="party-roster__column-fact">
+                  Reference
+                </th>
                 <th scope="col">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -265,9 +269,21 @@ function PartyRoster({ party }: { party: PartyView }) {
                           <AtlasLink {...characterDestination(member.character_key)}>
                             {member.name}
                           </AtlasLink>
+                          <div className="party-roster__compact-facts character-secondary">
+                            {member.level == null
+                              ? "No level"
+                              : `Level ${member.level}`}
+                            {" · "}
+                            <span className="sr-only">Reference: </span>
+                            {member.imported ? "Pathbuilder" : "Manual"}
+                          </div>
                         </td>
-                        <td>{member.level ?? "—"}</td>
-                        <td>{member.imported ? "Pathbuilder" : "Manual"}</td>
+                        <td className="party-roster__column-fact">
+                          {member.level ?? "—"}
+                        </td>
+                        <td className="party-roster__column-fact">
+                          {member.imported ? "Pathbuilder" : "Manual"}
+                        </td>
                         <td>
                           <Tooltip
                             title={`Remove ${member.name} from party`}

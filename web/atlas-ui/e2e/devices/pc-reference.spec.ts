@@ -493,6 +493,8 @@ test("an empty saved sheet imports into the same character and returns focus", a
       exact: true,
     });
     const dialog = page.getByRole("dialog", { name: "New import from Pathbuilder" });
+    await expect(opener).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Stats", exact: true })).toHaveCount(0);
     await activate(opener, info);
     await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
     await expect(opener).toBeFocused();
@@ -693,6 +695,20 @@ test("party drag tracks the pointer and shows the reordered row on release @engi
     const roster = page.getByRole("table");
     const order = roster.getByRole("link");
     await expect(order).toHaveText(names);
+    const narrow = (page.viewportSize()?.width ?? 0) < 520;
+    if (narrow) {
+      const identity = row
+        .getByRole("cell")
+        .filter({ has: page.getByRole("link", { name, exact: true }) });
+      await expect(identity).toContainText("Level 7");
+      await expect(identity).toContainText("Manual");
+      await expect(roster.getByRole("columnheader", { name: "Level" })).toHaveCount(0);
+    } else {
+      await expect(roster.getByRole("columnheader", { name: "Level" })).toBeVisible();
+      await expect(
+        row.getByRole("cell", { name: "Manual", exact: true }),
+      ).toBeVisible();
+    }
     const source = (await row.boundingBox())!;
     const from = (await handle.boundingBox())!;
     const to = (await target.boundingBox())!;
@@ -880,6 +896,66 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
   } finally {
     await deleteCharacters(page.request, keys);
     await deleteParties(page.request, first.party_key, second.party_key);
+  }
+});
+
+test("Add PC transfers keyboard focus to each form and returns to its menu button @engine", async ({
+  page,
+}, info) => {
+  const party = await createParty(
+    page.request,
+    `Keyboard Add PC ${info.project.name} ${Date.now()}`,
+  );
+  const add = page.getByRole("button", { name: "Add PC", exact: true });
+  async function openMenu(firstCommand: string) {
+    await add.press("Enter");
+    await expect(add).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("menuitem", { name: firstCommand })).toBeFocused();
+  }
+  try {
+    await page.goto("/characters");
+    await openMenu("From Pathbuilder");
+    await page.keyboard.press("Enter");
+    const importer = page.getByRole("dialog", { name: "Import from Pathbuilder" });
+    await expect(importer.getByLabel("Pathbuilder JSON")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(importer).toBeHidden();
+    await expect(add).toBeFocused();
+
+    await openMenu("From Pathbuilder");
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("menuitem", { name: "Enter manually" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    const manual = page.getByRole("dialog", { name: "New character" });
+    await expect(manual.getByLabel("Name", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(manual).toBeHidden();
+    await expect(add).toBeFocused();
+
+    await page.goto(`/parties/${party.party_key}`);
+    await openMenu("Existing character");
+    await page.keyboard.press("Enter");
+    const picker = page.getByRole("dialog", { name: "Choose a character" });
+    await expect(picker).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(picker).toBeHidden();
+    await expect(add).toBeFocused();
+
+    await openMenu("Existing character");
+    await page.keyboard.press("ArrowDown");
+    await expect(
+      page.getByRole("menuitem", { name: "From Pathbuilder" }),
+    ).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("menuitem", { name: "Enter manually" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    const inline = page.locator(".character-inline-editor");
+    await expect(inline.getByLabel("Name", { exact: true })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(inline).toBeHidden();
+    await expect(add).toBeFocused();
+  } finally {
+    await deleteParties(page.request, party.party_key);
   }
 });
 

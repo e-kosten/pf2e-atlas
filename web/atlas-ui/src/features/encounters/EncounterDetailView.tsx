@@ -1,4 +1,5 @@
 import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
+import { canFocusTabElement } from "../../app/DesktopTabContext";
 import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -13,7 +14,7 @@ import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Grid, Spin } from "antd";
-import { Play } from "lucide-react";
+import { Dice5, Play } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounterConditionDefinitions } from "../../api/atlasApi";
 import { useEncounterStrike } from "./useEncounterStrike";
@@ -111,9 +112,8 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
     setRecoveryMode(null);
     restoreOverlayFocus(recoveryTrigger.current, null);
   };
-  const [initiativeOpen, setInitiativeOpen] = useState<{
-    participant?: string;
-  } | null>(null);
+  const [initiativeOpen, setInitiativeOpen] = useState(false);
+  const initiativeOpener = useRef<HTMLElement>(null);
   const encounter = useEncounterQuery(route.slug);
   const encounterKey = encounter.data?.encounter.encounter_key;
   useLayoutEffect(() => {
@@ -270,6 +270,25 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
     expectedRevision: encounter.data?.revision ?? 0,
   });
   const disabled = mutationDisabled || turnReview.preparing;
+  const needsInitiative =
+    turnReview.data?.next_turn_unavailable_reason === "no_initiative_participants";
+  const canRollInitiative = encounter.data?.participants.some(
+    (row) =>
+      row.participant_kind !== "pc" && row.participant_kind !== "initiative_entry",
+  );
+  const rollInitiativeAction = (inInspector: boolean) => (
+    <Button
+      type={inInspector ? "primary" : "text"}
+      disabled={disabled || !canRollInitiative}
+      icon={<Dice5 size={14} aria-hidden="true" />}
+      onClick={(event) => {
+        initiativeOpener.current = event.currentTarget;
+        setInitiativeOpen(true);
+      }}
+    >
+      Roll initiative
+    </Button>
+  );
   const turnAction = (
     <Button
       disabled={
@@ -462,7 +481,11 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
             >
               Back to roster
             </Button>
-            {turnAction}
+            {needsInitiative &&
+            canRollInitiative &&
+            !encounter.data?.current_turn_participant_key
+              ? rollInitiativeAction(true)
+              : turnAction}
           </div>
         )}
         {!encounter.data && encounter.isPending && (
@@ -498,7 +521,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                     throw new Error("Missing roll receipt");
                   return result.receipt;
                 }}
-                onRollInitiative={(participant) => setInitiativeOpen({ participant })}
+                rollInitiativeAction={rollInitiativeAction(false)}
                 recovery={recovery}
                 disabled={disabled}
                 error={
@@ -538,10 +561,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                 }}
 
                 turnAction={turnAction}
-                needsInitiative={
-                  turnReview.data?.next_turn_unavailable_reason ===
-                  "no_initiative_participants"
-                }
+                needsInitiative={needsInitiative}
                 onRemove={(participant, opener) => {
                   if (removedParticipantFocus.current) return;
                   setRemovalKey(participant.participant_key);
@@ -941,10 +961,19 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
             participants={encounter.data.participants.filter(
               (row) => row.participant_kind !== "initiative_entry",
             )}
-            initialParticipant={initiativeOpen.participant}
             disabled={disabled}
             onClose={() => {
-              if (!mutations.pending) setInitiativeOpen(null);
+              if (mutations.pending) return;
+              setInitiativeOpen(false);
+              restoreOverlayFocus(() => {
+                const opener = initiativeOpener.current;
+                if (canFocusTabElement(opener)) return opener;
+                return (
+                  host.current?.querySelector<HTMLButtonElement>(
+                    ".encounter-mobile-navigation button:last-child:not(:disabled)",
+                  ) ?? null
+                );
+              }, undefined);
             }}
             onRoll={async (request) => {
               const result = await mutations.run({ kind: "initiative", request });
