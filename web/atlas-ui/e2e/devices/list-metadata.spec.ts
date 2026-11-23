@@ -509,9 +509,38 @@ test("directory row actions stay reachable at phone width and retain focus after
       const edit = page.getByRole("button", { name: editName, exact: true });
       await expect(edit).toBeInViewport({ ratio: 1 });
       if (sample.route === "/encounters") {
+        const more = row.getByRole("button", {
+          name: `More actions for ${sample.name}`,
+          exact: true,
+        });
+        await expect(more).toBeInViewport({ ratio: 1 });
+        await activate(more, info);
+        const menu = page.getByRole("menu", {
+          name: `More actions for ${sample.name}`,
+        });
         await expect(
-          row.getByRole("button", { name: `Delete ${sample.name}`, exact: true }),
+          menu.getByRole("menuitem", { name: "Archive encounter" }),
         ).toBeInViewport({ ratio: 1 });
+        const remove = menu.getByRole("menuitem", { name: "Delete encounter" });
+        await expect(remove).toBeInViewport({ ratio: 1 });
+        await activate(remove, info);
+        const confirmation = page.getByRole("dialog", {
+          name: `Delete ${sample.name}?`,
+        });
+        await expect(
+          confirmation.getByRole("button", { name: "Delete", exact: true }),
+        ).toBeVisible();
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await activate(
+          confirmation.getByRole("button", { name: "Cancel", exact: true }),
+          info,
+        );
+        await expect(confirmation).toBeHidden();
+        await expect(more).toBeFocused();
+        await page.setViewportSize({ width: 320, height: 700 });
+        await expect(page.getByRole("columnheader", { name: sample.wide })).toHaveCount(
+          0,
+        );
       }
       await activate(edit, info);
       const dialog = page.getByRole("dialog", { name: sample.dialog, exact: true });

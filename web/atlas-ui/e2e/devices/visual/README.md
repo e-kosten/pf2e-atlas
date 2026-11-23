@@ -851,3 +851,19 @@ c0cc04d0655f04ca434d42352b1f502bf827fb4d on Ubuntu 24.04 x64.
 The macOS references were captured from the resolved PR worktree with the
 encounter-action guard restored on macOS 27.2 arm64. Both used Playwright 1.65.0
 and all four device projects.
+
+## Encounter turn summary
+
+PR #413 removes the draft and running labels from the roster and displays the
+round and current participant together once a turn starts. The longer label
+wraps in the roster and moves the participant rows below it. Twenty desktop
+Chromium and tablet WebKit references per platform incorporate the affected
+roster pixels. The condition and recovery surfaces retain their previous
+references outside that region. Both phone projects retain their existing PNGs.
+
+The [Linux capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45278561699)
+used the fixture from [PR CI](https://github.com/e-kosten/pf2e-atlas/actions/runs/45275215394),
+merge commit e34245c98f23cd4a494c0b6a7964ed08a49c722e on Ubuntu 24.04 x64.
+The macOS capture used PR head c52274659 on macOS 27.2.1 arm64. Both used
+Playwright 1.65.0. All 40 Linux capture frames matched the revised references
+with the suite's regular image comparator and zero permitted differing pixels.
