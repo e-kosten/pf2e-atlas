@@ -14,7 +14,7 @@ fn edit<T>(expected: T, value: T) -> FieldEdit<T> {
 fn list_fixture(worker: &AtlasAppService) -> String {
     worker
         .create_saved_list(CreateSavedListRequest {
-            slug: "planning".into(),
+            slug: Some("planning".into()),
             name: "Planning".into(),
             description: Some("Existing description".into()),
             tags: vec!["Next".into(), "Élite".into()],
@@ -329,4 +329,31 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
         .update_encounter(&original.encounter_key, request())
         .unwrap();
     assert_eq!(saved(), before_conflict);
+}
+
+#[test]
+fn concurrent_generated_list_names_allocate_distinct_owned_destinations() {
+    let service = fixture_worker().worker;
+    let barrier = std::sync::Barrier::new(2);
+    let [first, second] = std::thread::scope(|threads| {
+        let create = || {
+            barrier.wait();
+            service
+                .create_saved_list(CreateSavedListRequest {
+                    name: "Session prep".into(),
+                    slug: None,
+                    description: None,
+                    tags: vec![],
+                })
+                .unwrap()
+                .list
+        };
+        let a = threads.spawn(create);
+        let b = threads.spawn(create);
+        [a.join().unwrap(), b.join().unwrap()]
+    });
+    assert_ne!(first.list_key, second.list_key);
+    let mut slugs = [first.slug, second.slug];
+    slugs.sort();
+    assert_eq!(slugs, ["session-prep", "session-prep-2"]);
 }

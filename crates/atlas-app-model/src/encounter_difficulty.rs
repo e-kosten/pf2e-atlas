@@ -105,9 +105,34 @@ pub struct EncounterDifficultyRuleView {
 /// Current and prospective XP, calculated from the same saved roster and reference generation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EncounterDifficultyComparison {
+    pub record_key: String,
     pub encounter_key: String,
     pub revision: i64,
     pub artifact_generation: String,
     pub current: EncounterDifficultyView,
     pub projected: EncounterDifficultyView,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DraftEncounterPreviewView {
+    pub artifact_generation: String,
+    pub current: EncounterDifficultyView,
+    pub projected: EncounterDifficultyView,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateEncounterWithAdditionRequest {
+    pub name: String,
+    pub addition: crate::AddEncounterRecordParticipantRequest,
+    pub expected_artifact_generation: String,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreatedEncounterAdditionView {
+    pub encounter_key: String,
+    pub available: bool,
 }

@@ -8,6 +8,7 @@ use atlas_app_model::{
 use atlas_cli_support::{CliPathMode, write_json_data};
 use clap::{ArgGroup, Args, Subcommand, ValueEnum};
 mod output;
+mod review;
 
 use std::{fs::File, path::PathBuf, process::ExitCode};
 
@@ -75,7 +76,10 @@ enum EncounterCommand {
         )]
         participant: Option<String>,
     },
-    /// Compare the current encounter with a prospective addition without saving it.
+    /// Preview an addition and print the command to add the reviewed opponents.
+    #[command(
+        after_help = "Example:\n  atlas encounters preview garden-sentries --record 'Goblin Warrior' --quantity 2 --party-level 1 --party-size 4\n\nRun the returned add command to save the reviewed addition. Repeat that exact command to confirm a retry."
+    )]
     Preview {
         encounter: String,
         #[command(flatten)]
@@ -124,6 +128,12 @@ enum EncounterCommand {
         /// Reuse this ID and the canonical encounter key to retry one intended addition.
         #[arg(long)]
         request_id: Option<String>,
+        /// Require the roster revision returned by encounters preview.
+        #[arg(long)]
+        expected_revision: Option<i64>,
+        /// Require the reference generation returned by encounters preview.
+        #[arg(long)]
+        expected_artifact_generation: Option<String>,
         #[arg(long, allow_negative_numbers = true)]
         initiative: Option<i64>,
     },
@@ -201,7 +211,7 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
     let service = match connect(ClientOptions {
         search_profile: None,
         path_mode: crate::cli::runtime_path_mode(args.path_mode),
-        index: args.index,
+        index: args.index.clone(),
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
@@ -327,13 +337,15 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
                 expected_revision,
                 party.into(),
                 EncounterDifficultyAddition {
-                    record_ref: opponent.record,
+                    record_ref: opponent.record.clone(),
                     quantity: opponent.quantity,
                     participant_variant: opponent.adjustment.map(Into::into),
                     creature_scenario: None,
                 }
             ));
-            output::comparison(comparison, party, json)?;
+            let commands = review::workspace_args(args.path_mode, args.index.as_deref(), json)
+                .map(|workspace| review::Commands::new(&comparison, &opponent, party, &workspace));
+            output::comparison(comparison, party, commands, json)?;
         }
         EncounterCommand::Create {
             name,
@@ -443,24 +455,42 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             encounter,
             opponent,
             request_id,
+            expected_revision,
+            expected_artifact_generation,
             initiative,
         } => {
-            let view = view!(service.add_encounter_record_participant(
+            let guarded = expected_revision.is_some() || expected_artifact_generation.is_some();
+            let result = service.add_reviewed_encounter_record_participant(
                 &encounter,
                 AddEncounterRecordParticipantRequest {
-                    request_id: request_id.unwrap_or_else(|| {
-                        uuid::Builder::from_random_bytes(rand::random())
-                            .into_uuid()
-                            .to_string()
-                    }),
+                    request_id: request_id.unwrap_or_else(review::request_id),
                     creature_scenario: None,
-                    record_ref: opponent.record,
+                    record_ref: opponent.record.clone(),
                     quantity: opponent.quantity,
                     participant_variant: opponent.adjustment.map(Into::into),
                     initiative,
+                },
+                expected_revision,
+                expected_artifact_generation,
+            );
+            match result {
+                Ok(view) => output::added(view, json)?,
+                Err(error) => {
+                    let error = error.into_app_error();
+                    if guarded
+                        && matches!(
+                            error.code,
+                            atlas_app_model::AppErrorCode::EncounterTurnConflict
+                                | atlas_app_model::AppErrorCode::ArtifactGenerationChanged
+                        )
+                    {
+                        let workspace =
+                            review::workspace_args(args.path_mode, args.index.as_deref(), json);
+                        return review::report_stale(error, &encounter, &opponent, workspace, json);
+                    }
+                    return report_app_error(error, json);
                 }
-            ));
-            output::added(view, json)?;
+            }
         }
     }
     Ok(ExitCode::SUCCESS)

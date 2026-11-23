@@ -1029,6 +1029,88 @@ async fn record_and_filter_routes_use_real_router_wiring() {
 }
 
 #[tokio::test]
+async fn generated_list_urls_use_the_owned_allocator_and_keep_explicit_urls_strict() {
+    let fixture = Fixture::new();
+    for (name, slug) in [
+        ("宝物", "untitled"),
+        ("Session 1", "session-1"),
+        ("Session-1", "session-1-2"),
+    ] {
+        let (status, body) = fixture
+            .json(Method::POST, "/api/lists", Some(json!({"name":name})))
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["list"]["name"], name);
+        assert_eq!(body["list"]["slug"], slug);
+    }
+    for request in [
+        json!({"name":" "}),
+        json!({"name":"New","slug":null}),
+        json!({"name":"New","slug":""}),
+        json!({"name":"New","slug":"session-1"}),
+    ] {
+        let (status, _) = fixture
+            .json(Method::POST, "/api/lists", Some(request))
+            .await;
+        assert!(status.is_client_error());
+    }
+}
+
+#[tokio::test]
+async fn draft_preview_can_be_abandoned_or_committed_once() {
+    let fixture = Fixture::new();
+    let (_, initial) = fixture.json(Method::GET, "/api/encounters", None).await;
+    let addition = json!({"record_ref":ACTOR, "quantity":2});
+    let (status, preview) = fixture
+        .json(
+            Method::POST,
+            "/api/encounter-drafts/preview",
+            Some(addition.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{preview}");
+    assert_eq!(
+        preview["projected"]["opposition"].as_array().unwrap().len(),
+        1
+    );
+    let (_, after_preview) = fixture.json(Method::GET, "/api/encounters", None).await;
+    assert_eq!(initial, after_preview);
+    let mut addition = addition;
+    addition["request_id"] = json!("create-with-two");
+    let request = json!({"name":"Patrol", "expected_artifact_generation":preview["artifact_generation"], "addition":addition});
+    let (status, first) = fixture
+        .json(
+            Method::POST,
+            "/api/encounter-drafts/create",
+            Some(request.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{first}");
+    let (_, replay) = fixture
+        .json(
+            Method::POST,
+            "/api/encounter-drafts/create",
+            Some(request.clone()),
+        )
+        .await;
+    assert_eq!(first, replay);
+    let path = format!(
+        "/api/encounters/{}",
+        first["encounter_key"].as_str().unwrap()
+    );
+    let (_, roster) = fixture.json(Method::GET, &path, None).await;
+    assert_eq!(roster["participants"].as_array().unwrap().len(), 2);
+    fixture.json(Method::DELETE, &path, None).await;
+    let (_, historical) = fixture
+        .json(Method::POST, "/api/encounter-drafts/create", Some(request))
+        .await;
+    assert_eq!(historical["available"], false);
+    assert_eq!(historical["encounter_key"], first["encounter_key"]);
+    let (_, after_delete) = fixture.json(Method::GET, "/api/encounters", None).await;
+    assert_eq!(initial, after_delete);
+}
+
+#[tokio::test]
 async fn saved_list_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture.json(Method::GET, "/api/lists", None).await;

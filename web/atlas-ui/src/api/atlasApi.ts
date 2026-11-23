@@ -9,6 +9,8 @@ import type {
   AddSavedListItemRequest,
   AppReadinessView,
   CreateEncounterRequest,
+  CreateEncounterWithAdditionRequest,
+  EncounterDifficultyAddition,
   CreateSavedListRequest,
   DeleteEncounterView,
   DeleteSavedListView,
@@ -170,6 +172,22 @@ export async function getEncounterConditionDefinitions(
 
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
   return checkEncounterDetail(await http.encounter(encounterRef));
+}
+
+export function previewDraftEncounterAddition(
+  addition: EncounterDifficultyAddition,
+  signal?: AbortSignal,
+) {
+  return http.previewDraftEncounterAddition(checkRequest(addition), {
+    intent: "read",
+    signal,
+  });
+}
+
+export function createEncounterWithAddition(
+  request: CreateEncounterWithAdditionRequest,
+) {
+  return http.createEncounterWithAddition(checkRequest(request), { intent: "action" });
 }
 
 export async function createEncounter(

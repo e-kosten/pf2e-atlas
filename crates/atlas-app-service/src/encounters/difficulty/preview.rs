@@ -4,6 +4,24 @@ use atlas_app_model::{
 };
 
 impl AtlasAppService {
+    pub fn preview_draft_encounter_addition(
+        &self,
+        addition: EncounterDifficultyAddition,
+    ) -> AppServiceResult<atlas_app_model::DraftEncounterPreviewView> {
+        self.with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |session| {
+                let reference = local_reference(EncounterDifficultyReferenceInput::default());
+                let (_, current, projected) = project_addition(session, &[], reference, addition)?;
+                Ok(atlas_app_model::DraftEncounterPreviewView {
+                    artifact_generation: session.retrieval().artifact_generation()?,
+                    current,
+                    projected,
+                })
+            },
+        )
+    }
+
     pub fn preview_encounter_difficulty(
         &self,
         encounter_ref: &str,
@@ -61,9 +79,10 @@ impl AtlasAppService {
                     guard_revision(&snapshot.encounter, expected)?;
                 }
                 let reference = with_overrides(snapshot.encounter.difficulty_reference, overrides)?;
-                let (current, projected) =
-                    project_preview(session, &snapshot.participants, reference, Some(addition))?;
+                let (record_key, current, projected) =
+                    project_addition(session, &snapshot.participants, reference, addition)?;
                 Ok(EncounterDifficultyComparison {
+                    record_key,
                     encounter_key: snapshot.encounter.encounter_key,
                     revision: snapshot.encounter.revision,
                     artifact_generation: session.retrieval().artifact_generation()?,
@@ -87,17 +106,29 @@ fn read_preview(
         .get_with_participants(encounter_ref)?
         .ok_or_else(|| super::super::projection::encounter_not_found(encounter_ref))?;
     guard_revision(&snapshot.encounter, request.expected_revision)?;
-    let (_, projected) =
-        project_preview(session, &snapshot.participants, reference, request.addition)?;
-    Ok(projected)
+    if let Some(addition) = request.addition {
+        let (_, _, projected) =
+            project_addition(session, &snapshot.participants, reference, addition)?;
+        return Ok(projected);
+    }
+    let mut records = std::collections::BTreeMap::new();
+    super::super::hydration::load_participant_sources(
+        session.retrieval_mut(),
+        &snapshot.participants,
+        &mut records,
+    )?;
+    Ok(project(reference, &snapshot.participants, |key| {
+        records.get(key)
+    }))
 }
 
-fn project_preview(
+fn project_addition(
     session: &mut atlas_runtime::WorkspaceRead,
     participants: &[EncounterParticipant],
     reference: EncounterDifficultyReference,
-    addition: Option<EncounterDifficultyAddition>,
-) -> AppServiceResult<(EncounterDifficultyView, EncounterDifficultyView)> {
+    addition: EncounterDifficultyAddition,
+) -> AppServiceResult<(String, EncounterDifficultyView, EncounterDifficultyView)> {
+    super::super::record_addition::validate_quantity(addition.quantity)?;
     let mut records = std::collections::BTreeMap::new();
     super::super::hydration::load_participant_sources(
         session.retrieval_mut(),
@@ -106,70 +137,65 @@ fn project_preview(
     )?;
     let current = project(reference, participants, |key| records.get(key));
     let mut view = current.clone();
-    if let Some(addition) = addition {
-        let key = super::super::hydration::resolve_record_key(
-            session.retrieval_mut(),
-            &addition.record_ref,
-        )?;
-        let record = match records.entry(key.to_string()) {
-            std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
-            std::collections::btree_map::Entry::Vacant(entry) => entry.insert(
-                session
-                    .retrieval_mut()
-                    .get_record(atlas_search::GetRecordRequest {
-                        record_key: &key,
-                        selected_content: &[],
-                    })?
-                    .ok_or_else(|| {
-                        crate::AppServiceError::new(
-                            atlas_app_model::AppErrorCode::RecordNotFound,
-                            format!("record `{key}` was not found"),
-                        )
-                    })?,
-            ),
-        };
-        let replacement = super::super::record_addition::published_replacement(
-            session.retrieval_mut(),
-            record,
-            addition.participant_variant,
-            addition.creature_scenario.as_ref(),
-        )?;
-        let (record, variant) = match replacement.as_ref() {
-            Some(record) => (record, None),
-            None => (&*record, addition.participant_variant),
-        };
-        let prepared = super::super::record_addition::prepare(record, variant)?;
-        if addition.creature_scenario.is_some() {
-            view.prepared_creature_choice =
-                super::super::record_addition::prepared_choice(&prepared);
-        }
-        let source = atlas_record::source_record::SourceQueryView::new(
-            record.source.source(),
-            record.source.key().pack().as_str(),
-            "",
-        );
-        let level = super::super::rules::effective_level(
-            prepared.level_override,
-            prepared.participant_variant,
-            prepared.variant_origin,
-            source.actor().level().value(),
-            super::super::hydration::adjustment_applicable(&record.source),
-        )
-        .as_ref()
-        .and_then(super::super::mechanics::integer)
-        .and_then(|l| i32::try_from(l).ok());
-        view.opposition.push(opponent(
-            None,
-            prepared.display_name,
-            prepared.participant_kind,
-            level,
-            source.actor().hazard_complexity().value(),
-            view.party_level,
-            addition.quantity,
-        ));
-        recalculate(&mut view, participants);
+    let key =
+        super::super::hydration::resolve_record_key(session.retrieval_mut(), &addition.record_ref)?;
+    let record = match records.entry(key.to_string()) {
+        std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
+        std::collections::btree_map::Entry::Vacant(entry) => entry.insert(
+            session
+                .retrieval_mut()
+                .get_record(atlas_search::GetRecordRequest {
+                    record_key: &key,
+                    selected_content: &[],
+                })?
+                .ok_or_else(|| {
+                    crate::AppServiceError::new(
+                        atlas_app_model::AppErrorCode::RecordNotFound,
+                        format!("record `{key}` was not found"),
+                    )
+                })?,
+        ),
+    };
+    let replacement = super::super::record_addition::published_replacement(
+        session.retrieval_mut(),
+        record,
+        addition.participant_variant,
+        addition.creature_scenario.as_ref(),
+    )?;
+    let (record, variant) = match replacement.as_ref() {
+        Some(record) => (record, None),
+        None => (&*record, addition.participant_variant),
+    };
+    let prepared = super::super::record_addition::prepare(record, variant)?;
+    if addition.creature_scenario.is_some() {
+        view.prepared_creature_choice = super::super::record_addition::prepared_choice(&prepared);
     }
-    Ok((current, view))
+    let source = atlas_record::source_record::SourceQueryView::new(
+        record.source.source(),
+        record.source.key().pack().as_str(),
+        "",
+    );
+    let level = super::super::rules::effective_level(
+        prepared.level_override,
+        prepared.participant_variant,
+        prepared.variant_origin,
+        source.actor().level().value(),
+        super::super::hydration::adjustment_applicable(&record.source),
+    )
+    .as_ref()
+    .and_then(super::super::mechanics::integer)
+    .and_then(|l| i32::try_from(l).ok());
+    view.opposition.push(opponent(
+        None,
+        prepared.display_name,
+        prepared.participant_kind,
+        level,
+        source.actor().hazard_complexity().value(),
+        view.party_level,
+        addition.quantity,
+    ));
+    recalculate(&mut view, participants);
+    Ok((key.to_string(), current, view))
 }
 
 #[cfg(test)]

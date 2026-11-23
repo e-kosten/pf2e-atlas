@@ -1,4 +1,5 @@
 mod ability_state;
+mod addition_workflow;
 mod conditions;
 mod difficulty;
 #[cfg(test)]

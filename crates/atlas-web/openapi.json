@@ -3914,6 +3914,26 @@
         ],
         "type": "object"
       },
+      "CreateEncounterWithAdditionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "addition": {
+            "$ref": "#/components/schemas/AddEncounterRecordParticipantRequest"
+          },
+          "expected_artifact_generation": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "addition",
+          "expected_artifact_generation"
+        ],
+        "type": "object"
+      },
       "CreatePartyRequest": {
         "properties": {
           "members": {
@@ -3954,8 +3974,22 @@
           }
         },
         "required": [
-          "slug",
           "name"
+        ],
+        "type": "object"
+      },
+      "CreatedEncounterAdditionView": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "encounter_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "encounter_key",
+          "available"
         ],
         "type": "object"
       },
@@ -4567,6 +4601,25 @@
             "type": "object"
           }
         ]
+      },
+      "DraftEncounterPreviewView": {
+        "properties": {
+          "artifact_generation": {
+            "type": "string"
+          },
+          "current": {
+            "$ref": "#/components/schemas/EncounterDifficultyView"
+          },
+          "projected": {
+            "$ref": "#/components/schemas/EncounterDifficultyView"
+          }
+        },
+        "required": [
+          "artifact_generation",
+          "current",
+          "projected"
+        ],
+        "type": "object"
       },
       "EffectReferenceLabelView": {
         "properties": {
@@ -22188,6 +22241,100 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DefinitionDetailView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/encounter-drafts/create": {
+      "post": {
+        "operationId": "createEncounterWithAddition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEncounterWithAdditionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedEncounterAdditionView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/encounter-drafts/preview": {
+      "post": {
+        "operationId": "previewDraftEncounterAddition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncounterDifficultyAddition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftEncounterPreviewView"
                 }
               }
             },

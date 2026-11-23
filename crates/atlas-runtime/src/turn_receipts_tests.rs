@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn fresh_workspace_has_sixteen_encounter_tables() {
+fn fresh_workspace_has_seventeen_encounter_tables() {
     let directory = tempfile::tempdir().unwrap();
     let workspace = initialize_workspace(directory.path().join("commands-fresh.sqlite")).unwrap();
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
@@ -13,6 +13,6 @@ fn fresh_workspace_has_sixteen_encounter_tables() {
                 |row| row.get::<_, i64>(0),
             )
             .unwrap(),
-        16,
+        17,
     );
 }

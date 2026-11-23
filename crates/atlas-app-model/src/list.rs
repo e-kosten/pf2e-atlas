@@ -30,12 +30,22 @@ pub struct SavedListIndexView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct CreateSavedListRequest {
-    pub slug: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "explicit_slug"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub slug: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+}
+
+fn explicit_slug<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Option<String>, D::Error> {
+    String::deserialize(de).map(Some)
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

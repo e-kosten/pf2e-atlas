@@ -1,5 +1,6 @@
 //! Terminal and JSON encounter reads over the shared encounter projection.
-use super::{Detail, PartyReference};
+use super::{Detail, PartyReference, review::Commands};
+use crate::commands::followup::shell_command;
 use crate::commands::saved_workspace::write_text;
 use atlas_app_model::{
     EncounterAbilityStateKindView, EncounterDetailView, EncounterDifficultyComparison,
@@ -176,15 +177,26 @@ fn display<T: Display>(value: Option<T>) -> String {
 pub(super) fn comparison(
     comparison: EncounterDifficultyComparison,
     party: PartyReference,
+    commands: Result<Commands, String>,
     json: bool,
 ) -> Result<(), String> {
     let current = Difficulty::new(comparison.current, party);
     let projected = Difficulty::new(comparison.projected, party);
     if json {
-        return write_json_data(json!({
+        let mut data = json!({
             "encounter_key": comparison.encounter_key, "revision": comparison.revision,
             "artifact_generation": comparison.artifact_generation, "current": current, "projected": projected,
-        }));
+        });
+        match commands {
+            Ok(commands) => {
+                data["add_args"] = json!(commands.add);
+                if let Some(repeat) = commands.repeat_preview {
+                    data["repeat_preview_args"] = json!(repeat);
+                }
+            }
+            Err(reason) => data["followup_unavailable"] = json!(reason),
+        }
+        return write_json_data(data);
     }
     let mut text = format!(
         "{} · revision {}\n",
@@ -198,6 +210,17 @@ pub(super) fn comparison(
     for opponent in &projected.view.opposition {
         if opponent.participant_key.is_none() || opponent.xp.is_none() {
             write_opponent(&mut text, opponent);
+        }
+    }
+    match commands {
+        Ok(commands) => {
+            if let Some(repeat) = commands.repeat_preview {
+                let _ = writeln!(text, "\nRepeat preview: {}", shell_command(&repeat));
+            }
+            let _ = writeln!(text, "\nAdd as reviewed: {}", shell_command(&commands.add));
+        }
+        Err(reason) => {
+            let _ = writeln!(text, "{reason}");
         }
     }
     write_text(&text)

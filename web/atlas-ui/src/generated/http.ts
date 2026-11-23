@@ -2224,6 +2224,12 @@ export interface CreateEncounterRequest {
   note?: string | null;
 }
 
+export interface CreateEncounterWithAdditionRequest {
+  addition: AddEncounterRecordParticipantRequest;
+  expected_artifact_generation: string;
+  name: string;
+}
+
 export interface PartyMemberInput {
   character_key: string;
   expected_character_revision: number;
@@ -2238,8 +2244,13 @@ export interface CreateSavedListRequest {
   /** @nullable */
   description?: string | null;
   name: string;
-  slug: string;
+  slug?: string;
   tags?: string[];
+}
+
+export interface CreatedEncounterAdditionView {
+  available: boolean;
+  encounter_key: string;
 }
 
 export interface CreatureScenarioUseView {
@@ -2798,6 +2809,101 @@ export type DiscoverFilterValuesRequest = {
   text?: string | null;
 };
 
+export interface EncounterDifficultyBudgetView {
+  label: string;
+  xp: number;
+}
+
+export interface EncounterDifficultyOpponentView {
+  kind: string;
+  /** @nullable */
+  level: number | null;
+  name: string;
+  /**
+     * None for a prospective addition, which has no saved participant identity.
+     * @nullable
+     */
+  participant_key: string | null;
+  /** @nullable */
+  unavailable_reason: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  xp: number | null;
+}
+
+/**
+ * Null fields follow the PC snapshot; explicit values are GM overrides.
+ */
+export interface EncounterDifficultyReferenceView {
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  party_level: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  party_size: number | null;
+}
+
+/**
+ * Curated pinned rules destinations, like the source-linked condition catalog.
+ */
+export interface EncounterDifficultyRuleView {
+  navigation: RecordNavigationView;
+  title: string;
+}
+
+export interface EncounterDifficultyView {
+  /** @nullable */
+  award_note: string | null;
+  basis: string;
+  budgets: EncounterDifficultyBudgetView[];
+  /** @minimum 0 */
+  known_xp: number;
+  opposition: EncounterDifficultyOpponentView[];
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  party_level: number | null;
+  /**
+     * Effective budget count, including any supported mixed-level adjustment.
+     * @minimum 0
+     * @nullable
+     */
+  party_size: number | null;
+  /** @minimum 0 */
+  pc_count: number;
+  prepared_creature_choice?: PreparedCreatureChoice;
+  /** @nullable */
+  rating: string | null;
+  reference: EncounterDifficultyReferenceView;
+  /** @nullable */
+  reference_note: string | null;
+  rules: EncounterDifficultyRuleView[];
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  total_xp: number | null;
+  /**
+     * Suggested award normalized to a four-PC party; not persisted or distributed.
+     * @minimum 0
+     * @nullable
+     */
+  xp_per_pc: number | null;
+}
+
+export interface DraftEncounterPreviewView {
+  artifact_generation: string;
+  current: EncounterDifficultyView;
+  projected: EncounterDifficultyView;
+}
+
 export interface EmbeddedActivityAddress {
   owner: OwnedContentLocator;
   record_key: string;
@@ -3127,95 +3233,6 @@ export interface EncounterSummaryView {
 
 export interface EncounterCreateView {
   encounter: EncounterSummaryView;
-}
-
-export interface EncounterDifficultyBudgetView {
-  label: string;
-  xp: number;
-}
-
-export interface EncounterDifficultyOpponentView {
-  kind: string;
-  /** @nullable */
-  level: number | null;
-  name: string;
-  /**
-     * None for a prospective addition, which has no saved participant identity.
-     * @nullable
-     */
-  participant_key: string | null;
-  /** @nullable */
-  unavailable_reason: string | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  xp: number | null;
-}
-
-/**
- * Null fields follow the PC snapshot; explicit values are GM overrides.
- */
-export interface EncounterDifficultyReferenceView {
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  party_level: number | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  party_size: number | null;
-}
-
-/**
- * Curated pinned rules destinations, like the source-linked condition catalog.
- */
-export interface EncounterDifficultyRuleView {
-  navigation: RecordNavigationView;
-  title: string;
-}
-
-export interface EncounterDifficultyView {
-  /** @nullable */
-  award_note: string | null;
-  basis: string;
-  budgets: EncounterDifficultyBudgetView[];
-  /** @minimum 0 */
-  known_xp: number;
-  opposition: EncounterDifficultyOpponentView[];
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  party_level: number | null;
-  /**
-     * Effective budget count, including any supported mixed-level adjustment.
-     * @minimum 0
-     * @nullable
-     */
-  party_size: number | null;
-  /** @minimum 0 */
-  pc_count: number;
-  prepared_creature_choice?: PreparedCreatureChoice;
-  /** @nullable */
-  rating: string | null;
-  reference: EncounterDifficultyReferenceView;
-  /** @nullable */
-  reference_note: string | null;
-  rules: EncounterDifficultyRuleView[];
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  total_xp: number | null;
-  /**
-     * Suggested award normalized to a four-PC party; not persisted or distributed.
-     * @minimum 0
-     * @nullable
-     */
-  xp_per_pc: number | null;
 }
 
 export interface EncounterParticipantConditionView {
@@ -6481,6 +6498,76 @@ return fetchGenerated<DefinitionDetailView>(getDefinitionDetailUrl(),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(definitionDetailRequest)
+  }
+);}
+
+
+
+export const getCreateEncounterWithAdditionUrl = () => {
+
+
+
+
+  return `/api/encounter-drafts/create`
+}
+
+export const createEncounterWithAddition = async (createEncounterWithAdditionRequest: CreateEncounterWithAdditionRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<CreatedEncounterAdditionView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<CreatedEncounterAdditionView>(getCreateEncounterWithAdditionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createEncounterWithAdditionRequest)
+  }
+);}
+
+
+
+export const getPreviewDraftEncounterAdditionUrl = () => {
+
+
+
+
+  return `/api/encounter-drafts/preview`
+}
+
+export const previewDraftEncounterAddition = async (encounterDifficultyAddition: EncounterDifficultyAddition, options?: Parameters<typeof fetchGenerated>[1]): Promise<DraftEncounterPreviewView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<DraftEncounterPreviewView>(getPreviewDraftEncounterAdditionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(encounterDifficultyAddition)
   }
 );}
 

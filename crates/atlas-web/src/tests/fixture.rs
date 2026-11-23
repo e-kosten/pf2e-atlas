@@ -272,7 +272,7 @@ impl Fixture {
             .clone();
         let list_key = service
             .create_saved_list(CreateSavedListRequest {
-                slug: "research".into(),
+                slug: Some("research".into()),
                 name: "Research".into(),
                 description: None,
                 tags: vec![],

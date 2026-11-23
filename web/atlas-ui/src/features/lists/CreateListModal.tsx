@@ -1,13 +1,15 @@
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
+import { isUnconfirmedMutation } from "../../api/apiError";
+import { CheckListDirectory } from "./CheckListDirectory";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, Select, Space, Typography } from "antd";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createSavedList } from "../../api/atlasApi";
 import type { CreateSavedListRequest } from "../../generated/atlas";
-import { normalizeTags, savedListTagOptions, slugify } from "./listUtils";
+import { normalizeTags, savedListTagOptions } from "./listUtils";
 import { useSavedLists } from "./savedListQueries";
 
 type CreateListFormValues = {
@@ -37,6 +39,7 @@ export function CreateListModal({
       })),
     [lists.data?.lists],
   );
+  const [directoryChecked, setDirectoryChecked] = useState(false);
   const create = useMutation({
     mutationFn: (request: CreateSavedListRequest) => createSavedList(request),
     onSuccess: async (view) => {
@@ -49,6 +52,8 @@ export function CreateListModal({
     },
   });
 
+  const uncertain = create.isError && isUnconfirmedMutation(create.error);
+  const blocked = paused || (uncertain && !directoryChecked);
   return (
     <Modal
       transitionName=""
@@ -57,13 +62,13 @@ export function CreateListModal({
       closable={{ disabled: create.isPending }}
       keyboard={!create.isPending}
       mask={{ closable: !create.isPending }}
-      okText="Create list"
+      okText={uncertain ? "Create another list" : "Create list"}
       onCancel={() => {
         if (!inFlight.current) onCancel();
       }}
-      okButtonProps={{ disabled: paused }}
+      okButtonProps={{ disabled: blocked }}
       onOk={() => {
-        if (!paused) form.submit();
+        if (!blocked) form.submit();
       }}
       open={open}
       title="New list"
@@ -73,10 +78,10 @@ export function CreateListModal({
         layout="vertical"
         disabled={paused || create.isPending}
         onFinish={(values) => {
-          if (inFlight.current) return;
+          if (inFlight.current || blocked) return;
+          setDirectoryChecked(false);
           inFlight.current = true;
           create.mutate({
-            slug: slugify(values.name),
             name: values.name,
             tags: normalizeTags(values.tags),
           });
@@ -86,15 +91,7 @@ export function CreateListModal({
           label="Name"
           name="name"
           validateFirst
-          rules={[
-            { required: true, whitespace: true, message: "Name is required." },
-            {
-              validator: (_, value: string | undefined) =>
-                value === undefined || slugify(value).length > 0
-                  ? Promise.resolve()
-                  : Promise.reject(new Error("Use at least one letter or number.")),
-            },
-          ]}
+          rules={[{ required: true, whitespace: true, message: "Name is required." }]}
         >
           <Input />
         </Form.Item>
@@ -129,7 +126,25 @@ export function CreateListModal({
         </Form.Item>
       </Form>
       {create.error && (
-        <ErrorNotice error={create.error} title="List could not be created" />
+        <ErrorNotice
+          error={create.error}
+          outcome={uncertain ? "uncertain" : undefined}
+          title={
+            uncertain
+              ? "List creation could not be confirmed"
+              : "List could not be created"
+          }
+          description={
+            uncertain
+              ? "Check the list directory before creating another list."
+              : undefined
+          }
+          action={
+            uncertain && (
+              <CheckListDirectory onChecked={() => setDirectoryChecked(true)} />
+            )
+          }
+        />
       )}
     </Modal>
   );

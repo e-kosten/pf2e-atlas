@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 49. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 50. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.
@@ -269,6 +269,13 @@ preserves the opaque request ID under its newly allocated key. A workspace
 restore preserves both identities. Readers predating the new outcome reject
 the unknown tag during decoding. Existing file versions remain sufficient.
 
+Schema 50 adds owner-scoped receipts for creating an encounter with its first
+creature or hazard. Confirmation writes the encounter, the participant batch
+and the receipt in one transaction. The receipt binds the request ID and
+normalized intent digest to the original encounter key. It survives deletion
+so confirming a lost response cannot recreate an encounter. An encounter copy
+has an independent creation history. The migration adds an empty table.
+
 ### Inline Markdown and custom turns
 
 List descriptions, saved list item notes and encounter participant notes store
@@ -296,6 +303,7 @@ on a current-schema workspace. Generated reference data and the SQLite
 migration backup have their own storage lifecycles.
 
 Archive versions advance independently of the database schema. Capture emits
+`6.0` for encounter creation receipts, including deleted encounters, and
 `5.0` for original Pathbuilder exports or their versioned receipt history.
 Backups that carry complete imports contain the original JSON, including
 biography and custom player fields. Capture emits the legacy `4.0` shape for

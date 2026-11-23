@@ -26,8 +26,17 @@ struct Owner<E> {
     lists: Vec<List>,
     parties: Vec<Party>,
     encounters: Vec<E>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    encounter_creation_receipts: Vec<EncounterCreationReceipt>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pc: Option<PcState>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct EncounterCreationReceipt {
+    request_id: String,
+    intent_digest: String,
+    encounter_key: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -53,6 +62,11 @@ impl SavedWorkspace {
         )?;
         let has_adjustment_table = db.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='encounter_adjustments')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )?;
+        let has_creation_receipts = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='encounter_creation_receipts')",
             [],
             |row| row.get::<_, bool>(0),
         )?;
@@ -86,6 +100,16 @@ impl SavedWorkspace {
                             .map(|key| key.to_string()),
                     );
                 }
+                let encounter_creation_receipts = if has_creation_receipts {
+                    rows(db,
+                        "SELECT request_id,intent_digest,encounter_key FROM encounter_creation_receipts WHERE owner_id=?1 ORDER BY request_id",
+                        [id], |row| Ok(EncounterCreationReceipt {
+                            request_id: row.get(0)?, intent_digest: row.get(1)?, encounter_key: row.get(2)?,
+                        }),
+                    )?
+                } else {
+                    Vec::new()
+                };
                 let pc = PcState::capture(db, id)?;
                 if let Some(pc) = &pc {
                     keys.extend(pc.record_keys());
@@ -96,6 +120,7 @@ impl SavedWorkspace {
                     lists,
                     parties: Party::capture(db, id)?,
                     encounters,
+                    encounter_creation_receipts,
                     pc,
                 })
             })
@@ -117,6 +142,12 @@ impl SavedWorkspace {
             references,
             condition_floor: condition_floor(db)?,
         })
+    }
+
+    pub fn has_encounter_creation_receipts(&self) -> bool {
+        self.owners
+            .iter()
+            .any(|owner| !owner.encounter_creation_receipts.is_empty())
     }
 
     pub fn has_characters(&self) -> bool {
@@ -253,10 +284,44 @@ impl SavedWorkspace {
                     lists: owner.lists,
                     parties: owner.parties,
                     encounters: restored,
+                    encounter_creation_receipts: owner.encounter_creation_receipts,
                     pc: owner.pc,
                 })
             })
-            .collect::<LocalStateResult<_>>()?;
+            .collect::<LocalStateResult<Vec<_>>>()?;
+        let mut receipt_targets = BTreeSet::new();
+        for owner in &validated {
+            let owned: BTreeSet<_> = owner
+                .encounters
+                .iter()
+                .map(|e| e.root().encounter_key.as_str())
+                .collect();
+            let mut request_ids = BTreeSet::new();
+            for receipt in &owner.encounter_creation_receipts {
+                unique(
+                    &mut request_ids,
+                    &receipt.request_id,
+                    "encounter creation request",
+                )?;
+                unique(
+                    &mut receipt_targets,
+                    &receipt.encounter_key,
+                    "encounter creation outcome",
+                )?;
+                require(
+                    crate::encounters::creation_receipts::valid_creation_identity(
+                        &receipt.request_id,
+                        &receipt.intent_digest,
+                    ) && (1..=255).contains(&receipt.encounter_key.len()),
+                    "invalid encounter creation receipt",
+                )?;
+                require(
+                    !encounters.contains(&receipt.encounter_key)
+                        || owned.contains(receipt.encounter_key.as_str()),
+                    "encounter creation receipt belongs to a different owner",
+                )?;
+            }
+        }
         require(owners.contains("local"), "missing seeded local principal")?;
         Ok(ValidatedWorkspace {
             owners: validated,
@@ -295,6 +360,12 @@ impl ValidatedWorkspace {
             for encounter in &owner.encounters {
                 encounter.restore(db, id)?;
             }
+            for receipt in &owner.encounter_creation_receipts {
+                db.execute(
+                    "INSERT INTO encounter_creation_receipts(owner_id,request_id,intent_digest,encounter_key) VALUES(?1,?2,?3,?4)",
+                    params![id, receipt.request_id, receipt.intent_digest, receipt.encounter_key],
+                )?;
+            }
             if let Some(pc) = &owner.pc {
                 pc.restore(db, id)?;
             }
@@ -318,6 +389,7 @@ pub fn check_empty(db: &Connection) -> LocalStateResult<()> {
         "SELECT NOT (EXISTS(SELECT 1 FROM saved_lists) OR EXISTS(SELECT 1 FROM parties)
                      OR EXISTS(SELECT 1 FROM encounters) OR EXISTS(SELECT 1 FROM characters)
                      OR EXISTS(SELECT 1 FROM character_creation_receipts)
+                     OR EXISTS(SELECT 1 FROM encounter_creation_receipts)
                      OR EXISTS(SELECT 1 FROM principals WHERE principal_key != 'local'))",
         [],
         |row| row.get(0),

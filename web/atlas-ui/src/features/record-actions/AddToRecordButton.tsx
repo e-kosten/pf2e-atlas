@@ -1,5 +1,9 @@
 import { isUnconfirmedMutation } from "../../api/apiError";
-import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
+import {
+  MarkdownEditor,
+  type MarkdownEditorHandle,
+} from "../../shared/documents/MarkdownEditor";
+import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoices";
@@ -11,6 +15,8 @@ import {
   type PreparedCreatureAddition,
   type EncounterRecordAddForm,
 } from "../encounters/EncounterAddDifficulty";
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
+import { difficultySummary } from "../encounters/EncounterDifficulty";
 import { EncounterRecordAdjustment } from "../encounters/EncounterRecordAdjustment";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
@@ -34,7 +40,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   addEncounterRecordParticipant,
   addSavedListItem,
-  createEncounter,
+  createEncounterWithAddition,
+  previewDraftEncounterAddition,
   createSavedList,
   getEncounter,
   getEncounters,
@@ -48,10 +55,11 @@ import {
 } from "../../app/navigation";
 import type {
   AddEncounterRecordParticipantRequest,
+  CreateEncounterWithAdditionRequest,
   RecordSummaryView,
 } from "../../generated/atlas";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
-import { slugify } from "../lists/listUtils";
+import { CheckListDirectory } from "../lists/CheckListDirectory";
 import { invalidateSavedListQueries, useSavedLists } from "../lists/savedListQueries";
 
 type DestinationKind = "list" | "encounter";
@@ -141,10 +149,31 @@ function AddToRecordModal({
   const kind = encounterOnly ? "encounter" : canAddEncounter ? destinationKind : "list";
   const [selected, setSelected] = useState<Destination | null>(null);
   const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState(false);
-  const [form] = Form.useForm<
-    EncounterRecordAddForm & { name?: string; note?: string }
-  >();
+  const [createdList, setCreatedList] = useState(false);
+  const [listCreateUncertain, setListCreateUncertain] = useState(false);
+  const [directoryChecked, setDirectoryChecked] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const expandButton = useRef<HTMLButtonElement>(null);
+  const backButton = useRef<HTMLSpanElement>(null);
+  const restoreExpandFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (expanded) backButton.current?.closest("button")?.focus({ preventScroll: true });
+    else if (restoreExpandFocus.current) {
+      restoreExpandFocus.current = false;
+      expandButton.current?.focus({ preventScroll: true });
+    }
+  }, [expanded]);
+  const noteEditor = useRef<MarkdownEditorHandle>(null);
+  const focusNote = useRef(false);
+  useLayoutEffect(() => {
+    if (noteOpen && focusNote.current) {
+      focusNote.current = false;
+      noteEditor.current?.focus();
+    }
+  }, [noteOpen]);
+  const [form] = Form.useForm<EncounterRecordAddForm & { name?: string }>();
   const choiceInput = useRef<RefSelectProps>(null);
   const nameInput = useRef<InputRef>(null);
   const newButton = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
@@ -169,6 +198,16 @@ function AddToRecordModal({
     destination: Destination;
     request: AddEncounterRecordParticipantRequest;
   } | null>(null);
+  const [unconfirmedCreation, setUnconfirmedCreation] =
+    useState<CreateEncounterWithAdditionRequest | null>(null);
+  const frozen = Boolean(unconfirmed || unconfirmedCreation);
+  const hasUnsavedDraft = () =>
+    !frozen &&
+    Boolean(
+      noteDraft.trim() ||
+      (kind === "list" && creating && form.getFieldValue("name")?.trim()),
+    );
+  useTabCloseGuard(() => (expanded && hasUnsavedDraft() ? "dirty" : undefined));
   const createdDestination = useRef<Destination | null>(null);
   const lists = useSavedLists({ enabled: open && kind === "list" });
   const encounters = useQuery({
@@ -233,6 +272,25 @@ function AddToRecordModal({
       ]);
     }
   }, [open, kind, creature, form, resolvedAdjustment]);
+  const newEncounter = open && creating && kind === "encounter";
+  const draftAddition = encounterRecordAddition(recordKey, creature, form, scenario);
+  const draftValid =
+    Number.isInteger(draftAddition.quantity) &&
+    draftAddition.quantity >= 1 &&
+    draftAddition.quantity <= 50;
+  const preview = useQuery({
+    meta: referenceQueryMeta,
+    queryKey: ["draft-encounter-addition", draftAddition],
+    queryFn: ({ signal }) => previewDraftEncounterAddition(draftAddition, signal),
+    enabled: newEncounter && draftValid && !adjustmentBlocked && !frozen,
+    retry: false,
+  });
+  const reviewed =
+    draftValid && !preview.isFetching && !preview.isError ? preview.data : undefined;
+  const waitingForDraft =
+    newEncounter &&
+    (!reviewed || (scenario && !reviewed.projected.prepared_creature_choice));
+  const listBlocked = listCreateUncertain && !directoryChecked;
   const catalog = kind === "list" ? lists : encounters;
   const destinations: Destination[] =
     kind === "list"
@@ -248,40 +306,86 @@ function AddToRecordModal({
             name: encounter.name,
             slug: encounter.slug,
           }));
+  const choices =
+    selected && !destinations.some((item) => item.key === selected.key)
+      ? [selected, ...destinations]
+      : destinations;
+  const nameCounts = new Map<string, number>();
+  if (kind === "list") {
+    for (const { name } of choices) {
+      const normalized = name.normalize().toLocaleLowerCase();
+      nameCounts.set(normalized, (nameCounts.get(normalized) ?? 0) + 1);
+    }
+  }
+  const options = choices.map((item) => ({
+    value: item.key,
+    label:
+      (nameCounts.get(item.name.normalize().toLocaleLowerCase()) ?? 0) > 1
+        ? `${item.name} (${item.slug})`
+        : item.name,
+  }));
   const submit = useMutation({
     retry: false,
     mutationFn: async ({ name, note }: { name?: string; note?: string }) => {
       let destination = unconfirmed?.destination ?? selected;
-      if (!unconfirmed && creating && name) {
-        if (kind === "list") {
-          const view = await createSavedList({ name, slug: slugify(name), tags: [] });
+      if (unconfirmedCreation || (newEncounter && name)) {
+        let request = unconfirmedCreation;
+        if (!request) {
+          if (!reviewed || !name || waitingForDraft)
+            throw new Error("Review the encounter addition first.");
+          const addition = encounterRecordAddition(recordKey, creature, form, scenario);
+          if (JSON.stringify(addition) !== JSON.stringify(draftAddition))
+            throw new Error("Review the updated addition first.");
+          if (addition.creature_scenario && reviewed.projected.prepared_creature_choice)
+            addition.creature_scenario.expected =
+              reviewed.projected.prepared_creature_choice;
+          request = {
+            name,
+            addition: recordAdditionRequest(addition),
+            expected_artifact_generation: reviewed.artifact_generation,
+          };
+        }
+        try {
+          const receipt = await createEncounterWithAddition(request);
+          setUnconfirmedCreation(null);
+          void queryClient.invalidateQueries({ queryKey: ["encounters"] });
+          return {
+            destination: {
+              key: receipt.encounter_key,
+              slug: receipt.encounter_key,
+              name: request.name,
+            },
+            alreadyPresent: false,
+            deleted: !receipt.available,
+          };
+        } catch (error) {
+          if (isUnconfirmedMutation(error)) setUnconfirmedCreation(request);
+          else {
+            setUnconfirmedCreation(null);
+            if (creature) void detail.refetch();
+            void preview.refetch();
+          }
+          throw error;
+        }
+      }
+      if (creating && kind === "list" && name) {
+        setDirectoryChecked(false);
+        try {
+          const view = await createSavedList({ name, tags: [] });
+          setListCreateUncertain(false);
           destination = {
             key: view.list.list_key,
             slug: view.list.slug,
             name: view.list.name,
           };
-        } else {
-          const view = await createEncounter({ name });
-          destination = {
-            key: view.encounter.encounter_key,
-            slug: view.encounter.slug,
-            name: view.encounter.name,
-          };
+        } catch (error) {
+          setListCreateUncertain(isUnconfirmedMutation(error));
+          throw error;
         }
-        // A later add failure must retry this destination, never create it again.
         createdDestination.current = destination;
-        void queryClient.invalidateQueries({
-          queryKey: [kind === "list" ? "saved-lists" : "encounters"],
-        });
+        void queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
       }
       if (!destination) throw new Error("Choose a destination.");
-      if (kind === "encounter" && creating && scenario && !unconfirmed) {
-        // A new encounter has a canonical key and revision only after creation.
-        setSelected(destination);
-        setCreating(false);
-        setCreated(true);
-        return;
-      }
       if (kind === "list") {
         const receipt = await addSavedListItem(destination.key, {
           record_ref: recordKey,
@@ -293,7 +397,11 @@ function AddToRecordModal({
           receipt.slug,
           receipt.list_key,
         ]);
-        return { destination, alreadyPresent: receipt.outcome === "already_present" };
+        return {
+          destination,
+          alreadyPresent: receipt.outcome === "already_present",
+          deleted: false,
+        };
       }
       const request = unconfirmed?.request ?? recordAdditionRequest(currentAddition());
       let receipt;
@@ -312,10 +420,14 @@ function AddToRecordModal({
       ])) {
         void queryClient.invalidateQueries({ queryKey: ["encounter", ref] });
       }
-      return { destination, alreadyPresent: false };
+      return { destination, alreadyPresent: false, deleted: false };
     },
     onSuccess: (result) => {
-      if (!result) return;
+      if (result.deleted) {
+        void message.info("The encounter was created and has since been deleted.");
+        onClose();
+        return;
+      }
       const { destination, alreadyPresent } = result;
       const target =
         kind === "list"
@@ -347,7 +459,7 @@ function AddToRecordModal({
       if (createdDestination.current) {
         setSelected(createdDestination.current);
         setCreating(false);
-        setCreated(true);
+        setCreatedList(true);
       }
     },
     onSettled: () => {
@@ -355,16 +467,17 @@ function AddToRecordModal({
     },
   });
   const run = (name?: string) => {
-    if (inFlight.current) return;
+    if (expanded || inFlight.current) return;
     inFlight.current = true;
-    const note = form.getFieldValue("note");
-    submit.mutate({ name, note: note?.trim() ? note : undefined });
+    submit.mutate({ name, note: noteDraft.trim() ? noteDraft : undefined });
   };
   const changeMode = (next: boolean) => {
     if (inFlight.current) return;
     createdDestination.current = null;
     setCreating(next);
-    setCreated(false);
+    setCreatedList(false);
+    setListCreateUncertain(false);
+    setDirectoryChecked(false);
     submit.reset();
   };
   const cancel = () => {
@@ -373,19 +486,32 @@ function AddToRecordModal({
   return (
     <Modal
       open={open}
+      layout={expanded ? "document" : "form"}
+      width={expanded ? "100%" : undefined}
       afterClose={() => {
         // Reopening an unconfirmed add must retain its original destination and ID.
-        if (unconfirmed) return;
+        if (frozen) return;
         createdDestination.current = null;
         setKind("list");
         setSelected(null);
         setCreating(false);
-        setCreated(false);
+        setCreatedList(false);
+        setListCreateUncertain(false);
+        setDirectoryChecked(false);
+        setExpanded(false);
+        setNoteOpen(false);
+        setNoteDraft("");
         form.resetFields();
         submit.reset();
       }}
       title={
-        encounterOnly ? "Add to encounter" : canAddEncounter ? "Add to…" : "Add to list"
+        expanded
+          ? "List entry note"
+          : encounterOnly
+            ? "Add to encounter"
+            : canAddEncounter
+              ? "Add to…"
+              : "Add to list"
       }
       transitionName=""
       maskTransitionName=""
@@ -394,58 +520,75 @@ function AddToRecordModal({
       okButtonProps={{
         disabled:
           paused ||
-          (!unconfirmed &&
-            (adjustmentBlocked ||
+          (!frozen &&
+            (listBlocked ||
+              waitingForDraft ||
+              adjustmentBlocked ||
               waitingForCreaturePreview ||
               (!creating && !selected))),
       }}
-      closable={{ disabled: submit.isPending }}
+      closable={
+        expanded
+          ? {
+              closeIcon: <span ref={backButton}>Collapse editor</span>,
+              "aria-label": "Collapse editor",
+            }
+          : { disabled: submit.isPending }
+      }
+      styles={
+        expanded
+          ? { close: { width: "auto", paddingInline: "var(--space-control)" } }
+          : undefined
+      }
       keyboard={!submit.isPending}
-      mask={{ closable: !submit.isPending }}
+      mask={{ closable: !expanded && !submit.isPending }}
       okText={
-        unconfirmed
+        frozen
           ? "Retry to confirm"
           : creating
-            ? kind === "encounter" && scenario
-              ? "Create & preview"
+            ? listCreateUncertain
+              ? "Create another list & add"
               : "Create & add"
             : "Add"
       }
       confirmDiscard={{
-        when: () =>
-          Boolean(
-            form.getFieldValue("note")?.trim() ||
-            (kind === "list" && creating && form.getFieldValue("name")?.trim()),
-          ),
+        when: () => !expanded && hasUnsavedDraft(),
         onDiscard: cancel,
       }}
-      onCancel={cancel}
+      onCancel={() => {
+        if (expanded) setExpanded(false);
+        else cancel();
+      }}
       onOk={() => {
-        if (paused) return;
-        if (unconfirmed) run();
+        if (expanded || paused) return;
+        if (frozen) run();
         else if (creating || kind === "encounter") form.submit();
         else if (selected) run();
       }}
-      footer={(_, { OkBtn, CancelBtn }) => (
-        <div className="record-destination-picker__footer">
-          {creating && (
-            <Button disabled={submit.isPending} onClick={() => changeMode(false)}>
-              Choose existing {kind}
-            </Button>
-          )}
-          <div className="record-destination-picker__footer-actions">
-            <CancelBtn />
-            <OkBtn />
-          </div>
-        </div>
-      )}
+      footer={
+        expanded
+          ? null
+          : (_, { OkBtn, CancelBtn }) => (
+              <div className="record-destination-picker__footer">
+                {creating && !frozen && (
+                  <Button disabled={submit.isPending} onClick={() => changeMode(false)}>
+                    Choose existing {kind}
+                  </Button>
+                )}
+                <div className="record-destination-picker__footer-actions">
+                  <CancelBtn />
+                  <OkBtn />
+                </div>
+              </div>
+            )
+      }
     >
-      {record && (
+      {!expanded && record && (
         <Typography.Text className="record-destination-picker__record">
           {record.title}
         </Typography.Text>
       )}
-      {canAddEncounter && !encounterOnly && (
+      {!expanded && canAddEncounter && !encounterOnly && (
         <Tabs
           activeKey={kind}
           animated={false}
@@ -455,35 +598,38 @@ function AddToRecordModal({
             setKind(value as DestinationKind);
             setSelected(null);
             setCreating(false);
-            setCreated(false);
-            const note = form.getFieldValue("note");
+            setCreatedList(false);
+            setListCreateUncertain(false);
+            setDirectoryChecked(false);
             form.resetFields();
-            form.setFieldValue("note", note);
             submit.reset();
           }}
           items={[
             {
               key: "list",
               label: "Lists",
-              disabled: submit.isPending || Boolean(unconfirmed),
+              disabled: submit.isPending || frozen,
             },
             {
               key: "encounter",
               label: "Encounters",
-              disabled: submit.isPending || Boolean(unconfirmed),
+              disabled: submit.isPending || frozen,
             },
           ]}
         />
       )}
-      <div className="record-destination-picker">
+      <div className="record-destination-picker" data-document={expanded || undefined}>
         <Form
           className="record-destination-picker__form"
           form={form}
           layout="vertical"
-          disabled={paused || submit.isPending || Boolean(unconfirmed)}
+          disabled={paused || submit.isPending || frozen}
           onFinish={({ name }) => {
             if (
-              unconfirmed ||
+              expanded ||
+              frozen ||
+              listBlocked ||
+              waitingForDraft ||
               adjustmentBlocked ||
               (encounterKey &&
                 scenario &&
@@ -499,19 +645,11 @@ function AddToRecordModal({
               style={{ marginBottom: 0 }}
               name="name"
               label={kind === "list" ? "New list name" : "New encounter name"}
-              rules={[
-                { required: true, whitespace: true, message: "Enter a name." },
-                {
-                  validator: (_, value: string | undefined) =>
-                    kind !== "list" || value === undefined || slugify(value).length > 0
-                      ? Promise.resolve()
-                      : Promise.reject(new Error("Use at least one letter or number.")),
-                },
-              ]}
+              rules={[{ required: true, whitespace: true, message: "Enter a name." }]}
             >
               <Input ref={nameInput} autoComplete="off" />
             </Form.Item>
-          ) : (
+          ) : !expanded ? (
             <>
               <div className="record-destination-picker__choices">
                 <Select
@@ -519,9 +657,7 @@ function AddToRecordModal({
                   ref={choiceInput}
                   aria-label={kind === "list" ? "Saved list" : "Encounter"}
                   disabled={
-                    submit.isPending ||
-                    Boolean(unconfirmed) ||
-                    (!destinations.length && !selected)
+                    submit.isPending || frozen || (!destinations.length && !selected)
                   }
                   loading={catalog.isFetching}
                   showSearch={{ optionFilterProp: "label" }}
@@ -529,23 +665,21 @@ function AddToRecordModal({
                     kind === "list" ? "Choose a list" : "Choose an encounter"
                   }
                   value={selected?.key ?? null}
-                  options={(selected &&
-                  !destinations.some((item) => item.key === selected.key)
-                    ? [selected, ...destinations]
-                    : destinations
-                  ).map((item) => ({ label: item.name, value: item.key }))}
+                  options={options}
                   onChange={(key) => {
                     if (inFlight.current) return;
                     createdDestination.current = null;
                     setSelected(destinations.find((item) => item.key === key) ?? null);
-                    setCreated(false);
+                    setCreatedList(false);
+                    setListCreateUncertain(false);
+                    setDirectoryChecked(false);
                     submit.reset();
                   }}
                 />
                 <Button
                   ref={newButton}
                   icon={<Plus size={16} />}
-                  disabled={submit.isPending || Boolean(unconfirmed)}
+                  disabled={submit.isPending || frozen}
                   onClick={() => changeMode(true)}
                 >
                   New {kind}
@@ -562,13 +696,13 @@ function AddToRecordModal({
                   </Typography.Text>
                 )}
             </>
-          )}
+          ) : null}
           {kind === "encounter" && (
             <div className="record-destination-picker__encounter-fields">
               {creature && (
                 <EncounterRecordAdjustment
                   loading={detail.isPending}
-                  disabled={adjustmentBlocked || Boolean(unconfirmed)}
+                  disabled={adjustmentBlocked || frozen}
                 />
               )}
               <Form.Item
@@ -591,11 +725,89 @@ function AddToRecordModal({
             </div>
           )}
           {kind === "list" && (
-            <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
-              <MarkdownEditor label="Note" />
-            </Form.Item>
+            <div className="record-destination-picker__note">
+              <div
+                className="record-destination-picker__note-controls"
+                hidden={expanded}
+              >
+                <Button
+                  type="link"
+                  size="small"
+                  aria-expanded={noteOpen}
+                  onClick={() => {
+                    focusNote.current = !noteOpen;
+                    setNoteOpen(!noteOpen);
+                  }}
+                >
+                  {noteOpen
+                    ? "Hide note"
+                    : noteDraft.trim()
+                      ? "Edit note (included)"
+                      : "Add a note"}
+                </Button>
+                {noteOpen && (
+                  <Button
+                    ref={expandButton}
+                    size="small"
+                    type="text"
+                    onClick={() => {
+                      restoreExpandFocus.current = true;
+                      setExpanded(true);
+                    }}
+                  >
+                    Expand editor
+                  </Button>
+                )}
+              </div>
+              {noteOpen && (
+                <MarkdownEditor
+                  id="note"
+                  label="Note"
+                  sizing={expanded ? "fill" : "compact"}
+                  editorRef={noteEditor}
+                  value={noteDraft}
+                  onChange={setNoteDraft}
+                />
+              )}
+            </div>
           )}
         </Form>
+        {newEncounter && !frozen && (
+          <section aria-label="Encounter addition preview" aria-live="polite">
+            {reviewed ? (
+              <>
+                <strong>
+                  {draftAddition.quantity === 1 && "1 × "}
+                  {reviewed.projected.opposition[0]?.name}
+                </strong>
+                <div>
+                  {reviewed.projected.party_level === null ||
+                  reviewed.projected.party_size === null
+                    ? "Set the party level and size to see XP and difficulty."
+                    : difficultySummary(reviewed.projected)}
+                </div>
+              </>
+            ) : preview.error && draftValid && !adjustmentBlocked ? (
+              <ErrorNotice
+                error={preview.error}
+                title="Addition preview could not load"
+                action={
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      if (scenario) void detail.refetch();
+                      void preview.refetch();
+                    }}
+                  >
+                    Retry
+                  </Button>
+                }
+              />
+            ) : draftValid && !adjustmentBlocked ? (
+              "Preparing addition…"
+            ) : null}
+          </section>
+        )}
         {encounter.data && encounterKey && (
           <EncounterAddDifficulty
             encounterKey={encounterKey}
@@ -609,7 +821,7 @@ function AddToRecordModal({
             scenario={scenario}
             onPreparedCreature={setPreparedCreature}
             recordName={record?.title ?? recordKey}
-            disabled={submit.isPending || adjustmentBlocked || Boolean(unconfirmed)}
+            disabled={submit.isPending || adjustmentBlocked || frozen}
           />
         )}
         {adjustmentBlocked && detail.error && (
@@ -655,17 +867,35 @@ function AddToRecordModal({
         {submit.error && (
           <ErrorNotice
             error={submit.error}
-            outcome={created ? "saved" : undefined}
+            outcome={
+              createdList
+                ? "saved"
+                : frozen || listCreateUncertain
+                  ? "uncertain"
+                  : undefined
+            }
+            description={
+              listCreateUncertain
+                ? "Check the list directory before creating another list."
+                : undefined
+            }
+            action={
+              listCreateUncertain && (
+                <CheckListDirectory onChecked={() => setDirectoryChecked(true)} />
+              )
+            }
             title={
-              created
-                ? unconfirmed
-                  ? `${selected?.name} was created. Adding the record could not be confirmed.`
-                  : `${selected?.name} was created. The record could not be added.`
-                : unconfirmed
-                  ? "Addition could not be confirmed"
-                  : creating
-                    ? `${kind === "list" ? "List" : "Encounter"} could not be created`
-                    : "Record could not be added"
+              createdList
+                ? `${selected?.name} was created. The record could not be added.`
+                : listCreateUncertain
+                  ? "List creation could not be confirmed"
+                  : unconfirmedCreation
+                    ? "Encounter creation could not be confirmed"
+                    : unconfirmed
+                      ? "Addition could not be confirmed"
+                      : creating
+                        ? `${kind === "list" ? "List" : "Encounter"} could not be created`
+                        : "Record could not be added"
             }
           />
         )}

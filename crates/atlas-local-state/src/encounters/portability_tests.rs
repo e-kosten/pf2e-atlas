@@ -139,6 +139,8 @@ fn portability_inventory_covers_current_encounter_tables() -> crate::LocalStateR
             "encounter_boundary_claims",
             "encounter_command_receipts",
             "encounter_condition_applications",
+            // A copied encounter has its own identity. Workspace recovery carries creation history.
+            "encounter_creation_receipts",
             "encounter_expended_spells",
             "encounter_manual_trackers",
             "encounter_outgoing_turns",
@@ -352,5 +354,38 @@ fn record_additions_are_scoped_to_the_owner_and_canonical_key() -> crate::LocalS
         Err(crate::LocalStateError::EncounterNotFound(_))
     ));
     assert!(!local.record_addition_committed(&key, "other", &intent)?);
+    Ok(())
+}
+
+#[test]
+fn creation_receipts_remain_with_the_owner_after_copy_and_deletion() -> crate::LocalStateResult<()>
+{
+    let store = fixture("create-and-add-owner")?;
+    let mut connection = store.connection()?;
+    let tx = connection.transaction()?;
+    let local = EncountersWrite::from_connection(&tx, 1);
+    let foreign = EncountersWrite::from_connection(&tx, 2);
+    let key = local.get("test")?.unwrap().encounter_key;
+    let digest = "a".repeat(64);
+    assert!(matches!(
+        foreign.save_creation_receipt("same", &digest, &key),
+        Err(crate::LocalStateError::EncounterNotFound(_))
+    ));
+    local.save_creation_receipt("same", &digest, &key)?;
+    assert_eq!(foreign.creation_receipt("same", &digest)?, None);
+    assert!(matches!(
+        local.creation_receipt("same", &"b".repeat(64)),
+        Err(crate::LocalStateError::RecordAdditionConflict)
+    ));
+
+    let exported = local.export_document(&key)?.encode()?;
+    assert!(!String::from_utf8_lossy(&exported).contains(&digest));
+    let copy = local.import_document(
+        EncounterDocument::read(exported.as_slice())?,
+        Some("copy".into()),
+    )?;
+    assert_ne!(key, copy.encounter_key);
+    assert!(local.delete(&key)?);
+    assert_eq!(local.creation_receipt("same", &digest)?, Some(key));
     Ok(())
 }
