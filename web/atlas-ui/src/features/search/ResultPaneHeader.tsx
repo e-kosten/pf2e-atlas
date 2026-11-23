@@ -18,7 +18,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
       : Number(pageCount);
 
   return (
-    <div className="result-pane-header">
+    <div className="result-pane-header search-results-toolbar">
       <span>
         {workspace.resultsRefreshing
           ? "Updating results"
@@ -30,6 +30,52 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
                 : `${page.total.toLocaleString()} ${page.total === 1 ? "record" : "records"}`
             : "Results"}
       </span>
+      {page && page.total > 0 && (
+        <div className="pager__navigation" role="group" aria-label="Result pages">
+          <Button
+            aria-label="Previous page"
+            size="small"
+            disabled={
+              workspace.pageNumber <= 1 ||
+              workspace.resultsRefreshing ||
+              workspace.resultsPaused ||
+              workspace.resultsRecovering
+            }
+            icon={<ChevronLeft size={15} />}
+            onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
+            type="text"
+          />
+          <PageJump
+            key={displayedPageNumber}
+            disabled={
+              workspace.resultsRefreshing ||
+              workspace.resultsLoading ||
+              Boolean(workspace.resultsPaused) ||
+              Boolean(workspace.resultsRecovering)
+            }
+            displayedPageNumber={displayedPageNumber}
+            onPageChange={workspace.setPageNumber}
+            pageCount={pageCount}
+            pageCountNumber={pageCountNumber}
+            requestedPageNumber={workspace.pageNumber}
+          />
+          <Button
+            aria-label="Next page"
+            size="small"
+            disabled={
+              !page?.has_more ||
+              workspace.resultsRefreshing ||
+              workspace.resultsPaused ||
+              workspace.resultsRecovering
+            }
+            icon={<ChevronRight size={15} />}
+            onClick={() =>
+              workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
+            }
+            type="text"
+          />
+        </div>
+      )}
       <div className="pager pager--compact">
         <ResultSortControl
           search={workspace.search}
@@ -37,66 +83,20 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
           disabled={workspace.resultsRecovering}
         />
         {page && page.total > 0 && (
-          <>
-            <Select
-              aria-label="Records per page"
-              size="small"
-              style={{ width: 128 }}
-              disabled={workspace.resultsPaused || workspace.resultsRecovering}
-              value={workspace.search.pageSize}
-              options={[10, 25, 50, 100].map((value) => ({
-                value,
-                label: value + " / page",
-              }))}
-              onChange={(pageSize) =>
-                workspace.setSearch({ ...workspace.search, pageSize })
-              }
-            />
-            <div className="pager__navigation" role="group" aria-label="Result pages">
-              <Button
-                aria-label="Previous page"
-                size="small"
-                disabled={
-                  workspace.pageNumber <= 1 ||
-                  workspace.resultsRefreshing ||
-                  workspace.resultsPaused ||
-                  workspace.resultsRecovering
-                }
-                icon={<ChevronLeft size={15} />}
-                onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
-                type="text"
-              />
-              <PageJump
-                key={displayedPageNumber}
-                disabled={
-                  workspace.resultsRefreshing ||
-                  workspace.resultsLoading ||
-                  Boolean(workspace.resultsPaused) ||
-                  Boolean(workspace.resultsRecovering)
-                }
-                displayedPageNumber={displayedPageNumber}
-                onPageChange={workspace.setPageNumber}
-                pageCount={pageCount}
-                pageCountNumber={pageCountNumber}
-                requestedPageNumber={workspace.pageNumber}
-              />
-              <Button
-                aria-label="Next page"
-                size="small"
-                disabled={
-                  !page?.has_more ||
-                  workspace.resultsRefreshing ||
-                  workspace.resultsPaused ||
-                  workspace.resultsRecovering
-                }
-                icon={<ChevronRight size={15} />}
-                onClick={() =>
-                  workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
-                }
-                type="text"
-              />
-            </div>
-          </>
+          <Select
+            aria-label="Records per page"
+            size="small"
+            style={{ width: 128 }}
+            disabled={workspace.resultsPaused || workspace.resultsRecovering}
+            value={workspace.search.pageSize}
+            options={[10, 25, 50, 100].map((value) => ({
+              value,
+              label: value + " / page",
+            }))}
+            onChange={(pageSize) =>
+              workspace.setSearch({ ...workspace.search, pageSize })
+            }
+          />
         )}
       </div>
     </div>

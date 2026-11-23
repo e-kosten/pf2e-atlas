@@ -53,12 +53,22 @@ export function CreateEncounterModal({
       onCreated(view.encounter.slug);
     },
   });
+  function close() {
+    if (mutation.isPending) return;
+    form.resetFields();
+    mutation.reset();
+    onCancel();
+  }
   return (
     <EncounterModal
       title="New encounter"
       okText="Create encounter"
       open={open}
-      onCancel={onCancel}
+      onCancel={close}
+      confirmDiscard={{
+        when: () => Boolean(form.getFieldValue("name")?.trim()),
+        onDiscard: close,
+      }}
       confirmLoading={mutation.isPending}
       cancelButtonProps={{ disabled: mutation.isPending }}
       closable={!mutation.isPending}

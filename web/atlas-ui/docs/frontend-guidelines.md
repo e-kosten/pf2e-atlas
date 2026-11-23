@@ -770,9 +770,11 @@ reader keeps the Results return control. The browse host supplies a trailing
 Clear selection icon when its feature provides a clear callback. Search and
 saved lists clear their selected URL; record pickers clear the candidate while
 retaining their form draft. Restore focus to the result context and disable clear
-during a submitted write. On narrow layouts, keep clear available in the results
-header whenever a candidate remains selected. Removing an applied filter chip
-returns keyboard focus to its filter trigger. Keep Open full page with the document identity while
+during a submitted write. In narrow main Search, Results keeps the selection.
+Show Clear selection beside the selected result, falling back to the results
+header when its row is absent. Narrow record pickers keep Clear selection in
+the results header. Removing an applied filter chip returns keyboard focus to
+its filter trigger. Keep Open full page with the document identity while
 ordinary browse details load or change, rather than briefly moving it into the
 workspace toolbar. Verify pagination, reader navigation and status through
 wrapping, pane resizing and loading/empty results.
@@ -1266,8 +1268,9 @@ substantive input, pass a draft check to `AtlasModal`. Cancel, Close, Escape and
 the backdrop run the same check. A draft switches the current footer to Keep
 editing and Discard. Keep editing receives focus, and dismissing the prompt
 returns to the form. Add to List uses this pattern for a typed note or new list
-name. New List retains its unfinished name and tags when dismissed and can close
-directly. A nested Select or source dialog owns
+name. New list and New encounter confirm before discarding a name or list tags.
+After Discard, the next opening starts blank. An unconfirmed list creation
+still requires the directory check before another attempt. A nested Select or source dialog owns
 the first Escape; the containing surface stays open. Closing an anchored popup
 returns lost focus to its trigger without overriding focus deliberately moved to
 another control. Pass the outgoing popup root to

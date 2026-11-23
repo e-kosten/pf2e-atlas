@@ -103,6 +103,10 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const allLists = useMemo(() => lists.data?.lists ?? [], [lists.data?.lists]);
   const tagOptions = useMemo(() => savedListTagOptions(allLists), [allLists]);
   const filteredLists = useMemo(() => filterLists(allLists, state), [allLists, state]);
+  const filtering = Boolean(selectedTags.length || state.query.trim());
+  const count = filtering
+    ? `Matches ${filteredLists.length.toLocaleString()} of ${allLists.length.toLocaleString()}`
+    : listCountLabel(allLists.length);
   useLayoutEffect(() => {
     if (active && lists.data && scrollRef.current && restored.current !== positionKey) {
       const saved = positions.get(positionKey) ?? { scroll: 0, documentScroll: 0 };
@@ -253,7 +257,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
           />
         </>
       }
-      summary={lists.data ? listCountLabel(filteredLists.length) : undefined}
+      summary={lists.data ? count : undefined}
       title="Saved Lists"
     >
       {lists.error && (
@@ -295,7 +299,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
             ? null
             : lists.error && !lists.data
               ? "Saved lists unavailable"
-              : selectedTags.length || state.query.trim()
+              : filtering
                 ? "No lists match these filters"
                 : state.includeArchived
                   ? "No saved lists. Create a list to collect records."

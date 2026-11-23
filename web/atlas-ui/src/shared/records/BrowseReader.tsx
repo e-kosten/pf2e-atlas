@@ -1,6 +1,6 @@
 import { useAtlasRouter } from "../../app/router";
 import { isPrimaryActivation } from "../../app/navigation";
-import { Grid, Splitter } from "antd";
+import { Button, Grid, Splitter } from "antd";
 import { X } from "lucide-react";
 import { PaneIconButton } from "../ui/actions/PaneAction";
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
@@ -27,6 +27,7 @@ export function BrowseReader({
   onReaderClose,
   onClearSelection,
   clearSelectionDisabled,
+  narrowClearPlacement,
   removedSelectionKey,
   readerFooter,
   positions,
@@ -35,7 +36,7 @@ export function BrowseReader({
   showRelated,
   returnLabel,
 }: {
-  children: ReactNode;
+  children: ReactNode | ((rowAction: ReactNode) => ReactNode);
   resultsHeader?: ReactNode;
   renderResultsPaneHeader?: (actions: ReactNode) => ReactNode;
   resultsLabel: string;
@@ -50,6 +51,7 @@ export function BrowseReader({
   onReaderClose?: () => void;
   onClearSelection?: () => void;
   clearSelectionDisabled?: boolean;
+  narrowClearPlacement?: "row" | "header";
   removedSelectionKey?: string;
   readerFooter?: ReaderFooter;
   positions?: BrowsePositions;
@@ -161,22 +163,30 @@ export function BrowseReader({
       restoreResultsFocus(removedSelectionKey);
     }
   }, [readerOpen, removedSelectionKey, restoreResultsFocus, selectedRecordKey]);
-  function clearSelectionAction() {
+  function clearSelectionAction(labeled = false) {
     if (
       !onClearSelection ||
       !(selectedRecordKey || reading.request) ||
       (narrow && returnLabel)
     )
       return undefined;
+    const clear = () => {
+      onClearSelection();
+      restoreResultsFocus();
+    };
+    if (labeled) {
+      return (
+        <Button size="small" disabled={clearSelectionDisabled} onClick={clear}>
+          Clear selection
+        </Button>
+      );
+    }
     return (
       <PaneIconButton
         label="Clear selection"
         icon={<X size={16} aria-hidden="true" />}
         disabled={clearSelectionDisabled}
-        onClick={() => {
-          onClearSelection();
-          restoreResultsFocus();
-        }}
+        onClick={clear}
       />
     );
   }
@@ -194,6 +204,13 @@ export function BrowseReader({
       </BrowsePaneHeader>
     );
   }
+  const resultsOnlyClear = narrow && Boolean(narrowClearPlacement);
+  const rowClear = resultsOnlyClear && narrowClearPlacement === "row";
+  const resultsAction = rowClear ? null : clearSelectionAction(resultsOnlyClear);
+  const rows =
+    typeof children === "function"
+      ? children(rowClear ? clearSelectionAction(true) : null)
+      : children;
   const results = (
     <section
       className="reference-results"
@@ -209,8 +226,8 @@ export function BrowseReader({
     >
       {!renderResultsPaneHeader &&
         narrow &&
-        (resultsHeader || clearSelectionAction()) &&
-        toolbar(clearSelectionAction())}
+        (resultsHeader || resultsAction) &&
+        toolbar(resultsAction)}
       <div
         className="reference-results__scroll"
         ref={listRef}
@@ -230,12 +247,12 @@ export function BrowseReader({
               className="reference-results__controls"
               data-narrow={narrow || undefined}
             >
-              {renderResultsPaneHeader(narrow ? clearSelectionAction() : null)}
+              {renderResultsPaneHeader(narrow ? resultsAction : null)}
             </div>
-            <div aria-busy={resultsLoading}>{children}</div>
+            <div aria-busy={resultsLoading}>{rows}</div>
           </>
         ) : (
-          children
+          rows
         )}
       </div>
     </section>
@@ -254,7 +271,7 @@ export function BrowseReader({
       resultsReturnLabel={returnLabel}
       showRelated={showRelated}
       active={(!narrow || readerOpen) && !listOnly}
-      selectionActions={clearSelectionAction()}
+      selectionActions={resultsOnlyClear ? undefined : clearSelectionAction()}
       selectionActionsInIdentity={paneHeader && !narrow}
       renderLayout={
         narrow && !paneHeader
