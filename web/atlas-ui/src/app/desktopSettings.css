@@ -9,7 +9,7 @@
   grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: 12px;
-  padding-block: 20px;
+  padding-block: var(--space-section);
   min-width: 0;
 }
 
@@ -42,9 +42,27 @@
 .desktop-setup__stack,
 .desktop-setup__section .desktop-setup__model-options {
   display: grid;
-  gap: 6px;
+  gap: var(--space-control);
   width: 100%;
   min-width: 0;
+}
+
+.desktop-setup__stack > button {
+  justify-self: start;
+}
+
+.desktop-setup__models {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  align-items: start;
+  gap: var(--space-group);
+  width: 100%;
+}
+
+.desktop-setup__models .desktop-setup__stack > :is(label, span):first-child,
+.desktop-settings__facts dt {
+  color: var(--muted);
+  font-size: 0.875rem;
 }
 
 .desktop-setup__model-preference .ant-select {
@@ -75,22 +93,88 @@
 }
 
 .desktop-setup__terminal-details {
-  max-width: 100%;
+  justify-self: stretch;
   min-width: 0;
+  padding: var(--space-group);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel);
 }
 
 .desktop-setup__terminal-details summary {
   cursor: pointer;
+  font-weight: 600;
 }
 
-.desktop-setup__terminal-details dl {
+.desktop-settings__facts {
   display: grid;
-  gap: 4px;
-  margin-block: 8px;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-control) var(--space-group);
+  margin: 0;
 }
 
-.desktop-setup__terminal-details dd {
-  margin: 0 0 4px;
+.desktop-settings__facts dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.desktop-setup__terminal-details .desktop-settings__facts {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-micro);
+  padding-block: var(--space-group);
+}
+
+.desktop-setup__terminal-details dt:not(:first-child) {
+  margin-block-start: var(--space-control);
+}
+
+.desktop-setup__terminal-details p {
+  margin: 0 0 var(--space-group);
+}
+
+.desktop-settings__literal,
+.desktop-setup__terminal-details p code {
+  font-family: Menlo, Consolas, ui-monospace, monospace;
+  font-size: 0.875rem;
+}
+
+.desktop-setup__terminal-details p code {
+  padding: 0.1em 0.35em;
+  background: var(--panel-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.desktop-settings__literal {
+  display: block;
+  min-width: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+.desktop-settings__literal > span {
+  display: inline-block;
+  max-inline-size: 100%;
+  vertical-align: top;
+}
+
+.desktop-setup__terminal-details .desktop-settings__literal,
+.desktop-setup__section .ant-alert .desktop-settings__literal {
+  padding: var(--space-control) 12px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-subtle);
+  color: var(--text);
+}
+
+.desktop-settings__link-result {
+  margin-block-start: var(--space-group);
+}
+
+.desktop-setup__section .ant-alert-description p {
+  margin: var(--space-control) 0 0;
 }
 
 .desktop-settings {
@@ -99,7 +183,7 @@
   color: var(--text);
 }
 .desktop-settings__body {
-  max-width: 64rem;
+  max-width: 46rem;
   margin-inline: auto;
   padding: clamp(16px, 3vw, 36px);
   overflow-wrap: anywhere;
@@ -114,8 +198,7 @@
 }
 .desktop-settings__channel {
   border-top: 1px solid var(--line);
-  margin-top: 12px;
-  padding-top: 16px;
+  padding: 12px var(--space-group);
 }
 .desktop-settings__channel summary {
   cursor: pointer;
@@ -126,20 +209,31 @@
 }
 .desktop-settings__group {
   display: grid;
-  gap: 6px;
-  margin-bottom: 20px;
+  gap: var(--space-control);
+  margin-bottom: var(--space-section);
 }
 .desktop-settings__group h2,
 .desktop-settings__body > .desktop-setup__section h2 {
   font-size: 1rem;
-  margin: 0 0 4px;
+  margin: 0;
 }
-.desktop-settings__group > :where(.ant-flex, .ant-typography),
-.desktop-settings__row {
+.desktop-settings__updates,
+.desktop-settings__group > .desktop-settings__row {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  padding: 12px 16px;
+}
+.desktop-settings__updates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.desktop-settings__updates > :first-child,
+.desktop-settings__row {
+  padding: 12px var(--space-group);
+}
+.desktop-settings__updates > .desktop-settings__row {
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 .desktop-settings__panes {
   display: flex;
@@ -154,15 +248,20 @@
 }
 .desktop-settings__panes a {
   display: grid;
+  align-content: start;
   justify-items: center;
   gap: 3px;
   border-radius: var(--radius-md);
-  color: var(--text);
-  padding: 6px clamp(8px, 3vw, 16px);
+  color: var(--muted);
+  min-width: 0;
+  text-align: center;
+  flex: 0 1 8rem;
+  padding: 6px var(--space-control);
 }
 .desktop-settings__panes a[aria-current="page"] {
   background: var(--selection-bg);
   color: var(--selection-text);
+  font-weight: 600;
 }
 .desktop-settings__row,
 .desktop-settings__row-end,
@@ -181,11 +280,12 @@
   color: var(--text);
 }
 .desktop-settings__row:hover,
-.desktop-settings__panes a:hover {
+.desktop-settings__panes a:not([aria-current="page"]):hover {
   color: var(--selection-text);
   background: var(--panel-subtle);
 }
-.desktop-settings a:focus-visible {
+.desktop-settings a:focus-visible,
+.desktop-settings summary:focus-visible {
   outline: 2px solid var(--selection-border);
   outline-offset: -2px;
 }
@@ -201,10 +301,18 @@
   text-decoration: underline;
 }
 .desktop-settings__command {
-  padding: 10px;
+  justify-self: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-control);
+  padding: var(--space-control) 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   background: var(--panel-subtle);
-  border-radius: var(--radius-sm);
-  user-select: all;
+}
+.desktop-settings__command .desktop-settings__literal {
+  margin-block: var(--space-micro);
 }
 .desktop-settings__body > .desktop-setup__section {
   padding-block-start: 0;

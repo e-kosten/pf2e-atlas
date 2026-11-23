@@ -1,5 +1,15 @@
-import { Alert, Button, Checkbox, Progress, Select, Space, Typography } from "antd";
-import { useEffect, useState } from "react";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Progress,
+  Select,
+  Space,
+  Tooltip,
+  Typography,
+} from "antd";
+import { Check, Copy } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import {
   invokeDesktop,
   useDesktopAttachment,
@@ -8,6 +18,7 @@ import {
 } from "./desktopBridge";
 import { useSavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import { useTabCloseGuard } from "./DesktopTabContext";
+import { PaneIconButton } from "../shared/ui/actions/PaneAction";
 
 type SetupAction =
   | "cancel"
@@ -145,24 +156,27 @@ export function DesktopSearchData() {
       >
         <h2 id="desktop-setup-reference">Reference data</h2>
         {reference && (
-          <div className="desktop-setup__stack">
-            <Typography.Text>
-              Current:{" "}
-              {pendingPin
-                ? (reference.revision?.slice(0, 12) ?? "Unknown revision")
-                : `Foundry PF2e ${reference.targetVersion}`}
-            </Typography.Text>
-            {pendingPin && (
-              <Typography.Text>
-                Bundled target: Foundry PF2e {reference.targetVersion}
-              </Typography.Text>
-            )}
+          <>
+            <dl className="desktop-settings__facts">
+              <dt>Current</dt>
+              <dd>
+                {pendingPin
+                  ? (reference.revision?.slice(0, 12) ?? "Unknown revision")
+                  : `Foundry PF2e ${reference.targetVersion}`}
+              </dd>
+              {pendingPin && (
+                <>
+                  <dt>Bundled target</dt>
+                  <dd>Foundry PF2e {reference.targetVersion}</dd>
+                </>
+              )}
+            </dl>
             {!reference.managed && (
               <Typography.Text>
                 Use the Atlas CLI to maintain custom reference sources.
               </Typography.Text>
             )}
-          </div>
+          </>
         )}
         {!running && referenceLoading && (
           <Typography.Text role="status">Checking reference status…</Typography.Text>
@@ -240,6 +254,18 @@ type TerminalStatus = MacTerminalStatus | { command: string };
 type TerminalAction =
   "read_terminal" | "enable_terminal" | "switch_terminal" | "choose_terminal_folder";
 
+function TerminalCode({ value }: { value: string }) {
+  // Keep the original separators so selection and clipboard text match the host.
+  const parts = value.split(/(?<=[/\\])/u);
+  return (
+    <code className="desktop-settings__literal">
+      {parts.map((part, index) => (
+        <span key={index}>{part}</span>
+      ))}
+    </code>
+  );
+}
+
 export function DesktopTerminal() {
   const attachment = useDesktopAttachment();
   if (!attachment) return null;
@@ -267,6 +293,12 @@ function TerminalAccess({
   const [busy, setBusy] = useState(true);
   const [customLink, setCustomLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 2500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
 
   useEffect(() => {
     let active = true;
@@ -344,11 +376,25 @@ function TerminalAccess({
         ("command" in status ? (
           <>
             <h2>Run Atlas in PowerShell</h2>
-            <code className="desktop-settings__command">{status.command}</code>
-            <Button onClick={() => void copyCommand(status.command)}>
-              Copy command
-            </Button>
-            {copied && <Typography.Text role="status">Command copied.</Typography.Text>}
+            <div className="desktop-settings__command">
+              <TerminalCode value={status.command} />
+              <Tooltip
+                placement="topRight"
+                title={copied ? "Command copied." : "Copy command"}
+                trigger={["hover", "focus"]}
+              >
+                <PaneIconButton
+                  tooltip={false}
+                  title=""
+                  label="Copy command"
+                  icon={copied ? <Check size={16} /> : <Copy size={16} />}
+                  onClick={() => void copyCommand(status.command)}
+                />
+              </Tooltip>
+              <span role="status" className="sr-only">
+                {copied && "Copied to clipboard."}
+              </span>
+            </div>
           </>
         ) : (
           <>
@@ -369,10 +415,11 @@ function TerminalAccess({
             {status.state === "conflict" && (
               <Alert
                 type="warning"
-                title={
+                title="An entry already exists at this path."
+                description={
                   <>
-                    An entry already exists at <code>{status.path}</code>. Move it to
-                    enable the bundled command here.
+                    <TerminalCode value={status.path} />
+                    <p>Move the existing entry to enable the bundled command here.</p>
                   </>
                 }
               />
@@ -384,18 +431,18 @@ function TerminalAccess({
             )}
             <details className="desktop-setup__terminal-details">
               <summary>Command details</summary>
-              <dl>
+              <dl className="desktop-settings__facts">
                 <dt>Bundled version</dt>
                 <dd>{status.version}</dd>
                 <dt>Command path</dt>
                 <dd>
-                  <code>{status.path}</code>
+                  <TerminalCode value={status.path} />
                 </dd>
                 {workspace && (
                   <>
                     <dt>Workspace</dt>
                     <dd>
-                      <code>{workspace}</code>
+                      <TerminalCode value={workspace} />
                     </dd>
                   </>
                 )}
@@ -413,9 +460,10 @@ function TerminalAccess({
                 Choose bin folder…
               </Button>
               {customLink && (
-                <p role="status">
-                  Command linked at <code>{customLink}</code>.
-                </p>
+                <div className="desktop-settings__link-result" role="status">
+                  Command linked at
+                  <TerminalCode value={customLink} />
+                </div>
               )}
             </details>
           </>
@@ -439,6 +487,7 @@ function SearchModels({
   onApply: (selection: ModelSelection) => void;
 }) {
   const models = reference.models ?? [];
+  const preferenceId = useId();
   const installedModels = models.filter((model) => model.installed);
   const installed = installedModels.map((model) => model.id).sort();
   const [profiles, setProfiles] = useState(installed);
@@ -451,38 +500,63 @@ function SearchModels({
   return (
     <section className="desktop-setup__section" aria-labelledby="desktop-setup-models">
       <h2 id="desktop-setup-models">Search models</h2>
-      {canEditMembership ? (
-        <Checkbox.Group
-          aria-label="Installed search models"
-          className="desktop-setup__model-options"
-          value={profiles}
-          options={models.map((model) => ({
-            value: model.id,
-            label:
-              model.installed && !model.usable
-                ? `${model.label} (needs repair)`
-                : model.label,
-          }))}
-          onChange={(next) => {
-            const selected = next.sort();
-            setProfiles(selected);
-            if (!selected.includes(preferred)) setPreferred("");
-          }}
-        />
-      ) : (
-        installedModels.length > 0 && (
-          <ul className="desktop-setup__model-status">
-            {installedModels.map((model) => (
-              <li key={model.id}>
-                <span>{model.label}</span>
-                <Typography.Text type="secondary">
-                  {model.usable ? "Installed" : "Needs repair"}
-                </Typography.Text>
-              </li>
-            ))}
-          </ul>
-        )
-      )}
+      <div className="desktop-setup__models">
+        {canEditMembership ? (
+          <div className="desktop-setup__stack">
+            <span>Installed models</span>
+            <Checkbox.Group
+              aria-label="Installed search models"
+              className="desktop-setup__model-options"
+              value={profiles}
+              options={models.map((model) => ({
+                value: model.id,
+                label:
+                  model.installed && !model.usable
+                    ? `${model.label} (needs repair)`
+                    : model.label,
+              }))}
+              onChange={(next) => {
+                const selected = next.sort();
+                setProfiles(selected);
+                if (!selected.includes(preferred)) setPreferred("");
+              }}
+            />
+          </div>
+        ) : (
+          installedModels.length > 0 && (
+            <ul className="desktop-setup__model-status">
+              {installedModels.map((model) => (
+                <li key={model.id}>
+                  <span>{model.label}</span>
+                  <Typography.Text type="secondary">
+                    {model.usable ? "Installed" : "Needs repair"}
+                  </Typography.Text>
+                </li>
+              ))}
+            </ul>
+          )
+        )}
+        <div className="desktop-setup__stack desktop-setup__model-preference">
+          <label htmlFor={preferenceId}>Preferred search model</label>
+          <Select
+            id={preferenceId}
+            value={preferred}
+            popupMatchSelectWidth={false}
+            disabled={!editable || profiles.length === 0}
+            options={[
+              { value: "", label: "Atlas default" },
+              ...models
+                .filter((model) => profiles.includes(model.id))
+                .map((model) => ({
+                  value: model.id,
+                  label: model.label,
+                  disabled: !membershipChanged && !model.usable,
+                })),
+            ]}
+            onChange={setPreferred}
+          />
+        </div>
+      </div>
       {reference.modelsAvailable && !reference.canChangeModels && (
         <Typography.Text type="secondary">
           {!reference.managed || !reference.available
@@ -492,26 +566,6 @@ function SearchModels({
               : "Check and repair the reference data before adding or removing models."}
         </Typography.Text>
       )}
-      <div className="desktop-setup__stack desktop-setup__model-preference">
-        <Typography.Text>Preferred search model</Typography.Text>
-        <Select
-          aria-label="Preferred search model"
-          value={preferred}
-          popupMatchSelectWidth={false}
-          disabled={!editable || profiles.length === 0}
-          options={[
-            { value: "", label: "Atlas default" },
-            ...models
-              .filter((model) => profiles.includes(model.id))
-              .map((model) => ({
-                value: model.id,
-                label: model.label,
-                disabled: !membershipChanged && !model.usable,
-              })),
-          ]}
-          onChange={setPreferred}
-        />
-      </div>
       {(canEditMembership ? profiles.length : installed.length) === 0 && (
         <Typography.Text type="secondary">
           Keyword-only search. Similar records requires a search model.

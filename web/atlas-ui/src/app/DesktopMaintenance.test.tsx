@@ -215,6 +215,36 @@ it("links and verifies the bundled terminal command", async () => {
   });
 });
 
+it("preserves the exact PowerShell command for manual copy and clipboard retry", async () => {
+  attach();
+  const command = String.raw`& 'C:\Users\Pat O''Brien\A  folder with spaces\PF2e Atlas\atlas.exe'`;
+  invoke.mockResolvedValue({ command });
+  const writeText = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Clipboard denied"))
+    .mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+  try {
+    renderPanel(false, "terminal");
+    const copy = await screen.findByRole("button", { name: "Copy command" });
+    fireEvent.click(copy);
+    expect(await screen.findByRole("alert")).toHaveTextContent("copy it manually");
+    expect(screen.getByRole("code").textContent).toBe(command);
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+
+    fireEvent.click(copy);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Copied"));
+    expect(writeText).toHaveBeenLastCalledWith(command);
+    expect(screen.getByRole("button", { name: "Copy command" })).toBe(copy);
+    expect(screen.queryByRole("alert")).toBeNull();
+  } finally {
+    Reflect.deleteProperty(navigator, "clipboard");
+  }
+});
+
 it("requests a native switch and keeps the option available after cancellation", async () => {
   attach();
   const existing = {

@@ -122,7 +122,9 @@ it.each([false, true])(
 it("delivers an early request to a single Windows Settings tab and returns focus to the originating row", async () => {
   attach({ ...desktop, settingsRequest: { id: 1, destination: "terminal" } }, true);
   open("/settings", true);
-  expect(await screen.findByText('& "C:\\Atlas\\atlas.exe"')).toBeVisible();
+  const command = await screen.findByRole("code");
+  expect(command).toBeVisible();
+  expect(command.textContent).toBe('& "C:\\Atlas\\atlas.exe"');
   expect(invoke).toHaveBeenCalledWith("desktop_settings_ack", {
     token: desktop.token,
     id: 1,

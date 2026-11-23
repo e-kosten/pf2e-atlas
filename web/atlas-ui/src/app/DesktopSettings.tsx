@@ -284,30 +284,32 @@ function SettingsPage({ pane, windows }: { pane: Pane; windows: boolean }) {
           <>
             <section className="desktop-settings__group" aria-label="App updates">
               {windows && <h2>App updates</h2>}
-              <DesktopUpdateSection
-                channelDisclosure={
-                  windows
-                    ? undefined
-                    : {
-                        open: pane === "channel",
-                        onToggle: () =>
-                          void router.navigate({
-                            to: "/settings/$pane",
-                            params: {
-                              pane: pane === "channel" ? "updates" : "channel",
-                            },
-                            replace: true,
-                          }),
-                      }
-                }
-              />
-              {windows && channel && (
-                <SettingsRow
-                  to="/settings/channel"
-                  label="Release channel"
-                  value={channelLabel}
+              <div className="desktop-settings__updates">
+                <DesktopUpdateSection
+                  channelDisclosure={
+                    windows
+                      ? undefined
+                      : {
+                          open: pane === "channel",
+                          onToggle: () =>
+                            void router.navigate({
+                              to: "/settings/$pane",
+                              params: {
+                                pane: pane === "channel" ? "updates" : "channel",
+                              },
+                              replace: true,
+                            }),
+                        }
+                  }
                 />
-              )}
+                {windows && channel && (
+                  <SettingsRow
+                    to="/settings/channel"
+                    label="Release channel"
+                    value={channelLabel}
+                  />
+                )}
+              </div>
             </section>
             {windows && (
               <>
