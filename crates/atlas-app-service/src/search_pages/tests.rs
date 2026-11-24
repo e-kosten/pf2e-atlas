@@ -549,6 +549,23 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
         filter: Some(filter.clone()),
     };
     let result = f.worker.search_page(criteria.clone(), &execution).unwrap();
+    let evidence_reads = f.worker.last_read_metrics();
+    let records = f
+        .worker
+        .search_page(
+            SearchResultsRequest {
+                result_detail: atlas_app_model::SearchResultDetail::Records,
+                ..criteria.clone()
+            },
+            &execution,
+        )
+        .unwrap();
+    let records_reads = f.worker.last_read_metrics();
+    assert_eq!(records.page, result.page);
+    assert_eq!(records.relationship_clauses, result.relationship_clauses);
+    assert_eq!(records.rows[0].record, result.rows[0].record);
+    assert!(records.rows[0].relationship_evidence.is_empty());
+    assert!(records_reads.sql_statements < evidence_reads.sql_statements);
     assert_eq!(result.relationship_clauses[0].title, "Leather Armor");
     assert_eq!(result.page.total, 1);
     assert_eq!(result.rows[0].relationship_evidence[0].page.total, 2);
