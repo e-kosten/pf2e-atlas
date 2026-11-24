@@ -229,6 +229,7 @@ mod tests {
         assert!(matches!(
             legacy,
             crate::SearchCriteria::TextSearch {
+                lexical: None,
                 search_content: None,
                 ..
             }

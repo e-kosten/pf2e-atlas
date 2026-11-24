@@ -38,6 +38,11 @@ import {
 } from "react";
 import { useDesktopTab } from "../../app/DesktopTabContext";
 import { SearchPickerModal } from "../ui/pickers/SearchPickerModal";
+import {
+  InlineRecordPicker,
+  readInlineRecordQuery,
+  type InlineRecordQuery,
+} from "./InlineRecordPicker";
 import { MarkdownDocument, markdownRecordLink } from "./MarkdownDocument";
 import {
   emphasisState,
@@ -113,6 +118,7 @@ function FormatButton({
   disabled,
   pressed,
   shortcut,
+  showTooltip = true,
   onClick,
 }: {
   label: string;
@@ -120,10 +126,11 @@ function FormatButton({
   disabled: boolean;
   pressed?: boolean;
   shortcut?: string;
+  showTooltip?: boolean;
   onClick: () => void;
 }) {
   return (
-    <Tooltip title={label} trigger={["hover", "focus"]}>
+    <Tooltip title={showTooltip ? label : null} trigger={["hover", "focus"]}>
       <Button
         size="small"
         type="text"
@@ -164,7 +171,12 @@ export function MarkdownEditor({
   const tabActive = useDesktopTab()?.active ?? true;
   const [headingOpen, setHeadingOpen] = useState(false);
   if (!tabActive && headingOpen) setHeadingOpen(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [picker, setPicker] = useState<{ initialQuery?: string } | null>(null);
+  const [inline, setInline] = useState<{
+    editor: EditorView;
+    query: InlineRecordQuery;
+  } | null>(null);
+  const inlineQuery = useRef<InlineRecordQuery | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [form] = Form.useForm();
   const source = useRef<HTMLDivElement>(null);
@@ -177,9 +189,15 @@ export function MarkdownEditor({
   const locked = inactive || !!readOnly;
   const writing = mode === "Write";
 
-  function openPicker(range: Range) {
+  function dismissInline() {
+    inlineQuery.current = null;
+    setInline(null);
+  }
+
+  function openPicker(range: Range, initialQuery?: string) {
+    dismissInline();
     insertion.current = range;
-    setPickerOpen(true);
+    setPicker({ initialQuery });
   }
 
   const publishControls = useEffectEvent((state: EditorState) => {
@@ -192,32 +210,36 @@ export function MarkdownEditor({
       publishControls(update.state);
     }
 
-    if (!update.docChanged) return;
-    if (insertion.current) {
-      const { from, to } = insertion.current;
-      insertion.current = {
-        from: update.changes.mapPos(from, -1),
-        to: update.changes.mapPos(to, 1),
-      };
+    if (update.docChanged || update.selectionSet) {
+      const next =
+        writing && tabActive && !locked && !insertion.current
+          ? readInlineRecordQuery(update, inlineQuery.current)
+          : null;
+      if (next !== inlineQuery.current) {
+        inlineQuery.current = next;
+        setInline(next ? { editor: update.view, query: next } : null);
+      }
     }
-    onChange?.(update.state.sliceDoc());
-
-    const caret = update.state.selection.main;
-    if (
-      !locked &&
-      !insertion.current &&
-      caret.empty &&
-      caret.head >= 2 &&
-      update.state.doc.length === update.startState.doc.length + 1 &&
-      !update.view.composing &&
-      update.transactions.some((transaction) =>
-        transaction.isUserEvent("input.type"),
-      ) &&
-      update.state.doc.sliceString(caret.head - 2, caret.head) === "[["
-    ) {
-      openPicker({ from: caret.head - 2, to: caret.head });
+    if (update.docChanged) {
+      if (insertion.current) {
+        const { from, to } = insertion.current;
+        insertion.current = {
+          from: update.changes.mapPos(from, -1),
+          to: update.changes.mapPos(to, 1),
+        };
+      }
+      onChange?.(update.state.sliceDoc());
     }
   });
+
+  function resumeInline() {
+    const editor = view.current;
+    const query = inlineQuery.current;
+    if (!editor || !query || inline || !writing || locked || !tabActive) return;
+    const caret = editor.state.selection.main;
+    if (caret.empty && caret.head >= query.from + 2 && caret.head <= query.to)
+      setInline({ editor, query });
+  }
 
   const fieldExtensions = useEffectEvent((): Extension => {
     const attributes: Record<string, string> = { "aria-label": label };
@@ -265,8 +287,9 @@ export function MarkdownEditor({
     const editor = view.current;
     if (!editor || editor.state.doc.eq(editor.state.toText(value))) return;
     // An authoritative replacement starts a new source session and history.
+    dismissInline();
     insertion.current = null;
-    setPickerOpen(false);
+    setPicker(null);
     setCandidate(null);
     editor.setState(createState());
     publishControls(editor.state);
@@ -290,6 +313,11 @@ export function MarkdownEditor({
     return () => label.removeEventListener("click", focus);
   }, [id, writing, inactive]);
 
+  if (inline && (!writing || locked || !tabActive)) setInline(null);
+  useLayoutEffect(() => {
+    if (!writing || locked || !tabActive) inlineQuery.current = null;
+  }, [writing, locked, tabActive]);
+
   useImperativeHandle(
     editorRef,
     () => ({
@@ -304,11 +332,17 @@ export function MarkdownEditor({
     const editor = view.current;
     const state = editor?.state;
     insertion.current = null;
-    setPickerOpen(false);
+    setPicker(null);
     setCandidate(null);
     restoreFocus.current = requestAnimationFrame(() => {
       restoreFocus.current = undefined;
-      if (inactive || !editor || view.current !== editor) return;
+      if (
+        inactive ||
+        !editor ||
+        view.current !== editor ||
+        editor.contentDOM.closest("[inert]")
+      )
+        return;
       editor.focus();
       if (!state || editor.state.doc !== state.doc) return;
       const { anchor, head, empty } = state.selection.main;
@@ -330,9 +364,12 @@ export function MarkdownEditor({
     const editor = view.current;
     const range = insertion.current;
     if (!candidate || !range || !editor || locked) return;
-    const text = editor.state.doc
-      .sliceString(range.from, range.to)
-      .replace(/^\[\[$/, "");
+    const selected = editor.state.sliceDoc(range.from, range.to);
+    if (picker?.initialQuery !== undefined && selected !== "[[" + picker.initialQuery) {
+      closePicker();
+      return;
+    }
+    const text = picker?.initialQuery === undefined ? selected : "";
     insertion.current = null;
     insertRecordLink(
       editor,
@@ -462,18 +499,16 @@ export function MarkdownEditor({
               />
             </div>
             <div className="markdown-editor__group">
-              <Button
-                size="small"
-                type="text"
+              <FormatButton
+                label="Record link"
+                showTooltip={!picker}
                 icon={<Link2 size={16} />}
                 disabled={locked}
                 onClick={() => {
                   const selected = view.current?.state.selection.main;
                   if (selected) openPicker({ from: selected.from, to: selected.to });
                 }}
-              >
-                Record link
-              </Button>
+              />
             </div>
           </div>
         </div>
@@ -482,6 +517,8 @@ export function MarkdownEditor({
         <div
           className="markdown-editor__source"
           ref={source}
+          onFocus={resumeInline}
+          onPointerUp={resumeInline}
           inert={!writing}
           aria-hidden={!writing || undefined}
         />
@@ -501,8 +538,31 @@ export function MarkdownEditor({
           </div>
         )}
       </div>
-      {pickerOpen && (
+      {inline && writing && !locked && tabActive && (
+        <InlineRecordPicker
+          editor={inline.editor}
+          query={inline.query}
+          onDismiss={dismissInline}
+          onBlur={() => setInline(null)}
+          onSearch={() => {
+            if (inlineQuery.current === inline.query)
+              openPicker(inline.query, inline.query.text);
+          }}
+          onChoose={(record) => {
+            if (inlineQuery.current !== inline.query) return;
+            dismissInline();
+            insertRecordLink(
+              inline.editor,
+              inline.query,
+              markdownRecordLink(record.title, record.record_key),
+            );
+            inline.editor.focus();
+          }}
+        />
+      )}
+      {picker && (
         <SearchPickerModal
+          initialQuery={picker.initialQuery}
           title="Insert record link"
           focusSearchOnOpen
           footerLayout="actions"

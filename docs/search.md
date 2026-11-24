@@ -6,8 +6,8 @@ combines matches on names and keywords with matches on meaning.
 ## Search by idea
 
 Try “a guardian for an enchanted forest,” “magic for a haunted-house adventure,”
-or “ways to get through locked doors.” Open a result to read its details and see
-which parts matched your search. Follow linked names to explore related entries.
+or “ways to get through locked doors.” Open a result to read its details and
+follow linked names to explore related entries.
 
 When you know the name, enter it directly—for example, “Treat Wounds.” You can
 also leave the text empty to browse entries using filters alone.
@@ -112,6 +112,12 @@ See [CLI reference searches](cli-examples.md#follow-references) for commands.
 
 Open **Search settings** to compare ways of finding results. Atlas remembers your
 browser preferences; opening a shared search link uses the settings in that link.
+
+Match explanations are hidden by default. Choose **Matching sections** to load
+links and excerpts for the current results. **Detailed** also shows how sections
+contributed to a Similar result. Turning explanations on searches the current
+page again and keeps your place. Once loaded, you can switch between the two
+views or hide explanations immediately.
 
 **Score-based** ranking is the default. **Rank-based** combines the same keyword
 and meaning-based matches differently. If useful matches appear too far down the

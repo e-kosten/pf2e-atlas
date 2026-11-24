@@ -45,6 +45,7 @@
 }
 
 .markdown-editor {
+  position: relative;
   min-inline-size: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -131,12 +132,14 @@
 }
 
 .markdown-editor__source .cm-scroller {
+  flex: 1 1 auto;
   overflow: auto;
   font-family: inherit;
   line-height: 1.6;
 }
 
 .markdown-editor__source .cm-content {
+  align-self: stretch;
   padding: var(--space-control);
   caret-color: currentColor;
 }
@@ -200,4 +203,60 @@
 
 .markdown-editor[data-sizing="fill"] :is(.cm-scroller, .markdown-editor__preview) {
   overscroll-behavior: contain;
+}
+
+.markdown-record-anchor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.markdown-record-picker {
+  /* The dialog portal inherits pointer-events: none outside its content panel. */
+  pointer-events: auto;
+  width: min(22rem, calc(100vw - 24px));
+  color: var(--text);
+}
+
+.markdown-record-status {
+  padding: var(--space-control);
+  color: var(--muted);
+}
+
+.markdown-record-options {
+  max-block-size: min(20rem, 42dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.markdown-record-picker .ant-btn {
+  display: flex;
+  justify-content: flex-start;
+  border-radius: 0;
+  width: 100%;
+  height: auto;
+  padding: var(--space-micro) var(--space-control);
+  text-align: start;
+  white-space: normal;
+}
+
+.markdown-record-picker [aria-selected="true"] {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+.markdown-record-label {
+  display: grid;
+  overflow-wrap: anywhere;
+}
+
+.markdown-record-label > span {
+  color: var(--muted);
+  font-size: 0.875em;
+}
+
+.markdown-record-picker .markdown-record-full {
+  min-height: 32px;
+  border-block-start: 1px solid var(--line);
 }

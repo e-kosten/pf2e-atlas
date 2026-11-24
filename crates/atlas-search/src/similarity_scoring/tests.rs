@@ -11,14 +11,14 @@ fn passages<'a>(
     mode: SimilarityCandidateParts,
     decay: f64,
 ) -> Score<'a> {
-    super::passages(seed, candidate, mode, decay, None).unwrap()
+    super::passages(seed, candidate, mode, decay, true, None).unwrap()
 }
 fn content_average<'a>(
     seed: &[Part<'a>],
     candidate: &[Part<'a>],
     mode: SimilarityCandidateParts,
 ) -> Option<Score<'a>> {
-    super::content_average(seed, candidate, mode, None).unwrap()
+    super::content_average(seed, candidate, mode, true, None).unwrap()
 }
 
 fn unit(
@@ -283,6 +283,7 @@ fn scoring_cancels_within_a_candidate_and_uncancelled_scores_are_identical() {
         &candidate,
         SimilarityCandidateParts::Any,
         0.5,
+        true,
         Some(&cancelled_after_work_starts),
     )
     .err()
@@ -304,6 +305,7 @@ fn scoring_cancels_within_a_candidate_and_uncancelled_scores_are_identical() {
         &candidate,
         SimilarityCandidateParts::Any,
         0.5,
+        true,
         Some(&never_cancelled),
     )
     .unwrap();
@@ -316,14 +318,19 @@ fn scoring_cancels_within_a_candidate_and_uncancelled_scores_are_identical() {
         SimilarityCandidateParts::Corresponding,
     ] {
         checks.set(0);
-        let error =
-            super::content_average(&seed, &candidate, mode, Some(&cancelled_after_work_starts))
-                .err()
-                .unwrap();
+        let error = super::content_average(
+            &seed,
+            &candidate,
+            mode,
+            true,
+            Some(&cancelled_after_work_starts),
+        )
+        .err()
+        .unwrap();
         assert_eq!(error.kind(), crate::SearchErrorKind::OperationCancelled);
         assert_eq!(checks.get(), 2, "centroid arithmetic must also cooperate");
         let expected = content_average(&seed, &candidate, mode).unwrap();
-        let actual = super::content_average(&seed, &candidate, mode, Some(&never_cancelled))
+        let actual = super::content_average(&seed, &candidate, mode, true, Some(&never_cancelled))
             .unwrap()
             .unwrap();
         assert_eq!(actual.score, expected.score);

@@ -33,6 +33,7 @@ fn fixture() -> crate::test_support::FixtureWorker {
 }
 fn search(sort: Option<ResultSort>, criteria: SearchCriteria) -> SearchResultsRequest {
     SearchResultsRequest {
+        result_detail: atlas_app_model::SearchResultDetail::Evidence,
         connection_scope: None,
         sort,
 
@@ -120,6 +121,7 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
     let mut invalid = search(
         Some(ResultSort::SavedOrder {}),
         SearchCriteria::TextSearch {
+            lexical: None,
             search_content: None,
             query: "query requiring unavailable native inference".into(),
             filter: None,
@@ -150,6 +152,7 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
             atlas_domain::SortDirection::Desc,
         )),
         SearchCriteria::TextSearch {
+            lexical: None,
             search_content: None,
             query: "query requiring unavailable native inference".into(),
             filter: None,
@@ -368,6 +371,7 @@ fn sorting_multirule_labels_use_any_price_rule_and_invalid_rules_fail_before_inf
         let request = search(
             Some(ResultSort::Attributes { rules }),
             SearchCriteria::TextSearch {
+                lexical: None,
                 search_content: None,
                 query: "would require unavailable inference".into(),
                 filter: None,
@@ -392,6 +396,7 @@ fn browse_and_lexical_search_keep_every_matching_relationship_root() {
     for criteria in [
         SearchCriteria::ListRecords { filter: None },
         SearchCriteria::TextSearch {
+            lexical: None,
             query: "Item".into(),
             filter: None,
             mode: RetrievalModeView::Lexical,

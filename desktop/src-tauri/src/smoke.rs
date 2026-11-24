@@ -1067,7 +1067,8 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
             window.dispatchEvent(new Event('atlas-desktop-setup'));
             return false;
         }
-        const field = document.querySelector('[aria-label="Preferred search model"]');
+        const field = [...document.querySelectorAll('label')].find(
+            label => label.textContent === 'Preferred search model')?.control;
         const select = field?.closest('.ant-select');
         if (!select || field.disabled || !select.textContent.includes('BGE Base')) return false;
         select.dataset.smokeShortWidth = select.offsetWidth;
@@ -1093,7 +1094,8 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         evaluates_true(
             window,
             r#"(() => {
-        const field = document.querySelector('[aria-label="Preferred search model"]');
+        const field = [...document.querySelectorAll('label')].find(
+            label => label.textContent === 'Preferred search model')?.control;
         const select = field?.closest('.ant-select');
         const value = select?.querySelector('.ant-select-content');
         return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth

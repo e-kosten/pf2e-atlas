@@ -231,6 +231,7 @@ fn warm_neighbors_do_not_bypass_missing_seeds_profiles_or_sort_validation() {
 
     let missing = SimilaritySeed::Record { record_key: absent };
     let configured = || ConfigurableSimilarRequest {
+        include_evidence: true,
         seed: &missing,
         options: &SimilarityOptions::Baseline {},
         source_sections: None,
@@ -323,6 +324,7 @@ fn advanced_similar_keeps_its_distinct_candidate_path_with_an_empty_or_warm_stor
                 let cached = open_native(&artifact.path(), Some(&store), "bge-base");
                 let cold = open_native(&artifact.path(), None, "bge-base");
                 let request = || ConfigurableSimilarRequest {
+                    include_evidence: true,
                     seed: &seed,
                     options: &options,
                     source_sections: Some(atlas_domain::SimilaritySourceSections::All),

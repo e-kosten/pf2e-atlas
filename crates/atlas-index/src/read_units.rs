@@ -3,7 +3,7 @@ use crate::{
     IndexError, SourceLexicalUnitKind, SourceUnitLocation, SqliteIndexReader,
     query::{ValidatedQuery, compile_root_membership},
 };
-use atlas_domain::OwnedContentLocator;
+use atlas_domain::{LexicalFields, LexicalMatch, LexicalOptions, OwnedContentLocator};
 use atlas_domain::{RecordKey, SearchContentScope, SourcePassageAddress};
 use rusqlite::{OptionalExtension, params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,7 @@ pub struct SourceLexicalHit {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourceLexicalRootHit {
+    pub name_starts_with_query: bool,
     pub record: RecordKey,
     pub best_rank: f64,
     pub witnesses: Vec<SourceLexicalHit>,
@@ -337,7 +338,7 @@ impl SqliteIndexReader {
         self.count_statement();
         let mut statement = c.prepare(&sql)?;
         Ok(statement
-            .query_map(params_from_iter(all.iter()), |r| lexical_hit(r, text))?
+            .query_map(params_from_iter(all.iter()), |r| lexical_hit(r, Some(text)))?
             .collect::<Result<Vec<_>, _>>()?)
     }
     pub fn vector_candidates(
@@ -529,6 +530,30 @@ pub fn validate_lexical_text(text: &str) -> Result<(), crate::LexicalQueryError>
     Ok(())
 }
 
+/// Interpret in-progress input as literal words. FTS5 tokenizes each quoted
+/// string and applies the suffix outside the quotes to its final token.
+fn prefix_fts_query(text: &str) -> Result<String, crate::LexicalQueryError> {
+    if text.len() > 16_384 {
+        return Err(crate::LexicalQueryError::LexicalTextTooLong);
+    }
+    let mut terms = text
+        .split(|c: char| c.is_whitespace() || c == '\0')
+        .filter(|part| part.chars().any(char::is_alphanumeric))
+        .map(quote_fts_term)
+        .collect::<Vec<_>>();
+    // Normalization preserves an unfinished decomposed/accented last word.
+    let expanding = !text.ends_with(char::is_whitespace)
+        && atlas_domain::normalize_record_name(text).ends_with(char::is_alphanumeric);
+    if expanding && let Some(last) = terms.last_mut() {
+        last.push('*');
+    }
+    Ok(terms.join(" AND "))
+}
+
+fn quote_fts_term(term: &str) -> String {
+    format!("\"{}\"", term.replace('"', "\"\""))
+}
+
 fn literal_fts_query(text: &str) -> Result<String, crate::LexicalQueryError> {
     validate_lexical_text(text)?;
     let mut terms = Vec::new();
@@ -554,18 +579,20 @@ fn literal_fts_query(text: &str) -> Result<String, crate::LexicalQueryError> {
     Ok(terms
         .into_iter()
         .filter(|s| s.chars().any(char::is_alphanumeric))
-        .map(|s| format!("\"{}\"", s.replace('"', "\"\"")))
+        .map(|s| quote_fts_term(&s))
         .collect::<Vec<_>>()
         .join(" AND "))
 }
 
-fn lexical_hit(row: &rusqlite::Row<'_>, text: &str) -> rusqlite::Result<SourceLexicalHit> {
-    let location = location(row)?;
-    let kind: String = row.get(13)?;
+fn lexical_label(
+    row: &rusqlite::Row<'_>,
+    kind: &str,
+    text: &str,
+) -> rusqlite::Result<(Option<String>, bool)> {
     let identity: String = row.get("witness_identity_terms")?;
     let definition: String = row.get("witness_definition_terms")?;
     let name_state: String = row.get("witness_name_state")?;
-    let label = match kind.as_str() {
+    let label = match kind {
         "root_name" | "root_alias" if name_state == "value" => Some(identity.as_str()),
         "owned_name" | "heading" | "definition_label" => Some(definition.as_str()),
         _ => None,
@@ -580,11 +607,24 @@ fn lexical_hit(row: &rusqlite::Row<'_>, text: &str) -> rusqlite::Result<SourceLe
         atlas_domain::normalize_record_name(label)
             == atlas_domain::normalize_record_name(comparison)
     });
+    Ok((label.map(str::to_owned), exact_label))
+}
+
+fn lexical_hit(
+    row: &rusqlite::Row<'_>,
+    evidence_text: Option<&str>,
+) -> rusqlite::Result<SourceLexicalHit> {
+    let location = location(row)?;
+    let kind: String = row.get(13)?;
+    let (label, exact_label) = match evidence_text {
+        Some(text) => lexical_label(row, &kind, text)?,
+        None => (None, false),
+    };
     Ok(SourceLexicalHit {
         location,
         rank: row.get("lexical_rank")?,
         exact_label,
-        label: label.map(str::to_owned),
+        label,
         unit_kind: serde_json::from_str(&format!("\"{kind}\"")).map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e))
         })?,
@@ -634,33 +674,60 @@ impl SqliteIndexReader {
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
         content_scope: SearchContentScope,
+        options: LexicalOptions,
+        include_evidence: bool,
     ) -> Result<Vec<SourceLexicalRootHit>, IndexError> {
-        let expression = literal_fts_query(text)?;
+        let expression = match options.matching {
+            LexicalMatch::CompleteTerms => literal_fts_query(text)?,
+            LexicalMatch::LastTokenPrefix => prefix_fts_query(text)?,
+        };
         if expression.is_empty() {
             return Ok(vec![]);
         }
         let (eligible, mut params) = eligible_sql(query, keys)?;
         let text_param = params.len() + 1;
-        params.push(Value::Text(expression));
+        let (name_prefix, unit_filter) = match options.fields {
+            LexicalFields::All => {
+                params.push(Value::Text(expression));
+                ("0".to_string(), "")
+            }
+            LexicalFields::RecordNames => {
+                params.push(Value::Text(format!(
+                    "{{identity_terms alias_terms}} : ({expression})"
+                )));
+                params.push(Value::Text(atlas_domain::normalize_record_name(text)));
+                (
+                    format!("instr(r.name_lookup_key, ?{}) = 1", params.len()),
+                    " AND lu.unit_kind IN ('root_name','root_alias')",
+                )
+            }
+        };
         let content_sql = lexical_content_sql(content_scope);
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT {LEXICAL_LOCATION_COLUMNS},bm25(lexical_fts,10.0,8.0,1.0,6.0) AS lexical_rank,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END AS witness_identity_terms,lu.definition_terms AS witness_definition_terms,r.name_state AS witness_name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id LEFT JOIN selected_sections ss ON ss.section_id=lu.section_id AND ss.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql} ORDER BY lexical_rank,lu.unit_id"
+            "WITH eligible AS ({eligible}) SELECT {LEXICAL_LOCATION_COLUMNS},bm25(lexical_fts,10.0,8.0,1.0,6.0) AS lexical_rank,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END AS witness_identity_terms,lu.definition_terms AS witness_definition_terms,r.name_state AS witness_name_state, {name_prefix} AS name_starts_with_query FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id LEFT JOIN selected_sections ss ON ss.section_id=lu.section_id AND ss.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql}{unit_filter} ORDER BY lexical_rank,lu.unit_id"
         );
         let c = self.native()?;
         self.count_statement();
         let mut statement = c.prepare(&sql)?;
         let mut roots = std::collections::BTreeMap::<RecordKey, SourceLexicalRootHit>::new();
-        for row in statement.query_map(params_from_iter(&params), |row| lexical_hit(row, text))? {
-            let hit = row?;
+        let mut rows = statement.query(params_from_iter(&params))?;
+        while let Some(row) = rows.next()? {
+            let hit = lexical_hit(row, include_evidence.then_some(text))?;
+            let name_starts_with_query: Option<bool> = row.get("name_starts_with_query")?;
+            let rank = weighted_lexical_rank(&hit);
             let root =
                 roots
                     .entry(hit.location.record.clone())
                     .or_insert_with(|| SourceLexicalRootHit {
                         record: hit.location.record.clone(),
-                        best_rank: weighted_lexical_rank(&hit),
+                        name_starts_with_query: name_starts_with_query.unwrap_or(false),
+                        best_rank: rank,
                         witnesses: vec![],
                     });
-            root.best_rank = root.best_rank.min(weighted_lexical_rank(&hit));
+            root.best_rank = root.best_rank.min(rank);
+            if !include_evidence {
+                continue;
+            }
             root.witnesses.push(hit);
             root.witnesses.sort_by(|a, b| {
                 lexical_witness_priority(a)

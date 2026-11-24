@@ -490,7 +490,14 @@ fn roundtrip_summary_content_and_macro_scope() {
     );
     assert_eq!(
         reader
-            .lexical_root_candidates("dragon", &all, None, atlas_domain::SearchContentScope::All)
+            .lexical_root_candidates(
+                "dragon",
+                &all,
+                None,
+                atlas_domain::SearchContentScope::All,
+                Default::default(),
+                true
+            )
             .unwrap()
             .len(),
         3
@@ -1112,7 +1119,14 @@ fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
             .all(|h| h.location.record != *input.records[0].record.key())
     );
     let hits = reader
-        .lexical_root_candidates("Flame", &all, None, atlas_domain::SearchContentScope::All)
+        .lexical_root_candidates(
+            "Flame",
+            &all,
+            None,
+            atlas_domain::SearchContentScope::All,
+            Default::default(),
+            true,
+        )
         .unwrap();
     assert_eq!(hits.len(), 1);
     assert!(

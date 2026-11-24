@@ -37,8 +37,11 @@ and creatures you may want to use later. Setup updates preserve your collections
 
 Use **About** to read a list's description or **Edit list** to update it. Add a
 note from a selected list item's reader. In both fields, **Write** accepts
-Markdown and **Preview** shows the styled result before saving. Use **Insert
-record link** or type `[[` to search for an Atlas record and insert a link.
+Markdown and **Preview** shows the styled result before saving. Type `[[` and at
+least two characters of a record name to see up to five suggestions. Choose one
+to insert the link, or press Escape to keep what you typed. **Open full search**
+carries your text into the full picker. To link words you've already written,
+select them and choose the **Record link** icon in the toolbar.
 
 When you're done with a list for now, open **Edit list**, check **Archived** and
 save. Archived lists are hidden from Lists and the **Add to list** picker. Turn

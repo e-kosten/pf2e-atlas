@@ -32,15 +32,10 @@ impl crate::AtlasRetrievalService {
             request.content_scope,
             request.filter,
             request.scope,
-        )?;
-        let results = self.finish_results(
-            &search_profile,
-            roots,
-            request.page,
             true,
-            window,
-            request.sort,
         )?;
+        let results =
+            self.finish_results(&search_profile, roots, request.page, window, request.sort)?;
         Ok(Some(SimilarRecordResult { seed, results }))
     }
 
@@ -51,6 +46,7 @@ impl crate::AtlasRetrievalService {
         content_scope: SearchContentScope,
         filter: Option<&QueryPredicate>,
         scope: RecordScope<'_>,
+        include_evidence: bool,
     ) -> Result<(Vec<crate::text::RankedRoot>, Option<usize>), crate::SearchError> {
         let vector = self
             .index
@@ -62,6 +58,8 @@ impl crate::AtlasRetrievalService {
             })?;
         let predicate = self.predicate(filter)?;
         self.rank_candidates(crate::text::CandidateRequest {
+            include_evidence,
+            lexical: Default::default(),
             content_scope,
             ranking: Default::default(),
             search_profile: profile,

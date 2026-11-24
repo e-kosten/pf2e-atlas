@@ -18,13 +18,23 @@ impl AtlasAppService {
         let page = SearchPage::new(request.page.number, request.page.size)?;
         let sort = crate::result_order::search_sort(request.sort, &request.criteria)?;
         let projection_execution = execution.clone();
+        let include_evidence =
+            request.result_detail == atlas_app_model::SearchResultDetail::Evidence;
         let query_request = match &request.criteria {
             SearchCriteria::TextSearch {
                 query,
                 filter,
                 mode,
+                lexical,
                 ..
-            } => Some((query, filter, *mode)),
+            } => {
+                if lexical.is_some() && *mode != atlas_app_model::RetrievalModeView::Lexical {
+                    return Err(AppServiceError::invalid_request(
+                        "Lexical options require lexical retrieval",
+                    ));
+                }
+                Some((query, filter, *mode))
+            }
             _ => None,
         };
         let prepared = if let Some((query, filter, mode)) = query_request {
@@ -81,7 +91,10 @@ impl AtlasAppService {
             };
             let relationship_summaries =
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
-            let evidence_filter = filter.cloned();
+
+            let evidence_filter = filter
+                .filter(|_| include_evidence && !relationship_summaries.is_empty())
+                .cloned();
             let scope = connected
                 .as_ref()
                 .and_then(|scope| scope.keys.as_deref())
@@ -116,6 +129,7 @@ impl AtlasAppService {
                     let (mode, results, effective) = crate::similarity::configured_results(
                         retrieval,
                         atlas_search::ConfigurableSimilarRequest {
+                            include_evidence,
                             cancelled: Some(&cancelled),
                             seed: &seed,
                             options: &options,
@@ -161,9 +175,12 @@ impl AtlasAppService {
                     query,
                     filter,
                     mode,
+                    lexical,
                     search_content: _,
                 } => {
                     let result = retrieval.search_text(TextSearchRequest {
+                        lexical: lexical.unwrap_or_default(),
+                        include_evidence,
                         content_scope: search_content,
                         sort: sort.clone(),
                         ranking: request.ranking.unwrap_or_default(),
@@ -191,40 +208,38 @@ impl AtlasAppService {
                     row.record = record;
                 }
             }
-            let keys = rows
-                .iter()
-                .map(|row| {
-                    atlas_domain::RecordKey::parse(&row.record.record_key).map_err(|_| {
-                        AppServiceError::invalid_request("The result record is unavailable")
+            if let Some(filter) = &evidence_filter {
+                let keys = rows
+                    .iter()
+                    .map(|row| {
+                        atlas_domain::RecordKey::parse(&row.record.record_key).map_err(|_| {
+                            AppServiceError::invalid_request("The result record is unavailable")
+                        })
                     })
-                })
-                .collect::<AppServiceResult<Vec<_>>>()?;
-            let proofs = if let Some(filter) = &evidence_filter {
-                retrieval.relationship_proofs(filter, &keys)?
-            } else {
-                vec![]
-            };
-            for (row, key) in rows.iter_mut().zip(keys) {
-                projection_execution.check()?;
-                for summary in &relationship_summaries {
-                    if !proofs
-                        .iter()
-                        .any(|(record, id)| record == &key && id == &summary.clause_id)
-                    {
-                        continue;
+                    .collect::<AppServiceResult<Vec<_>>>()?;
+                let proofs = retrieval.relationship_proofs(filter, &keys)?;
+                for (row, key) in rows.iter_mut().zip(keys) {
+                    projection_execution.check()?;
+                    for summary in &relationship_summaries {
+                        if !proofs
+                            .iter()
+                            .any(|(record, id)| record == &key && id == &summary.clause_id)
+                        {
+                            continue;
+                        }
+                        let (occurrences, page) = crate::relationship_search::evidence_page(
+                            retrieval,
+                            &summary.relationship,
+                            &key,
+                            SearchPage::new(1, 3)?,
+                        )?;
+                        row.relationship_evidence
+                            .push(atlas_app_model::RelationshipEvidenceView {
+                                clause_id: summary.clause_id.clone(),
+                                occurrences,
+                                page,
+                            });
                     }
-                    let (occurrences, page) = crate::relationship_search::evidence_page(
-                        retrieval,
-                        &summary.relationship,
-                        &key,
-                        SearchPage::new(1, 3)?,
-                    )?;
-                    row.relationship_evidence
-                        .push(atlas_app_model::RelationshipEvidenceView {
-                            clause_id: summary.clause_id.clone(),
-                            occurrences,
-                            page,
-                        });
                 }
             }
             crate::presentation::reference_help::annotate_summaries(

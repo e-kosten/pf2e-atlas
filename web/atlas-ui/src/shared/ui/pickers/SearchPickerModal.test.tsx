@@ -84,11 +84,13 @@ function result(
 function Picker({
   disabled = false,
   open = true,
+  initialQuery,
   connectionScope,
   fixedFilter,
 }: {
   disabled?: boolean;
   open?: boolean;
+  initialQuery?: string;
   connectionScope?: SearchConnectionScope;
   fixedFilter?: QueryPredicate;
 }) {
@@ -98,6 +100,8 @@ function Picker({
   return (
     <SearchPickerModal
       title="Choose record"
+      focusSearchOnOpen={initialQuery !== undefined}
+      initialQuery={initialQuery}
       disabled={disabled}
       open={open}
       form={form}
@@ -138,10 +142,14 @@ function Picker({
   );
 }
 function renderPicker({
+  initialQuery,
+  usable = true,
   connectionScope,
   fixedFilter,
   resolveWorkspaceDefault,
 }: {
+  initialQuery?: string;
+  usable?: boolean;
   connectionScope?: SearchConnectionScope;
   fixedFilter?: QueryPredicate;
   resolveWorkspaceDefault?: () => Promise<WorkspaceSearchDefault | undefined>;
@@ -157,10 +165,12 @@ function renderPicker({
       <QueryClientProvider client={client}>
         <SearchProfileProvider
           id={profile}
+          usable={usable}
           resolveWorkspaceDefault={resolveWorkspaceDefault}
         >
           <App>
             <Picker
+              initialQuery={initialQuery}
               disabled={disabled}
               open={open}
               connectionScope={connectionScope}
@@ -788,6 +798,111 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
     name: "Encounter",
   });
 });
+
+it("runs an inline handoff query with the resolved workspace model and picker evidence", async () => {
+  let finish!: (profile: WorkspaceSearchDefault) => void;
+  const resolveWorkspaceDefault = vi.fn(
+    () =>
+      new Promise<WorkspaceSearchDefault>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  renderPicker({ initialQuery: "Lantern Ward", resolveWorkspaceDefault });
+  await waitFor(() => expect(resolveWorkspaceDefault).toHaveBeenCalledOnce());
+  expect(search).not.toHaveBeenCalled();
+  const response = result("Lantern Ward", "generation-a", "embeddinggemma");
+  response.mode = { kind: "text_search", mode: "hybrid", query: "Lantern Ward" };
+  response.sort = { kind: "relevance" };
+  search.mockResolvedValue(response);
+  await act(async () => finish({ id: "embeddinggemma", generation: "generation-a" }));
+  expect(await screen.findByRole("link", { name: /Lantern Ward/ })).toBeVisible();
+  expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+    "Lantern Ward",
+  );
+  expect(search.mock.calls.map(([request]) => request)).toEqual([
+    expect.objectContaining({
+      criteria: expect.objectContaining({
+        kind: "text_search",
+        mode: "hybrid",
+        query: "Lantern Ward",
+      }),
+      result_detail: "evidence",
+      search_profile: "embeddinggemma",
+      expected_artifact_generation: "generation-a",
+    }),
+  ]);
+});
+
+it("focuses the handoff search field when the model cannot run the query", async () => {
+  renderPicker({ initialQuery: "Lantern Ward", usable: false });
+  const input = await screen.findByRole("searchbox", { name: "Search records" });
+  await waitFor(() => expect(input).toHaveFocus());
+  expect(input).toHaveValue("Lantern Ward");
+  expect(search).not.toHaveBeenCalled();
+});
+
+it.each(["replace", "clear", "close"] as const)(
+  "lets %s supersede a handoff waiting for the workspace model",
+  async (action) => {
+    let finishSeed!: (value: WorkspaceSearchDefault) => void;
+    let finishReplacement!: (value: WorkspaceSearchDefault) => void;
+    const resolveWorkspaceDefault = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<WorkspaceSearchDefault>((resolve) => {
+            finishSeed = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<WorkspaceSearchDefault>((resolve) => {
+            finishReplacement = resolve;
+          }),
+      );
+    const controls = renderPicker({
+      initialQuery: "Lantern",
+      usable: false,
+      resolveWorkspaceDefault,
+    });
+    await waitFor(() => expect(resolveWorkspaceDefault).toHaveBeenCalledOnce());
+    expect(search).not.toHaveBeenCalled();
+
+    if (action === "replace") {
+      const response = result("Dragon", "generation-b", "embeddinggemma");
+      response.mode = { kind: "text_search", mode: "hybrid", query: "dragon" };
+      response.sort = { kind: "relevance" };
+      search.mockResolvedValue(response);
+      await submit("dragon");
+      expect(resolveWorkspaceDefault).toHaveBeenCalledTimes(2);
+      expect(search).not.toHaveBeenCalled();
+      await act(async () =>
+        finishReplacement({ id: "embeddinggemma", generation: "generation-b" }),
+      );
+      expect(await screen.findByRole("link", { name: /Dragon/ })).toBeVisible();
+      expect(search.mock.calls[0][0]).toMatchObject({
+        criteria: { query: "dragon", mode: "hybrid" },
+        expected_artifact_generation: "generation-b",
+        search_profile: "embeddinggemma",
+      });
+    } else if (action === "clear") {
+      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    } else {
+      controls.setOpen(false);
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      controls.setOpen(true);
+    }
+    if (action !== "replace") {
+      expect(await screen.findByRole("link", { name: /Ghoul/ })).toBeVisible();
+      expect(screen.getByRole("searchbox")).toHaveValue("");
+      expect(search.mock.calls[0][0].criteria.kind).toBe("list_records");
+    }
+    await act(async () => finishSeed({ id: "bge-base", generation: "generation-old" }));
+    expect(search).toHaveBeenCalledOnce();
+    expect(discoverFilterEditor).toHaveBeenCalled();
+    expect(resolveWorkspaceDefault).toHaveBeenCalledTimes(action === "replace" ? 2 : 1);
+  },
+);
 
 it("discards a pending keyword draft when closing a picker with empty criteria", async () => {
   let finish!: (value: WorkspaceSearchDefault) => void;

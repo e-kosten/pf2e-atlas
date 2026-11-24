@@ -49,6 +49,8 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
                 &atlas_index::parse_where("true").unwrap(),
                 None,
                 atlas_domain::SearchContentScope::All,
+                Default::default(),
+                true,
             )
             .unwrap()
             .len(),

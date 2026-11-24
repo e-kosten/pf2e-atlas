@@ -39,6 +39,9 @@ pub use categories::RecordKind;
 pub use name_lookup::normalize_record_name;
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
 
+mod lexical;
+pub use lexical::{LexicalFields, LexicalMatch, LexicalOptions};
+
 mod search_ranking;
 pub use search_ranking::SearchRanking;
 

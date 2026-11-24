@@ -12,6 +12,7 @@ fn request<'a>(
     options: &'a SimilarityOptions,
 ) -> ConfigurableSimilarRequest<'a> {
     ConfigurableSimilarRequest {
+        include_evidence: true,
         seed,
         options,
         source_sections: None,

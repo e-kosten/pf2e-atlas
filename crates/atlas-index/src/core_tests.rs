@@ -187,7 +187,14 @@ fn core_masks_units_before_both_lexical_and_knn_limits_without_expanding_terms()
     assert_eq!(&lexical_all[0].location.record, a);
     assert_eq!(&lexical_core[0].location.record, b);
     let roots = reader
-        .lexical_root_candidates("needle", &all, None, SearchContentScope::Core)
+        .lexical_root_candidates(
+            "needle",
+            &all,
+            None,
+            SearchContentScope::Core,
+            Default::default(),
+            true,
+        )
         .unwrap();
     assert_eq!(
         roots.iter().map(|hit| &hit.record).collect::<Vec<_>>(),
@@ -195,7 +202,14 @@ fn core_masks_units_before_both_lexical_and_knn_limits_without_expanding_terms()
     );
     assert!(
         reader
-            .lexical_root_candidates("bodyword", &all, None, SearchContentScope::Core)
+            .lexical_root_candidates(
+                "bodyword",
+                &all,
+                None,
+                SearchContentScope::Core,
+                Default::default(),
+                true
+            )
             .unwrap()
             .is_empty()
     );
@@ -472,20 +486,41 @@ fn an_allowed_owned_name_remains_core_when_its_description_is_empty() {
     assert_eq!(core.representation, CoreSectionRepresentation::IdentityOnly);
     assert_eq!(
         reader
-            .lexical_root_candidates("pyromancer", &all, None, SearchContentScope::Core)
+            .lexical_root_candidates(
+                "pyromancer",
+                &all,
+                None,
+                SearchContentScope::Core,
+                Default::default(),
+                true
+            )
             .unwrap()
             .len(),
         1
     );
     assert!(
         reader
-            .lexical_root_candidates("incidental", &all, None, SearchContentScope::Core)
+            .lexical_root_candidates(
+                "incidental",
+                &all,
+                None,
+                SearchContentScope::Core,
+                Default::default(),
+                true
+            )
             .unwrap()
             .is_empty()
     );
     assert_eq!(
         reader
-            .lexical_root_candidates("incidental", &all, None, SearchContentScope::All)
+            .lexical_root_candidates(
+                "incidental",
+                &all,
+                None,
+                SearchContentScope::All,
+                Default::default(),
+                true
+            )
             .unwrap()
             .len(),
         1

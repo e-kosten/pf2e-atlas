@@ -268,6 +268,7 @@ pub use search::{
     RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
     RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
     SearchConnectionScope, SearchCoverageView, SearchCriteria, SearchLaneView,
-    SearchMatchSectionView, SearchModeSummary, SearchPageRequest, SearchPageView, SearchResultRow,
-    SearchResultsPage, SearchResultsRequest, SearchWitnessView, StaticSearchContext,
+    SearchMatchSectionView, SearchModeSummary, SearchPageRequest, SearchPageView,
+    SearchResultDetail, SearchResultRow, SearchResultsPage, SearchResultsRequest,
+    SearchWitnessView, StaticSearchContext,
 };

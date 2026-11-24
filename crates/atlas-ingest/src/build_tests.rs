@@ -2688,6 +2688,8 @@ fn wholly_quarantined_or_unaddressable_source_preserves_active_publication_and_s
                 &query,
                 None,
                 atlas_domain::SearchContentScope::All,
+                Default::default(),
+                true,
             )
             .unwrap();
         assert_eq!(

@@ -91,6 +91,7 @@ pub struct ConfigurableSimilarRequest<'a> {
     pub page: SearchPage,
     pub sort: ResultSort,
 
+    pub include_evidence: bool,
     pub cancelled: Option<&'a dyn Fn() -> bool>,
 }
 #[derive(Debug)]
@@ -299,9 +300,10 @@ impl crate::AtlasRetrievalService {
                 request.content_scope,
                 request.filter,
                 request.scope,
+                request.include_evidence,
             )?;
             let results =
-                self.finish_results(&profile, roots, request.page, true, window, request.sort)?;
+                self.finish_results(&profile, roots, request.page, window, request.sort)?;
             return Ok(Some(ConfigurableSimilarResult {
                 seed,
                 results,
@@ -372,21 +374,24 @@ impl crate::AtlasRetrievalService {
             ));
         }
         let seed_parts = crate::similarity_scoring::parts(&seed_units)?;
-        let seed_part_indices = seed_parts
-            .iter()
-            .enumerate()
-            .map(|(index, part)| (part.metadata.selector(), index))
-            .collect::<BTreeMap<_, _>>();
-        let seed_unit_indices = seed_units
-            .iter()
-            .enumerate()
-            .map(|(index, unit)| {
-                (
-                    unit.location.as_ref().map(|location| location.unit_id),
-                    index,
-                )
-            })
-            .collect::<HashMap<_, _>>();
+        let evidence_indices = request.include_evidence.then(|| {
+            let seed_part_indices = seed_parts
+                .iter()
+                .enumerate()
+                .map(|(index, part)| (part.metadata.selector(), index))
+                .collect::<BTreeMap<_, _>>();
+            let seed_unit_indices = seed_units
+                .iter()
+                .enumerate()
+                .map(|(index, unit)| {
+                    (
+                        unit.location.as_ref().map(|location| location.unit_id),
+                        index,
+                    )
+                })
+                .collect::<HashMap<_, _>>();
+            (seed_part_indices, seed_unit_indices)
+        });
         let mode = request.options.candidate_parts();
         let predicate = self.predicate(request.filter)?;
         let mut diagnostics = SimilarityDiagnostics {
@@ -540,6 +545,7 @@ impl crate::AtlasRetrievalService {
                             &candidate_parts,
                             mode,
                             *decay,
+                            request.include_evidence,
                             request.cancelled,
                         )?)
                     }
@@ -548,6 +554,7 @@ impl crate::AtlasRetrievalService {
                             &seed_parts,
                             &candidate_parts,
                             mode,
+                            request.include_evidence,
                             request.cancelled,
                         )?
                     }
@@ -562,6 +569,19 @@ impl crate::AtlasRetrievalService {
                 if score.score <= 0.0 || score.comparable_parts == 0 {
                     continue;
                 }
+                roots.push(crate::text::RankedRoot {
+                    key: key.clone(),
+                    lexical_rank: None,
+                    similarity: Some(score.score),
+                    score: score.score,
+                    tier: 3,
+                    // Page selection needs ranks/summaries only. Recover seed and
+                    // candidate witnesses together once the page is known.
+                    witnesses: vec![],
+                });
+                let Some((seed_part_indices, seed_unit_indices)) = &evidence_indices else {
+                    continue;
+                };
                 let pairs = score
                     .pairs
                     .into_iter()
@@ -586,18 +606,8 @@ impl crate::AtlasRetrievalService {
                         })
                     })
                     .collect::<Result<Vec<_>, SearchError>>()?;
-                let (parts, truncated) = compact_part_scores(score.parts, &seed_part_indices)?;
+                let (parts, truncated) = compact_part_scores(score.parts, seed_part_indices)?;
 
-                roots.push(crate::text::RankedRoot {
-                    key: key.clone(),
-                    lexical_rank: None,
-                    similarity: Some(score.score),
-                    score: score.score,
-                    tier: 3,
-                    // Page selection needs ranks/summaries only. Recover seed and
-                    // candidate witnesses together once the page is known.
-                    witnesses: vec![],
-                });
                 pending.insert(
                     key,
                     PendingEvidence {
@@ -633,42 +643,43 @@ impl crate::AtlasRetrievalService {
             &profile,
             roots,
             request.page,
-            true,
             Some(CANDIDATE_WINDOW),
             request.sort.clone(),
         )?;
         let mut evidence = Vec::new();
-        for record in &results.records {
-            request.check()?;
-            if let Some(pending) = pending.remove(&record.record.key) {
-                evidence.push((
-                    record.record.key.clone(),
-                    prepare_similarity_evidence(pending, &seed_parts, &seed_units)?,
-                ));
+        if request.include_evidence {
+            for record in &results.records {
+                request.check()?;
+                if let Some(pending) = pending.remove(&record.record.key) {
+                    evidence.push((
+                        record.record.key.clone(),
+                        prepare_similarity_evidence(pending, &seed_parts, &seed_units)?,
+                    ));
+                }
             }
-        }
-        let mut witnesses = evidence
-            .iter_mut()
-            .flat_map(|(_, evidence)| {
-                evidence.pairs.iter_mut().flat_map(|pair| {
-                    pair.seed
-                        .iter_mut()
-                        .chain(std::iter::once(&mut pair.candidate))
-                })
-            })
-            .collect::<Vec<_>>();
-        self.hydrate_similarity_witnesses(&mut witnesses, &request)?;
-        for (key, evidence) in &evidence {
-            if let Some(record) = results
-                .records
+            let mut witnesses = evidence
                 .iter_mut()
-                .find(|record| &record.record.key == key)
-            {
-                record.matches = evidence
-                    .pairs
-                    .iter()
-                    .map(|pair| pair.candidate.clone())
-                    .collect();
+                .flat_map(|(_, evidence)| {
+                    evidence.pairs.iter_mut().flat_map(|pair| {
+                        pair.seed
+                            .iter_mut()
+                            .chain(std::iter::once(&mut pair.candidate))
+                    })
+                })
+                .collect::<Vec<_>>();
+            self.hydrate_similarity_witnesses(&mut witnesses, &request)?;
+            for (key, evidence) in &evidence {
+                if let Some(record) = results
+                    .records
+                    .iter_mut()
+                    .find(|record| &record.record.key == key)
+                {
+                    record.matches = evidence
+                        .pairs
+                        .iter()
+                        .map(|pair| pair.candidate.clone())
+                        .collect();
+                }
             }
         }
         diagnostics.timings.evidence_hydration_ms =

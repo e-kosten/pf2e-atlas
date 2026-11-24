@@ -203,6 +203,7 @@ impl AtlasRetrievalService {
                             &seed_parts,
                             &seed_parts,
                             mode,
+                            true,
                             request.cancelled,
                         )?
                         .is_some(),
@@ -459,6 +460,7 @@ impl AtlasRetrievalService {
                                 &seed_parts,
                                 &candidate_parts,
                                 *mode,
+                                true,
                                 request.cancelled,
                             )? {
                                 None => unavailable(key, "undefined_candidate_centroid"),

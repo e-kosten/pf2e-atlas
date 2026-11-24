@@ -615,6 +615,17 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
+The default `result_detail: records` returns localized summaries, ordering and
+query-level metadata. Consumers that display witnesses, occurrence proofs or
+Similarity explanations request `result_detail: evidence`. Both projections use
+the same eligible records, scoring, sorting and page boundaries. Records-only
+retrieval skips reads and comparisons used solely to explain results.
+
+Lexical text searches can select `lexical.fields: record_names` to search
+indexed names and verified aliases. With `lexical.match: last_token_prefix`,
+the last word being typed can match the start of an indexed word anywhere in a
+label. Trailing whitespace completes that word. Each option works independently.
+The Markdown editor combines them for inline completion without model inference.
 An omitted Similar method selects Passage matches, Any content and decay 0.5.
 Explicit options and record preferences retain their meaning.
 Configurable Similar carries typed method, decay, part and candidate-role options
@@ -682,14 +693,14 @@ the reader lands, focuses and briefly highlights that marker while retaining the
 complete field. The marker is added only to the response after passage validation;
 stored HTML, passage hashes and artifact policy identities remain unchanged.
 Match display is a remembered browser preference with Hidden, Matching sections
-and Detailed modes. Matching sections is the default and shows section links and
-excerpts. Hidden omits the complete reader match context. Detailed also shows
-Similarity coverage, section/role contributions and paired seed/result excerpts
-when Similar evidence is available; text searches retain their matching sections.
+and Detailed modes. Hidden is the default. Enabling either visible mode repeats
+the applied search on its current page with evidence, while keeping the current
+rows and reading position available. Matching sections shows section links and
+excerpts. Detailed also shows Similarity coverage, section/role contributions
+and paired seed/result excerpts. Switching between the visible modes or hiding
+explanations needs no request. Later searches and pages use the selected detail.
 The detailed weight table hides rows rounding to 0.0% unless Show smaller weights
 is enabled. That option defaults off and is shown only for Detailed Similar results.
-Display-only changes do not submit a new search, change ranking or remove scoring
-contributions. Existing saved detail booleans migrate to Matching sections/Detailed.
 Same-record evidence navigates through the reader; cross-record seed or reference evidence uses the shared linked-record
 Drawer, preserving the selected result and its return context.
 

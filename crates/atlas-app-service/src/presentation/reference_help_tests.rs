@@ -422,6 +422,7 @@ fn alternate_melee_and_spell_patch_traits_keep_labels_and_raw_identity() {
 
 fn list_request(filter: Option<atlas_domain::QueryPredicate>) -> SearchResultsRequest {
     SearchResultsRequest {
+        result_detail: atlas_app_model::SearchResultDetail::Evidence,
         connection_scope: None,
         criteria: SearchCriteria::ListRecords { filter },
         page: SearchPageRequest {

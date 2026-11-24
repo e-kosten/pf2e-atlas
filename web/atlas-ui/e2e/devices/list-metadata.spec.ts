@@ -318,6 +318,50 @@ test("long entry notes read in the selected record pane and preserve both scroll
   }
 });
 
+test("record suggestions accept pointer selection inside Edit list", async ({
+  page,
+}, info) => {
+  const slug = `modal-record-link-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Record link editing" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  try {
+    await page.goto(`/lists/${slug}/edit`);
+    const dialog = page.getByRole("dialog", { name: "Edit list" });
+    const editor = dialog.getByRole("textbox", { name: "Description" });
+    const source = dialog.locator(".cm-editor");
+    const bounds = await source.boundingBox();
+    if (!bounds) throw new Error("Missing description editor");
+    const position = { x: bounds.width - 16, y: bounds.height - 8 };
+    const clickBelowText = () =>
+      info.project.use.hasTouch ? source.tap({ position }) : source.click({ position });
+    await clickBelowText();
+    await expect(editor).toBeFocused();
+    await editor.pressSequentially("[[Lantern");
+    const suggestions = dialog.getByRole("listbox", {
+      name: "Record link suggestions",
+    });
+    await expect(suggestions).toBeVisible();
+    await activate(dialog.getByRole("textbox", { name: /Name/ }), info);
+    await expect(suggestions).toBeHidden();
+    await clickBelowText();
+    await expect(suggestions).toBeVisible();
+    await editor.pressSequentially(" Wa");
+    await activate(
+      dialog.getByRole("option", { name: /Lantern Ward.*Spell/i }).first(),
+      info,
+    );
+    await expect
+      .poll(() => markdownSource(editor))
+      .toBe("[Lantern Ward](record:browser-spells:spell00000000001)");
+    await expect(editor).toBeFocused();
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
 test("expanding a new entry note retains the editor, caret and preview choice", async ({
   page,
 }, info) => {
@@ -338,6 +382,18 @@ test("expanding a new entry note retains the editor, caret and preview choice", 
     const collapse = note.getByRole("button", { name: "Collapse editor" });
     await activate(note.getByRole("button", { name: "Add note" }), info);
     const editor = note.getByRole("textbox", { name: "Note", exact: true });
+    await editor.pressSequentially("[[Lantern Wa");
+    const options = page.getByRole("listbox", { name: "Record link suggestions" });
+    const ward = options.getByRole("option", { name: /Lantern Ward.*Spell/i }).first();
+    // WebKit rounds the observed intersection of a fractional-height row.
+    await expect(ward).toBeInViewport({ ratio: 0.99 });
+    await expect(editor).toBeFocused();
+    await activate(ward, info);
+    await expect(options).toBeHidden();
+    await expect
+      .poll(() => markdownSource(editor))
+      .toBe("[Lantern Ward](record:browser-spells:spell00000000001)");
+    await expect(editor).toBeFocused();
     const text = "Keep this **draft** while the list stays open. ".repeat(24).trimEnd();
     await replaceMarkdown(editor, text);
     await pressMarkdownShortcut(editor, "Home");

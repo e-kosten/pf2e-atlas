@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { EditorView } from "@codemirror/view";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Form } from "antd";
 import { useState } from "react";
@@ -7,6 +8,9 @@ import {
   replaceMarkdown,
   selectMarkdown,
 } from "../../test/markdownEditor";
+import * as atlasApi from "../../api/atlasApi";
+import type { SearchResultsPage } from "../../generated/atlas";
+import { summaryFixture } from "../../test/fixtures";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { markdownRecordLink } from "./MarkdownDocument";
 
@@ -165,4 +169,170 @@ it("connects the source textbox to form validation and help", async () => {
   fireEvent.click(action("Save"));
   await waitFor(() => expect(note()).toHaveAttribute("aria-invalid", "true"));
   await waitFor(() => expect(note()).toHaveAccessibleDescription(/note.*required/i));
+});
+
+function insertAtCaret(editor: EditorView, text: string, userEvent: string) {
+  const { from, to } = editor.state.selection.main;
+  act(() =>
+    editor.dispatch({
+      changes: { from, to, insert: text },
+      selection: { anchor: from + text.length },
+      userEvent,
+    }),
+  );
+}
+
+function inlinePage(query: string, title: string): SearchResultsPage {
+  return {
+    search_content: "all",
+    sort: { kind: "relevance" },
+    ranking: "score",
+    search_profile: "bge-base",
+    artifact_generation: "reference-a",
+    relationship_clauses: [],
+    coverage: null,
+    mode: { kind: "text_search", mode: "lexical", query },
+    page: {
+      number: 1,
+      size: 5,
+      count: 1,
+      total: 1,
+      has_more: false,
+      next_page: null,
+    },
+    rows: [
+      {
+        record: summaryFixture("spells:exact-key", title),
+        matches: [],
+        relationship_evidence: [],
+      },
+    ],
+  };
+}
+
+it("inserts only the current inline result between surrounding prose and restores the typed range on Undo", async () => {
+  const pending = new Map<string, (page: SearchResultsPage) => void>();
+  const search = vi.spyOn(atlasApi, "searchPage").mockImplementation(
+    (request) =>
+      new Promise((resolve) => {
+        if (request.criteria.kind === "text_search")
+          pending.set(request.criteria.query, resolve);
+      }),
+  );
+  const client = new QueryClient();
+  function Draft() {
+    const [source, setSource] = useState("Before  after");
+    return <MarkdownEditor label="Note" value={source} onChange={setSource} />;
+  }
+  const mounted = render(
+    <QueryClientProvider client={client}>
+      <Draft />
+    </QueryClientProvider>,
+  );
+  const textbox = note();
+  const editor = EditorView.findFromDOM(textbox)!;
+  try {
+    selectMarkdown(textbox, 7);
+    insertAtCaret(editor, "[", "input.type");
+    insertAtCaret(editor, "[", "input.type");
+    fireEvent.focusOut(textbox, { relatedTarget: null });
+    expect(textbox).not.toHaveAttribute("aria-controls");
+    fireEvent.focusIn(textbox);
+    expect(textbox).toHaveAttribute("aria-controls");
+    insertAtCaret(editor, "fi", "input.type");
+    await waitFor(() => expect(pending.has("fi")).toBe(true));
+    const oldSignal = search.mock.calls[0][1]!;
+    insertAtCaret(editor, "re ", "input.type");
+    await waitFor(() => expect(pending.has("fire ")).toBe(true));
+    expect(oldSignal.aborted).toBe(true);
+    expect(search.mock.lastCall?.[0]).toMatchObject({
+      criteria: {
+        mode: "lexical",
+        query: "fire ",
+        lexical: { fields: "record_names", match: "last_token_prefix" },
+      },
+      result_detail: "records",
+      page: { number: 1, size: 5 },
+    });
+    await act(async () => pending.get("fire ")!(inlinePage("fire ", "Fire [Ward]")));
+    await waitFor(() =>
+      expect(textbox).toHaveAttribute(
+        "aria-activedescendant",
+        expect.stringMatching(/-0$/),
+      ),
+    );
+    await act(async () => pending.get("fi")!(inlinePage("fi", "Wrong result")));
+    fireEvent.keyDown(textbox, { key: "Enter" });
+    expect(markdownSource(textbox)).toBe(
+      "Before " + markdownRecordLink("Fire [Ward]", "spells:exact-key") + " after",
+    );
+    fireEvent.click(action("Undo"));
+    expect(markdownSource(textbox)).toBe("Before [[fire  after");
+    expect(textbox).not.toHaveAttribute("aria-controls");
+    selectMarkdown(textbox, 7, 14);
+    insertAtCaret(editor, "[[", "input.paste");
+    expect(textbox).not.toHaveAttribute("aria-controls");
+  } finally {
+    mounted.unmount();
+    client.clear();
+    search.mockRestore();
+  }
+});
+
+it("keeps an earlier cached suggestion unavailable after the collection changes", async () => {
+  const search = vi
+    .spyOn(atlasApi, "searchPage")
+    .mockResolvedValueOnce(inlinePage("fi", "Fire Ward"))
+    .mockResolvedValueOnce({
+      ...inlinePage("fir", "New Fire Ward"),
+      artifact_generation: "reference-b",
+    });
+  const client = new QueryClient();
+  const mounted = render(
+    <QueryClientProvider client={client}>
+      <MarkdownEditor label="Note" value="" />
+    </QueryClientProvider>,
+  );
+  try {
+    const textbox = note();
+    const editor = EditorView.findFromDOM(textbox)!;
+    insertAtCaret(editor, "[", "input.type");
+    insertAtCaret(editor, "[", "input.type");
+    insertAtCaret(editor, "fi", "input.type");
+    await waitFor(() => expect(textbox).toHaveAttribute("aria-activedescendant"));
+    insertAtCaret(editor, "r", "input.type");
+    await waitFor(() =>
+      expect(
+        client
+          .getQueryCache()
+          .findAll()
+          .some((query) => query.state.error instanceof atlasApi.AtlasApiError),
+      ).toBe(true),
+    );
+    vi.useFakeTimers();
+    try {
+      act(() =>
+        editor.dispatch({
+          changes: { from: 4, to: 5 },
+          selection: { anchor: 4 },
+          userEvent: "delete.backward",
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      expect(markdownSource(textbox)).toBe("[[fi");
+      expect(textbox).toHaveAttribute("aria-controls");
+      expect(textbox).not.toHaveAttribute("aria-activedescendant");
+      expect(search).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+    fireEvent.focusOut(textbox, { relatedTarget: null });
+    expect(textbox).not.toHaveAttribute("aria-controls");
+  } finally {
+    mounted.unmount();
+    client.clear();
+    search.mockRestore();
+  }
 });

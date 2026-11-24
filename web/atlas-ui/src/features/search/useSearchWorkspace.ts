@@ -13,12 +13,14 @@ import { searchDestination } from "../../app/destinations";
 import {
   useEffect,
   useEffectEvent,
+  useId,
   useLayoutEffect,
   useMemo,
   useReducer,
+  useState,
   useRef,
 } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
 import type { WorkspaceSearchDefault } from "../../shared/search/SearchProfileContext";
 import { searchExecution } from "../../shared/search/searchExecution";
@@ -104,6 +106,8 @@ function urlReadingIdentity(route: ReturnType<typeof currentSearchLocation>) {
 }
 
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
+type ResultData = { page: SearchResultsPage; filter: QueryPredicate | null };
+
 export type SearchWorkspaceState = {
   search: SearchFormState;
   reading: ReferenceReading;
@@ -123,6 +127,7 @@ export type SearchWorkspaceState = {
   filterApplicabilityCurrent: boolean;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
+  evidencePending?: boolean;
   resultsLoading: boolean;
   resultsRefreshing: boolean;
   resultsPaused?: boolean;
@@ -385,7 +390,7 @@ export function useSearchWorkspace({
     }, SEARCH_REQUEST_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [search, searchToken, activeSearch]);
-  const resultsKeyForGeneration = (generation: string | null) => [
+  const baseResultsKey = (generation: string | null) => [
     "results",
     activeSearchExecutionToken,
     retrieval.epoch,
@@ -393,18 +398,67 @@ export function useSearchWorkspace({
     pageNumber,
     requestProfile ?? null,
   ];
+  const client = useQueryClient();
+  const workspaceId = useId();
+  const visible = searchPreferences.matchDisplay !== "hidden";
+  const context = JSON.stringify(baseResultsKey(null));
+  const [projection, setProjection] = useState({
+    context,
+    visible,
+    detail: visible ? ("evidence" as const) : ("records" as const),
+    revision: 0,
+    retained: undefined as ResultData | undefined,
+  });
+  const resultsKeyForGeneration = (generation: string | null) => [
+    ...baseResultsKey(generation),
+    projection.detail,
+    projection.detail === "evidence" && projection.revision
+      ? [workspaceId, projection.revision]
+      : null,
+  ];
   const resultsKey = resultsKeyForGeneration(retrieval.generation);
-  const resultsQuery = useQuery<{
-    page: SearchResultsPage;
-    filter: QueryPredicate | null;
-  }>({
+  if (projection.context !== context || projection.visible !== visible) {
+    const retained =
+      projection.context === context
+        ? (client.getQueryData<ResultData>(resultsKey) ?? projection.retained)
+        : undefined;
+    setProjection({
+      context,
+      visible,
+      // Hiding during the first fetch lets that request supply the page.
+      detail:
+        visible || (!retained && projection.context === context)
+          ? "evidence"
+          : "records",
+      revision: projection.revision + Number(visible && !projection.visible),
+      retained,
+    });
+  }
+  const heldPage =
+    projection.retained?.page.artifact_generation === retrieval.generation &&
+    !retrieval.recovering
+      ? projection.retained
+      : undefined;
+  const [generationFailure, setGenerationFailure] = useState<{
+    epoch: number;
+    error: Error;
+  } | null>(null);
+  const pausedError =
+    generationFailure?.epoch === retrieval.epoch ? generationFailure.error : null;
+  const resultsQuery = useQuery<ResultData>({
     queryKey: resultsKey,
     meta: referenceQueryMeta,
-    enabled: canRunResultSearch && !retrieval.recovering,
+    enabled:
+      canRunResultSearch &&
+      !retrieval.recovering &&
+      !pausedError &&
+      (visible || !heldPage),
     staleTime: 20000,
     placeholderData: (previous, previousQuery) =>
+      !heldPage &&
       previous &&
-      previousQuery?.queryKey[5] === (requestProfile ?? null) &&
+      previousQuery?.queryKey[6] === projection.detail &&
+      previousQuery.queryKey[5] === (requestProfile ?? null) &&
       (previous.page.mode.kind !== "text_search" ||
         previous.page.mode.mode === textMode) &&
       previous.page.ranking === (activeSearch.ranking ?? "score") &&
@@ -415,13 +469,16 @@ export function useSearchWorkspace({
     queryFn: async ({ signal }) => {
       const ticket = retrieval.capture(signal);
       const page = await searchPage(
-        buildSearchRequest(
-          activeSearch,
-          pageNumber,
-          retrieval.generation,
-          requestProfile,
-          textMode,
-        ),
+        {
+          ...buildSearchRequest(
+            activeSearch,
+            pageNumber,
+            retrieval.generation,
+            requestProfile,
+            textMode,
+          ),
+          ...(projection.detail === "evidence" && { result_detail: "evidence" }),
+        },
         signal,
       );
       assertSearchIdentity(
@@ -510,7 +567,15 @@ export function useSearchWorkspace({
     urlProfile,
     atlasRouter,
   ]);
-  const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
+  if (
+    !pausedError &&
+    resultsQuery.error &&
+    isArtifactGenerationChanged(resultsQuery.error)
+  ) {
+    setGenerationFailure({ epoch: retrieval.epoch, error: resultsQuery.error });
+  }
+  const resultsError = pausedError ?? resultsQuery.error;
+  const resultsPaused = isArtifactGenerationChanged(resultsError);
   function refreshResults() {
     return retrieval.refresh(async () => {
       await atlasRouter.navigate({
@@ -746,11 +811,14 @@ export function useSearchWorkspace({
       !resetPending &&
       !activeSearchReady &&
       hasExecutableSearch(activeSearch));
+  const result = resultsQuery.data ?? heldPage;
+  const evidencePending =
+    visible && (!resultsQuery.data || resultsQuery.isPlaceholderData);
   const searchInputError =
     activeSearchExecutionToken === searchExecutionToken
-      ? lexicalInputExplanation(resultsQuery.error)
+      ? lexicalInputExplanation(resultsError)
       : undefined;
-  const errorMessage = searchInputError ? null : messageFromError(resultsQuery.error);
+  const errorMessage = searchInputError ? null : messageFromError(resultsError);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const resultsRefreshing =
     canRunResultSearch &&
@@ -768,8 +836,8 @@ export function useSearchWorkspace({
       search.query.trim() &&
       !search.filterError &&
       !retrieval.recovering &&
-      resultsQuery.data?.page.mode.kind === "text_search" &&
-      resultsQuery.data.page.mode.mode === "lexical"
+      result?.page.mode.kind === "text_search" &&
+      result.page.mode.mode === "lexical"
         ? () => setSearch(search, "submit", undefined, true)
         : undefined,
     applySettings: async (next, profile) => {
@@ -818,8 +886,8 @@ export function useSearchWorkspace({
         });
       }
     },
-    resultPage: canDisplayResult ? resultsQuery.data?.page : undefined,
-    resultFilter: canDisplayResult ? (resultsQuery.data?.filter ?? null) : null,
+    resultPage: canDisplayResult ? result?.page : undefined,
+    resultFilter: canDisplayResult ? (result?.filter ?? null) : null,
     filterEditor: filterDiscovery.filterEditor,
     refreshFilterInformation: refreshResults,
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
@@ -828,11 +896,12 @@ export function useSearchWorkspace({
     filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
     vocabularyScope: filterDiscovery.vocabularyScope,
     filterDiscoveryError: filterDiscovery.errorMessage,
+    evidencePending,
     resultsLoading:
       enabled &&
       searchReady &&
       hasExecutableSearch(search) &&
-      (resultsQuery.isLoading || searchDebouncing),
+      ((resultsQuery.isLoading && !heldPage) || searchDebouncing),
     resultsRefreshing,
     resultsPaused,
     resultsRecovering: retrieval.recovering,
@@ -840,7 +909,7 @@ export function useSearchWorkspace({
     filterDiscoveryLoading: filterDiscovery.loading,
     errorMessage,
     searchInputError,
-    resultsFailed: !!resultsQuery.error,
+    resultsFailed: !!resultsError,
     refresh: () => {
       if (!enabled) {
         return;
@@ -852,7 +921,7 @@ export function useSearchWorkspace({
       if (canRunResultSearch) {
         void resultsQuery.refetch();
       }
-      reading.retry();
+      if (!(visible && heldPage && resultsQuery.error)) reading.retry();
     },
   };
 }

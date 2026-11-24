@@ -176,6 +176,108 @@ describe("useSearchWorkspace", () => {
     });
   });
 
+  it("requests fresh evidence for the applied page and keeps it readable through retry and rapid toggles", async () => {
+    history.replaceState(null, "", "/search?q=fire&page=2");
+    const page = searchResultsPage(["spell:fireball"], { pageNumber: 2 });
+    page.mode = { kind: "text_search", query: "fire", mode: "lexical" };
+    apiMocks.searchPage.mockResolvedValue(page);
+    const { result, rerender } = renderHook(
+      ({ matchDisplay }: Pick<typeof DEFAULT_SEARCH_PREFERENCES, "matchDisplay">) =>
+        useSearchWorkspace({
+          searchProfile: "bge-base",
+          keywordSearch: true,
+          promoteKeyword: vi.fn(),
+          semanticDefault: "bge-base",
+          searchPreferences: { ...DEFAULT_SEARCH_PREFERENCES, matchDisplay },
+        }),
+      { initialProps: { matchDisplay: "hidden" }, wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage).toEqual(page));
+    const url = location.href;
+    const discoveries = apiMocks.discoverFilterEditor.mock.calls.length;
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    const pending = deferred<SearchResultsPage>();
+    apiMocks.searchPage.mockReturnValueOnce(pending.promise);
+    rerender({ matchDisplay: "sections" });
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      result_detail: "evidence",
+      criteria: { query: "fire" },
+      expected_artifact_generation: page.artifact_generation,
+      page: { number: 2 },
+    });
+    expect(result.current.evidencePending).toBe(true);
+    expect(result.current.resultPage).toEqual(page);
+    expect(result.current.rerunSemantic).toBeDefined();
+    rerender({ matchDisplay: "detailed" });
+    await act(async () => pending.resolve(page));
+    await waitFor(() => expect(result.current.evidencePending).toBe(false));
+    rerender({ matchDisplay: "hidden" });
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(2);
+    apiMocks.searchPage.mockRejectedValueOnce(new Error("temporarily unavailable"));
+    rerender({ matchDisplay: "detailed" });
+    await waitFor(() => expect(result.current.resultsFailed).toBe(true));
+    expect(result.current.evidencePending).toBe(true);
+    expect(result.current.resultPage).toEqual(page);
+    expect(result.current.rerunSemantic).toBeDefined();
+    const late = deferred<SearchResultsPage>();
+    apiMocks.searchPage.mockReturnValueOnce(late.promise);
+    act(() => result.current.refresh());
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(4));
+    rerender({ matchDisplay: "hidden" });
+    await act(async () => late.resolve(searchResultsPage(["spell:stale"])));
+    expect(result.current.resultPage).toEqual(page);
+    expect(result.current.resultsFailed).toBe(false);
+    expect(location.href).toBe(url);
+    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(discoveries);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(4);
+    act(() => result.current.setPageNumber(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(5));
+    expect(apiMocks.searchPage.mock.lastCall?.[0].result_detail).toBeUndefined();
+  });
+
+  it("keeps a changed generation paused across evidence toggles until refresh", async () => {
+    history.replaceState(null, "", "/search?q=fire&page=2");
+    const oldPage = searchResultsPage(["spell:fire"], { pageNumber: 2 });
+    const freshPage = searchResultsPage(["spell:fresh"], {
+      generation: "generation-b",
+    });
+    apiMocks.searchPage
+      .mockResolvedValueOnce(oldPage)
+      .mockRejectedValueOnce(
+        new AtlasApiError(409, "The reference collection has changed", {
+          code: "artifact_generation_changed",
+          message: "The reference collection has changed",
+          recoverable_action: "refresh_results",
+        }),
+      )
+      .mockResolvedValue(freshPage);
+    const { result, rerender } = renderHook(
+      ({ matchDisplay }: Pick<typeof DEFAULT_SEARCH_PREFERENCES, "matchDisplay">) =>
+        useSearchWorkspace({
+          searchProfile: "bge-base",
+          searchPreferences: { ...DEFAULT_SEARCH_PREFERENCES, matchDisplay },
+        }),
+      { initialProps: { matchDisplay: "hidden" }, wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage).toEqual(oldPage));
+    rerender({ matchDisplay: "sections" });
+    await waitFor(() => expect(result.current.resultsPaused).toBe(true));
+    const notice = result.current.errorMessage;
+    expect(notice).toBeTruthy();
+    rerender({ matchDisplay: "hidden" });
+    expect(result.current.errorMessage).toBe(notice);
+    expect(result.current.resultPage).toEqual(oldPage);
+    act(() => result.current.setPageNumber(3));
+    expect(result.current.pageNumber).toBe(2);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(2);
+    await act(async () => result.current.refreshResults());
+    await waitFor(() => expect(result.current.resultPage).toEqual(freshPage));
+    expect(result.current.pageNumber).toBe(1);
+    expect(result.current.resultsPaused).toBe(false);
+    expect(result.current.errorMessage).toBeNull();
+  });
+
   it("keeps a shared outage distinct from successful empty results", async () => {
     history.replaceState(null, "", "/search?q=fire");
     apiMocks.searchPage.mockRejectedValue(

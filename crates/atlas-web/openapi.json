@@ -11716,6 +11716,33 @@
         },
         "type": "object"
       },
+      "LexicalFields": {
+        "enum": [
+          "all",
+          "record_names"
+        ],
+        "type": "string"
+      },
+      "LexicalMatch": {
+        "enum": [
+          "complete_terms",
+          "last_token_prefix"
+        ],
+        "type": "string"
+      },
+      "LexicalOptions": {
+        "additionalProperties": false,
+        "description": "Select the FTS columns and the interpretation of the final token independently.",
+        "properties": {
+          "fields": {
+            "$ref": "#/components/schemas/LexicalFields"
+          },
+          "match": {
+            "$ref": "#/components/schemas/LexicalMatch"
+          }
+        },
+        "type": "object"
+      },
       "LifecycleCheckFactsView": {
         "properties": {
           "dc": {
@@ -18003,6 +18030,9 @@
                 ],
                 "type": "string"
               },
+              "lexical": {
+                "$ref": "#/components/schemas/LexicalOptions"
+              },
               "mode": {
                 "$ref": "#/components/schemas/RetrievalModeView"
               },
@@ -18219,6 +18249,13 @@
         ],
         "type": "string"
       },
+      "SearchResultDetail": {
+        "enum": [
+          "records",
+          "evidence"
+        ],
+        "type": "string"
+      },
       "SearchResultRow": {
         "properties": {
           "matches": {
@@ -18357,6 +18394,10 @@
                 "type": "null"
               }
             ]
+          },
+          "result_detail": {
+            "$ref": "#/components/schemas/SearchResultDetail",
+            "description": "Selects the post-ranking evidence supplied with each record."
           },
           "search_profile": {
             "oneOf": [

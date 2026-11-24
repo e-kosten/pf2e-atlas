@@ -104,6 +104,43 @@ test("a records-only workspace supports Search, trait browse and the list picker
   await expect(page.getByText("Atlas Sentinel", { exact: true }).first()).toBeVisible();
 });
 
+test("inline record links work without stored vectors", async ({ page }, info) => {
+  const slug = `keyword-inline-${info.project.name}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Keyword inline lookup" },
+  });
+  expect(created.ok()).toBe(true);
+  try {
+    await page.goto(`/lists/${slug}/edit`);
+    const editor = page.getByRole("textbox", { name: "Description" });
+    await editor.pressSequentially("[[Atlas Sentin");
+    const suggestions = page.getByRole("listbox", { name: "Record link suggestions" });
+    await activate(
+      suggestions.getByRole("option", { name: /^Atlas Sentinel\s*Creature/ }).first(),
+      info,
+    );
+    const inserted = `[Atlas Sentinel](record:${sentinel})`;
+    await expect(editor).toContainText(inserted);
+    await editor.pressSequentially(" and [[Lantern Ward");
+    await activate(suggestions.getByRole("option", { name: "Open full search" }), info);
+    const picker = page.getByRole("dialog", { name: "Insert record link" });
+    await expect(picker.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+      "Lantern Ward",
+    );
+    await activate(
+      picker.locator('[data-record-key="browser-spells:spell00000000001"]'),
+      info,
+    );
+    await activate(picker.getByRole("button", { name: "Insert link" }), info);
+    await expect(editor).toBeFocused();
+    await expect(editor).toContainText(
+      `${inserted} and [Lantern Ward](record:browser-spells:spell00000000001)`,
+    );
+  } finally {
+    await page.request.delete(`/api/lists/${slug}`);
+  }
+});
+
 async function holdResponse(
   page: Page,
   path: string,

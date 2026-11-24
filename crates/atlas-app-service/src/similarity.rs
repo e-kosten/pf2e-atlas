@@ -326,6 +326,7 @@ mod tests {
             let (mode, results, _) = configured_results(
                 &retrieval,
                 atlas_search::ConfigurableSimilarRequest {
+                    include_evidence: true,
                     seed: &seed,
                     options: &options,
                     source_sections: None,
@@ -374,6 +375,7 @@ mod tests {
         let error = configured_results(
             &retrieval,
             atlas_search::ConfigurableSimilarRequest {
+                include_evidence: true,
                 seed: &seed,
                 options: &options,
                 source_sections: None,

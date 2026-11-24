@@ -83,6 +83,7 @@ fn complete_candidate_union_above_4096_is_scored_when_actual_work_fits() {
         decay: 0.25,
     };
     let request = || ConfigurableSimilarRequest {
+        include_evidence: true,
         seed: &seed,
         options: &options,
         source_sections: Some(SimilaritySourceSections::All),
@@ -192,6 +193,7 @@ fn compact_explanations_keep_first_32_rows_but_score_and_rank_all_65_components(
     };
     let result = service
         .configurable_similar(ConfigurableSimilarRequest {
+            include_evidence: true,
             seed: &seed,
             options: &options,
             source_sections: Some(SimilaritySourceSections::All),
@@ -513,6 +515,7 @@ fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
     };
     let result = service
         .configurable_similar(ConfigurableSimilarRequest {
+            include_evidence: true,
             source_sections: None,
             content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
@@ -603,6 +606,7 @@ fn selecting_a_small_part_of_a_large_seed_reads_only_selected_vectors() {
         .unwrap();
     let run = |options: &SimilarityOptions| {
         service.configurable_similar(ConfigurableSimilarRequest {
+            include_evidence: true,
             source_sections: None,
             content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
@@ -640,6 +644,7 @@ fn stale_parts_and_cancellation_are_explicit() {
         candidate_parts: SimilarityCandidateParts::Any,
     };
     let request = ConfigurableSimilarRequest {
+        include_evidence: true,
         source_sections: None,
         content_scope: atlas_domain::SearchContentScope::All,
         seed: &seed,
@@ -658,6 +663,7 @@ fn stale_parts_and_cancellation_are_explicit() {
     );
     let cancelled = || true;
     let request = ConfigurableSimilarRequest {
+        include_evidence: true,
         source_sections: None,
         content_scope: atlas_domain::SearchContentScope::All,
         seed: &seed,
@@ -695,6 +701,7 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
     let seed = SimilaritySeed::Record { record_key: key };
     let configured = service
         .configurable_similar(ConfigurableSimilarRequest {
+            include_evidence: true,
             source_sections: None,
             content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
@@ -765,6 +772,7 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
         candidate_parts: SimilarityCandidateParts::Any,
     };
     let request = || ConfigurableSimilarRequest {
+        include_evidence: true,
         source_sections: None,
         content_scope: atlas_domain::SearchContentScope::All,
         seed: &seed,
@@ -804,6 +812,54 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
                 pair.seed
                     .as_ref()
                     .is_some_and(|seed| seed.preview.is_some())
+            );
+        }
+    }
+    for options in [
+        SimilarityOptions::Baseline {},
+        options.clone(),
+        SimilarityOptions::ContentAverage {
+            candidate_parts: SimilarityCandidateParts::Any,
+            parts: None,
+        },
+    ] {
+        let input = |include_evidence| ConfigurableSimilarRequest {
+            options: &options,
+            include_evidence,
+            ..request()
+        };
+        let explained = service.configurable_similar(input(true)).unwrap().unwrap();
+        service.index.reset_read_metrics();
+        let compact = service.configurable_similar(input(false)).unwrap().unwrap();
+        let reads = service.index.read_metrics();
+        assert_eq!(reads.prepared_content_batches, 0);
+        assert_eq!(reads.source_body_decodes, 0);
+        assert!(compact.evidence.is_empty());
+        assert!(
+            compact
+                .results
+                .records
+                .iter()
+                .all(|row| row.matches.is_empty())
+        );
+        assert_eq!(compact.results.page, explained.results.page);
+        assert_eq!(
+            serde_json::to_value(&compact.results.coverage).unwrap(),
+            serde_json::to_value(&explained.results.coverage).unwrap()
+        );
+        let keys_and_scores = |result: &ConfigurableSimilarResult| {
+            result
+                .results
+                .records
+                .iter()
+                .map(|row| (row.record.key.clone(), row.score))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(keys_and_scores(&compact), keys_and_scores(&explained));
+        if matches!(options, SimilarityOptions::ContentAverage { .. }) {
+            assert!(
+                compact.diagnostics.pairwise_comparisons
+                    < explained.diagnostics.pairwise_comparisons
             );
         }
     }
