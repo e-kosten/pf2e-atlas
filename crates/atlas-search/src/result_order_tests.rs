@@ -317,6 +317,8 @@ fn sorting_hybrid_keeps_lexical_members_outside_semantic_window_and_ranking_stra
     ] {
         let (roots, window) = service
             .rank_candidates(crate::text::CandidateRequest {
+                include_evidence: true,
+                lexical: Default::default(),
                 content_scope: atlas_domain::SearchContentScope::All,
                 ranking,
                 search_profile: &profile,

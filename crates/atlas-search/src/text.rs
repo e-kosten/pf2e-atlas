@@ -31,6 +31,8 @@ impl RetrievalMode {
     }
 }
 pub struct TextSearchRequest<'a> {
+    pub lexical: atlas_domain::LexicalOptions,
+    pub include_evidence: bool,
     pub content_scope: atlas_domain::SearchContentScope,
     pub sort: atlas_domain::ResultSort,
     pub ranking: atlas_domain::SearchRanking,
@@ -44,6 +46,8 @@ pub struct TextSearchRequest<'a> {
 impl<'a> TextSearchRequest<'a> {
     pub fn new(query: &'a str, page: SearchPage) -> Self {
         Self {
+            lexical: Default::default(),
+            include_evidence: true,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
@@ -113,6 +117,8 @@ pub(crate) struct RankedRoot {
     pub witnesses: Vec<SearchWitness>,
 }
 pub(crate) struct CandidateRequest<'a> {
+    pub include_evidence: bool,
+    pub lexical: atlas_domain::LexicalOptions,
     pub content_scope: atlas_domain::SearchContentScope,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: &'a atlas_domain::SearchProfileId,
@@ -155,7 +161,10 @@ fn semantic_witness(hit: SourceVectorHit) -> SearchWitness {
         semantic_similarity: Some(1.0 - hit.distance),
     }
 }
-pub(crate) fn semantic_roots(hits: Vec<SourceVectorHit>) -> Vec<RankedRoot> {
+pub(crate) fn semantic_roots(
+    hits: Vec<SourceVectorHit>,
+    include_evidence: bool,
+) -> Vec<RankedRoot> {
     let mut grouped = BTreeMap::<RecordKey, Vec<SourceVectorHit>>::new();
     for hit in hits {
         grouped
@@ -178,7 +187,11 @@ pub(crate) fn semantic_roots(hits: Vec<SourceVectorHit>) -> Vec<RankedRoot> {
                 similarity: Some(similarity),
                 score: similarity,
                 tier: 3,
-                witnesses: hits.into_iter().take(3).map(semantic_witness).collect(),
+                witnesses: if include_evidence {
+                    hits.into_iter().take(3).map(semantic_witness).collect()
+                } else {
+                    Vec::new()
+                },
             }
         })
         .collect::<Vec<_>>();
@@ -205,6 +218,8 @@ impl AtlasRetrievalService {
             None
         };
         let (roots, window) = self.rank_candidates(CandidateRequest {
+            include_evidence: request.include_evidence,
+            lexical: request.lexical,
             content_scope: request.content_scope,
             ranking: request.ranking,
             search_profile: &search_profile,
@@ -216,14 +231,7 @@ impl AtlasRetrievalService {
             vector: vector.as_deref(),
             exclude: None,
         })?;
-        self.finish_results(
-            &search_profile,
-            roots,
-            request.page,
-            request.mode.uses_vector(),
-            window,
-            request.sort,
-        )
+        self.finish_results(&search_profile, roots, request.page, window, request.sort)
     }
     fn native_vector_candidates(
         &self,
@@ -269,7 +277,7 @@ impl AtlasRetrievalService {
             };
             let hits = self.native_vector_candidates(input, request.text)?;
             let exhausted = hits.len() < window;
-            let roots = semantic_roots(hits);
+            let roots = semantic_roots(hits, request.include_evidence);
             if exhausted || roots.len() >= TARGET_ROOTS || window == 4096 {
                 return Ok((roots, window));
             }
@@ -283,6 +291,7 @@ impl AtlasRetrievalService {
         request: CandidateRequest<'_>,
     ) -> Result<(Vec<RankedRoot>, Option<usize>), SearchError> {
         let CandidateRequest {
+            lexical: options,
             ranking,
             content_scope,
             text,
@@ -307,10 +316,15 @@ impl AtlasRetrievalService {
             });
             let mut identities = self.index.lookup_name_or_alias(identity_text)?;
             identities.extend(reviewed_labels.iter().cloned());
-            let mut lexical =
-                self.index
-                    .lexical_root_candidates(text, query, scope.keys(), content_scope)?;
-            let tier = |key: &RecordKey| {
+            let mut lexical = self.index.lexical_root_candidates(
+                text,
+                query,
+                scope.keys(),
+                content_scope,
+                options,
+                request.include_evidence,
+            )?;
+            let tier = |key: &RecordKey, name_starts_with_query: bool| {
                 if identities
                     .iter()
                     .any(|m| &m.key == key && m.alias.is_none())
@@ -321,13 +335,15 @@ impl AtlasRetrievalService {
                     .any(|m| &m.key == key && m.alias.is_some())
                 {
                     1
+                } else if name_starts_with_query {
+                    2
                 } else {
                     3
                 }
             };
             lexical.sort_by(|a, b| {
-                tier(&a.record)
-                    .cmp(&tier(&b.record))
+                tier(&a.record, a.name_starts_with_query)
+                    .cmp(&tier(&b.record, b.name_starts_with_query))
                     .then(a.best_rank.total_cmp(&b.best_rank))
                     .then(a.record.cmp(&b.record))
             });
@@ -341,7 +357,7 @@ impl AtlasRetrievalService {
                 0.25,
             );
             for (i, (hit, score)) in lexical.into_iter().zip(scores).enumerate() {
-                let t = tier(&hit.record);
+                let t = tier(&hit.record, hit.name_starts_with_query);
                 let rank = i + 1;
                 roots.insert(
                     hit.record.clone(),
@@ -375,7 +391,7 @@ impl AtlasRetrievalService {
                     roots.insert(
                         key.clone(),
                         RankedRoot {
-                            tier: tier(&key),
+                            tier: tier(&key, false),
                             key,
                             lexical_rank: None,
                             similarity: None,
@@ -431,7 +447,6 @@ impl AtlasRetrievalService {
         search_profile: &atlas_domain::SearchProfileId,
         roots: Vec<RankedRoot>,
         page: SearchPage,
-        bounded: bool,
         window: Option<usize>,
         sort: atlas_domain::ResultSort,
     ) -> Result<TextSearchResult, SearchError> {
@@ -444,9 +459,44 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
         let keys = selected.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
         let summaries = self.summaries(&keys)?;
-        let owned_locations = selected
+        let mut records = selected
+            .into_iter()
+            .zip(summaries)
+            .map(|(root, record)| TextSearchRecord {
+                record,
+                matches: root.witnesses,
+                lexical_rank: root.lexical_rank,
+                semantic_similarity: root.similarity,
+                score: root.score,
+            })
+            .collect::<Vec<_>>();
+        if records.iter().any(|record| !record.matches.is_empty()) {
+            self.hydrate_text_matches(&mut records)?;
+        }
+        let info = SearchPageInfo::from_page(page, records.len(), total as u64)?;
+        Ok(TextSearchResult {
+            sort,
+            search_profile: search_profile.clone(),
+            artifact_generation: self.artifact_generation()?,
+            records,
+            page: info,
+            coverage: SearchCoverage {
+                exhaustive: window.is_none(),
+                semantic_unit_window: window,
+                candidate_roots: total,
+                count_basis: if window.is_some() {
+                    "accepted bounded root candidates"
+                } else {
+                    "complete eligible lexical roots"
+                }
+                .to_owned(),
+            },
+        })
+    }
+    fn hydrate_text_matches(&self, records: &mut [TextSearchRecord]) -> Result<(), SearchError> {
+        let owned_locations = records
             .iter()
-            .flat_map(|root| &root.witnesses)
+            .flat_map(|record| &record.matches)
             .filter(|witness| !witness.location.owners.is_empty())
             .map(|witness| witness.location.clone())
             .collect::<Vec<_>>();
@@ -454,21 +504,19 @@ impl AtlasRetrievalService {
         for batch in owned_locations.chunks(256) {
             owned_labels.extend(self.index.owned_search_labels(batch)?);
         }
-        let locations = selected
+        let locations = records
             .iter()
-            .flat_map(|root| &root.witnesses)
+            .flat_map(|record| &record.matches)
             .map(|witness| witness.location.clone())
             .collect::<Vec<_>>();
         let previews = self.index.recover_match_previews(&locations)?;
         let mut previews = previews.into_iter();
-        let mut records = Vec::new();
-        for (root, record) in selected.into_iter().zip(summaries) {
-            let mut matches = root.witnesses;
-            for witness in &mut matches {
+        for record in records {
+            for witness in &mut record.matches {
                 if !witness.location.owners.is_empty()
                     && let Some((_, _, owner_label)) =
                         owned_labels.iter().find(|(key, owners, _)| {
-                            key == &root.key && owners == &witness.location.owners
+                            key == &record.record.key && owners == &witness.location.owners
                         })
                     && !owner_label.trim().is_empty()
                 {
@@ -480,40 +528,15 @@ impl AtlasRetrievalService {
                     });
                 }
                 if witness.label.is_none() && witness.location.owners.is_empty() {
-                    witness.label = record.name.as_value().cloned();
+                    witness.label = record.record.name.as_value().cloned();
                 }
                 if let Some(evidence) = previews.next().flatten() {
                     witness.preview = evidence.preview;
                     witness.parent_heading = evidence.parent_heading;
                 }
             }
-            records.push(TextSearchRecord {
-                record,
-                matches,
-                lexical_rank: root.lexical_rank,
-                semantic_similarity: root.similarity,
-                score: root.score,
-            });
         }
-        let info = SearchPageInfo::from_page(page, records.len(), total as u64)?;
-        Ok(TextSearchResult {
-            sort,
-            search_profile: search_profile.clone(),
-            artifact_generation: self.artifact_generation()?,
-            records,
-            page: info,
-            coverage: SearchCoverage {
-                exhaustive: !bounded,
-                semantic_unit_window: window,
-                candidate_roots: total,
-                count_basis: if bounded {
-                    "accepted bounded root candidates"
-                } else {
-                    "complete eligible lexical roots"
-                }
-                .to_owned(),
-            },
-        })
+        Ok(())
     }
 }
 

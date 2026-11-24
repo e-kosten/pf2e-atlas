@@ -213,9 +213,11 @@ pub(crate) fn passages<'a>(
     candidate: &[Part<'a>],
     mode: SimilarityCandidateParts,
     decay: f64,
+    include_evidence: bool,
     cancelled: Option<&dyn Fn() -> bool>,
 ) -> Result<Score<'a>, SearchError> {
-    passages_with_limit(seed, candidate, mode, decay, 3, cancelled)
+    let pair_limit = if include_evidence { 3 } else { 0 };
+    passages_with_limit(seed, candidate, mode, decay, pair_limit, cancelled)
 }
 
 /// Evaluation reuses every part's best pair before choosing the displayed
@@ -289,9 +291,10 @@ fn passages_with_limit<'a>(
             }
             if let Some((candidate, value)) = best {
                 score += value.max(0.0) * weight;
-                if best_pair
-                    .as_ref()
-                    .is_none_or(|pair: &Pair<'_>| value > pair.cosine)
+                if evidence_limit > 0
+                    && best_pair
+                        .as_ref()
+                        .is_none_or(|pair: &Pair<'_>| value > pair.cosine)
                 {
                     best_pair = Some(Pair {
                         seed: unit,
@@ -304,28 +307,33 @@ fn passages_with_limit<'a>(
         if let Some(pair) = best_pair.filter(|pair| pair.cosine > 0.0) {
             pairs.push(pair);
         }
-        part_scores.push(PartScore {
-            part: part.metadata.clone(),
-            score,
-            weight: 0.0,
-            comparable: !eligible.is_empty(),
-        });
+        part_scores.push((&part.metadata, score, !eligible.is_empty()));
     }
-    part_scores.sort_by(|a, b| {
-        b.score
-            .total_cmp(&a.score)
-            .then(a.part.selector().cmp(b.part.selector()))
+    part_scores.sort_by(|(a, a_score, _), (b, b_score, _)| {
+        b_score
+            .total_cmp(a_score)
+            .then(a.selector().cmp(b.selector()))
     });
-    for (part, weight) in part_scores.iter_mut().zip(decay_weights(seed.len(), decay)) {
-        part.weight = weight;
+    let mut score = 0.0;
+    let mut comparable_parts = 0;
+    let mut parts = Vec::new();
+    for ((part, part_score, comparable), weight) in part_scores
+        .into_iter()
+        .zip(decay_weights(seed.len(), decay))
+    {
+        score += part_score * weight;
+        comparable_parts += usize::from(comparable);
+        if evidence_limit > 0 {
+            parts.push(PartScore {
+                part: part.clone(),
+                score: part_score,
+                weight,
+                comparable,
+            });
+        }
     }
-    let score = part_scores
-        .iter()
-        .map(|part| part.score * part.weight)
-        .sum();
-    let comparable_parts = part_scores.iter().filter(|part| part.comparable).count();
     let contribution = |pair: &Pair<'_>| {
-        part_scores
+        parts
             .iter()
             .find(|part| part.part.selector() == pair.seed.component.selector())
             .map_or(0.0, |part| part.score * part.weight)
@@ -334,7 +342,7 @@ fn passages_with_limit<'a>(
     Ok(Score {
         score,
         aggregation: "part_maxima_rank_decay",
-        parts: part_scores,
+        parts,
         roles: vec![],
         pairs,
         comparable_parts,
@@ -433,6 +441,7 @@ pub(crate) fn content_average<'a>(
     seed: &[Part<'a>],
     candidate: &[Part<'a>],
     mode: SimilarityCandidateParts,
+    include_evidence: bool,
     cancelled: Option<&dyn Fn() -> bool>,
 ) -> Result<Option<Score<'a>>, SearchError> {
     let mut control = ScoringControl::new(cancelled)?;
@@ -457,7 +466,7 @@ pub(crate) fn content_average<'a>(
         evidence.score = cosine(&seed_vector, &candidate_vector).max(0.0);
         evidence.comparisons = 1;
         evidence.comparable_parts = seed.len();
-        if evidence.score > 0.0 {
+        if include_evidence && evidence.score > 0.0 {
             let (pair, comparisons) = representative_pair(
                 seed.iter()
                     .flat_map(|part| part.units.iter().copied())
@@ -526,13 +535,16 @@ pub(crate) fn content_average<'a>(
             };
             let weight = parts.len() as f64 / seed.len() as f64;
             evidence.score += score * weight;
-            evidence.roles.push(RoleScore {
-                key,
-                score,
-                weight,
-                comparable: !eligible.is_empty(),
-            });
-            if score > 0.0
+            if include_evidence {
+                evidence.roles.push(RoleScore {
+                    key,
+                    score,
+                    weight,
+                    comparable: !eligible.is_empty(),
+                });
+            }
+            if include_evidence
+                && score > 0.0
                 && let Some(candidate_vector) = candidate_vector
             {
                 let (pair, comparisons) = representative_pair(

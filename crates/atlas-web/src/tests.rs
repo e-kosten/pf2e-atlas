@@ -815,6 +815,60 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
 }
 
 #[tokio::test]
+async fn omitted_and_explicit_records_return_the_same_page_without_match_evidence() {
+    let fixture = Fixture::new();
+    let request = json!({
+        "criteria": { "kind": "text_search", "mode": "lexical", "query": "Lantern Signals" },
+        "page": { "number": 1, "size": 5 }
+    });
+    let (status, implicit) = fixture
+        .json(Method::POST, "/api/search/page", Some(request.clone()))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{implicit}");
+    let mut request = request;
+    request["result_detail"] = json!("records");
+    let (_, explicit) = fixture
+        .json(Method::POST, "/api/search/page", Some(request.clone()))
+        .await;
+    assert_eq!(implicit, explicit);
+    request["result_detail"] = json!("evidence");
+    let (_, evidence) = fixture
+        .json(Method::POST, "/api/search/page", Some(request.clone()))
+        .await;
+    assert_eq!(explicit["page"], evidence["page"]);
+    assert_eq!(explicit["coverage"], evidence["coverage"]);
+    assert_eq!(
+        explicit["artifact_generation"],
+        evidence["artifact_generation"]
+    );
+    let row = &explicit["rows"][0];
+    assert_eq!(row["record"], evidence["rows"][0]["record"]);
+    assert_eq!(row["matches"], json!([]));
+    assert_eq!(row["relationship_evidence"], json!([]));
+    assert!(row.get("matching_sections").is_none());
+    assert!(row.get("similarity").is_none());
+    assert!(
+        !evidence["rows"][0]["matches"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    for mode in ["hybrid", "semantic"] {
+        request["criteria"]["mode"] = json!(mode);
+        request["criteria"]["lexical"] = json!({"fields":"record_names"});
+        let (status, body) = fixture
+            .json(Method::POST, "/api/search/page", Some(request.clone()))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert!(
+            body.to_string()
+                .contains("Lexical options require lexical retrieval"),
+            "{body}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn search_match_previews_use_the_structured_wire_contract() {
     let fixture = Fixture::new();
     for (label, preview) in [
@@ -833,6 +887,7 @@ async fn search_match_previews_use_the_structured_wire_contract() {
             "/api/search/page",
             Some(json!({
                 "criteria":{"kind":"text_search","query":format!("\"{label}\""),"mode":"lexical"},
+                "result_detail":"evidence",
                 "page":{"number":1,"size":10},
             }))
         ).await;

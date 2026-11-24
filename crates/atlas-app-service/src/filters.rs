@@ -572,6 +572,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        result_detail: atlas_app_model::SearchResultDetail::Evidence,
                         connection_scope: None,
                         sort: None,
 

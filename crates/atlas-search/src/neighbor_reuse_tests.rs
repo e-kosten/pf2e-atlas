@@ -71,6 +71,8 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                     SearchRanking::Score
                 };
                 let request = || TextSearchRequest {
+                    lexical: Default::default(),
+                    include_evidence: true,
                     query: "Ember",
                     mode: if i == 5 {
                         RetrievalMode::Vector
@@ -93,6 +95,16 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                     cached.read_metrics().knn_queries,
                     if i == 0 { 1 } else { 0 }
                 );
+                if i == 0 || i == 5 {
+                    let mut compact_request = request();
+                    compact_request.include_evidence = false;
+                    let compact = cached.search_text(compact_request).unwrap();
+                    let mut expected = expected;
+                    for row in &mut expected.records {
+                        row.matches.clear();
+                    }
+                    assert_eq!(signature(&compact), signature(&expected));
+                }
             }
         }
     }
@@ -128,9 +140,8 @@ fn a_short_semantic_window_keeps_the_prior_final_windows_members_and_witnesses()
     let expected = service
         .finish_results(
             profile,
-            crate::text::semantic_roots(prior_hits),
+            crate::text::semantic_roots(prior_hits, true),
             SearchPage::default(),
-            true,
             Some(4096),
             ResultSort::Relevance {},
         )

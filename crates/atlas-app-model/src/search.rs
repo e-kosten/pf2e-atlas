@@ -27,9 +27,21 @@ pub struct SearchPageView {
     pub next_page: Option<u32>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchResultDetail {
+    #[default]
+    Records,
+    Evidence,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SearchResultsRequest {
+    /// Selects the post-ranking evidence supplied with each record.
+    #[serde(default)]
+    pub result_detail: SearchResultDetail,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection_scope: Option<SearchConnectionScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -97,6 +109,9 @@ pub enum SearchCriteria {
         filter: Option<QueryPredicate>,
     },
     TextSearch {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "openapi", schema(nullable = false))]
+        lexical: Option<atlas_domain::LexicalOptions>,
         query: String,
         filter: Option<QueryPredicate>,
         mode: RetrievalModeView,

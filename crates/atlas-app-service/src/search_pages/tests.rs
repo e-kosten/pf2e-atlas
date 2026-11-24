@@ -32,6 +32,7 @@ fn fixture(semantic: bool) -> (FixtureWorker, RetrievalExecutor) {
 
 fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
     SearchResultsRequest {
+        result_detail: atlas_app_model::SearchResultDetail::Evidence,
         connection_scope: None,
         sort: None,
 
@@ -86,6 +87,7 @@ fn selected_profile_is_request_local_and_stored_similar_and_lexical_need_no_mode
     assert_eq!(base.artifact_generation, gemma.artifact_generation);
     let mut lexical = request(
         SearchCriteria::TextSearch {
+            lexical: None,
             search_content: None,
             query: "Record".into(),
             filter: None,
@@ -228,6 +230,7 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
     let (f, _) = fixture(false);
     let mut criteria = request(
         SearchCriteria::TextSearch {
+            lexical: None,
             search_content: None,
             query: "Record".into(),
             filter: Some(levels_at_least_two()),
@@ -263,6 +266,7 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
         .search_page(
             request(
                 SearchCriteria::TextSearch {
+                    lexical: None,
                     search_content: None,
                     query: "Owned flare".into(),
                     filter: None,
@@ -351,6 +355,7 @@ fn changed_generation_rejects_semantic_and_hybrid_pages_before_query_embedding()
     for mode in [RetrievalModeView::Semantic, RetrievalModeView::Hybrid] {
         let mut query = request(
             SearchCriteria::TextSearch {
+                lexical: None,
                 search_content: None,
                 query: "Record".into(),
                 filter: None,
@@ -599,6 +604,7 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
         identity: atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 },
     }];
     criteria.criteria = SearchCriteria::TextSearch {
+        lexical: None,
         search_content: None,
         query: "needs unavailable inference".into(),
         filter: Some(relationship_predicate(invalid_constraint)),
@@ -978,6 +984,7 @@ fn core_text_scope_restricts_existing_owned_names_without_adding_paragraph_fts()
             .search_page(
                 request(
                     SearchCriteria::TextSearch {
+                        lexical: None,
                         query: query.into(),
                         filter: None,
                         mode: RetrievalModeView::Lexical,
@@ -1280,6 +1287,7 @@ fn connected_picker_uses_complete_static_scope_and_its_own_filters_before_paging
     let execution = crate::ReadExecutionContext::uncancellable();
     let parent = request(
         SearchCriteria::TextSearch {
+            lexical: None,
             query: "Parent".into(),
             filter: None,
             mode: RetrievalModeView::Lexical,
@@ -1348,6 +1356,7 @@ fn connected_picker_uses_complete_static_scope_and_its_own_filters_before_paging
         AppErrorCode::InvalidRequest
     );
     picker.criteria = SearchCriteria::TextSearch {
+        lexical: None,
         query: "target".into(),
         filter: Some(
             serde_json::from_value(
@@ -1505,6 +1514,7 @@ fn malformed_link_discovery_targets_and_stale_parents_fail_before_inference() {
     ] {
         let mut search = request(
             SearchCriteria::TextSearch {
+                lexical: None,
                 query: "needs inference".into(),
                 filter: None,
                 mode: RetrievalModeView::Semantic,

@@ -4857,6 +4857,30 @@ export interface LevelOverrideInputView {
   value?: number | null;
 }
 
+export type LexicalFields = typeof LexicalFields[keyof typeof LexicalFields];
+
+
+export const LexicalFields = {
+  all: 'all',
+  record_names: 'record_names',
+} as const;
+
+export type LexicalMatch = typeof LexicalMatch[keyof typeof LexicalMatch];
+
+
+export const LexicalMatch = {
+  complete_terms: 'complete_terms',
+  last_token_prefix: 'last_token_prefix',
+} as const;
+
+/**
+ * Select the FTS columns and the interpretation of the final token independently.
+ */
+export interface LexicalOptions {
+  fields?: LexicalFields;
+  match?: LexicalMatch;
+}
+
 export type MatchPreviewView = {
   blocks: string[];
   kind: 'text';
@@ -5611,6 +5635,7 @@ export type SearchCriteria = {
 } | {
   filter?: QueryPredicateInputSchema | null;
   kind: 'text_search';
+  lexical?: LexicalOptions;
   mode: RetrievalModeView;
   query: string;
   search_content?: SearchContentScope | null;
@@ -5647,6 +5672,14 @@ export type SearchRanking = typeof SearchRanking[keyof typeof SearchRanking];
 export const SearchRanking = {
   rrf: 'rrf',
   score: 'score',
+} as const;
+
+export type SearchResultDetail = typeof SearchResultDetail[keyof typeof SearchResultDetail];
+
+
+export const SearchResultDetail = {
+  records: 'records',
+  evidence: 'evidence',
 } as const;
 
 export interface SearchWitnessView {
@@ -5824,6 +5857,8 @@ export interface SearchResultsRequest {
   expected_artifact_generation?: string | null;
   page: SearchPageRequest;
   ranking?: SearchRanking | null;
+  /** Selects the post-ranking evidence supplied with each record. */
+  result_detail?: SearchResultDetail;
   search_profile?: SearchProfileId | null;
   sort?: ResultSort | null;
 }

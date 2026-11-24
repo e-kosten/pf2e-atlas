@@ -81,6 +81,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     };
     let criteria = match o.query.clone() {
         Some(query) => SearchCriteria::TextSearch {
+            lexical: None,
             search_content: o.search_content.map(Into::into),
             query,
             filter,
@@ -89,6 +90,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         None => SearchCriteria::ListRecords { filter },
     };
     let request = SearchResultsRequest {
+        result_detail: atlas_app_model::SearchResultDetail::Evidence,
         connection_scope: None,
         sort,
         ranking: Some(o.ranking),

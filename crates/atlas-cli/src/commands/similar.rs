@@ -152,6 +152,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         service
             .search_page(
                 SearchResultsRequest {
+                    result_detail: atlas_app_model::SearchResultDetail::Evidence,
                     connection_scope: None,
                     sort,
                     ranking: None,

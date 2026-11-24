@@ -54,6 +54,8 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
     let rank = |mode, ranking| {
         service
             .rank_candidates(crate::text::CandidateRequest {
+                include_evidence: true,
+                lexical: Default::default(),
                 content_scope: atlas_domain::SearchContentScope::All,
                 ranking,
                 search_profile: &profile,
@@ -107,6 +109,69 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
 }
 
 #[test]
+fn lexical_name_completion_ranks_distinct_names_and_verified_aliases() {
+    use atlas_domain::{LexicalFields, LexicalMatch, LexicalOptions};
+    let mut fixture = input(
+        vec![
+            effect("aaaaaaaaaaaaaaaa", "Barrage", 1, ""),
+            effect("bbbbbbbbbbbbbbbb", "Force Bolts", 1, ""),
+            effect("cccccccccccccccc", "Barrage Ward", 1, ""),
+            effect("dddddddddddddddd", "Force Barrage", 1, ""),
+            effect("eeeeeeeeeeeeeeee", "Force Barrage", 2, ""),
+        ],
+        false,
+    );
+    test_support::add_remaster_alias(&mut fixture, &key("bbbbbbbbbbbbbbbb"), "Barrage").unwrap();
+    test_support::add_remaster_alias(&mut fixture, &key("cccccccccccccccc"), "Barrage Defense")
+        .unwrap();
+    let (_artifact, mut service) = service(fixture);
+    let mut find = |query: &str, fields, matching| {
+        let mut request = TextSearchRequest::new(query, SearchPage::first(10).unwrap());
+        request.mode = RetrievalMode::Fts;
+        request.lexical = LexicalOptions { fields, matching };
+        request.include_evidence = false;
+        service
+            .search_text(request)
+            .unwrap()
+            .records
+            .into_iter()
+            .map(|row| row.record.key)
+            .collect::<Vec<_>>()
+    };
+    let names = LexicalFields::RecordNames;
+    let prefix = LexicalMatch::LastTokenPrefix;
+    let exact = LexicalMatch::CompleteTerms;
+    assert_eq!(
+        find("Barrage", names, exact),
+        [
+            "aaaaaaaaaaaaaaaa",
+            "bbbbbbbbbbbbbbbb",
+            "cccccccccccccccc",
+            "dddddddddddddddd",
+            "eeeeeeeeeeeeeeee"
+        ]
+        .map(key)
+    );
+    assert_eq!(
+        find("force barr", names, prefix),
+        ["dddddddddddddddd", "eeeeeeeeeeeeeeee"].map(key)
+    );
+    assert!(find("force barr ", names, prefix).is_empty());
+    assert!(find("force barr", names, exact).is_empty());
+    assert_eq!(
+        find("\"force barr", names, prefix),
+        ["dddddddddddddddd", "eeeeeeeeeeeeeeee"].map(key)
+    );
+    assert_eq!(find("force bár", names, prefix).len(), 2);
+    assert!(find("---", names, prefix).is_empty());
+    assert!(find("bar\0 OR", names, prefix).is_empty());
+    // 'Bolts' in the primary name cannot combine with 'Barrage' in its alias.
+    assert!(find("bolts barr", names, prefix).is_empty());
+    assert!(find("effect", names, exact).is_empty());
+    assert_eq!(find("effe", LexicalFields::All, prefix).len(), 5);
+}
+
+#[test]
 fn explicit_request_overrides_service_default_and_single_profile_does_not_choose_a_fallback() {
     let input = test_support::input_with_both_profiles(vec![
         effect("aaaaaaaaaaaaaaaa", "One", 1, ""),
@@ -156,6 +221,8 @@ fn key(id: &str) -> RecordKey {
 fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
     service
         .search_text(TextSearchRequest {
+            lexical: Default::default(),
+            include_evidence: true,
             content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
@@ -262,6 +329,8 @@ fn reviewed_label_preserves_genuine_lexical_and_semantic_matches() {
     let rank = |mode, exclude| {
         service
             .rank_candidates(crate::text::CandidateRequest {
+                include_evidence: true,
+                lexical: Default::default(),
                 content_scope: atlas_domain::SearchContentScope::All,
                 ranking: Default::default(),
                 search_profile: &profile,
@@ -498,6 +567,8 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
     for mode in [RetrievalMode::Vector, RetrievalMode::Hybrid] {
         let (roots, _) = service
             .rank_candidates(crate::text::CandidateRequest {
+                include_evidence: true,
+                lexical: Default::default(),
                 content_scope: atlas_domain::SearchContentScope::All,
                 ranking: Default::default(),
                 search_profile: &profile,
@@ -530,6 +601,8 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
     let filter = atlas_index::parse_where("level == 1").unwrap();
     let filtered = service
         .search_text(TextSearchRequest {
+            lexical: Default::default(),
+            include_evidence: true,
             content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
@@ -545,6 +618,8 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
     assert_eq!(filtered.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
     let page2 = service
         .search_text(TextSearchRequest {
+            lexical: Default::default(),
+            include_evidence: true,
             content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
@@ -939,6 +1014,21 @@ fn displayed_html_witnesses_use_one_bounded_cache_batch_and_no_body_decode() {
     assert_eq!(counts.prepared_content_batches, 1);
     assert_eq!(counts.summary_batches, 1);
     assert!(counts.sql_statements <= 6, "{counts:?}");
+    let mut request = TextSearchRequest::new("flame", SearchPage::default());
+    request.mode = RetrievalMode::Fts;
+    request.include_evidence = false;
+    service.index.reset_read_metrics();
+    let records = service.search_text(request).unwrap();
+    let reads = service.index.read_metrics();
+    assert_eq!(reads.prepared_content_batches, 0);
+    assert_eq!(reads.source_body_decodes, 0);
+    assert_eq!(records.page, result.page);
+    assert_eq!(records.records.len(), result.records.len());
+    for (compact, rich) in records.records.iter().zip(&result.records) {
+        assert_eq!(compact.record.key, rich.record.key);
+        assert_eq!(compact.score, rich.score);
+        assert!(compact.matches.is_empty());
+    }
     let owner = &result.records[0].record.key;
     let locator = atlas_record::source_content::SourceContentLocator {
         record: owner.clone(),
@@ -984,6 +1074,8 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
     service.index.reset_read_metrics();
     let (roots, window) = service
         .rank_candidates(crate::text::CandidateRequest {
+            include_evidence: true,
+            lexical: Default::default(),
             content_scope: atlas_domain::SearchContentScope::All,
             ranking: Default::default(),
             search_profile: &atlas_domain::SearchProfileId::new("bge-base"),
@@ -1001,7 +1093,6 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
             &atlas_domain::SearchProfileId::new("bge-base"),
             roots,
             SearchPage::default(),
-            true,
             window,
             atlas_domain::ResultSort::Relevance {},
         )
@@ -1024,10 +1115,10 @@ fn root_max_score_has_no_bonus_from_siblings_or_unit_window() {
             distance,
         }
     }
-    let one = crate::text::semantic_roots(vec![hit(1, 0.1)]);
+    let one = crate::text::semantic_roots(vec![hit(1, 0.1)], true);
     let mut many = (2..300).map(|id| hit(id, 0.7)).collect::<Vec<_>>();
     many.push(hit(1, 0.1));
-    let many = crate::text::semantic_roots(many);
+    let many = crate::text::semantic_roots(many, true);
     assert_eq!(one[0].score, many[0].score);
     assert_eq!(one[0].similarity, many[0].similarity);
     assert_eq!(many[0].witnesses.len(), 3);
@@ -1063,6 +1154,8 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
         service.index.reset_read_metrics();
         let result = service
             .search_text(TextSearchRequest {
+                lexical: Default::default(),
+                include_evidence: true,
                 content_scope: atlas_domain::SearchContentScope::All,
                 sort: atlas_domain::ResultSort::Relevance {},
                 ranking: Default::default(),
