@@ -146,9 +146,11 @@ export function SearchPickerModal<FormValues>({
   const inheritedProfile = useSearchProfile();
   const [submittedProfile, setSubmittedProfile] = useState<{ id: string | null }>();
   const submission = useRef(0);
+  const seedRequested = useRef(false);
   useEffect(
     () => () => {
       submission.current += 1;
+      seedRequested.current = false;
     },
     [open],
   );
@@ -353,8 +355,13 @@ export function SearchPickerModal<FormValues>({
     }
     return retrieval.refresh(() => setPageNumber(1));
   }
-  function applySettings(next: SearchFormState) {
-    setCriteria((current) => ({ ...current, search: next }));
+  function commitSearch(next: SearchFormState, accepted?: SearchSubmission) {
+    submission.current += 1;
+    setSeeding(false);
+    setCriteria((current) => ({
+      search: next,
+      acceptedSearchSubmission: accepted ?? current.acceptedSearchSubmission,
+    }));
     setPageNumber(1);
   }
   const currentRows =
@@ -369,24 +376,26 @@ export function SearchPickerModal<FormValues>({
   if (!open && openingReady) setOpeningReady(false);
   if (open && ready && !openingReady) setOpeningReady(true);
   const initialLoading = open && profileReady && !openingReady && !ready;
+  const [shown, setShown] = useState(false);
   useLayoutEffect(() => {
-    if (!open || !openingReady || !focusSearchOnOpen) return;
+    if (!open || !shown || initialLoading || !focusSearchOnOpen) return;
     let frame: number;
     const deadline = performance.now() + 500;
-    function focusSearch() {
+    function focusVisibleInput() {
       const input = searchInput.current?.input;
       if (input && getComputedStyle(input).visibility === "visible") {
         input.focus({ preventScroll: true });
       } else if (performance.now() < deadline) {
-        frame = requestAnimationFrame(focusSearch);
+        frame = requestAnimationFrame(focusVisibleInput);
       }
     }
-    frame = requestAnimationFrame(focusSearch);
+    frame = requestAnimationFrame(focusVisibleInput);
     return () => cancelAnimationFrame(frame);
-  }, [focusSearchOnOpen, open, openingReady]);
+  }, [focusSearchOnOpen, open, shown, initialLoading]);
   const reset = () => {
     setOptionsOpen(false);
     submission.current += 1;
+    setSeeding(false);
     setSubmittedProfile(undefined);
     setCriteria({
       search: {
@@ -417,7 +426,9 @@ export function SearchPickerModal<FormValues>({
       }
     />
   ) : undefined;
-  function submitWithWorkspaceModel(apply: () => void) {
+  function submitWithWorkspaceModel(next = search, accepted?: SearchSubmission) {
+    seedRequested.current = true;
+    const apply = () => commitSearch(next, accepted);
     const version = ++submission.current;
     const resolve = inheritedProfile.resolveWorkspaceDefault;
     if (!resolve && !profile.semanticDefault) {
@@ -441,11 +452,10 @@ export function SearchPickerModal<FormValues>({
   }
   // A handoff is a submitted query and observes the same workspace-model
   // resolution as pressing Enter in the picker.
-  const submitSeed = useEffectEvent(() =>
-    submitWithWorkspaceModel(() => setSeeding(false)),
-  );
+  const submitSeed = useEffectEvent(() => submitWithWorkspaceModel());
   useEffect(() => {
-    if (open && seeding && !inheritedProfile.loading) submitSeed();
+    if (open && seeding && !inheritedProfile.loading && !seedRequested.current)
+      submitSeed();
   }, [open, seeding, inheritedProfile.loading]);
   const rerunSemantic =
     !disabled &&
@@ -455,9 +465,7 @@ export function SearchPickerModal<FormValues>({
     profile.semanticDefault &&
     recordResults.data?.mode.kind === "text_search" &&
     recordResults.data.mode.mode === "lexical"
-      ? () => {
-          submitWithWorkspaceModel(() => setPageNumber(1));
-        }
+      ? () => submitWithWorkspaceModel()
       : undefined;
   useSemanticRerunOwner(open, rerunSemantic);
   const formDetails = footerLayout === "form" && (
@@ -491,6 +499,7 @@ export function SearchPickerModal<FormValues>({
             }}
             afterClose={afterClose}
             afterOpenChange={(isOpen) => {
+              setShown(isOpen);
               if (!isOpen) reset();
             }}
             footer={
@@ -592,7 +601,7 @@ export function SearchPickerModal<FormValues>({
                   <SearchSettings
                     search={search}
                     disabled={disabled}
-                    onApply={applySettings}
+                    onApply={(next) => commitSearch(next)}
                   />
                 }
                 filterState={{
@@ -603,14 +612,7 @@ export function SearchPickerModal<FormValues>({
                   setSearch: (next, intent, searchSubmission) => {
                     if (disabled) return;
                     if (preparing) selection.cancel();
-                    const apply = () => {
-                      setCriteria((current) => ({
-                        search: normalizeSortTransition(search, next),
-                        acceptedSearchSubmission:
-                          searchSubmission ?? current.acceptedSearchSubmission,
-                      }));
-                      setPageNumber(1);
-                    };
+                    const criteria = normalizeSortTransition(search, next);
                     if (
                       intent === "submit" &&
                       next.query.trim() &&
@@ -618,10 +620,9 @@ export function SearchPickerModal<FormValues>({
                       (inheritedProfile.resolveWorkspaceDefault ||
                         (profile.automaticKeyword && profile.semanticDefault))
                     ) {
-                      submitWithWorkspaceModel(apply);
+                      submitWithWorkspaceModel(criteria, searchSubmission);
                     } else {
-                      submission.current += 1;
-                      apply();
+                      commitSearch(criteria, searchSubmission);
                     }
                   },
                   filterEditor: discovery.filterEditor,
@@ -740,10 +741,7 @@ export function SearchPickerModal<FormValues>({
                       <ResultSortControl
                         search={search}
                         disabled={disabled || retrieval.recovering}
-                        setSearch={(next) => {
-                          setCriteria((current) => ({ ...current, search: next }));
-                          setPageNumber(1);
-                        }}
+                        setSearch={commitSearch}
                       />
                       {recordResults.data && recordResults.data.page.total > 0 && (
                         <div

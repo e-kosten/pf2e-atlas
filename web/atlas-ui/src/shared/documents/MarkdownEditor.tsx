@@ -118,6 +118,7 @@ function FormatButton({
   disabled,
   pressed,
   shortcut,
+  showTooltip = true,
   onClick,
 }: {
   label: string;
@@ -125,10 +126,11 @@ function FormatButton({
   disabled: boolean;
   pressed?: boolean;
   shortcut?: string;
+  showTooltip?: boolean;
   onClick: () => void;
 }) {
   return (
-    <Tooltip title={label} trigger={["hover", "focus"]}>
+    <Tooltip title={showTooltip ? label : null} trigger={["hover", "focus"]}>
       <Button
         size="small"
         type="text"
@@ -499,6 +501,7 @@ export function MarkdownEditor({
             <div className="markdown-editor__group">
               <FormatButton
                 label="Record link"
+                showTooltip={!picker}
                 icon={<Link2 size={16} />}
                 disabled={locked}
                 onClick={() => {
