@@ -338,6 +338,17 @@ test("expanding a new entry note retains the editor, caret and preview choice", 
     const collapse = note.getByRole("button", { name: "Collapse editor" });
     await activate(note.getByRole("button", { name: "Add note" }), info);
     const editor = note.getByRole("textbox", { name: "Note", exact: true });
+    await editor.pressSequentially("[[Lantern Wa");
+    const options = page.getByRole("listbox", { name: "Record link suggestions" });
+    const ward = options.getByRole("option", { name: /Lantern Ward.*Spell/i }).first();
+    await expect(ward).toBeVisible();
+    await expect(editor).toBeFocused();
+    await activate(ward, info);
+    await expect(options).toBeHidden();
+    await expect
+      .poll(() => markdownSource(editor))
+      .toBe("[Lantern Ward](record:browser-spells:spell00000000001)");
+    await expect(editor).toBeFocused();
     const text = "Keep this **draft** while the list stays open. ".repeat(24).trimEnd();
     await replaceMarkdown(editor, text);
     await pressMarkdownShortcut(editor, "Home");

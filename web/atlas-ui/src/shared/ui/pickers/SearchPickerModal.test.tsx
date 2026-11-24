@@ -84,11 +84,13 @@ function result(
 function Picker({
   disabled = false,
   open = true,
+  initialQuery,
   connectionScope,
   fixedFilter,
 }: {
   disabled?: boolean;
   open?: boolean;
+  initialQuery?: string;
   connectionScope?: SearchConnectionScope;
   fixedFilter?: QueryPredicate;
 }) {
@@ -98,6 +100,7 @@ function Picker({
   return (
     <SearchPickerModal
       title="Choose record"
+      initialQuery={initialQuery}
       disabled={disabled}
       open={open}
       form={form}
@@ -138,10 +141,12 @@ function Picker({
   );
 }
 function renderPicker({
+  initialQuery,
   connectionScope,
   fixedFilter,
   resolveWorkspaceDefault,
 }: {
+  initialQuery?: string;
   connectionScope?: SearchConnectionScope;
   fixedFilter?: QueryPredicate;
   resolveWorkspaceDefault?: () => Promise<WorkspaceSearchDefault | undefined>;
@@ -161,6 +166,7 @@ function renderPicker({
         >
           <App>
             <Picker
+              initialQuery={initialQuery}
               disabled={disabled}
               open={open}
               connectionScope={connectionScope}
@@ -787,6 +793,40 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
   expect(client.getQueryData(["encounter", "draft-owner"])).toEqual({
     name: "Encounter",
   });
+});
+
+it("runs an inline handoff query with the resolved workspace model and picker evidence", async () => {
+  let finish!: (profile: WorkspaceSearchDefault) => void;
+  const resolveWorkspaceDefault = vi.fn(
+    () =>
+      new Promise<WorkspaceSearchDefault>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  renderPicker({ initialQuery: "Lantern Ward", resolveWorkspaceDefault });
+  await waitFor(() => expect(resolveWorkspaceDefault).toHaveBeenCalledOnce());
+  expect(search).not.toHaveBeenCalled();
+  const response = result("Lantern Ward", "generation-a", "embeddinggemma");
+  response.mode = { kind: "text_search", mode: "hybrid", query: "Lantern Ward" };
+  response.sort = { kind: "relevance" };
+  search.mockResolvedValue(response);
+  await act(async () => finish({ id: "embeddinggemma", generation: "generation-a" }));
+  expect(await screen.findByRole("link", { name: /Lantern Ward/ })).toBeVisible();
+  expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+    "Lantern Ward",
+  );
+  expect(search.mock.calls.map(([request]) => request)).toEqual([
+    expect.objectContaining({
+      criteria: expect.objectContaining({
+        kind: "text_search",
+        mode: "hybrid",
+        query: "Lantern Ward",
+      }),
+      result_detail: "evidence",
+      search_profile: "embeddinggemma",
+      expected_artifact_generation: "generation-a",
+    }),
+  ]);
 });
 
 it("discards a pending keyword draft when closing a picker with empty criteria", async () => {

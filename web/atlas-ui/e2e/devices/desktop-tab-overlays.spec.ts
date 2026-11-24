@@ -81,10 +81,17 @@ test("only visible desktop tab overlays receive Escape and suspended drafts resu
     await expect(turn).toBeVisible();
     await expect.poll(() => markdownSource(notes)).toBe("Draft retained between tabs");
 
+    await notes.pressSequentially("[[la");
+    const suggestions = page.getByRole("listbox", { name: "Record link suggestions" });
+    await expect(suggestions).toBeVisible();
     await page.keyboard.press("Control+Tab");
     await openSettings.click();
     await expect(settings).toBeVisible();
     await page.keyboard.press("Control+Shift+Tab");
+    await expect(suggestions).toBeHidden();
+    await expect
+      .poll(() => markdownSource(notes))
+      .toBe("Draft retained between tabs[[la");
     await replaceMarkdown(
       notes,
       "[Lantern Ward](record:browser-spells:spell00000000001)",

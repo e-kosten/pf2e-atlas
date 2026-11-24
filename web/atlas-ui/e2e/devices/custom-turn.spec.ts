@@ -78,12 +78,38 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     await expect(expanded).toBeVisible();
 
     await pressMarkdownShortcut(note, "End");
-    await note.pressSequentially("[[");
-
+    const suggestions = page.getByRole("listbox", { name: "Record link suggestions" });
     const picker = page.getByRole("dialog", { name: "Insert record link" });
+    const full = suggestions.getByRole("option", { name: "Open full search" });
+    const search = picker.getByRole("searchbox", { name: "Search records" });
+    await note.pressSequentially("[[");
+    await expect(full).toBeVisible();
+    await expect(note).toBeFocused();
+    await note.press("Escape");
+    await expect(suggestions).toBeHidden();
+    await expect(expanded).toBeVisible();
+    await expect.poll(() => markdownSource(note)).toBe(prefix + "[[");
+
+    await replaceMarkdown(note, prefix);
+    await note.pressSequentially("[[NoSuchRecordHere");
+    await expect(page.getByText("No matching records.", { exact: true })).toBeVisible();
+    await note.press("ArrowDown");
+    await expect(full).toHaveAttribute("aria-selected", "true");
+    await note.press("Enter");
+    await expect(search).toHaveValue("NoSuchRecordHere");
+    await expect(search).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(picker).toBeHidden();
+    await expect(note).toBeFocused();
+    await expect.poll(() => markdownSource(note)).toBe(prefix + "[[NoSuchRecordHere");
+
+    await replaceMarkdown(note, prefix);
+    await note.pressSequentially("[[Lantern Ward");
     await expect(
-      picker.getByRole("searchbox", { name: "Search records" }),
-    ).toBeFocused();
+      suggestions.getByRole("option", { name: /Lantern Ward/ }).first(),
+    ).toBeVisible();
+    await full.click();
+    await expect(search).toHaveValue("Lantern Ward");
     await picker.locator('[data-record-key="browser-spells:spell00000000001"]').click();
     await picker.getByRole("button", { name: "Insert link" }).click();
     await expect(picker).toBeHidden();
@@ -91,8 +117,9 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
     const undo = expanded.getByRole("button", { name: "Undo" });
     const redo = expanded.getByRole("button", { name: "Redo" });
     const withLink = prefix + "[Lantern Ward](record:browser-spells:spell00000000001)";
+    await expect.poll(() => markdownSource(note)).toBe(withLink);
     await undo.click();
-    await expect.poll(() => markdownSource(note)).toBe(prefix + "[[");
+    await expect.poll(() => markdownSource(note)).toBe(prefix + "[[Lantern Ward");
     await redo.click();
     await expect.poll(() => markdownSource(note)).toBe(withLink);
     await note.click();

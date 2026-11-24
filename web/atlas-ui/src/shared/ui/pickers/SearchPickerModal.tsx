@@ -15,7 +15,14 @@ import {
   Typography,
 } from "antd";
 import type { FormInstance, InputRef, ModalProps } from "antd";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { searchPage } from "../../../api/atlasApi";
 import {
   SearchProfileContext,
@@ -99,6 +106,7 @@ export function SearchPickerModal<FormValues>({
   selectionContext,
   footerLayout = "form",
   initialSelection,
+  initialQuery,
   focusSearchOnOpen = false,
 }: {
   fixedFilter?: QueryPredicate;
@@ -126,6 +134,7 @@ export function SearchPickerModal<FormValues>({
   selectionContext?: string;
   footerLayout?: "form" | "actions";
   initialSelection?: RecordNavigationView;
+  initialQuery?: string;
   focusSearchOnOpen?: boolean;
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
@@ -160,12 +169,15 @@ export function SearchPickerModal<FormValues>({
             : null,
       }
     : inheritedProfile;
+  const [seeding, setSeeding] = useState(Boolean(initialQuery?.trim()));
   const [{ search, acceptedSearchSubmission }, setCriteria] = useState<{
     search: SearchFormState;
     acceptedSearchSubmission?: SearchSubmission;
   }>(() => ({
     search: {
       ...DEFAULT_SEARCH_STATE,
+      query: initialQuery ?? "",
+      mode: initialQuery?.trim() ? "text_search" : "browse",
       ranking: profile.preferences.ranking,
       searchContent: profile.preferences.searchContent,
     },
@@ -192,11 +204,15 @@ export function SearchPickerModal<FormValues>({
             execution.profile,
             execution.mode,
           ),
+          result_detail: "evidence" as const,
           connection_scope: connectionScope,
         };
   const requestToken = JSON.stringify(request ?? null);
   const profileReady = execution.ready;
-  const retrieval = useReferenceGeneration(requestToken, open && profileReady);
+  const retrieval = useReferenceGeneration(
+    requestToken,
+    open && !seeding && profileReady,
+  );
   const resetGeneration = retrieval.reset;
   useLayoutEffect(() => {
     if (!open) resetGeneration();
@@ -212,7 +228,7 @@ export function SearchPickerModal<FormValues>({
   const recordResults = useQuery<SearchResultsPage>({
     queryKey: resultsKey,
     meta: referenceQueryMeta,
-    enabled: open && profileReady && !retrieval.recovering && !!request,
+    enabled: open && !seeding && profileReady && !retrieval.recovering && !!request,
     staleTime: 20_000,
     placeholderData: (previous, previousQuery) =>
       request &&
@@ -326,7 +342,7 @@ export function SearchPickerModal<FormValues>({
   };
   const discovery = useFilterDiscovery({
     context,
-    enabled: open && !retrieval.recovering,
+    enabled: open && !seeding && !retrieval.recovering,
     queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
@@ -423,6 +439,14 @@ export function SearchPickerModal<FormValues>({
       else void retrieval.applyGeneration(current?.generation, commit);
     });
   }
+  // A handoff is a submitted query and observes the same workspace-model
+  // resolution as pressing Enter in the picker.
+  const submitSeed = useEffectEvent(() =>
+    submitWithWorkspaceModel(() => setSeeding(false)),
+  );
+  useEffect(() => {
+    if (open && seeding && !inheritedProfile.loading) submitSeed();
+  }, [open, seeding, inheritedProfile.loading]);
   const rerunSemantic =
     !disabled &&
     !connectionScope &&
