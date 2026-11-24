@@ -331,6 +331,7 @@ export function InlineRecordPicker({
       open={position !== null}
       trigger={[]}
       placement="bottomLeft"
+      align={{ overflow: { shiftX: true, adjustY: true } }}
       arrow={false}
       getPopupContainer={() => container}
       styles={{ container: { padding: 0, overflow: "hidden" } }}

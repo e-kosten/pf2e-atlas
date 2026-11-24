@@ -385,7 +385,8 @@ test("expanding a new entry note retains the editor, caret and preview choice", 
     await editor.pressSequentially("[[Lantern Wa");
     const options = page.getByRole("listbox", { name: "Record link suggestions" });
     const ward = options.getByRole("option", { name: /Lantern Ward.*Spell/i }).first();
-    await expect(ward).toBeVisible();
+    // WebKit rounds the observed intersection of a fractional-height row.
+    await expect(ward).toBeInViewport({ ratio: 0.99 });
     await expect(editor).toBeFocused();
     await activate(ward, info);
     await expect(options).toBeHidden();
