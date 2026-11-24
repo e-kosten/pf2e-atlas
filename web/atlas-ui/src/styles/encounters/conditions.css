@@ -112,6 +112,16 @@
   margin: 0;
 }
 
+@media (max-height: 44rem) {
+  .encounter-condition-field.ant-form-item {
+    margin-block-end: var(--space-control);
+  }
+}
+
+.encounter-condition-hp-choice:not(:first-child) {
+  padding-block-start: var(--space-control);
+}
+
 .encounter-condition-damage-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

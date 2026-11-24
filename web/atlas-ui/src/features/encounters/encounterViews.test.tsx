@@ -1588,6 +1588,9 @@ describe("encounter views", () => {
     const initial = encounterDetailFixture();
     const body = initial.participants[1].presentation!.body;
     if (body.kind !== "creature") throw new Error("Expected creature fixture");
+    body.value.perception = { state: "not_applicable", value: null, adjustment: null };
+    body.value.abilities = knownFact([]);
+    body.value.languages = knownFact([]);
     initial.participants[1].turn_resources = turnResourcesFixture(
       3,
       body.value.runtime!.action_budget!.actions,
@@ -1608,6 +1611,8 @@ describe("encounter views", () => {
       within(runtimeSection).getByRole("button", { name: "Spend reaction" }),
     ).toBeEnabled();
     expect(screen.queryByText("Speed")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("HP summary")).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: "Creature sections" })).toBeNull();
   });
 
   it("edits the selected participant in the participant sheet", async () => {
