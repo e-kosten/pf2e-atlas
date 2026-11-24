@@ -78,12 +78,14 @@ export function InlineRecordPicker({
   onChoose,
   onSearch,
   onDismiss,
+  onBlur,
 }: {
   editor: EditorView;
   query: InlineRecordQuery;
   onChoose: (record: RecordSummaryView) => void;
   onSearch: () => void;
   onDismiss: () => void;
+  onBlur: () => void;
 }) {
   const listId = useId();
   const owner = editor.contentDOM.ownerDocument;
@@ -224,7 +226,7 @@ export function InlineRecordPicker({
       !editor.contentDOM.contains(event.target) &&
       !content.current?.contains(event.target)
     )
-      onDismiss();
+      onBlur();
   });
   const handleKey = useEffectEvent((event: KeyboardEvent) => {
     if (
@@ -261,7 +263,7 @@ export function InlineRecordPicker({
     event.preventDefault();
     event.stopPropagation();
   });
-  const dismiss = useEffectEvent(onDismiss);
+  const suspend = useEffectEvent(onBlur);
   useEffect(() => {
     let popupPointer = false;
     const pointerDown = (event: PointerEvent) => {
@@ -274,21 +276,21 @@ export function InlineRecordPicker({
     };
     const focusOut = (event: FocusEvent) => {
       // Tapping an option may blur the editable before the synthesized click.
-      if (!popupPointer && !event.relatedTarget) dismiss();
+      if (!popupPointer && !event.relatedTarget) suspend();
     };
     owner.addEventListener("pointerdown", pointerDown, true);
     owner.addEventListener("pointercancel", clearPointer, true);
     owner.addEventListener("focusin", dismissOutside, true);
     owner.addEventListener("keydown", handleKey, true);
     editor.contentDOM.addEventListener("focusout", focusOut);
-    owner.defaultView?.addEventListener("blur", dismiss);
+    owner.defaultView?.addEventListener("blur", suspend);
     return () => {
       owner.removeEventListener("pointerdown", pointerDown, true);
       owner.removeEventListener("pointercancel", clearPointer, true);
       owner.removeEventListener("focusin", dismissOutside, true);
       owner.removeEventListener("keydown", handleKey, true);
       editor.contentDOM.removeEventListener("focusout", focusOut);
-      owner.defaultView?.removeEventListener("blur", dismiss);
+      owner.defaultView?.removeEventListener("blur", suspend);
     };
   }, [owner, editor]);
   useLayoutEffect(() => {

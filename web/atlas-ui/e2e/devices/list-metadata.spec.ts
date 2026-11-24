@@ -331,7 +331,24 @@ test("record suggestions accept pointer selection inside Edit list", async ({
     await page.goto(`/lists/${slug}/edit`);
     const dialog = page.getByRole("dialog", { name: "Edit list" });
     const editor = dialog.getByRole("textbox", { name: "Description" });
-    await editor.pressSequentially("[[Lantern Wa");
+    const source = dialog.locator(".cm-editor");
+    const bounds = await source.boundingBox();
+    if (!bounds) throw new Error("Missing description editor");
+    const position = { x: bounds.width - 16, y: bounds.height - 8 };
+    const clickBelowText = () =>
+      info.project.use.hasTouch ? source.tap({ position }) : source.click({ position });
+    await clickBelowText();
+    await expect(editor).toBeFocused();
+    await editor.pressSequentially("[[Lantern");
+    const suggestions = dialog.getByRole("listbox", {
+      name: "Record link suggestions",
+    });
+    await expect(suggestions).toBeVisible();
+    await activate(dialog.getByRole("textbox", { name: /Name/ }), info);
+    await expect(suggestions).toBeHidden();
+    await clickBelowText();
+    await expect(suggestions).toBeVisible();
+    await editor.pressSequentially(" Wa");
     await activate(
       dialog.getByRole("option", { name: /Lantern Ward.*Spell/i }).first(),
       info,

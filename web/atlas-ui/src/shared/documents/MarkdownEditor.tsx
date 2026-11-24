@@ -208,12 +208,13 @@ export function MarkdownEditor({
       publishControls(update.state);
     }
 
-    if (update.docChanged || update.selectionSet) {
+    const refocused = update.focusChanged && update.view.hasFocus;
+    if (update.docChanged || update.selectionSet || refocused) {
       const next =
         writing && tabActive && !locked && !insertion.current
           ? readInlineRecordQuery(update, inlineQuery.current)
           : null;
-      if (next !== inlineQuery.current) {
+      if (next !== inlineQuery.current || (refocused && next)) {
         inlineQuery.current = next;
         setInline(next ? { editor: update.view, query: next } : null);
       }
@@ -529,6 +530,7 @@ export function MarkdownEditor({
           editor={inline.editor}
           query={inline.query}
           onDismiss={dismissInline}
+          onBlur={() => setInline(null)}
           onSearch={() => {
             if (inlineQuery.current === inline.query)
               openPicker(inline.query, inline.query.text);
