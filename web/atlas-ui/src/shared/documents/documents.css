@@ -223,7 +223,7 @@
 }
 
 .markdown-record-options {
-  max-block-size: min(15rem, 35dvh);
+  max-block-size: min(20rem, 42dvh);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
