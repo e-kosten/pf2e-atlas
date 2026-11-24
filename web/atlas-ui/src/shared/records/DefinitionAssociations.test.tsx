@@ -95,6 +95,7 @@ it("uses the supplied exact predicate for a five-row preview, count, and full Se
   expect(screen.queryByText("Strength Modifier")).toBeNull();
   expect(api).toHaveBeenCalledWith(
     {
+      result_detail: "evidence",
       search_profile: "bge-base",
       criteria: { kind: "list_records", filter: action.predicate },
       page: { number: 1, size: 5 },

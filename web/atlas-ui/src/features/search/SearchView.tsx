@@ -163,6 +163,7 @@ export function SearchView({
                 : "Search or choose filters."
           }
           rows={workspace.resultPage?.rows ?? []}
+          showMatchContext={!workspace.evidencePending}
           matchDisplay={profile.preferences.matchDisplay}
           showSmallerWeights={profile.preferences.showSmallerWeights}
           query={

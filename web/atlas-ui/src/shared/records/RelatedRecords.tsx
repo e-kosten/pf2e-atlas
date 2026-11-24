@@ -216,6 +216,7 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         {
+          result_detail: "evidence",
           search_profile: execution.profile,
           criteria: { kind: "list_records", filter },
           page: { number: 1, size: 5 },
@@ -740,6 +741,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         {
+          result_detail: "evidence",
           search_profile: profile.id ?? undefined,
           criteria: {
             kind: "similar_records",

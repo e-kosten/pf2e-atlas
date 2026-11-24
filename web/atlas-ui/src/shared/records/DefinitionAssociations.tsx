@@ -164,6 +164,7 @@ function associationPreviewQueryOptions(
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         {
+          result_detail: "evidence",
           search_profile: profileId,
           criteria: { kind: "list_records", filter: action.predicate },
           page: { number: 1, size: 5 },
