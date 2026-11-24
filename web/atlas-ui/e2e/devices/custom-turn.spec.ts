@@ -105,14 +105,11 @@ test("a custom turn previews its linked notes and becomes the active turn", asyn
 
     await replaceMarkdown(note, prefix);
     await note.pressSequentially("[[Lantern Ward");
-    await expect(
-      suggestions.getByRole("option", { name: /Lantern Ward/ }).first(),
-    ).toBeVisible();
-    await full.click();
-    await expect(search).toHaveValue("Lantern Ward");
-    await picker.locator('[data-record-key="browser-spells:spell00000000001"]').click();
-    await picker.getByRole("button", { name: "Insert link" }).click();
-    await expect(picker).toBeHidden();
+    await suggestions
+      .getByRole("option", { name: /Lantern Ward/ })
+      .first()
+      .click();
+    await expect(suggestions).toBeHidden();
     await expect(note).toBeFocused();
     const undo = expanded.getByRole("button", { name: "Undo" });
     const redo = expanded.getByRole("button", { name: "Redo" });

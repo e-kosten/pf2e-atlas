@@ -119,7 +119,23 @@ test("inline record links work without stored vectors", async ({ page }, info) =
       suggestions.getByRole("option", { name: /^Atlas Sentinel\s*Creature/ }).first(),
       info,
     );
-    await expect(editor).toContainText(`[Atlas Sentinel](record:${sentinel})`);
+    const inserted = `[Atlas Sentinel](record:${sentinel})`;
+    await expect(editor).toContainText(inserted);
+    await editor.pressSequentially(" and [[Lantern Ward");
+    await activate(suggestions.getByRole("option", { name: "Open full search" }), info);
+    const picker = page.getByRole("dialog", { name: "Insert record link" });
+    await expect(picker.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+      "Lantern Ward",
+    );
+    await activate(
+      picker.locator('[data-record-key="browser-spells:spell00000000001"]'),
+      info,
+    );
+    await activate(picker.getByRole("button", { name: "Insert link" }), info);
+    await expect(editor).toBeFocused();
+    await expect(editor).toContainText(
+      `${inserted} and [Lantern Ward](record:browser-spells:spell00000000001)`,
+    );
   } finally {
     await page.request.delete(`/api/lists/${slug}`);
   }
