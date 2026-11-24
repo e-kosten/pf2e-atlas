@@ -235,6 +235,10 @@ it("inserts only the current inline result between surrounding prose and restore
     selectMarkdown(textbox, 7);
     insertAtCaret(editor, "[", "input.type");
     insertAtCaret(editor, "[", "input.type");
+    fireEvent.focusOut(textbox, { relatedTarget: null });
+    expect(textbox).not.toHaveAttribute("aria-controls");
+    fireEvent.focusIn(textbox);
+    expect(textbox).toHaveAttribute("aria-controls");
     insertAtCaret(editor, "fi", "input.type");
     await waitFor(() => expect(pending.has("fi")).toBe(true));
     const oldSignal = search.mock.calls[0][1]!;

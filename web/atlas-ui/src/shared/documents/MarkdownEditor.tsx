@@ -208,13 +208,12 @@ export function MarkdownEditor({
       publishControls(update.state);
     }
 
-    const refocused = update.focusChanged && update.view.hasFocus;
-    if (update.docChanged || update.selectionSet || refocused) {
+    if (update.docChanged || update.selectionSet) {
       const next =
         writing && tabActive && !locked && !insertion.current
           ? readInlineRecordQuery(update, inlineQuery.current)
           : null;
-      if (next !== inlineQuery.current || (refocused && next)) {
+      if (next !== inlineQuery.current) {
         inlineQuery.current = next;
         setInline(next ? { editor: update.view, query: next } : null);
       }
@@ -230,6 +229,15 @@ export function MarkdownEditor({
       onChange?.(update.state.sliceDoc());
     }
   });
+
+  function resumeInline() {
+    const editor = view.current;
+    const query = inlineQuery.current;
+    if (!editor || !query || inline || !writing || locked || !tabActive) return;
+    const caret = editor.state.selection.main;
+    if (caret.empty && caret.head >= query.from + 2 && caret.head <= query.to)
+      setInline({ editor, query });
+  }
 
   const fieldExtensions = useEffectEvent((): Extension => {
     const attributes: Record<string, string> = { "aria-label": label };
@@ -506,6 +514,8 @@ export function MarkdownEditor({
         <div
           className="markdown-editor__source"
           ref={source}
+          onFocus={resumeInline}
+          onPointerUp={resumeInline}
           inert={!writing}
           aria-hidden={!writing || undefined}
         />
