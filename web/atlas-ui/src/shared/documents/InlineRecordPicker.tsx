@@ -331,7 +331,7 @@ export function InlineRecordPicker({
       placement="bottomLeft"
       arrow={false}
       getPopupContainer={() => container}
-      styles={{ container: { padding: 0 } }}
+      styles={{ container: { padding: 0, overflow: "hidden" } }}
       content={
         <div ref={content} className="markdown-record-picker">
           <div

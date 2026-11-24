@@ -211,6 +211,8 @@
 }
 
 .markdown-record-picker {
+  /* The dialog portal inherits pointer-events: none outside its content panel. */
+  pointer-events: auto;
   width: min(22rem, calc(100vw - 24px));
   color: var(--text);
 }
@@ -229,6 +231,7 @@
 .markdown-record-picker .ant-btn {
   display: flex;
   justify-content: flex-start;
+  border-radius: 0;
   width: 100%;
   height: auto;
   padding: var(--space-micro) var(--space-control);

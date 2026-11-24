@@ -318,6 +318,33 @@ test("long entry notes read in the selected record pane and preserve both scroll
   }
 });
 
+test("record suggestions accept pointer selection inside Edit list", async ({
+  page,
+}, info) => {
+  const slug = `modal-record-link-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Record link editing" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  try {
+    await page.goto(`/lists/${slug}/edit`);
+    const dialog = page.getByRole("dialog", { name: "Edit list" });
+    const editor = dialog.getByRole("textbox", { name: "Description" });
+    await editor.pressSequentially("[[Lantern Wa");
+    await activate(
+      dialog.getByRole("option", { name: /Lantern Ward.*Spell/i }).first(),
+      info,
+    );
+    await expect
+      .poll(() => markdownSource(editor))
+      .toBe("[Lantern Ward](record:browser-spells:spell00000000001)");
+    await expect(editor).toBeFocused();
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
 test("expanding a new entry note retains the editor, caret and preview choice", async ({
   page,
 }, info) => {
