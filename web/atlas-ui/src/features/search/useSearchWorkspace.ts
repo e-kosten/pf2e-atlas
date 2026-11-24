@@ -439,10 +439,20 @@ export function useSearchWorkspace({
     !retrieval.recovering
       ? projection.retained
       : undefined;
+  const [generationFailure, setGenerationFailure] = useState<{
+    epoch: number;
+    error: Error;
+  } | null>(null);
+  const pausedError =
+    generationFailure?.epoch === retrieval.epoch ? generationFailure.error : null;
   const resultsQuery = useQuery<ResultData>({
     queryKey: resultsKey,
     meta: referenceQueryMeta,
-    enabled: canRunResultSearch && !retrieval.recovering && (visible || !heldPage),
+    enabled:
+      canRunResultSearch &&
+      !retrieval.recovering &&
+      !pausedError &&
+      (visible || !heldPage),
     staleTime: 20000,
     placeholderData: (previous, previousQuery) =>
       !heldPage &&
@@ -557,7 +567,15 @@ export function useSearchWorkspace({
     urlProfile,
     atlasRouter,
   ]);
-  const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
+  if (
+    !pausedError &&
+    resultsQuery.error &&
+    isArtifactGenerationChanged(resultsQuery.error)
+  ) {
+    setGenerationFailure({ epoch: retrieval.epoch, error: resultsQuery.error });
+  }
+  const resultsError = pausedError ?? resultsQuery.error;
+  const resultsPaused = isArtifactGenerationChanged(resultsError);
   function refreshResults() {
     return retrieval.refresh(async () => {
       await atlasRouter.navigate({
@@ -798,9 +816,9 @@ export function useSearchWorkspace({
     visible && (!resultsQuery.data || resultsQuery.isPlaceholderData);
   const searchInputError =
     activeSearchExecutionToken === searchExecutionToken
-      ? lexicalInputExplanation(resultsQuery.error)
+      ? lexicalInputExplanation(resultsError)
       : undefined;
-  const errorMessage = searchInputError ? null : messageFromError(resultsQuery.error);
+  const errorMessage = searchInputError ? null : messageFromError(resultsError);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const resultsRefreshing =
     canRunResultSearch &&
@@ -818,8 +836,8 @@ export function useSearchWorkspace({
       search.query.trim() &&
       !search.filterError &&
       !retrieval.recovering &&
-      resultsQuery.data?.page.mode.kind === "text_search" &&
-      resultsQuery.data.page.mode.mode === "lexical"
+      result?.page.mode.kind === "text_search" &&
+      result.page.mode.mode === "lexical"
         ? () => setSearch(search, "submit", undefined, true)
         : undefined,
     applySettings: async (next, profile) => {
@@ -891,7 +909,7 @@ export function useSearchWorkspace({
     filterDiscoveryLoading: filterDiscovery.loading,
     errorMessage,
     searchInputError,
-    resultsFailed: !!resultsQuery.error,
+    resultsFailed: !!resultsError,
     refresh: () => {
       if (!enabled) {
         return;

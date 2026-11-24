@@ -104,6 +104,27 @@ test("a records-only workspace supports Search, trait browse and the list picker
   await expect(page.getByText("Atlas Sentinel", { exact: true }).first()).toBeVisible();
 });
 
+test("inline record links work without stored vectors", async ({ page }, info) => {
+  const slug = `keyword-inline-${info.project.name}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Keyword inline lookup" },
+  });
+  expect(created.ok()).toBe(true);
+  try {
+    await page.goto(`/lists/${slug}/edit`);
+    const editor = page.getByRole("textbox", { name: "Description" });
+    await editor.pressSequentially("[[Atlas Sentin");
+    const suggestions = page.getByRole("listbox", { name: "Record link suggestions" });
+    await activate(
+      suggestions.getByRole("option", { name: /^Atlas Sentinel\s*Creature/ }).first(),
+      info,
+    );
+    await expect(editor).toContainText(`[Atlas Sentinel](record:${sentinel})`);
+  } finally {
+    await page.request.delete(`/api/lists/${slug}`);
+  }
+});
+
 async function holdResponse(
   page: Page,
   path: string,
