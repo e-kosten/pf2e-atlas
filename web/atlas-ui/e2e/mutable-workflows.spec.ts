@@ -73,3 +73,61 @@ test("committed edits keep refresh feedback compact and Retry only reloads", asy
     await page.request.delete(detailPath);
   }
 });
+
+test("a character can be deleted from the list after confirmation", async ({
+  page,
+  request,
+}) => {
+  const name = `Character deletion ${Date.now()}`;
+  const created = await request.post("/api/characters", {
+    data: { name, request_id: crypto.randomUUID() },
+  });
+  expect(created.ok()).toBe(true);
+  const { character_key } = await created.json();
+  const path = `/api/characters/${character_key}`;
+  try {
+    await page.goto("/characters");
+    const row = page
+      .getByRole("row")
+      .filter({ has: page.getByRole("link", { name, exact: true }) });
+    const remove = row.getByRole("button", { name: `Delete ${name}`, exact: true });
+    const dialog = page.getByRole("dialog", { name: `Delete ${name}?` });
+    await remove.press("Enter");
+    const cancel = dialog.getByRole("button", { name: "Cancel" });
+    await expect(cancel).toBeFocused();
+    await cancel.press("Enter");
+    await expect(remove).toBeFocused();
+    await expect(page).toHaveURL(/\/characters\/?$/);
+
+    await page.setViewportSize({ width: 390, height: 740 });
+    await remove.click();
+    const beforeEdit = await request.get(path);
+    const { character_revision } = await beforeEdit.json();
+    const edited = await request.patch(path, {
+      data: { expected_revision: character_revision, name, level: 8 },
+    });
+    expect(edited.ok()).toBe(true);
+    const confirm = dialog.getByRole("button", { name: "Delete character" });
+    await confirm.click();
+    await expect(dialog.getByRole("alert")).toContainText("This character changed.");
+    await cancel.click();
+    await expect(row).toContainText("Level 8");
+    await remove.click();
+    await confirm.click();
+    await expect(dialog).toBeHidden();
+    await expect(row).toHaveCount(0);
+    await expect(page).toHaveURL(/\/characters\/?$/);
+    const index = await request.get("/api/characters");
+    expect((await index.json()).characters).not.toContainEqual(
+      expect.objectContaining({ character_key }),
+    );
+  } finally {
+    const current = await request.get(path);
+    const character = current.ok() && (await current.json());
+    if (character) {
+      await request.delete(path, {
+        data: { expected_revision: character.character_revision },
+      });
+    }
+  }
+});
