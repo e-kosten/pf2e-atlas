@@ -270,6 +270,14 @@ test("long entry notes read in the selected record pane and preserve both scroll
     const offGuardLink = footer.getByRole("link", { name: "Off-Guard", exact: true });
     await expect(read).toBeVisible();
     await expect(offGuardLink).toHaveCount(0);
+    const excerpt = footer.locator(".list-entry-note__excerpt");
+    const measuredNote = footer.locator(".markdown-document");
+    const excerptWidth = await excerpt.evaluate(
+      (node) => node.getBoundingClientRect().width,
+    );
+    expect(
+      await measuredNote.evaluate((node) => node.getBoundingClientRect().width),
+    ).toBeCloseTo(excerptWidth, 0);
     await expect(
       rules.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
     ).toBeVisible();

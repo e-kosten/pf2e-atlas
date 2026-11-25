@@ -58,9 +58,8 @@
   --reading-paragraph-gap: 1em;
   margin-block-end: var(--space-section);
 }
-:is(.record-view__pane--creature, .reference-browser .reference-reader--creature)
-  .creature-reference:not(.creature-reference--encounter)
-  .creature-reference__prose {
+.creature-reference__prose,
+.creature-reference .embedded-ability-reading__entry > .record-reference__content {
   max-inline-size: var(--document-measure);
 }
 .creature-reference__source-defenses {

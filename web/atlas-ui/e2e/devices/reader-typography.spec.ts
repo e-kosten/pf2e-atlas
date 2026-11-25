@@ -1,6 +1,6 @@
 import { devices, type Locator } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { activate, noPageOverflow } from "./reading";
+import { activate, noPageOverflow, sentinel } from "./reading";
 
 const fontSize = (element: Locator) =>
   element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
@@ -10,6 +10,46 @@ async function expectChipTypography(chip: Locator) {
   await expect(chip).toHaveCSS("font-weight", "400");
   await expect(chip).toHaveCSS("line-height", "20px");
 }
+
+test("encounter ability prose stops at the document measure in a wide inspector", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-chromium", "Wide encounter inspector");
+  await page.setViewportSize({ width: 1800, height: 1000 });
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Reading width ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const added = await page.request.post(`${path}/participants/record`, {
+      data: { request_id: crypto.randomUUID(), record_ref: sentinel, quantity: 1 },
+    });
+    expect(added.ok()).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    const ability = page
+      .locator(".embedded-ability-reading__entry .prepared-content")
+      .first();
+    await expect(ability).toBeVisible();
+    const widths = await ability.evaluate((node) => {
+      const ruler = document.createElement("span");
+      ruler.style.cssText = "position:absolute; inline-size:var(--document-measure)";
+      node.append(ruler);
+      const measure = ruler.getBoundingClientRect().width;
+      ruler.remove();
+      return {
+        prose: node.getBoundingClientRect().width,
+        inspector: node.closest(".encounter-record-pane")!.clientWidth,
+        measure,
+      };
+    });
+    expect(widths.inspector).toBeGreaterThan(widths.measure);
+    expect(widths.prose).toBeCloseTo(widths.measure, 0);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
 
 test.describe("narrow desktop tabs with touch input", () => {
   // Desktop-UA touch devices use the overflow menu; phone UA uses scrollable tabs.

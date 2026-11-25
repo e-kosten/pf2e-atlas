@@ -5,6 +5,71 @@ import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUr
 const creatureKey = "stolen-fate-bestiary:5jXQKIwhlOfs9F6e";
 const hazardKey = "pfs-season-3-bestiary:wun5VzDIMSZCVLuI";
 
+test("Wraith ability prose shares the creature Notes width in a wide reader", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1800, height: 960 });
+  await page.goto("/search/records/pathfinder-monster-core:Gu0cJHGwPd547OtC?q=Wraith");
+  const notes = page.locator(".creature-reference__prose .prepared-content").first();
+  const ability = page
+    .locator(".embedded-ability-reading__entry .prepared-content")
+    .filter({ hasText: "Lifesense allows a monster" });
+  await expect(ability).toBeVisible();
+  const width = await notes.evaluate((node) => node.getBoundingClientRect().width);
+  expect(
+    await ability.evaluate((node) => node.getBoundingClientRect().width),
+  ).toBeCloseTo(width, 0);
+  expect(
+    await page.locator(".reference-reader").evaluate((node) => node.clientWidth),
+  ).toBeGreaterThan(width);
+});
+
+test("journal page widens only when its outline fits beside the text", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await page.goto(
+    recordUrl({
+      record_key: "journals:S55aqwWIzpQRFhcq",
+      embedded_path: [
+        { collection: "/pages", identity: { Stable: "09Jpj4cCKYClyAE7" } },
+      ],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    }),
+  );
+  const contents = page.locator(".document-reading--outlined > .prepared-content");
+  const outline = page.getByRole("navigation", { name: "On this page" });
+  await expect(outline).toBeVisible();
+  expect((await outline.boundingBox())!.x).toBeGreaterThan(
+    (await contents.boundingBox())!.x,
+  );
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "20px";
+  });
+  const nav = (await outline.boundingBox())!;
+  const text = (await contents.boundingBox())!;
+  expect(text.y).toBeGreaterThanOrEqual(nav.y + nav.height - 1);
+  const measure = await contents.evaluate((node) => {
+    const ruler = document.createElement("span");
+    ruler.style.cssText = "position:absolute; inline-size:var(--document-measure)";
+    node.append(ruler);
+    const width = ruler.getBoundingClientRect().width;
+    ruler.remove();
+    return width;
+  });
+  expect(text.width).toBeLessThanOrEqual(measure + 1);
+  const frame = page.locator(".record-view__pane--document");
+  const innerWidth = await frame.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return (
+      node.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    );
+  });
+  expect(innerWidth).toBeCloseTo(text.width, 0);
+});
+
 test("Claim Corpse names effect choices across separate paragraphs", async ({
   page,
 }) => {

@@ -488,7 +488,7 @@
 .hazard-reference__stealth {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 100%;
+  max-inline-size: min(100%, var(--document-measure));
 }
 .hazard-reference__stealth > :is(.record-fact, .prepared-content),
 .hazard-reference__stealth > .prepared-content > p:first-child {

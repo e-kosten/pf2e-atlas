@@ -1,5 +1,5 @@
 .markdown-document {
-  max-inline-size: 70ch;
+  max-inline-size: var(--document-measure);
   overflow-wrap: anywhere;
   line-height: 1.6;
   white-space: normal;
