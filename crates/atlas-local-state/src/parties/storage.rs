@@ -101,26 +101,23 @@ pub(super) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<V
     let mut parties = Vec::<Party>::new();
     while let Some(row) = rows.next()? {
         let key: String = row.get(0)?;
-        if parties.last().is_none_or(|p| p.party_key != key) {
-            parties.push(Party {
+        let party = match parties.last_mut() {
+            Some(party) if party.party_key == key => party,
+            _ => parties.push_mut(Party {
                 party_key: key,
                 name: row.get(1)?,
                 revision: row.get(2)?,
                 members: vec![],
-            });
-        }
+            }),
+        };
         if let Some(character_key) = row.get::<_, Option<String>>(3)? {
-            parties
-                .last_mut()
-                .expect("current party")
-                .members
-                .push(PartyMember {
-                    character_key,
-                    name: row.get(4)?,
-                    level: row.get(5)?,
-                    revision: row.get(6)?,
-                    imported: row.get(7)?,
-                });
+            party.members.push(PartyMember {
+                character_key,
+                name: row.get(4)?,
+                level: row.get(5)?,
+                revision: row.get(6)?,
+                imported: row.get(7)?,
+            });
         }
     }
     Ok(parties)
