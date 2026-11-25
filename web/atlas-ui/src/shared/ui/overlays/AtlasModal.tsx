@@ -1,5 +1,6 @@
 import { useDesktopTab, useTabCloseGuard } from "../../../app/DesktopTabContext";
 import { Button, Flex, Modal, Space, type ModalProps } from "antd";
+import { Minimize2 } from "lucide-react";
 import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   FeedbackModalFrame,
@@ -43,7 +44,7 @@ export function AtlasModal({
       : undefined,
   );
   const [field, expand] = useState<ExpandedField | null>(null);
-  const collapseButton = useRef<HTMLSpanElement>(null);
+  const collapseIcon = useRef<SVGSVGElement>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
   const focusedField = useRef<ExpandedField | null>(null);
   const compactScroll = useRef(0);
@@ -102,7 +103,7 @@ export function AtlasModal({
   useLayoutEffect(() => {
     if (tabHidden || !open) return;
     if (field && focusedField.current !== field) {
-      collapseButton.current?.closest("button")?.focus({ preventScroll: true });
+      collapseIcon.current?.closest("button")?.focus({ preventScroll: true });
     } else if (!field && returnFocus.current) {
       const body = frame?.querySelector(".ant-modal-body");
       if (body) body.scrollTop = compactScroll.current;
@@ -146,7 +147,9 @@ export function AtlasModal({
         closable={
           field
             ? {
-                closeIcon: <span ref={collapseButton}>Collapse editor</span>,
+                closeIcon: (
+                  <Minimize2 ref={collapseIcon} size={16} aria-hidden="true" />
+                ),
                 "aria-label": "Collapse editor",
               }
             : props.closable
@@ -208,13 +211,6 @@ export function AtlasModal({
           return {
             ...custom,
             ...placement.styles,
-            ...(field && {
-              close: {
-                ...custom?.close,
-                width: "auto",
-                paddingInline: "var(--space-control)",
-              },
-            }),
             container: {
               ...custom?.container,
               display: "flex",
