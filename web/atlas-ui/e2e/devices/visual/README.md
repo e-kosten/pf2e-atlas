@@ -5,6 +5,13 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Quiet empty encounter sections
+
+Empty Conditions and Trackers show the heading and add button, matching
+Adjustments. Removing the placeholder lines also changes the scroll position
+in some phone views. The macOS 27.2.1 arm64 references were captured on
+application commit `b028f8c0d` with Playwright 1.65.0.
+
 ## Compact encounter panels and condition HP choices
 
 These references show compact participants without section links above HP and Turn.
