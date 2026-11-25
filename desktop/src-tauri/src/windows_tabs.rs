@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{
     Desktop, current_product, display, lock, product_view, recent_product_views, run_on_main,
-    same_product_route, staged_setup, tab_links, window_host,
+    running_product, same_product_route, staged_setup, tab_links, window_host,
 };
 
 #[derive(Default)]
@@ -230,7 +230,11 @@ pub fn deliver(app: &AppHandle, route: &str) -> Result<(), String> {
     if window_handoff_active(app) {
         return Ok(());
     }
-    let (base, instance) = current_product(app)?;
+    // A cancelled Exit can release its guard while disconnected. Keep the
+    // unacknowledged link queued until Reconnect starts a new service.
+    let Some((base, instance)) = running_product(app)? else {
+        return Ok(());
+    };
     let destination = base.join(route).map_err(display)?;
     let desktop = app.state::<Desktop>();
     let windows = recent_product_views(app, &base, &instance);

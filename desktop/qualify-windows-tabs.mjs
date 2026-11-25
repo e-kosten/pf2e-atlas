@@ -24,7 +24,7 @@ export async function holdNextTabCommand(page, match) {
 
 // Exercise the installed host and real WebView2 documents after the signed
 // update. The caller owns the disposable service, installer and workspace.
-export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stopWorker, nativePage, evidence, exit, windows, answer }) {
+export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stopWorker, nativePage, evidence, exit, windows, answer, log }) {
   const characters = page.getByRole("link", { name: "Characters", exact: true });
   const parties = page.getByRole("link", { name: "Parties", exact: true });
   const tab = (name) => page.getByRole("tab", { name, exact: true });
@@ -114,7 +114,7 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
   await expect(tab("Parties")).toHaveCount(0);
   await expect(tab("Characters")).toHaveCount(1);
 
-  const originalWindows = windows();
+  const originalWindows = windows().filter((w) => w.menu).map((w) => w.id);
   await page.keyboard.press("Control+n");
   const secondary = await nativePage(async (candidate) => candidate !== page &&
     await candidate.getByRole("searchbox", { name: "Search records" }).isVisible());
@@ -123,7 +123,7 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
   await secondary.getByRole("button", { name: "New party" }).click();
   const staleDraft = secondary.getByRole("textbox", { name: "Party name" });
   await staleDraft.fill("Keep this disconnected party");
-  const [secondaryWindow] = windows().filter((id) => !originalWindows.includes(id));
+  const secondaryWindow = windows().find((w) => w.menu && !originalWindows.includes(w.id))?.id;
   if (!secondaryWindow) throw new Error("Missing secondary window handle");
   exit();
   await answer("Exit Atlas", 7);
@@ -145,12 +145,20 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
   await answer("Exit Atlas", 7);
   await expect(staleDraft).toHaveValue("Keep this disconnected party");
   openLink(listLink);
+  // Wait for the cancelled Exit handoff to re-enable the stale editor. Its
+  // pending record and the subsequent list must both reach the new service.
+  await expect.poll(() => windows().find((w) => w.id === secondaryWindow)?.enabled).toBe(true);
+  const beforeReconnect = windows();
+  log("reconnect-requested", { windows: beforeReconnect, secondaryWindow, oldPage: page.url(),
+    recoveryPage: recovery.url(), heldDelivery: await page.locator("html").getAttribute("data-held-tab-command") });
+  expect(beforeReconnect.map((w) => w.title)).not.toContain("Could not open Atlas link");
   await recovery.getByRole("button", { name: "Reconnect", exact: true }).click();
   const fresh = await nativePage((p) =>
     p !== page && p.getByRole("heading", { name: listName, exact: true }).isVisible());
   await expect(fresh.getByRole("tab")).toHaveCount(2);
   await expect(fresh.getByRole("tab", { name: recordName, exact: true })).toHaveCount(1);
   await expect(fresh.getByRole("tab", { name: listName, exact: true })).toHaveAttribute("aria-selected", "true");
+  log("reconnected-links-delivered", { page: fresh.url(), windows: windows() });
   await fresh.screenshot({ path: join(evidence, "reconnected-tabs.png") });
 
   // Exit checks the live window for pending saves even with a stale draft.

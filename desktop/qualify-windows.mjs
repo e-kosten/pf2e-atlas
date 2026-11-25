@@ -89,11 +89,14 @@ public static class AtlasMenu {
     throw 'Menu item missing from the installed Atlas window'`, env);
 }
 // Identify the added workspace HWND independently of translated titles or focus.
-function workspaceWindows(pid, env, close) {
-  return ps(`Add-Type -TypeDefinition @'
+function hostWindows(pid, env, close) {
+  return JSON.parse(ps(`Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public static class AtlasHostWindows {
+  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hwnd, System.Text.StringBuilder text, int length);
   [DllImport("user32.dll")] public static extern IntPtr GetTopWindow(IntPtr parent);
   [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hwnd, uint relation);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
@@ -102,17 +105,21 @@ public static class AtlasHostWindows {
   [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr hwnd, uint msg, UIntPtr wParam, IntPtr lParam);
 }
 '@
-    for ($window = [AtlasHostWindows]::GetTopWindow([IntPtr]::Zero); $window -ne [IntPtr]::Zero;
+    $views = for ($window = [AtlasHostWindows]::GetTopWindow([IntPtr]::Zero); $window -ne [IntPtr]::Zero;
         $window = [AtlasHostWindows]::GetWindow($window, 2)) {
       $ownerId = [uint32]0
       [void][AtlasHostWindows]::GetWindowThreadProcessId($window, [ref]$ownerId)
-      if ($ownerId -eq ${pid} -and [AtlasHostWindows]::IsWindowVisible($window) -and [AtlasHostWindows]::GetMenu($window) -ne [IntPtr]::Zero) {
+      if ($ownerId -eq ${pid} -and [AtlasHostWindows]::IsWindowVisible($window)) {
         if ($window.ToInt64() -eq ${close ?? 0}) {
           if (![AtlasHostWindows]::PostMessageW($window, 0x10, [UIntPtr]::Zero, [IntPtr]::Zero)) { throw 'Close request failed' }
         }
-        $window.ToInt64()
+        $title = [Text.StringBuilder]::new(256)
+        [void][AtlasHostWindows]::GetWindowTextW($window, $title, $title.Capacity)
+        [pscustomobject]@{ id = $window.ToInt64(); title = $title.ToString(); menu = [AtlasHostWindows]::GetMenu($window) -ne [IntPtr]::Zero
+          enabled = [AtlasHostWindows]::IsWindowEnabled($window); foreground = $window -eq [AtlasHostWindows]::GetForegroundWindow() }
       }
-    }`, env).trim().split(/\s+/).filter(Boolean).map(Number);
+    }
+    ConvertTo-Json -InputObject @($views) -Compress`, env));
 }
 function installedProcesses() {
   const result = ps(`@((Get-CimInstance Win32_Process | Where-Object {
@@ -450,7 +457,7 @@ async function runCase(mode) {
       const pid = installedProcesses().find((entry) => entry.Name === "atlas-desktop.exe").ProcessId;
       await qualifyWindowsTabs({
         exit: () => invokeMenu(pid, env, "Exit"),
-        windows: (close) => workspaceWindows(pid, env, close),
+        windows: (close) => hostWindows(pid, env, close), log,
         answer: (title, button) => answerDialog(ps, pid, env, title, button),
 
         page: target, expect, nativePage, evidence: caseRoot,
@@ -487,7 +494,10 @@ async function runCase(mode) {
   } catch (error) {
     log("case-failed", { mode, message: String(error) });
     try {
-      writeFileSync(join(caseRoot, "failure-processes.json"), JSON.stringify(installedProcesses(), null, 2));
+      const processes = installedProcesses();
+      writeFileSync(join(caseRoot, "failure-processes.json"), JSON.stringify(processes, null, 2));
+      const host = processes.find((entry) => entry.Name === "atlas-desktop.exe");
+      if (host) writeFileSync(join(caseRoot, "failure-windows.json"), JSON.stringify(hostWindows(host.ProcessId, env), null, 2));
     } catch (inventoryError) {
       log("process-inventory-failed", { mode, message: String(inventoryError) });
     }

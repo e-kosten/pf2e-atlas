@@ -729,13 +729,20 @@ fn open_missing_product(app: &AppHandle, route: &str) -> Result<(), String> {
 }
 
 fn current_product(app: &AppHandle) -> Result<(Url, String), String> {
+    running_product(app)?.ok_or_else(|| "Start the Atlas workspace first.".into())
+}
+
+fn running_product(app: &AppHandle) -> Result<Option<(Url, String)>, String> {
     let desktop = app.state::<Desktop>();
     let launcher = lock(&desktop.launcher);
-    let ready = &launcher
-        .as_ref()
-        .ok_or("Start the Atlas workspace first.")?
-        .ready;
-    Ok((verified_url(&ready.endpoint)?, ready.instance.clone()))
+    let Some(launcher) = launcher.as_ref() else {
+        return Ok(None);
+    };
+    let ready = &launcher.ready;
+    Ok(Some((
+        verified_url(&ready.endpoint)?,
+        ready.instance.clone(),
+    )))
 }
 
 fn product_view(window: &WebviewWindow, base: &Url, instance: &str) -> bool {
