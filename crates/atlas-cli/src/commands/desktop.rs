@@ -6,7 +6,6 @@ use std::{
     process::ExitCode,
 };
 
-use super::desktop_workspace::file_identity;
 use atlas_app_model::{AppErrorCode, AppReadinessStatus};
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
 use atlas_desktop_protocol::workspace_selection::{
@@ -18,6 +17,7 @@ use atlas_desktop_protocol::{BUNDLE_ID, EntityLink};
 use atlas_desktop_protocol::{ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus};
 use atlas_runtime::{
     AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeErrorKind, Workspace,
+    workspace_file_id,
 };
 use clap::Args;
 
@@ -206,7 +206,8 @@ fn check_transition(
             return Err("Cannot create a copy while reserving a workspace.".into());
         }
         let verify_source = || {
-            if other.canonicalize()? != seed.workspace || file_identity(&other)? != seed.file_id {
+            if other.canonicalize()? != seed.workspace || workspace_file_id(&other)? != seed.file_id
+            {
                 return Err(atlas_runtime::StorageError::Migration(
                     "The source workspace changed. Review the switch again.".into(),
                 ));
@@ -239,8 +240,8 @@ fn check_transition(
                 setup = Some(workspace.setup_guard().map_err(transition_storage_error)?);
                 update = Some(workspace.update_owner().map_err(transition_storage_error)?);
             }
-            let identity = file_identity(path).map_err(|err| err.to_string())?;
-            match file_identity(&other) {
+            let identity = workspace_file_id(path).map_err(|err| err.to_string())?;
+            match workspace_file_id(&other) {
                 Ok(other) if other == identity => {
                     return Err("The two workspaces point to the same file.".into());
                 }
@@ -252,7 +253,7 @@ fn check_transition(
             let (key, schema) = workspace
                 .check_update_history(&ledger)
                 .map_err(transition_storage_error)?;
-            if file_identity(path).map_err(|err| err.to_string())? != identity {
+            if workspace_file_id(path).map_err(|err| err.to_string())? != identity {
                 return Err("The workspace file changed during the check.".into());
             }
             serde_json::json!({

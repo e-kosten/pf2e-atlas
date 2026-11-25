@@ -138,14 +138,14 @@ impl From<atlas_index::IndexError> for DesktopRefreshError {
 struct Snapshot {
     status: DesktopReferenceStatus,
     configuration: Option<RequestedReferenceConfig>,
-    file_identity: Option<(u64, u64)>,
+    file_identity: (u64, u64),
 }
 
 pub(crate) struct Refresh {
     pub workspace: Workspace,
     pub generation: String,
     pub configuration: RequestedReferenceConfig,
-    file_identity: Option<(u64, u64)>,
+    file_identity: (u64, u64),
     pub models: Option<WorkspaceModelChange>,
     model_offer: Option<String>,
 }
@@ -482,19 +482,12 @@ fn workspace_changed() -> String {
 fn workspace_file_identity(
     paths: &ResolvedAtlasPaths,
     workspace: &Workspace,
-) -> Result<Option<(u64, u64)>, String> {
+) -> Result<(u64, u64), String> {
     let current = Workspace::existing(&paths.index_path).map_err(|e| e.to_string())?;
     if current.path() != workspace.path() {
         return Err(workspace_changed());
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        let metadata = std::fs::metadata(current.path()).map_err(|e| e.to_string())?;
-        Ok(Some((metadata.dev(), metadata.ino())))
-    }
-    #[cfg(not(unix))]
-    Ok(None)
+    crate::workspace_file_id(current.path()).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -613,7 +606,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn rejects_a_retargeted_or_replaced_workspace() {
+    fn rejects_a_retargeted_workspace_symlink() {
         use std::{fs, os::unix::fs::symlink};
 
         let (home, mut paths, workspace) = fixture(REFERENCE_SOURCE_COMMIT);
@@ -628,11 +621,29 @@ mod tests {
         fs::remove_file(&paths.index_path).unwrap();
         symlink(&other, &paths.index_path).unwrap();
         assert!(refresh.publication_owner(&paths).is_err());
-        fs::remove_file(&paths.index_path).unwrap();
-        symlink(&original, &paths.index_path).unwrap();
-        fs::rename(other, original).unwrap();
+    }
+
+    #[test]
+    fn replacement_copy_requires_a_new_reference_offer() {
+        let (home, paths, workspace) = fixture(REFERENCE_SOURCE_COMMIT);
+        let before = inspect(&paths).unwrap();
+        let _setup = workspace.setup_guard().unwrap();
+        let refresh = Refresh::admit(&paths, &workspace, before.offer.as_deref().unwrap()).unwrap();
+        let replacement = home.path().join("restored.sqlite");
+        std::fs::copy(workspace.path(), &replacement).unwrap();
+        std::fs::rename(replacement, workspace.path()).unwrap();
+
+        let restored = std::fs::read(workspace.path()).unwrap();
         assert!(refresh.publication_owner(&paths).is_err());
+        assert!(refresh.retry_offer(&paths).is_none());
         assert!(Refresh::admit(&paths, &workspace, before.offer.as_deref().unwrap()).is_err());
+        assert_eq!(std::fs::read(workspace.path()).unwrap(), restored);
+
+        let after = inspect(&paths).unwrap();
+        assert_eq!(before.generation, after.generation);
+        assert_ne!(before.model_offer, after.model_offer);
+        let reviewed = Refresh::admit(&paths, &workspace, after.offer.as_deref().unwrap()).unwrap();
+        assert!(reviewed.publication_owner(&paths).is_ok());
     }
 
     #[test]

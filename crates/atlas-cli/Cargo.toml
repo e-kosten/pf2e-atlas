@@ -55,6 +55,3 @@ tempfile = "3.23.0"
 
 [dev-dependencies]
 rusqlite.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-winapi-util = "0.1"
