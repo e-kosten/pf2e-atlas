@@ -418,12 +418,12 @@ jobs:
 
   browsers:
     needs: browser-fixture
-    name: device browsers (${{ matrix.shard }}/2)
+    name: device browsers (${{ matrix.shard }}/3)
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     env:
       ATLAS_BROWSER_ARTIFACT: ${{ github.workspace }}/scratch/browser-artifact
     steps:
@@ -469,7 +469,7 @@ jobs:
       - name: Responsive browser acceptance
         timeout-minutes: 25
         working-directory: web/atlas-ui
-        run: npm exec -- playwright test --config playwright.devices.config.ts --shard=${{ matrix.shard }}/2
+        run: npm exec -- playwright test --config playwright.devices.config.ts --shard=${{ matrix.shard }}/3
       - name: Browser evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7

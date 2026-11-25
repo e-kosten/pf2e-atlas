@@ -250,11 +250,12 @@ CI builds the frontend once after fast checks. When selected, full Rust
 verification and a browser-fixture build then run independently. Rust-only changes
 build/typecheck the frontend without repeating unchanged frontend formatting/lint
 checks. Frontend or browser-spec changes retain those checks. Unit tests can
-start alongside the frontend checks/build because they do not consume the bundle. Two browser shards reuse
-that compiled fixture; each runner starts its own disposable SQLite workspace and one
-Playwright worker. No mutable database or live Cargo target is shared between
-runners. The
-`validation complete` check requires both shards, the fixture build, the frontend
+start alongside the frontend checks/build because they do not consume the bundle.
+Three browser shards reuse the compiled fixture. Each runner starts its own
+disposable SQLite workspace and one Playwright worker. Shard 1 also runs the
+keyword-only cases. Each shard uploads its report and traces under
+`device-browsers-SHARD-attempt-N`. The
+`validation complete` check requires all three shards, the fixture build, the frontend
 checks/build, unit tests and every other selected gate. Main and fresh nightly
 verification retain all surfaces; verified main results can satisfy the nightly
 verification prerequisite. Frontend `verify` alone does not execute browsers. Browser dependencies
@@ -516,9 +517,15 @@ gh workflow run windows-desktop.yml --ref REF -f pr-profile=true
 ```
 
 Replace `REF` with a branch or tag. Repeat the third run to measure a cache hit
-after a successful cache save. Run that command with `--ref main` to warm the
-cache shared by new PRs after a toolchain, dependency, or cache-key change.
-GitHub scopes caches written by a PR to that PR.
+after a successful cache save.
+
+When the Windows workflow, bundle script, Rust toolchain or Cargo build inputs
+change on `main`, the standalone Windows workflow runs with the PR build profile.
+A successful run seeds the dependency cache that new PRs can restore.
+GitHub scopes caches written by a PR to that PR. To verify sharing, compare the
+cache key saved on `main` with the key restored in a fresh PR's Windows job.
+If the shared entry expires, reseed it with
+`gh workflow run windows-desktop.yml --ref main -f pr-profile=true`.
 
 ## Database changes
 
