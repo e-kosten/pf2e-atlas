@@ -1532,6 +1532,36 @@ fn record_source_errors_keep_the_same_class_in_json_and_terminal_modes() {
 }
 
 #[test]
+fn index_build_classifies_configuration_and_workspace_errors() {
+    let fixture = Fixture::new();
+    let invalid = fixture.command(
+        &[
+            "index",
+            "build",
+            "--locale",
+            " ",
+            "--no-embeddings",
+            "--json",
+        ],
+        true,
+    );
+    assert_eq!(invalid.status.code(), Some(2));
+    let error: Value = serde_json::from_slice(&invalid.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "invalid_input");
+
+    let unusable = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--no-embeddings", "--json", "--output"])
+        .arg(fixture.index.join("nested.sqlite"))
+        .arg("--source")
+        .arg(&fixture.root)
+        .output()
+        .unwrap();
+    assert_eq!(unusable.status.code(), Some(3));
+    let error: Value = serde_json::from_slice(&unusable.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "index_build_failed");
+}
+
+#[test]
 fn lists_create_batch_preserves_input_outcomes_and_rejects_existing_slug() {
     let f = Fixture::new();
     let out = f.command(
@@ -1687,8 +1717,7 @@ fn list_edit_flags_preserve_omitted_metadata_and_support_explicit_clears() {
         "Planning",
         "--json",
     ]);
-    let list = &original["list"];
-    let key = list["list_key"].as_str().unwrap();
+    let key = original["list_key"].as_str().unwrap();
     let renamed = f.data(&[
         "lists",
         "edit",
@@ -2454,7 +2483,12 @@ fn definition_lookup_uses_the_exact_key_exposed_by_filter_discovery() {
 fn create_with_records_rejects_duplicate_names_and_suffixes_distinct_names_with_the_same_slug() {
     let f = Fixture::new();
     let original = f.data(&["lists", "create", "Garden Sentries", "--json"]);
-    assert_eq!(original["list"]["slug"], "garden-sentries");
+    assert_eq!(original["slug"], "garden-sentries");
+    assert_eq!(original["created"], true);
+    assert_eq!(original["items"], serde_json::json!([]));
+    assert_eq!(original["requested_count"], 0);
+    assert!(original["list_key"].is_string());
+    assert!(original.get("retry_inputs").is_none());
     let conflict = f.command(
         &[
             "lists",
@@ -2469,10 +2503,7 @@ fn create_with_records_rejects_duplicate_names_and_suffixes_distinct_names_with_
     assert_eq!(conflict.status.code(), Some(2));
     let body: Value = serde_json::from_slice(&conflict.stdout).unwrap();
     assert_eq!(body["error"]["code"], "saved_list_name_conflict");
-    assert_eq!(
-        body["error"]["details"]["list_key"],
-        original["list"]["list_key"]
-    );
+    assert_eq!(body["error"]["details"]["list_key"], original["list_key"]);
     let distinct = f.data(&[
         "lists",
         "create",

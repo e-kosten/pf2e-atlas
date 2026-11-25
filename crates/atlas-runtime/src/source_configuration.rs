@@ -3,11 +3,31 @@ use crate::{ResolvedAtlasPaths, RuntimeSetupOptions, WORKSPACE_SCHEMA_VERSION};
 use atlas_domain::SearchProfileId;
 use atlas_index::RequestedReferenceConfig;
 
+#[derive(Debug)]
+pub enum ReferenceBuildError {
+    InvalidInput(String),
+    Environment(String),
+}
+
+impl std::fmt::Display for ReferenceBuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidInput(message) | Self::Environment(message) => f.write_str(message),
+        }
+    }
+}
+
+impl From<String> for ReferenceBuildError {
+    fn from(message: String) -> Self {
+        Self::Environment(message)
+    }
+}
+
 pub(crate) fn resolve_configuration(
     paths: &ResolvedAtlasPaths,
     options: &RuntimeSetupOptions,
     manifest_override: Option<&std::path::Path>,
-) -> Result<RequestedReferenceConfig, String> {
+) -> Result<RequestedReferenceConfig, ReferenceBuildError> {
     resolve(paths, options, manifest_override, false)
 }
 
@@ -15,7 +35,7 @@ pub(crate) fn resolve_setup_configuration(
     paths: &ResolvedAtlasPaths,
     options: &RuntimeSetupOptions,
 ) -> Result<RequestedReferenceConfig, String> {
-    resolve(paths, options, None, true)
+    resolve(paths, options, None, true).map_err(|e| e.to_string())
 }
 
 fn resolve(
@@ -23,18 +43,21 @@ fn resolve(
     options: &RuntimeSetupOptions,
     manifest_override: Option<&std::path::Path>,
     setup: bool,
-) -> Result<RequestedReferenceConfig, String> {
+) -> Result<RequestedReferenceConfig, ReferenceBuildError> {
     let mut requested = std::collections::BTreeSet::new();
     for profile in &options.search_profiles {
-        atlas_embedding::search_profile(profile).map_err(|e| e.to_string())?;
+        atlas_embedding::search_profile(profile)
+            .map_err(|e| ReferenceBuildError::InvalidInput(e.to_string()))?;
         if !requested.insert(profile) {
-            return Err(format!("duplicate requested search profile: {profile}"));
+            return Err(ReferenceBuildError::InvalidInput(format!(
+                "duplicate requested search profile: {profile}"
+            )));
         }
     }
     if options.locale.as_ref().is_some_and(|locale| {
         locale.is_empty() || locale.trim() != locale || locale.chars().any(char::is_control)
     }) {
-        return Err("indexing locale must be nonempty and contain no surrounding whitespace or control characters".into());
+        return Err(ReferenceBuildError::InvalidInput("indexing locale must be nonempty and contain no surrounding whitespace or control characters".into()));
     }
     crate::workspace::register_extensions().map_err(|e| e.to_string())?;
     let workspace = if options.check {
@@ -55,7 +78,7 @@ fn resolve(
         Some(
             workspace
                 .as_ref()
-                .ok_or("workspace initialization did not complete")?
+                .ok_or_else(|| String::from("workspace initialization did not complete"))?
                 .update_owner()
                 .map_err(|e| e.to_string())?,
         )
@@ -121,7 +144,7 @@ fn resolve(
     if !options.check {
         let write = workspace
             .as_ref()
-            .ok_or("workspace initialization did not complete")?
+            .ok_or_else(|| String::from("workspace initialization did not complete"))?
             .write(WORKSPACE_SCHEMA_VERSION)
             .map_err(|e| e.to_string())?;
         atlas_index::write_requested_reference_config(&write, &config)
@@ -139,7 +162,7 @@ mod tests {
         paths: &ResolvedAtlasPaths,
         options: &RuntimeSetupOptions,
     ) -> Result<RequestedReferenceConfig, String> {
-        super::resolve_configuration(paths, options, None)
+        super::resolve_configuration(paths, options, None).map_err(|e| e.to_string())
     }
 
     fn paths(root: &std::path::Path) -> ResolvedAtlasPaths {

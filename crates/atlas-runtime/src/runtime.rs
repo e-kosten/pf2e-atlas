@@ -365,7 +365,7 @@ impl AtlasRuntime {
         &self,
         options: &RuntimeSetupOptions,
         manifest: Option<&Path>,
-    ) -> Result<atlas_index::RequestedReferenceConfig, String> {
+    ) -> Result<atlas_index::RequestedReferenceConfig, crate::ReferenceBuildError> {
         self.check_workspace_history_if_present(true)
             .map_err(|error| error.to_string())?;
         let configuration =
