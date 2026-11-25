@@ -1,12 +1,12 @@
 //! Canonical reading targets for immunity labels on an admitted PF2e stat block.
 use crate::definitions::{HelpContext, record_navigation};
-use atlas_app_model::{ReferenceDestinationView, ReferenceHelpView};
+use atlas_app_model::{AppErrorCode, ReferenceDestinationView, ReferenceHelpView};
 use atlas_domain::{DefinitionKey, DefinitionNamespace, RecordKey};
 use atlas_foundry_model::generated::immunity_reading::{
     self, SWARM_MIND_RECORD_KEY, SWARM_MIND_RULE_KEY, Target,
 };
 use atlas_search::{AtlasRetrievalService, GetRecordsRequest};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Default)]
 pub(super) struct ImmunityTargets {
@@ -15,22 +15,26 @@ pub(super) struct ImmunityTargets {
 }
 
 impl ImmunityTargets {
-    pub(super) fn collect(&mut self, token: &str) {
-        let key = match immunity_reading::target(token) {
-            Some(Target::Condition(key)) => {
-                self.conditions.insert(
-                    RecordKey::parse(key).expect("generated condition record key"),
-                    token.to_owned(),
-                );
-                return;
-            }
-            Some(Target::Trait(slug)) => {
-                DefinitionKey::new(DefinitionNamespace::Trait, slug).expect("generated trait slug")
-            }
-            Some(Target::SwarmMind) => SWARM_MIND_RULE_KEY.parse().expect("generated rule key"),
-            None => return,
-        };
-        self.definitions.insert(token.to_owned(), key);
+    pub(super) fn from_tokens(tokens: BTreeSet<String>) -> crate::AppServiceResult<Self> {
+        let mut targets = Self::default();
+        for token in tokens {
+            let key = match immunity_reading::target(&token) {
+                Some(Target::Condition(key)) => {
+                    targets
+                        .conditions
+                        .insert(RecordKey::parse(key).map_err(invalid_generated_key)?, token);
+                    continue;
+                }
+                Some(Target::Trait(slug)) => DefinitionKey::new(DefinitionNamespace::Trait, slug)
+                    .map_err(invalid_generated_key)?,
+                Some(Target::SwarmMind) => {
+                    SWARM_MIND_RULE_KEY.parse().map_err(invalid_generated_key)?
+                }
+                None => continue,
+            };
+            targets.definitions.insert(token, key);
+        }
+        Ok(targets)
     }
 
     pub(super) fn definition_keys(&self) -> impl Iterator<Item = DefinitionKey> + '_ {
@@ -100,4 +104,11 @@ impl ImmunityTargets {
         });
         Ok(links)
     }
+}
+
+fn invalid_generated_key(error: impl std::fmt::Display) -> crate::AppServiceError {
+    crate::AppServiceError::new(
+        AppErrorCode::InternalError,
+        format!("Invalid generated immunity reading target: {error}"),
+    )
 }
