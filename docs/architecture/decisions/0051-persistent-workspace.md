@@ -288,7 +288,7 @@ has an independent creation history. The migration adds an empty table.
 
 ### Inline Markdown and custom turns
 
-List descriptions, saved list item notes and encounter participant notes store
+List descriptions, saved list item notes, encounter GM notes and participant notes store
 Markdown in their owning rows. Atlas record links store exact record keys in
 Markdown link destinations such as `record:spells:harm`. These are soft references.
 Recovery preserves the written destination and the known record identity, and

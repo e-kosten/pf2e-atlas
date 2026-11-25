@@ -187,9 +187,16 @@ fn snapshot_markdown_keys(
     snapshot: &ArchiveSnapshot,
 ) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
     snapshot
-        .participants
-        .iter()
-        .filter_map(|participant| participant.note.as_deref())
+        .encounter
+        .note
+        .as_deref()
+        .into_iter()
+        .chain(
+            snapshot
+                .participants
+                .iter()
+                .filter_map(|participant| participant.note.as_deref()),
+        )
         .flat_map(|note| crate::markdown::Markdown(note).record_keys())
 }
 

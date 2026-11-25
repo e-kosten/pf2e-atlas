@@ -11,20 +11,12 @@ export function EncounterModalProvider({
 }) {
   return <WorkArea.Provider value={area}>{children}</WorkArea.Provider>;
 }
-export function EncounterModal({
-  layout = "form",
-  ...props
-}: Omit<AtlasModalProps, "workArea" | "layout"> & { layout?: "form" | "document" }) {
+export function EncounterModal(props: Omit<AtlasModalProps, "workArea" | "layout">) {
   const area = useContext(WorkArea);
   return (
     <AtlasModal
       {...props}
-      layout={layout}
-      workArea={
-        layout === "form" && area
-          ? { root: area, selector: ".workspace-grid" }
-          : undefined
-      }
+      workArea={area ? { root: area, selector: ".workspace-grid" } : undefined}
     />
   );
 }

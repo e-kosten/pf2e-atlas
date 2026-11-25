@@ -23,6 +23,17 @@ the precedence source view also had a 4 × 2 px color difference in the roster,
 with a maximum channel difference of 10/255 and the same text and layout.
 [Ubuntu visual capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45523967050).
 
+## Quiet empty encounter sections
+
+Empty Conditions and Trackers show the heading and add button, matching
+Adjustments. Removing the placeholder lines also changes the scroll position
+in some phone views. The macOS 27.2.1 arm64 references were captured on
+application commit `b028f8c0d` with Playwright 1.65.0.
+All 16 local condition and adjustment scenarios passed ordinary comparison
+and interaction checks across the four device projects. On Ubuntu 24.04 x64,
+all 12 condition scenarios passed during capture on merge candidate
+`637d62694`. [Linux visual capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45541241447).
+
 ## Compact encounter panels and condition HP choices
 
 These references show compact participants without section links above HP and Turn.

@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
@@ -780,7 +781,7 @@ describe("encounter views", () => {
         );
       }
       await waitFor(() =>
-        expect(editor.getByLabelText("Note")).toHaveValue("Fresh note"),
+        expect(markdownSource(editor.getByLabelText("Note"))).toBe("Fresh note"),
       );
       expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush");
       expect(editor.getByLabelText("Name")).toBe(name);
@@ -891,8 +892,8 @@ describe("encounter views", () => {
     );
     expect(name).toHaveValue("My name");
     const note = screen.getByLabelText("Note");
-    expect(note).toHaveValue(" New server note ");
-    fireEvent.change(note, { target: { value: "" } });
+    expect(markdownSource(note)).toBe(" New server note ");
+    replaceMarkdown(note, "");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledExactlyOnceWith({
@@ -931,9 +932,7 @@ describe("encounter views", () => {
     });
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My name" } });
-    fireEvent.change(screen.getByLabelText("Note"), {
-      target: { value: "My note" },
-    });
+    replaceMarkdown(screen.getByLabelText("Note"), "My note");
     fireEvent.change(screen.getByLabelText("Description"), {
       target: { value: "My description" },
     });
@@ -956,7 +955,7 @@ describe("encounter views", () => {
     expect(name).toHaveFocus();
     expect(save).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Use saved Note" }));
-    expect(screen.getByLabelText("Note")).toHaveValue("Other note");
+    expect(markdownSource(screen.getByLabelText("Note"))).toBe("Other note");
     expect(screen.getByLabelText("Description")).toHaveValue("My description");
     expect(apiMocks.updateEncounter).toHaveBeenCalledOnce();
 
@@ -3386,7 +3385,7 @@ describe("encounter views", () => {
     );
     expect(name).toHaveValue("My draft");
     await waitFor(() =>
-      expect(screen.getByLabelText("Note")).toHaveValue("Server note"),
+      expect(markdownSource(screen.getByLabelText("Note"))).toBe("Server note"),
     );
     const other = {
       ...encounterDetailFixture(),

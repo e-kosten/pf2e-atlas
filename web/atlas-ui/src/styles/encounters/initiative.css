@@ -176,18 +176,6 @@
   gap: var(--space-group);
 }
 
-.initiative-entry-editor:not([data-expanded]) {
+.initiative-entry-editor {
   padding-block-end: var(--space-section);
-}
-
-.initiative-entry-editor[data-expanded] {
-  block-size: 100%;
-}
-
-.initiative-entry-editor__notes-header:not([hidden]) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-control);
-  margin-block-end: var(--space-control);
 }

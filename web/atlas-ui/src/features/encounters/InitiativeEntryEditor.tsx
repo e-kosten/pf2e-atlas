@@ -1,6 +1,5 @@
 import { Alert, Button, Form, Input, InputNumber, type GetRef } from "antd";
-import { useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
-import { useTabCloseGuard } from "../../app/DesktopTabContext";
+import { useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import type { AddEncounterInitiativeEntryRequest } from "../../generated/atlas";
 import { MarkdownDocument } from "../../shared/documents/MarkdownDocument";
 import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
@@ -39,20 +38,7 @@ export function InitiativeEntryEditor({
   const [form] = Form.useForm<InitiativeEntryFields>();
   const formElement = useRef<GetRef<typeof Form<InitiativeEntryFields>>>(null);
   const baseline = useRef(initial);
-  const [expanded, setExpanded] = useState(false);
   const [saved, setSaved] = useState(false);
-  const noteId = useId();
-  const expandButton = useRef<HTMLButtonElement>(null);
-  const collapseLabel = useRef<HTMLSpanElement>(null);
-  const restoreToggleFocus = useRef(false);
-  useLayoutEffect(() => {
-    if (expanded) {
-      collapseLabel.current?.closest("button")?.focus({ preventScroll: true });
-    } else if (restoreToggleFocus.current) {
-      restoreToggleFocus.current = false;
-      expandButton.current?.focus({ preventScroll: true });
-    }
-  }, [expanded]);
   const hasDraft = () => {
     const values = form.getFieldsValue();
     const original = baseline.current;
@@ -62,7 +48,6 @@ export function InitiativeEntryEditor({
       textValue(values.note) !== textValue(original?.note)
     );
   };
-  useTabCloseGuard(() => (expanded && hasDraft() ? "dirty" : undefined));
   const close = () => {
     restoreOverlayFocus(() => {
       const { opener, pane } = getDismissFocus();
@@ -86,36 +71,18 @@ export function InitiativeEntryEditor({
   return (
     <EncounterModal
       open
-      layout={expanded ? "document" : "form"}
-      width={expanded ? "100%" : 800}
-      title={expanded ? "Notes" : initial ? "Edit custom turn" : "Add custom turn"}
-      footer={expanded ? null : undefined}
+      width={800}
+      title={initial ? "Edit custom turn" : "Add custom turn"}
       okText={initial ? "Save" : "Add"}
       confirmLoading={disabled}
       okButtonProps={{ disabled: !!conflict }}
       cancelButtonProps={{ disabled }}
-      closable={
-        expanded
-          ? {
-              closeIcon: <span ref={collapseLabel}>Collapse editor</span>,
-              "aria-label": "Collapse editor",
-              disabled,
-            }
-          : !disabled
-      }
-      styles={
-        expanded
-          ? { close: { width: "auto", paddingInline: "var(--space-control)" } }
-          : undefined
-      }
+      closable={!disabled}
       focusable={{ focusTriggerAfterClose: false }}
       keyboard={!disabled}
       mask={{ closable: false }}
-      confirmDiscard={{ when: () => !expanded && hasDraft(), onDiscard: close }}
-      onCancel={() => {
-        if (expanded) setExpanded(false);
-        else close();
-      }}
+      confirmDiscard={{ when: hasDraft, onDiscard: close }}
+      onCancel={close}
       onOk={() => form.submit()}
     >
       <Form<InitiativeEntryFields>
@@ -123,18 +90,17 @@ export function InitiativeEntryEditor({
         form={form}
         layout="vertical"
         className="initiative-entry-editor"
-        data-expanded={expanded || undefined}
         initialValues={initial}
         disabled={disabled}
         onFinish={async (values) => {
           try {
-            if (!expanded && !conflict && (await onSave(values))) setSaved(true);
+            if (!conflict && (await onSave(values))) setSaved(true);
           } catch {
             // The encounter mutation owner reports the failure.
           }
         }}
       >
-        <div hidden={expanded}>
+        <>
           {conflict && (
             <Alert
               type="warning"
@@ -180,29 +146,9 @@ export function InitiativeEntryEditor({
               <InputNumber />
             </Form.Item>
           </div>
-        </div>
-        <div className="initiative-entry-editor__notes-header" hidden={expanded}>
-          <label htmlFor={noteId}>Notes</label>
-          <Button
-            ref={expandButton}
-            size="small"
-            type="text"
-            disabled={disabled}
-            onClick={() => {
-              restoreToggleFocus.current = true;
-              setExpanded(true);
-            }}
-          >
-            Expand editor
-          </Button>
-        </div>
-        <Form.Item name="note" noStyle>
-          <MarkdownEditor
-            id={noteId}
-            label="Notes"
-            disabled={disabled}
-            sizing={expanded ? "fill" : "compact"}
-          />
+        </>
+        <Form.Item name="note" label="Notes" style={{ marginBottom: 0 }}>
+          <MarkdownEditor label="Notes" disabled={disabled} />
         </Form.Item>
       </Form>
     </EncounterModal>
