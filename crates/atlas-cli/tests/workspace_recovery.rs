@@ -406,6 +406,47 @@ fn all_owner_recovery_preserves_saved_archive_statuses_and_rolls_back_late_failu
 }
 
 #[test]
+fn recovery_collects_record_links_from_current_and_outgoing_encounter_notes() {
+    let temp = tempfile::tempdir().unwrap();
+    let db = temp.path().join("workspace.sqlite");
+    let input = temp.path().join("before.json");
+    let output = temp.path().join("after.json");
+    let mut archive: Value =
+        serde_json::from_str(include_str!("fixtures/workspace-archive-rich-1.0.json")).unwrap();
+    let encounter = &mut archive["saved"]["owners"][1]["encounters"][0];
+    let current = "# Gatehouse\n\n[Watch](record:actions:watch)";
+    let previous = "[Bell](record:equipment:bell)";
+    encounter["snapshot"]["encounter"]["note"] = current.into();
+    encounter["outgoing"]["turn"]["snapshot"]["encounter"]["note"] = previous.into();
+    write_archive(&input, &archive);
+    let workspace = initialize_workspace(&db).unwrap();
+    success(workspace_command(&db, "restore", &input, &[]));
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    for key in ["actions:watch", "equipment:bell"] {
+        write
+            .connection()
+            .execute(
+                "INSERT INTO record_identity(key,availability) VALUES(?1,'unavailable')",
+                [key],
+            )
+            .unwrap();
+    }
+    write.commit().unwrap();
+    success(workspace_command(&db, "export", &output, &[]));
+    let restored = read_archive(&output);
+    let references = restored["saved"]["references"].as_array().unwrap();
+    for key in ["actions:watch", "equipment:bell"] {
+        assert!(references.iter().any(|reference| reference["key"] == key));
+    }
+    let encounter = &restored["saved"]["owners"][1]["encounters"][0];
+    assert_eq!(encounter["snapshot"]["encounter"]["note"], current);
+    assert_eq!(
+        encounter["outgoing"]["turn"]["snapshot"]["encounter"]["note"],
+        previous
+    );
+}
+
+#[test]
 fn rich_sample_round_trips_and_retries_through_the_app_offline() {
     use atlas_app_model::{AdvanceEncounterTurnRequest, UpdateEncounterManualTrackerRequest};
 
