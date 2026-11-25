@@ -129,10 +129,10 @@ export function RecordDetailPane({
                     visibleOwnerRecordKey={visibleOwnerRecordKey}
                     showOwnerReturn={showOwnerReturn}
                     actions={
-                      <Space wrap size={4}>
+                      <>
                         {detail && exploreAction}
                         {identityActions}
-                      </Space>
+                      </>
                     }
                   />
                 )

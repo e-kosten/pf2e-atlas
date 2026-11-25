@@ -17,7 +17,9 @@ export function WorkspaceContextBar({
         <div className="workspace-context-bar__identity">
           {title && <h2>{title}</h2>}
         </div>
-        {actions && <div className="workspace-context-bar__actions">{actions}</div>}
+        {actions && (
+          <div className="action-group workspace-context-bar__actions">{actions}</div>
+        )}
       </div>
     </header>
   );

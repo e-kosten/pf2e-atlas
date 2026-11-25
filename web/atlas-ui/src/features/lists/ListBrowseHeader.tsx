@@ -88,6 +88,7 @@ export function ListBrowseHeader({
                 actions={(copy) => (
                   <EntityActionsMenu
                     label="List actions"
+                    appearance="outlined"
                     trigger={actionsTrigger}
                     loading={editPreparing}
                     items={[
@@ -132,7 +133,6 @@ function ListAbout({
     <>
       <Button
         ref={trigger}
-        type="text"
         className="list-context-secondary"
         aria-expanded={open}
         onClick={() => {

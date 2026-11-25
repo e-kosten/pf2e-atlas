@@ -1,7 +1,7 @@
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Dice5 } from "lucide-react";
-import { Alert, Button, Form, InputNumber, Popover, Space, Tooltip } from "antd";
+import { Alert, Button, Form, InputNumber, Popover, Tooltip } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   PersistentDamageGroupView,
@@ -267,7 +267,7 @@ export function EncounterPersistentRecovery({
                       style={{ width: 72 }}
                     />
                   </Form.Item>
-                  <Space size={12}>
+                  <div className="action-group">
                     <Button
                       type="primary"
                       className="encounter-recovery-roll__submit"
@@ -304,7 +304,7 @@ export function EncounterPersistentRecovery({
                         Clear effect
                       </Button>
                     )}
-                  </Space>
+                  </div>
                 </div>
                 {!rollAvailable && rollUnavailableReason && (
                   <p>{rollUnavailableReason}</p>

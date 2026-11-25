@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { expectControlGaps } from "./controlGeometry";
 import type { AddEncounterRecordParticipantRequest } from "../../src/generated/atlas";
 
 for (const width of [1440, 390, 320]) {
@@ -42,6 +43,11 @@ for (const width of [1440, 390, 320]) {
       await page
         .getByRole("button", { name: original.display_name, exact: true })
         .click();
+      await expectControlGaps(
+        page.locator(".encounter-hp-control").locator("input, button"),
+        8,
+        3,
+      );
       const trigger = page.getByRole("button", {
         name: "Edit Participant name",
         exact: true,
@@ -102,7 +108,7 @@ for (const width of [1440, 390, 320]) {
       );
       if (width < 768) {
         const kindBounds = (await page
-          .locator(".encounter-reference__title > .record-reference__kind")
+          .locator(".encounter-reference__header .record-reference__kind")
           .boundingBox())!;
         expect(kindBounds.y).toBeGreaterThanOrEqual(
           nameBounds.y + nameBounds.height - 1,

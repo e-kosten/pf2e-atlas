@@ -793,12 +793,21 @@ ordinary browse details load or change, rather than briefly moving it into the
 workspace toolbar. Verify pagination, reader navigation and status through
 wrapping, pane resizing and loading/empty results.
 
-One action/control group uses one Ant size. Inputs, Selects, text buttons and
-icon buttons in a toolbar align at that size; icon-only and secondary do not imply
-small. Express importance with button type. Independent dense row/inline groups
-may uniformly use small controls. Do not add pixel-height repairs or per-control
-providers. Review rendered control heights, inset and targets together at wide,
-intermediate and phone widths in both themes; matching size props is insufficient.
+Give each action group one Ant size and one owner for its gaps. For example,
+the hazard badge, reference button and Disable button share one row with
+`--space-control` (8px) between each pair. Apply the same rule to an input
+beside its actions. Use `.action-group` for wrapping flex rows. A grid or other
+existing layout can use the same token directly. Deliberately compact groups,
+such as table-row icons and phone saved-list actions, use `--space-micro` (4px)
+throughout. Joined controls keep their connected edges.
+
+Choose the button treatment for the group. Use a neutral outlined icon or
+labeled button beside a filled primary button, with aligned heights. Quiet
+all-icon groups and text-adjacent help can retain their borderless treatment.
+Check the visible edges at rest in both themes. At wide and narrow widths,
+measure the gaps between adjacent controls on each line, including conditional
+actions, links, inputs and any badge in the group. Check the focus target and
+wrapping when the available actions change.
 
 Keep essential facts inline. An optional collapse needs a selective-reading task,
 such as a long reference list or nonmechanical creature narrative during combat.
@@ -1901,8 +1910,8 @@ AC/HP/hardness display; keep independent zero saves and unavailable facts intact
 
 `RecordReadingWorkspace` keeps reading as the default and exposes Explore through
 an icon action beside the classification and list action. These header icons share
-34px targets and a 4px gap; the badge and actions remain aligned when the icon
-switches to Read. Mode changes push URL history (`record_view`); task changes
+34px targets. The badge and buttons form one ordinary action group and stay
+aligned when Explore switches to Read. Mode changes push URL history (`record_view`); task changes
 replace that Explore entry (`record_tab`). Back/Forward restores both. Keep the
 reading subtree mounted and restore its scroll when returning from Explore.
 

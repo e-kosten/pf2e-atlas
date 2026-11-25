@@ -163,6 +163,7 @@ export function BrowseReader({
       restoreResultsFocus(removedSelectionKey);
     }
   }, [readerOpen, removedSelectionKey, restoreResultsFocus, selectedRecordKey]);
+  const selectionActionsInIdentity = paneHeader && !narrow;
   function clearSelectionAction(labeled = false) {
     if (
       !onClearSelection ||
@@ -183,6 +184,7 @@ export function BrowseReader({
     }
     return (
       <PaneIconButton
+        outlined={selectionActionsInIdentity}
         label="Clear selection"
         icon={<X size={16} aria-hidden="true" />}
         disabled={clearSelectionDisabled}
@@ -272,7 +274,7 @@ export function BrowseReader({
       showRelated={showRelated}
       active={(!narrow || readerOpen) && !listOnly}
       selectionActions={resultsOnlyClear ? undefined : clearSelectionAction()}
-      selectionActionsInIdentity={paneHeader && !narrow}
+      selectionActionsInIdentity={selectionActionsInIdentity}
       renderLayout={
         narrow && !paneHeader
           ? undefined

@@ -1,6 +1,7 @@
 import { expect, test as base } from "./fixtures";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { activate, noPageOverflow } from "./reading";
+import { expectControlGaps } from "./controlGeometry";
 
 type RecoveryEncounter = {
   encounter: { encounter_key: string };
@@ -270,6 +271,11 @@ test.describe(() => {
     await expect(
       popup.getByRole("button", { name: "Clear effect", exact: true }),
     ).toBeInViewport({ ratio: 1 });
+    await expectControlGaps(
+      popup.getByRole("button", { name: /^(Roll|Clear effect)$/ }),
+      8,
+      2,
+    );
     await checkpoint(page, info, "recovery-before.png");
     const before = await recoveryGeometry(popup);
     const beforeAbove =

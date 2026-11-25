@@ -164,11 +164,8 @@
   gap: 8px 16px;
 }
 .record-reference__tools {
-  display: flex;
   flex: 0 0 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-control) var(--space-group);
+  font-weight: normal;
   max-width: 100%;
   margin-inline-start: auto;
 }
@@ -261,17 +258,6 @@
   .record-reference__context-separator {
     display: none;
   }
-}
-.record-reference__actions {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  max-width: 100%;
-  font-weight: normal;
-}
-.record-reference__header--stacked:has(.encounter-casting__controls)
-  .record-reference__actions {
-  flex-basis: 100%;
 }
 .record-reference__metadata:empty {
   display: none;

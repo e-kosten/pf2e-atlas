@@ -1,9 +1,14 @@
+.action-group,
 .primary-toolbar {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-control);
+}
+.action-group {
+  align-items: center;
+}
+.primary-toolbar {
+  align-items: flex-start;
   min-width: 0;
   width: 100%;
 }

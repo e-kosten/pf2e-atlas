@@ -75,7 +75,6 @@ export function DesktopSettingsControls() {
       {windowsTabsEnabled() && (
         <Tooltip title="Settings" trigger={["hover", "focus"]}>
           <Button
-            type="text"
             aria-label="Settings"
             icon={<Settings size={18} />}
             onClick={() => open("general")}
@@ -83,7 +82,7 @@ export function DesktopSettingsControls() {
         </Tooltip>
       )}
       {status !== "idle" && (
-        <Button size="small" icon={<Activity size={15} />} onClick={() => open("data")}>
+        <Button icon={<Activity size={15} />} onClick={() => open("data")}>
           {running
             ? "Setup in progress"
             : status === "failed"
