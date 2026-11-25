@@ -13,6 +13,7 @@ import type {
   ActorAbilityGroupView,
   ActorPresentationView,
   RuntimeCountView,
+  EncounterSenseView,
   DamageComponentView,
   FactView,
   IwrEntryView,
@@ -318,6 +319,40 @@ export function ActorDefenses({
     </>
   );
 }
+function EncounterSenseRow({
+  sense,
+  perception,
+}: {
+  sense: EncounterSenseView;
+  perception: number | null;
+}) {
+  const unavailable = sense.available === false;
+  if (unavailable && sense.sense_type.value === "vision" && sense.reason === null) {
+    return (
+      <div className="record-fact">
+        <strong>
+          <ReferenceHelpLink help={sense.sense_type.help}>No vision</ReferenceHelpLink>
+        </strong>
+      </div>
+    );
+  }
+  const condition = unavailable ? sense.reason : null;
+  return (
+    <FactRow label={<ReferenceValue value={sense.sense_type} />}>
+      {[
+        condition ? `(${condition})` : sense.precision,
+        sense.range_feet === null ? null : `${sense.range_feet} feet`,
+        unavailable && !condition ? "Unavailable" : null,
+        sense.perception === null || sense.perception === perception
+          ? null
+          : `Perception ${sense.perception >= 0 ? "+" : ""}${sense.perception}`,
+      ]
+        .filter(Boolean)
+        .join(" · ")}
+    </FactRow>
+  );
+}
+
 export function ActorAwareness({
   actor,
   encounter = false,
@@ -341,20 +376,11 @@ export function ActorAwareness({
       {encounter && actor.runtime ? (
         <div className="record-fact-list">
           {actor.runtime.senses.map((sense, index) => (
-            <FactRow label={<ReferenceValue value={sense.sense_type} />} key={index}>
-              {[
-                sense.precision,
-                sense.range_feet === null ? null : `${sense.range_feet} feet`,
-                sense.available === false
-                  ? `Unavailable${sense.reason ? ` (${sense.reason})` : ""}`
-                  : null,
-                sense.perception === null || sense.perception === actor.perception.value
-                  ? null
-                  : `Perception ${sense.perception >= 0 ? "+" : ""}${sense.perception}`,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </FactRow>
+            <EncounterSenseRow
+              key={index}
+              sense={sense}
+              perception={actor.perception.value}
+            />
           ))}
         </div>
       ) : (
