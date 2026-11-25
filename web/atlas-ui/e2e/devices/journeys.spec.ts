@@ -1,5 +1,6 @@
 import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { readUrl } from "../readingUrl";
+import type { TableRollView } from "../../src/generated/http";
 import { decodeFilterUrl, encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 import { encodeReadingAddress } from "../../src/app/readingUrl";
 import { expect, test } from "./fixtures";
@@ -2713,16 +2714,11 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
     await activate(page.getByRole("button", { name: label, exact: true }), info);
     const rolledResponse = await response;
     expect(rolledResponse.ok()).toBe(true);
-    const rolled = await rolledResponse.json();
+    const rolled: TableRollView = await rolledResponse.json();
     expect(rolled.outcome.total).toBeGreaterThanOrEqual(1);
     expect(rolled.outcome.total).toBeLessThanOrEqual(4);
     expect(rolled.invalid_ranges).toEqual([]);
-    expect(
-      rolled.matches.map(
-        (match: { selected: { record_key: string; embedded_path: unknown[] } }) =>
-          match.selected,
-      ),
-    ).toMatchObject([
+    expect(rolled.matches.map((match) => match.navigation)).toMatchObject([
       {
         record_key: key,
         embedded_path: [
