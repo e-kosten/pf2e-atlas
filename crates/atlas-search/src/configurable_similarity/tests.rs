@@ -878,13 +878,30 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
         assert_eq!(keys_and_scores(&compact), keys_and_scores(&explained));
         assert_eq!(compact.results.page, explained.results.page);
         assert_eq!(compact.evidence.len(), explained.evidence.len());
-        assert!(
-            compact
-                .results
-                .records
-                .iter()
-                .all(|row| row.matches.is_empty())
-        );
+        for (shown, full) in compact
+            .results
+            .records
+            .iter()
+            .zip(&explained.results.records)
+        {
+            if matches!(options, SimilarityOptions::Baseline {}) {
+                let preferred = full
+                    .matches
+                    .iter()
+                    .find(|w| w.preview.is_some())
+                    .or_else(|| full.matches.first());
+                assert_eq!(shown.matches.len(), usize::from(preferred.is_some()));
+                assert_eq!(
+                    serde_json::to_value(shown.matches.first()).unwrap(),
+                    serde_json::to_value(preferred).unwrap()
+                );
+            } else {
+                assert!(
+                    shown.matches.is_empty(),
+                    "configurable evidence lives in the selected pair"
+                );
+            }
+        }
         for ((key, shown), (full_key, full)) in compact.evidence.iter().zip(&explained.evidence) {
             assert_eq!(key, full_key);
             assert_eq!(shown.score, full.score);
