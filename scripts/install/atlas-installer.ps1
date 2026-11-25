@@ -202,6 +202,10 @@ if (!$DryRun) {
     $lease = [IO.FileStream]::new($lockPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite,
       [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose)
   } catch [IO.IOException] { Fail "Could not acquire the Atlas installation lock at $lockPath. Retry after the other installer exits, or choose another directory." }
+  if ((Find-Entry $InstallDir '.atlas-payload.lock') -or (Find-Entry $InstallDir '.atlas-payload.pending') -or
+      (Find-Entry $InstallDir 'atlas-desktop-windows-runtime.json') -or (Find-Entry $InstallDir 'atlas-desktop.exe')) {
+    Fail "This folder contains the Atlas desktop app. Choose a separate directory for the standalone CLI."
+  }
   try { Restore-Transaction } catch {
     Write-Host "Recovery files: $pendingDir"
     Fail "Could not recover the interrupted installation: $($_.Exception.Message)"

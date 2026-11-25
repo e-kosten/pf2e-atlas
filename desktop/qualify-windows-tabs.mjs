@@ -24,7 +24,7 @@ export async function holdNextTabCommand(page, match) {
 
 // Exercise the installed host and real WebView2 documents after the signed
 // update. The caller owns the disposable service, installer and workspace.
-export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stopWorker, nativePage, evidence }) {
+export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stopWorker, nativePage, evidence, exit, windows, answer }) {
   const characters = page.getByRole("link", { name: "Characters", exact: true });
   const parties = page.getByRole("link", { name: "Parties", exact: true });
   const tab = (name) => page.getByRole("tab", { name, exact: true });
@@ -114,6 +114,24 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
   await expect(tab("Parties")).toHaveCount(0);
   await expect(tab("Characters")).toHaveCount(1);
 
+  const originalWindows = windows();
+  await page.keyboard.press("Control+n");
+  const secondary = await nativePage(async (candidate) => candidate !== page &&
+    await candidate.getByRole("searchbox", { name: "Search records" }).isVisible());
+  await secondary.getByRole("link", { name: "Characters", exact: true }).click();
+  await secondary.getByRole("link", { name: "Parties", exact: true }).click();
+  await secondary.getByRole("button", { name: "New party" }).click();
+  const staleDraft = secondary.getByRole("textbox", { name: "Party name" });
+  await staleDraft.fill("Keep this disconnected party");
+  const [secondaryWindow] = windows().filter((id) => !originalWindows.includes(id));
+  if (!secondaryWindow) throw new Error("Missing secondary window handle");
+  exit();
+  await answer("Exit Atlas", 7);
+  await expect(staleDraft).toHaveValue("Keep this disconnected party");
+  // Reactivate the original window so its held delivery is the one interrupted.
+  openLink(recordLink);
+  await expect(tab(recordName)).toHaveAttribute("aria-selected", "true");
+
   // Hold one real delivery before React acknowledges it, then interrupt its
   // service. A late acknowledgement from this document cannot own the queue.
   await holdNextTabCommand(page, "delivery");
@@ -121,6 +139,11 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
   await expect(page.locator("html")).toHaveAttribute("data-held-tab-command", /^\d+$/);
   stopWorker();
   const recovery = await nativePage((p) => p.getByRole("button", { name: "Reconnect", exact: true }).isVisible());
+  windows(secondaryWindow);
+  await answer("Close Atlas window", 7);
+  exit();
+  await answer("Exit Atlas", 7);
+  await expect(staleDraft).toHaveValue("Keep this disconnected party");
   openLink(listLink);
   await recovery.getByRole("button", { name: "Reconnect", exact: true }).click();
   const fresh = await nativePage((p) =>
@@ -129,4 +152,37 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
   await expect(fresh.getByRole("tab", { name: recordName, exact: true })).toHaveCount(1);
   await expect(fresh.getByRole("tab", { name: listName, exact: true })).toHaveAttribute("aria-selected", "true");
   await fresh.screenshot({ path: join(evidence, "reconnected-tabs.png") });
+
+  // Exit checks the live window for pending saves even with a stale draft.
+  await fresh.getByRole("link", { name: "Characters", exact: true }).click();
+  await fresh.getByRole("link", { name: "Parties", exact: true }).click();
+  await fresh.getByRole("button", { name: "New party" }).click();
+  await fresh.getByRole("textbox", { name: "Party name" }).fill("Connected party");
+  let release;
+  const hold = new Promise((done) => { release = done; });
+  await fresh.route("**/api/parties", async (route) => {
+    if (route.request().method() === "POST") await hold;
+    await route.continue();
+  });
+  try {
+    const post = fresh.waitForRequest((req) => req.method() === "POST" && req.url().endsWith("/api/parties"));
+    await fresh.getByRole("button", { name: "Create party" }).click();
+    await post;
+    exit();
+    await answer("Could not exit Atlas", 1);
+  } finally {
+    release();
+  }
+  await expect(fresh.getByRole("heading", { name: "Connected party" })).toBeVisible();
+  exit();
+  await answer("Exit Atlas", 7);
+  await expect(staleDraft).toHaveValue("Keep this disconnected party");
+  windows(secondaryWindow);
+  await answer("Close Atlas window", 6);
+  await expect.poll(() => secondary.isClosed()).toBe(true);
+  await expect(fresh.getByRole("heading", { name: "Connected party" })).toBeVisible();
+  // The original disconnected workspace also survives reconnection.
+  exit();
+  await answer("Exit Atlas", 6);
+  await expect.poll(() => fresh.isClosed()).toBe(true);
 }

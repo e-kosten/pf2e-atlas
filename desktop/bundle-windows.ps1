@@ -41,7 +41,7 @@ Push-Location $root
 try {
     $env:CARGO_TARGET_DIR = Join-Path $root 'target'
     $runtime = Join-Path $PSScriptRoot '.generated/windows-crt'
-    & "$root/scripts/release/stage-windows-crt.ps1" -Destination $runtime | Out-Null
+    & "$root/scripts/release/stage-windows-crt.ps1" -Destination $runtime -IncludeReceipt | Out-Null
     if (!$release) {
         Invoke-BuildStep npm.cmd @('--prefix', 'web/atlas-ui', 'run', 'build')
     }

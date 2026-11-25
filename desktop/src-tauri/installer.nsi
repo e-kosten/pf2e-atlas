@@ -746,7 +746,8 @@ Section Install
     File /a "/oname={{this}}" "{{no-escape @key}}"
   {{/each}}
 
-  !insertmacro AtlasCommitPayload
+  WriteUninstaller "$PLUGINSDIR\atlas-payload\uninstall.exe"
+  !insertmacro AtlasPayload '-Payload "$PLUGINSDIR\atlas-payload"'
   SetOutPath $INSTDIR
 
   ; Create file associations
@@ -764,9 +765,6 @@ Section Install
     WriteRegStr SHCTX "Software\Classes\\{{protocol}}\shell\open\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
   {{/each}}
 
-  ; Create uninstaller
-  WriteUninstaller "$INSTDIR\uninstall.exe"
-
   ; Save $INSTDIR in registry for future installations
   WriteRegStr SHCTX "${MANUPRODUCTKEY}" "" $INSTDIR
 
@@ -776,12 +774,7 @@ Section Install
     WriteRegStr SHCTX "${UNINSTKEY}" $MultiUser.InstallMode 1
   !endif
 
-  ; Remove old main binary if it doesn't match new main binary name
   ReadRegStr $OldMainBinaryName SHCTX "${UNINSTKEY}" "MainBinaryName"
-  ${If} $OldMainBinaryName != ""
-  ${AndIf} $OldMainBinaryName != "${MAINBINARYNAME}.exe"
-    Delete "$INSTDIR\$OldMainBinaryName"
-  ${EndIf}
 
   ; Save current MAINBINARYNAME for future updates
   WriteRegStr SHCTX "${UNINSTKEY}" "MainBinaryName" "${MAINBINARYNAME}.exe"
@@ -806,6 +799,8 @@ Section Install
     WriteRegStr SHCTX "${UNINSTKEY}" "URLUpdateInfo" "${HOMEPAGE}"
     WriteRegStr SHCTX "${UNINSTKEY}" "HelpLink" "${HOMEPAGE}"
   !endif
+
+  !insertmacro AtlasPayload "-Finish"
 
   ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -870,14 +865,14 @@ Section Uninstall
 
   !insertmacro CheckIfAppIsRunning "$INSTDIR\${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
 
+  InitPluginsDir
+  !insertmacro AtlasPayload "-RemoveRuntime"
+
   ; Delete the app directory and its content from disk
   ; Copy main executable
   Delete "$INSTDIR\${MAINBINARYNAME}.exe"
 
-  ; Delete resources
-  {{#each resources}}
-    Delete "$INSTDIR\\{{this.[1]}}"
-  {{/each}}
+  Delete "$INSTDIR\THIRD-PARTY-NOTICES.md"
 
   ; Delete external binaries
   {{#each binaries}}

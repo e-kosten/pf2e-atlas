@@ -1239,15 +1239,8 @@ fn main() {
             #[cfg(windows)]
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
                 && let Some(view) = app.get_webview_window(window.label())
-                && windows_tabs::ready(&view)
             {
-                api.prevent_close();
-                if windows_tabs::update_handoff_active(app) {
-                    return;
-                }
-                if let Err(error) = windows_tabs::send(&view, windows_tabs::Command::CloseWindow) {
-                    window_host::report("Could not close Atlas window", &error);
-                }
+                windows_tabs::handle_close(&view, api);
             }
             #[cfg(target_os = "macos")]
             if window.label() == settings::WINDOW
@@ -1273,7 +1266,7 @@ fn main() {
         })
         .on_menu_event(|app, event| {
             #[cfg(windows)]
-            if windows_tabs::update_handoff_active(app) {
+            if windows_tabs::window_handoff_active(app) {
                 return;
             }
             let result = match event.id().as_ref() {

@@ -2,7 +2,7 @@ import { holdNextTabCommand } from "./qualify-windows-tabs.mjs";
 
 // Drive the real Windows confirmation owned by this disposable host. Closing it
 // leaves the tab's live editor available to the next handoff attempt.
-async function answerDiscard(ps, pid, env, answer) {
+export async function answerDialog(ps, pid, env, title, button) {
   await ps(`Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -16,18 +16,18 @@ public static class AtlasDialog {
     do {
       $dialog = [IntPtr]::Zero
       do {
-        $dialog = [AtlasDialog]::FindWindowEx([IntPtr]::Zero, $dialog, '#32770', 'Install Atlas update')
+        $dialog = [AtlasDialog]::FindWindowEx([IntPtr]::Zero, $dialog, '#32770', '${title}')
         if ($dialog -eq [IntPtr]::Zero) { break }
         $ownerId = [uint32]0
         [void][AtlasDialog]::GetWindowThreadProcessId($dialog, [ref]$ownerId)
         if ($ownerId -eq ${pid}) {
-          if (![AtlasDialog]::PostMessageW($dialog, 0x0111, [UIntPtr]${answer ? 6 : 7}, [IntPtr]::Zero)) { throw 'Could not answer update dialog' }
+          if (![AtlasDialog]::PostMessageW($dialog, 0x0111, [UIntPtr]${button}, [IntPtr]::Zero)) { throw 'Could not answer update dialog' }
           return
         }
       } while ($true)
       Start-Sleep -Milliseconds 150
     } while ([DateTime]::UtcNow -lt $deadline)
-    throw 'The installed host did not ask to discard changes'`, env, 70_000);
+    throw 'The installed host did not display ${title}'`, env, 70_000);
 }
 
 export async function reviewNightly(channel, expect, separateCopy) {
@@ -84,7 +84,7 @@ export async function qualifyUpdateGuards({ second, channel, install, review, ex
   await install.click();
   // The embedded HTTPS server and CDP must keep running while the host
   // downloads the installer and prepares the confirmation.
-  await answerDiscard(ps, pid, env, false);
+  await answerDialog(ps, pid, env, "Install Atlas update", 7);
   await refused(/Update cancelled/);
   await expect(draft).toHaveValue("Cancelled update retained this party");
 
@@ -109,6 +109,6 @@ export async function qualifyUpdateGuards({ second, channel, install, review, ex
 
   await newDraft("Discard this second-window draft");
   await install.click();
-  await answerDiscard(ps, pid, env, true);
+  await answerDialog(ps, pid, env, "Install Atlas update", 6);
   log("dirty-second-window-discard-confirmed");
 }

@@ -271,6 +271,17 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
       (Get-Content -LiteralPath (Join-Path $shared 'msvcp140.dll')) -ne 'belongs to another app') {
     throw 'Installer changed an unrelated runtime file'
   }
+  $desktopReceipt = Join-Path $shared 'atlas-desktop-windows-runtime.json'
+  Set-Content -LiteralPath $desktopReceipt -Value 'desktop receipt'
+  $bundled = Join-Path $shared 'atlas.exe'
+  Set-Content -LiteralPath $bundled -Value 'bundled sidecar'
+  foreach ($variant in 'full', 'cli-only') {
+    $env:ATLAS_TEST_VARIANT = $variant
+    $failed = $false
+    try { & $Shell -NoProfile -File (Join-Path $fakeBin 'run-install.ps1') | Out-Null; $failed = $LASTEXITCODE -ne 0 } catch { $failed = $true }
+    if (!$failed -or (Get-Content -LiteralPath $bundled) -ne 'bundled sidecar') { throw "Standalone $variant replaced the desktop sidecar" }
+  }
+  Remove-Item Env:ATLAS_TEST_VARIANT
   $env:ATLAS_TEST_INSTALL_DIR = $installDir
   if (($secondOutput -join "`n") -notmatch [regex]::Escape("After a fresh install or Atlas upgrade, run 'atlas setup'")) {
     throw "PowerShell installer did not print setup guidance"
