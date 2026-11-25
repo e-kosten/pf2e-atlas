@@ -59,28 +59,16 @@ impl AtlasAppService {
                     "reading selection does not match the parent record",
                 ));
             }
-            let activities = crate::presentation::actor::authored_activities(
-                &detail.source,
-                node,
-                r.source_fingerprint(),
-                match &request.selection {
-                    EmbeddedReadingSelection::Abilities { .. } => {
-                        Some(&[crate::RecordReadSection::Abilities])
-                    }
-                    EmbeddedReadingSelection::Activity { .. } => None,
-                    _ => Some(&[]),
-                },
-            );
             let actor_content = matches!(request.selection, EmbeddedReadingSelection::ActorContent);
             let availability = if actor_content {
                 atlas_domain::QueryFieldState::Value
             } else if let SourceNodeView::Table(table) = node {
                 crate::projection::field_state(SourceFieldView::from(&table.results).availability())
             } else {
-                activities.state
+                crate::projection::field_state(node.actor_items().availability())
             };
-            let (candidates, start, single) = match &request.selection {
-                EmbeddedReadingSelection::ActorContent => (vec![parent.clone()], 0, true),
+            let (page, total, start, single) = match &request.selection {
+                EmbeddedReadingSelection::ActorContent => (vec![parent.clone()], 1, 0, true),
                 EmbeddedReadingSelection::TableResults { cursor } => {
                     let candidates: Vec<_> = crate::presentation::owned_links(
                         &detail.source,
@@ -91,24 +79,14 @@ impl AtlasAppService {
                     .into_iter()
                     .map(|link| link.navigation)
                     .collect();
-                    let start = if let Some(cursor) = cursor {
-                        if cursor.artifact_generation != generation {
-                            return Err(AppServiceError::artifact_generation_changed(
-                                &cursor.artifact_generation,
-                                &generation,
-                                AppRecoverableAction::ReloadRecord,
-                            ));
-                        }
-                        cursor.offset
-                    } else {
-                        0
-                    };
-                    if start > candidates.len() || (start == candidates.len() && start != 0) {
-                        return Err(AppServiceError::invalid_request(
-                            "reading cursor is outside the embedded collection",
-                        ));
-                    }
-                    (candidates, start, false)
+                    let total = candidates.len();
+                    let start = page_offset(cursor.as_ref(), &generation, total)?;
+                    let page = candidates
+                        .into_iter()
+                        .skip(start)
+                        .take(ENTRY_LIMIT)
+                        .collect();
+                    (page, total, start, false)
                 }
                 EmbeddedReadingSelection::Abilities {
                     group,
@@ -120,77 +98,70 @@ impl AtlasAppService {
                             "select a reading cursor or target, not both",
                         ));
                     }
-                    let mut selected: Vec<_> = activities
-                        .value
-                        .unwrap_or_default()
-                        .into_iter()
-                        .filter(|a| {
-                            a.kind == ActorActivityKindView::Ability
-                                && group.is_none_or(|group| a.ability_group == Some(group))
-                        })
-                        .collect();
-                    if group.is_some() {
-                        selected.sort_by_key(|a| a.reading_order);
-                    }
-                    let candidates: Vec<_> = selected.into_iter().map(|a| a.navigation).collect();
+                    let owners =
+                        crate::presentation::actor::ability_owners(&detail.source, node, *group);
+                    let total = owners.len();
                     let start = if let Some(target) = target {
                         checked_activity(target, &key, r.source_fingerprint())?;
-                        let index = candidates
+                        let index = owners
                             .iter()
-                            .position(|a| {
-                                a.owners.as_slice() == std::slice::from_ref(&target.owner)
-                            })
+                            .position(|owner| owner == &target.owner)
                             .ok_or_else(|| {
                                 AppServiceError::invalid_request(
                                     "target ability does not exist in this source snapshot",
                                 )
                             })?;
                         index / ENTRY_LIMIT * ENTRY_LIMIT
-                    } else if let Some(cursor) = cursor {
-                        if cursor.artifact_generation != generation {
-                            return Err(AppServiceError::artifact_generation_changed(
-                                &cursor.artifact_generation,
-                                &generation,
-                                atlas_app_model::AppRecoverableAction::ReloadRecord,
-                            ));
-                        }
-                        cursor.offset
                     } else {
-                        0
+                        page_offset(cursor.as_ref(), &generation, total)?
                     };
-                    if start > candidates.len() || (start == candidates.len() && start != 0) {
-                        return Err(AppServiceError::invalid_request(
-                            "reading cursor is outside the embedded collection",
-                        ));
-                    }
-                    (candidates, start, false)
+                    let page = owners
+                        .into_iter()
+                        .skip(start)
+                        .take(ENTRY_LIMIT)
+                        .map(|owner| {
+                            crate::definitions::record_navigation(
+                                key.clone(),
+                                vec![owner],
+                                r.source_fingerprint(),
+                            )
+                        })
+                        .collect();
+                    (page, total, start, false)
                 }
                 EmbeddedReadingSelection::Activity { address } => {
                     checked_activity(address, &key, r.source_fingerprint())?;
-                    let activity = activities
-                        .value
-                        .unwrap_or_default()
-                        .into_iter()
-                        .find(|a| {
-                            a.navigation.owners.as_slice() == std::slice::from_ref(&address.owner)
-                        })
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request(
+                    let owners = std::slice::from_ref(&address.owner);
+                    let item = match detail.source.node_at(owners) {
+                        Some(SourceNodeView::Item(item))
+                            if address.owner.collection == "/items" =>
+                        {
+                            item
+                        }
+                        _ => {
+                            return Err(AppServiceError::invalid_request(
                                 "requested activity does not exist in this source snapshot",
-                            )
-                        })?;
-                    (vec![activity.navigation], 0, true)
+                            ));
+                        }
+                    };
+                    let mut navigation = crate::definitions::record_navigation(
+                        key.clone(),
+                        owners.to_vec(),
+                        r.source_fingerprint(),
+                    );
+                    if let atlas_record::source_record::ItemSourceView::SpellSource(source) = item
+                        && let [rank] =
+                            crate::presentation::spell_context::ranks(&detail.source, source)
+                                .as_slice()
+                    {
+                        navigation.spell_rank = Some(*rank);
+                    }
+                    (vec![navigation], 1, 0, true)
                 }
             };
-            let total = candidates.len();
             let mut selected = vec![];
             let mut selected_fields = 0;
-            for navigation in
-                candidates
-                    .iter()
-                    .skip(start)
-                    .take(if single { 1 } else { ENTRY_LIMIT })
-            {
+            for navigation in &page {
                 let child = detail.source.node_at(&navigation.owners).ok_or_else(|| {
                     AppServiceError::invalid_request("embedded activity unavailable")
                 })?;
@@ -307,6 +278,29 @@ impl AtlasAppService {
             })
         })
     }
+}
+
+fn page_offset(
+    cursor: Option<&EmbeddedReadingCursor>,
+    generation: &str,
+    total: usize,
+) -> AppServiceResult<usize> {
+    let Some(cursor) = cursor else {
+        return Ok(0);
+    };
+    if cursor.artifact_generation != generation {
+        return Err(AppServiceError::artifact_generation_changed(
+            &cursor.artifact_generation,
+            generation,
+            AppRecoverableAction::ReloadRecord,
+        ));
+    }
+    if cursor.offset != 0 && cursor.offset >= total {
+        return Err(AppServiceError::invalid_request(
+            "reading cursor is outside the embedded collection",
+        ));
+    }
+    Ok(cursor.offset)
 }
 
 fn checked_activity(

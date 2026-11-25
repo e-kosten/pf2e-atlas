@@ -197,6 +197,15 @@ progress and removes expired contributions atomically. Frozen turn review
 retains the expiry reminder. The app-service preview and guarded write prepare
 the same operation against the saved revisions and checked reference revision.
 
+Condition PATCH and its preview merge editable fields into the selected condition
+at the caller’s expected encounter revision. Omitting a field keeps the saved
+value. A JSON null clears a nullable value, source, note or duration when the
+condition allows it. Application and grant identity stay fixed. An edit defaults
+to `correction`. Send `event_intent: "apply"` to process gameplay consequences
+of the change. Creation defaults to `apply`. The receipt records the submitted
+changes, including explicit clears. Reusing the ID of a former full-replacement
+request reports an intent mismatch and preserves the committed outcome.
+
 Anchored non-round conditions retain their entered amount/unit plus separate saved
 remaining-second progress. Round conditions retain their existing remaining amount.
 Metadata-only edits preserve saved progress; changed durations reinitialize it.

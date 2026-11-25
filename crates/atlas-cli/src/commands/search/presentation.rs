@@ -1,38 +1,12 @@
-use super::args::SearchOptions;
+use super::args::{SearchDetail, SearchOptions};
 use crate::commands::{
-    followup::{
-        EvidenceDetail, OccurrenceArgs, filter_args, open_record, shell_command, workspace_args,
-    },
+    followup::{EvidenceDetail, OccurrenceArgs, filter_args, shell_command, workspace_args},
     graph::evidence,
     product,
-    record::navigation::Locator,
 };
-use atlas_app_model::{
-    RecordNavigationView, RetrievalModeView, SearchModeSummary, SearchResultRow, SearchResultsPage,
-};
+use atlas_app_model::{RetrievalModeView, SearchModeSummary, SearchResultRow, SearchResultsPage};
 use atlas_domain::{ResultSort, SearchContentScope, SearchRanking};
 use serde_json::{Value, json};
-
-fn selected(row: &SearchResultRow) -> RecordNavigationView {
-    if let Some(witness) = row.best_match() {
-        return witness.navigation.clone();
-    }
-    for edge in row
-        .relationship_evidence
-        .iter()
-        .flat_map(|e| &e.occurrences)
-    {
-        if edge.source_navigation.record_key == row.record.record_key {
-            return edge.source_navigation.clone();
-        }
-        if let Some(target) = edge.destination.record_target()
-            && target.record_key == row.record.record_key
-        {
-            return target.clone();
-        }
-    }
-    crate::commands::record::navigation::root(&row.record.record_key)
-}
 
 fn next_page(
     o: &SearchOptions,
@@ -61,8 +35,10 @@ fn next_page(
     if o.json {
         args.push("--json".into());
     }
-    if o.detail == EvidenceDetail::Full {
-        args.push("--detail=full".into());
+    match o.detail {
+        SearchDetail::Records => {}
+        SearchDetail::Preview => args.push("--detail=preview".into()),
+        SearchDetail::Full => args.push("--detail=full".into()),
     }
     if let Some(path) = &o.embedding_cache_path {
         args.push(format!(
@@ -115,6 +91,10 @@ fn source_owner<'a>(
 }
 
 fn compact_row(result: &SearchResultsPage, row: &SearchResultRow) -> Value {
+    let mut summary = json!({"record":evidence::identity(&row.record)});
+    if result.result_detail == atlas_app_model::SearchResultDetail::Records {
+        return summary;
+    }
     let evidence: Vec<_> = row
         .relationship_evidence
         .iter()
@@ -133,18 +113,23 @@ fn compact_row(result: &SearchResultsPage, row: &SearchResultRow) -> Value {
             json!({"clause_id":proof.clause_id, "page":proof.page, "occurrences":occurrences})
         })
         .collect();
-    let mut summary =
-        json!({"record":evidence::identity(&row.record), "relationship_evidence":evidence});
+    summary["relationship_evidence"] = json!(evidence);
     if let Some(witness) = row.best_match() {
         summary["best_match"] =
             json!({"label":witness.label,"preview":witness.preview,"lane":witness.lane});
+        super::locators::match_navigation(
+            &mut summary["best_match"],
+            &witness.navigation,
+            &result.artifact_generation,
+            Some(&row.record.record_key),
+        );
     }
     summary
 }
 
 fn json_page(result: &SearchResultsPage, continuation: &OccurrenceArgs<'_>) -> Value {
     let mut data = if continuation.detail == EvidenceDetail::Full {
-        json!(result)
+        super::locators::page(result)
     } else {
         json!({
             "result_detail":result.result_detail, "artifact_generation":result.artifact_generation,"mode":result.mode,"search_profile":result.search_profile,
@@ -159,11 +144,6 @@ fn json_page(result: &SearchResultsPage, continuation: &OccurrenceArgs<'_>) -> V
     }
     for (index, row) in result.rows.iter().enumerate() {
         let entry = &mut data["rows"][index];
-        let nav = selected(row);
-        entry["navigation"] = Locator::new(continuation.generation, &nav).compact();
-        if let Some(workspace) = continuation.workspace {
-            entry["open_args"] = json!(open_record(&nav, continuation.generation, workspace, true));
-        }
         for (i, proof) in row.relationship_evidence.iter().enumerate() {
             if let Some(next) =
                 continuation.next(&row.record.record_key, &proof.clause_id, &proof.page)
@@ -210,10 +190,6 @@ fn print_page(result: &SearchResultsPage, continuation: &OccurrenceArgs<'_>) {
                 println!("  More references: {}", shell_command(&args));
             }
         }
-        if let Some(workspace) = continuation.workspace {
-            let open = open_record(&selected(row), continuation.generation, workspace, false);
-            println!("  {}", shell_command(&open));
-        }
         println!();
     }
     product::print_search_page_count(result);
@@ -227,7 +203,10 @@ pub(super) fn write(o: &SearchOptions, result: &SearchResultsPage) -> Result<(),
         filter: &filters,
         generation: &result.artifact_generation,
         json: o.json,
-        detail: o.detail,
+        detail: match o.detail {
+            SearchDetail::Full => EvidenceDetail::Full,
+            SearchDetail::Records | SearchDetail::Preview => EvidenceDetail::Standard,
+        },
     };
     let next = workspace
         .as_deref()

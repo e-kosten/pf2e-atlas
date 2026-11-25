@@ -58,6 +58,8 @@ pub enum DiscoverFilterValuesRequest {
         limit: usize,
     },
     Vocabulary {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_artifact_generation: Option<String>,
         scope: FilterVocabularyScope,
         field_id: String,
         text: Option<String>,
@@ -212,6 +214,7 @@ pub enum FilterValueListView {
         artifact_generation: String,
     },
     Vocabulary {
+        artifact_generation: String,
         scope: FilterVocabularyScope,
         values: FilterVocabularyView,
     },

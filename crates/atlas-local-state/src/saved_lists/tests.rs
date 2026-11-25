@@ -40,6 +40,12 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
         tags: vec![],
     })?;
     assert_eq!(own.slug, original.list.slug);
+    assert_eq!(
+        first.record_keys("supplies")?,
+        Some(vec!["actions:first".to_owned()])
+    );
+    assert_eq!(second.record_keys("supplies")?, Some(vec![]));
+    assert_eq!(second.record_keys(&original.list.list_key)?, None);
     assert!(second.item_note(&own.slug, "actions:first")?.is_none());
     assert!(matches!(
         second.item_note(&original.list.list_key, "actions:first"),
@@ -601,6 +607,7 @@ fn import_creates_saved_list_with_dense_positions() -> Result<(), Box<dyn std::e
         ],
     })?;
 
+    assert!(!imported.list.archived);
     assert_eq!(imported.list.slug, "imported-prep");
     assert_eq!(imported.list.name, "Imported Prep");
     assert_eq!(imported.list.tags, vec!["Beat Two"]);

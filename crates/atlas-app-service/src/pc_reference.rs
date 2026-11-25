@@ -474,65 +474,111 @@ pub(crate) fn ability_sections(
     .collect()
 }
 
-pub(crate) fn prepare_pathbuilder_preview(
+/// Saved inputs for a refresh, read together with its reference catalog.
+pub(super) struct PreviousImport {
+    pub character: Character,
+    pub source: Option<atlas_local_state::PathbuilderSource>,
+}
+
+impl PreviousImport {
+    pub fn load(session: &WorkspaceRead, key: &str) -> AppServiceResult<Self> {
+        let state = session.local_state()?;
+        let characters = state.characters();
+        Ok(Self {
+            character: characters.get(key)?,
+            source: characters.pathbuilder_source(key)?,
+        })
+    }
+
+    pub fn project_source(
+        &self,
+        retrieval: Option<&AtlasRetrievalService>,
+        layout: crate::character_sheet::SheetLayout<'_>,
+    ) -> AppServiceResult<Option<crate::character_sheet::ProjectedImport<'_>>> {
+        self.source
+            .as_ref()
+            .map(|source| {
+                crate::character_sheet::ProjectedImport::read(
+                    source.json(),
+                    self.character.reference.as_ref(),
+                    retrieval,
+                    layout,
+                )
+            })
+            .transpose()
+    }
+}
+
+pub(super) fn preview_abilities(
+    retrieval: &AtlasRetrievalService,
+    reference: PcReference,
+) -> AppServiceResult<Vec<PcAbilitySectionView>> {
+    let keys = keys(&reference);
+    let titles = if keys.is_empty() {
+        Vec::new()
+    } else {
+        retrieval
+            .get_records(GetRecordsRequest { record_keys: &keys })?
+            .records
+    };
+    Ok(ability_sections(reference, titles))
+}
+
+fn prepare_pathbuilder_preview(
     session: &mut WorkspaceRead,
     json: &str,
     character_key: Option<&str>,
     mut character: atlas_local_state::PathbuilderCharacter,
 ) -> AppServiceResult<PathbuilderPreviewView> {
     let previous = character_key
-        .map(|key| -> AppServiceResult<Character> {
-            Ok(session.local_state()?.characters().get(key)?)
-        })
+        .map(|key| PreviousImport::load(session, key))
         .transpose()?;
-    let character_revision = previous.as_ref().map(|pc: &Character| pc.revision);
-    let previous_name = previous.as_ref().map(|pc| pc.name.clone());
-    let previous_level = previous.as_ref().and_then(|pc| pc.level);
-    let source = previous
-        .as_ref()
-        .map(|previous| {
-            session
-                .local_state()?
-                .characters()
-                .pathbuilder_source(&previous.character_key)
-                .map_err(AppServiceError::from)
-        })
-        .transpose()?
-        .flatten();
-    let previous_reference = previous.and_then(|character| character.reference);
-    preserve_choices(previous_reference.clone(), &mut character.reference);
-    resolve(session.retrieval(), &mut character.reference)?;
-    let incoming = crate::pathbuilder_sheet::read_sheet(json)?;
-    let sheet = crate::character_sheet::project_sheet(
+    prepare_preview_reference(
+        session.retrieval(),
+        previous.as_ref(),
+        &mut character.reference,
+    )?;
+    use crate::character_sheet::{ProjectedImport, SheetLayout, compare_imports};
+    let incoming = ProjectedImport::read(
         json,
-        &incoming,
         Some(&character.reference),
         Some(session.retrieval()),
+        SheetLayout::Browser,
     )?;
-    let changes = character_key
-        .map(|_| {
-            crate::character_sheet::compare_imports(
-                json,
-                &sheet,
+    let changes = previous
+        .as_ref()
+        .map(|prior| {
+            let before = prior.project_source(None, SheetLayout::Browser)?;
+            compare_imports(
                 &incoming,
                 &character.reference,
-                source.as_ref().map(|source| source.json()),
-                previous_reference.as_ref(),
+                before.as_ref(),
+                prior.character.reference.as_ref(),
             )
         })
         .transpose()?;
-    let records = session.retrieval().get_records(GetRecordsRequest {
-        record_keys: &keys(&character.reference),
-    })?;
+    let sheet = incoming.into_sheet()?;
     Ok(PathbuilderPreviewView {
-        character_revision,
-        previous_name,
-        previous_level,
+        character_revision: previous.as_ref().map(|p| p.character.revision),
+        previous_level: previous.as_ref().and_then(|p| p.character.level),
+        previous_name: previous.map(|p| p.character.name),
         name: character.name,
         level: character.level,
         artifact_generation: session.generation()?,
         sheet,
         changes,
-        sections: ability_sections(character.reference, records.records),
+        sections: preview_abilities(session.retrieval(), character.reference)?,
     })
+}
+
+pub(super) fn prepare_preview_reference(
+    retrieval: &AtlasRetrievalService,
+    previous: Option<&PreviousImport>,
+    reference: &mut PcReference,
+) -> AppServiceResult<()> {
+    preserve_choices(
+        previous.and_then(|p| p.character.reference.clone()),
+        reference,
+    );
+    resolve(retrieval, reference)
 }

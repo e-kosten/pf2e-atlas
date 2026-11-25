@@ -1276,14 +1276,14 @@ pub(super) fn validate_condition_subject(
 
 pub(super) fn validate_condition_parameters(
     condition_key: Option<&str>,
-    scope: &atlas_app_model::ConditionScopeView,
-    extra_action: &atlas_app_model::ConditionExtraActionView,
+    scope: &atlas_local_state::ConditionScope,
+    extra_action: &atlas_local_state::ConditionExtraAction,
 ) -> AppServiceResult<()> {
     use super::conditions::ConditionRule;
     let rule = condition_key
         .and_then(modeled_condition_by_ref)
         .map(|condition| condition.rule);
-    if !matches!(scope, atlas_app_model::ConditionScopeView::Everyone)
+    if !matches!(scope, atlas_local_state::ConditionScope::Everyone)
         && condition_key
             .and_then(modeled_condition_by_ref)
             .and_then(|condition| condition.scope_label())
@@ -1295,7 +1295,7 @@ pub(super) fn validate_condition_parameters(
     }
     if !matches!(
         extra_action,
-        atlas_app_model::ConditionExtraActionView::Unspecified
+        atlas_local_state::ConditionExtraAction::Unspecified
     ) && rule != Some(ConditionRule::Quickened)
     {
         return Err(AppServiceError::invalid_request(
@@ -1310,15 +1310,15 @@ mod condition_scope_tests {
     use super::*;
     #[test]
     fn relative_conditions_accept_named_participants_but_global_conditions_do_not() {
-        use atlas_app_model::{ConditionExtraActionView, ConditionScopeView};
-        let scope = ConditionScopeView::SelectedParticipants {
+        use atlas_local_state::{ConditionExtraAction, ConditionScope};
+        let scope = ConditionScope::SelectedParticipants {
             participant_keys: vec!["observer".into()],
         };
         for condition in super::super::conditions::condition_catalog().conditions {
             let accepts = validate_condition_parameters(
                 Some(&condition.condition_ref),
                 &scope,
-                &ConditionExtraActionView::Unspecified,
+                &ConditionExtraAction::Unspecified,
             )
             .is_ok();
             assert_eq!(

@@ -493,21 +493,23 @@ fn condition_edit(
         request_id: "fixture-timing_tests-470".into(),
         event_intent: Default::default(),
         decisions: Default::default(),
-        scope: Default::default(),
-        extra_action: Default::default(),
-        immunity_override: false,
-        parameters: Default::default(),
+        scope: None,
+        extra_action: None,
+        immunity_override: None,
+        parameters: None,
         origin: None,
         expected_encounter_revision: revision,
         condition_ref: condition.condition_key.clone(),
-        name: condition.name.clone(),
-        value: condition.value,
-        source_participant_key: condition.source_participant_key.clone(),
-        duration: condition
-            .duration
-            .clone()
-            .map(|d| super::timing::duration_view(d, 6)),
-        note: Some("edited note".into()),
+        name: Some(condition.name.clone()),
+        value: Some(condition.value),
+        source_participant_key: Some(condition.source_participant_key.clone()),
+        duration: Some(
+            condition
+                .duration
+                .clone()
+                .map(|d| super::timing::duration_view(d, 6)),
+        ),
+        note: Some(Some("edited note".into())),
     }
 }
 
@@ -542,7 +544,7 @@ fn stale_notes_cannot_restore_countdown_and_fresh_note_source_edits_preserve_rem
         &after.participants[0].conditions[0],
         after.encounter.revision,
     );
-    fresh.source_participant_key = Some(b);
+    fresh.source_participant_key = Some(Some(b));
     f.worker
         .update_encounter_participant_condition(
             &key,
@@ -590,7 +592,7 @@ fn unrelated_legacy_notes_edit_preserves_unresolved_rounds_but_changed_duration_
         &after.participants[0].conditions[0],
         after.encounter.revision,
     );
-    changed.duration.as_mut().unwrap().amount = 5;
+    changed.duration.as_mut().unwrap().as_mut().unwrap().amount = 5;
     assert_eq!(
         f.worker
             .update_encounter_participant_condition(

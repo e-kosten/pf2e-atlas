@@ -87,6 +87,21 @@ def witness_options(executable):
     return ("--detail", "full") if re.search(r"^\s*--detail\b", help_text, re.MULTILINE) else ()
 
 
+def witness_address(match, record_key, generation):
+    """Compare the selected location across publication generations and CLI versions."""
+    location = {key: value for key, value in match.get("navigation", {}).items()
+                if value is not None}
+    if "artifact_generation" in location and location.pop("artifact_generation") != generation:
+        raise ValueError("Witness navigation belongs to another search generation")
+    location.setdefault("record_key", record_key)
+    location.setdefault("embedded_path", [])
+    if location.get("field") == "identity":
+        location.pop("field")
+    if location.get("passage") == {"kind": "identity"}:
+        location.pop("passage")
+    return location
+
+
 def search(executable, index, cache, profile, query, evidence):
     result = invoke(executable, [
         "search", query, "--index", index, "--embedding-cache-path", cache,
@@ -94,7 +109,8 @@ def search(executable, index, cache, profile, query, evidence):
         *witness_options(executable),
     ], evidence)
     rows = [[row["record"]["record_key"], [
-        [match["navigation"], match["semantic_similarity"]]
+        [witness_address(match, row["record"]["record_key"], result.get("artifact_generation")),
+         match["semantic_similarity"]]
         for match in row["matches"] if match["semantic_similarity"] is not None
     ]] for row in result["rows"]]
     if len(rows) < 2 or not any(matches for _, matches in rows):

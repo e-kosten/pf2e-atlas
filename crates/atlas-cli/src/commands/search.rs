@@ -7,9 +7,18 @@ use atlas_app_model::{RetrievalModeView, SearchCriteria, SearchPageRequest, Sear
 use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 pub(crate) mod args;
+pub(super) mod locators;
 mod presentation;
 use args::SearchOptions;
 pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
+    if o.retrieval.is_some() && o.query.as_deref().is_none_or(|text| text.trim().is_empty()) {
+        return super::product::command_error(
+            o.json,
+            "invalid_input",
+            "--retrieval requires nonblank query text".into(),
+            2,
+        );
+    }
     let sort = match super::result_order::requested_sort(&o.sort, o.seed) {
         Ok(sort) => sort,
         Err(message) => return super::product::command_error(o.json, "invalid_input", message, 2),
@@ -87,11 +96,8 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         None => SearchCriteria::ListRecords { filter },
     };
     let request = SearchResultsRequest {
-        result_detail: if o.detail == super::followup::EvidenceDetail::Full {
-            atlas_app_model::SearchResultDetail::Evidence
-        } else {
-            atlas_app_model::SearchResultDetail::Compact
-        },
+        result_detail: o.detail.into(),
+        include_summary_definitions: o.json && o.detail == args::SearchDetail::Full,
         connection_scope: None,
         sort,
         ranking: Some(o.ranking),

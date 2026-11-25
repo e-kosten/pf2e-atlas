@@ -1,6 +1,7 @@
 //! Coherent saved character reads, sharing source decoding and sheet presentation.
 pub(crate) mod facts;
 
+use crate::character_sheet::{ProjectedImport, SheetLayout, compare_imports};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
 use atlas_local_state::{Character, PathbuilderSource};
@@ -22,76 +23,95 @@ impl AtlasAppService {
         request: CharacterContextRequest,
     ) -> AppServiceResult<CharacterImportPreviewView> {
         let selected = selected_sections(&request)?;
-        let candidate = crate::pathbuilder::preview(json)?;
-        let candidate_reference = candidate.reference.clone();
+        let mut candidate = crate::pathbuilder::preview(json)?;
         let json = json.to_owned();
         let key = character_key.map(str::to_owned);
         self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
-                let preview = crate::pc_reference::prepare_pathbuilder_preview(
-                    session,
-                    &json,
-                    key.as_deref(),
-                    candidate,
-                )?;
-                let parsed = crate::pathbuilder_sheet::read_sheet(&json)?;
-                let mut proposed = source_sections(
-                    Some(&parsed),
-                    Some(&json),
-                    Some(&candidate_reference),
-                    &selected,
-                    Some(session.retrieval()),
-                )?;
-                if let Some(section) = proposed.get_mut(&CharacterSection::Abilities) {
-                    section.abilities = Some(ability_catalogue(
-                        preview
-                            .sections
-                            .iter()
-                            .flat_map(|s| s.abilities.iter().cloned())
-                            .collect(),
-                        &request.abilities,
-                    ));
-                }
-                let current = key
+                let previous = key
                     .as_deref()
-                    .map(|key| {
-                        let characters = session.local_state()?.characters();
-                        let character = characters.get(key)?;
-                        let source = characters.pathbuilder_source(key)?;
-                        let titles = if selected.contains(&CharacterSection::Abilities) {
-                            let keys = character
-                                .reference
-                                .as_ref()
-                                .map(crate::pc_reference::keys)
-                                .unwrap_or_default();
-                            session
-                                .retrieval()
-                                .get_records(atlas_search::GetRecordsRequest {
-                                    record_keys: &keys,
-                                })?
-                                .records
-                        } else {
-                            Vec::new()
-                        };
-                        project(
-                            SavedCharacter {
-                                character,
-                                source,
-                                titles,
-                            },
-                            &selected,
-                            &request.abilities,
-                            Some(session.retrieval()),
+                    .map(|key| crate::pc_reference::PreviousImport::load(session, key))
+                    .transpose()?;
+                let abilities = selected.contains(&CharacterSection::Abilities);
+                let retrieval = session.retrieval();
+                if abilities {
+                    crate::pc_reference::prepare_preview_reference(
+                        retrieval,
+                        previous.as_ref(),
+                        &mut candidate.reference,
+                    )?;
+                }
+                let layout = if previous
+                    .as_ref()
+                    .is_some_and(|prior| prior.source.is_some())
+                {
+                    SheetLayout::Refresh(&selected)
+                } else {
+                    SheetLayout::Context(&selected)
+                };
+                let before = previous
+                    .as_ref()
+                    .map(|prior| prior.project_source(Some(retrieval), layout))
+                    .transpose()?
+                    .flatten();
+                let incoming = ProjectedImport::read(
+                    &json,
+                    Some(&candidate.reference),
+                    Some(retrieval),
+                    layout,
+                )?;
+                let changes = previous
+                    .as_ref()
+                    .map(|prior| {
+                        compare_imports(
+                            &incoming,
+                            &candidate.reference,
+                            before.as_ref(),
+                            prior.character.reference.as_ref(),
                         )
                     })
                     .transpose()?;
+                let mut proposed = source_sections(Some(incoming), &selected);
+                if let Some(section) = proposed.get_mut(&CharacterSection::Abilities) {
+                    let sections =
+                        crate::pc_reference::preview_abilities(retrieval, candidate.reference)?;
+                    section.abilities = Some(ability_catalogue(
+                        sections.into_iter().flat_map(|s| s.abilities).collect(),
+                        &request.abilities,
+                    ));
+                }
+                let current = if let Some(prior) = previous.as_ref() {
+                    let keys = prior
+                        .character
+                        .reference
+                        .as_ref()
+                        .filter(|_| abilities)
+                        .map(crate::pc_reference::keys)
+                        .unwrap_or_default();
+                    let titles = if keys.is_empty() {
+                        Vec::new()
+                    } else {
+                        retrieval
+                            .get_records(atlas_search::GetRecordsRequest { record_keys: &keys })?
+                            .records
+                    };
+                    Some(project_context(
+                        &prior.character,
+                        before,
+                        titles,
+                        &selected,
+                        &request.abilities,
+                    ))
+                } else {
+                    None
+                };
                 Ok(CharacterImportPreviewView {
                     source_sha256: character_source_sha256(&json),
-                    artifact_generation: preview.artifact_generation,
-                    name: preview.name,
-                    level: preview.level,
-                    changes: preview.changes,
+                    artifact_generation: session.generation()?,
+                    name: candidate.name,
+                    level: candidate.level,
+                    changes,
                     selected_sections: selected,
                     proposed,
                     current,
@@ -217,7 +237,7 @@ pub fn character_source_sha256(source: &str) -> String {
     format!("{:x}", Sha256::digest(source.as_bytes()))
 }
 
-fn optional_retrieval(
+pub(super) fn optional_retrieval(
     reference: Result<Option<&mut atlas_runtime::WorkspaceRead>, atlas_runtime::RuntimeError>,
 ) -> AppServiceResult<Option<&AtlasRetrievalService>> {
     match reference {
@@ -300,10 +320,29 @@ fn project(
         source,
         titles,
     } = saved;
-    let parsed = source
+    let projected = source
         .as_ref()
-        .map(|s| crate::pathbuilder_sheet::read_sheet(s.json()))
+        .map(|s| {
+            ProjectedImport::read(
+                s.json(),
+                character.reference.as_ref(),
+                retrieval,
+                SheetLayout::Context(selected),
+            )
+        })
         .transpose()?;
+    Ok(project_context(
+        &character, projected, titles, selected, filter,
+    ))
+}
+
+fn project_context(
+    character: &Character,
+    source: Option<ProjectedImport<'_>>,
+    titles: Vec<atlas_domain::SourceRecordSummary>,
+    selected: &[CharacterSection],
+    filter: &CharacterAbilityFilter,
+) -> CharacterContextView {
     let source_state = if source.is_some() {
         CharacterSourceState::Available
     } else if character.reference.is_some() {
@@ -311,17 +350,11 @@ fn project(
     } else {
         CharacterSourceState::NoImport
     };
-    let imported_identity = parsed.as_ref().map(|s| ImportedCharacterIdentity {
-        name: s.name.clone(),
-        level: s.level,
+    let imported_identity = source.as_ref().map(|s| ImportedCharacterIdentity {
+        name: s.parsed.name.clone(),
+        level: s.parsed.level,
     });
-    let mut sections = source_sections(
-        parsed.as_ref(),
-        source.as_ref().map(PathbuilderSource::json),
-        character.reference.as_ref(),
-        selected,
-        retrieval,
-    )?;
+    let mut sections = source_sections(source, selected);
     if let Some(section) = sections.get_mut(&CharacterSection::Abilities) {
         let entries = character
             .reference
@@ -334,39 +367,35 @@ fn project(
         section.abilities = Some(ability_catalogue(entries, filter));
     }
     let metadata = CharacterSummaryView {
-        character_key: character.character_key,
-        name: character.name,
+        character_key: character.character_key.clone(),
+        name: character.name.clone(),
         level: character.level,
         revision: character.revision,
         imported: character.reference.is_some(),
         parties: character
             .parties
-            .into_iter()
+            .iter()
             .map(|p| CharacterPartyView {
-                party_key: p.party_key,
-                name: p.name,
+                party_key: p.party_key.clone(),
+                name: p.name.clone(),
             })
             .collect(),
     };
-    Ok(CharacterContextView {
+    CharacterContextView {
         character: metadata,
         source_state,
         imported_identity,
         selected_sections: selected.to_vec(),
         sections,
-    })
+    }
 }
 
-pub(crate) fn source_sections(
-    parsed: Option<&crate::pathbuilder_sheet::PathbuilderSheet>,
-    source: Option<&str>,
-    reference: Option<&atlas_local_state::PcReference>,
+pub(super) fn source_sections(
+    source: Option<ProjectedImport<'_>>,
     selected: &[CharacterSection],
-    retrieval: Option<&AtlasRetrievalService>,
-) -> AppServiceResult<BTreeMap<CharacterSection, CharacterSectionView>> {
-    let mut presentation = parsed
-        .map(|s| crate::character_sheet::context_groups(s, reference, retrieval, selected))
-        .transpose()?
+) -> BTreeMap<CharacterSection, CharacterSectionView> {
+    let (parsed, json, mut presentation) = source
+        .map(|s| (Some(s.parsed), Some(s.json), s.groups.context))
         .unwrap_or_default();
     selected
         .iter()
@@ -375,6 +404,7 @@ pub(crate) fn source_sections(
                 .iter()
                 .map(|name| {
                     let value = parsed
+                        .as_ref()
                         .and_then(|sheet| sheet.fact(name))
                         .unwrap_or(ImportedFactView::Missing);
                     ((*name).to_owned(), value)
@@ -391,20 +421,20 @@ pub(crate) fn source_sections(
                     })
                 })
                 .collect();
-            Ok((
+            (
                 *kind,
                 CharacterSectionView {
                     fields,
                     abilities: None,
                     source_json: if *kind == CharacterSection::Source {
-                        source.map(str::to_owned)
+                        json.map(str::to_owned)
                     } else {
                         None
                     },
                     record_links,
                     presentation,
                 },
-            ))
+            )
         })
         .collect()
 }

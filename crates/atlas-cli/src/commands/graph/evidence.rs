@@ -13,6 +13,12 @@ pub(crate) fn identity(record: &RecordSummaryView) -> Value {
             fields[key] = json!(value);
         }
     }
+    if let Some(level) = &record.level {
+        fields["level"] = json!(level);
+    }
+    if let Some(basis) = record.level_basis {
+        fields["level_basis"] = json!(basis);
+    }
     if let Some(edition) = record.edition {
         fields["edition"] = json!(edition);
     }

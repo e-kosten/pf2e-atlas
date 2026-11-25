@@ -382,6 +382,7 @@ impl SqliteIndexReader {
         if keys.is_empty() {
             return Ok(vec![]);
         }
+        self.count_statement();
         let c = self.native()?;
         let mut statement = c.prepare_cached(&format!(
             "SELECT key,definition_json,definition_hash,{} FROM reference_entries

@@ -411,6 +411,7 @@
           "identity": {
             "kind": "pc",
             "kind_label": "PC",
+            "level": null,
             "level_basis": null,
             "level_label": null,
             "pack": null,
@@ -732,6 +733,7 @@
           "identity": {
             "kind": "pc",
             "kind_label": "PC",
+            "level": null,
             "level_basis": null,
             "level_label": null,
             "pack": null,
@@ -1347,6 +1349,7 @@
       "identity": {
         "kind": "creature",
         "kind_label": "Creature",
+        "level": 1,
         "level_basis": "actor_level",
         "level_label": "Level 2",
         "pack": "actors",
@@ -1361,6 +1364,7 @@
     "record": {
       "kind": "creature",
       "kind_label": "Creature",
+      "level": 1,
       "level_basis": "actor_level",
       "level_label": "Level 1",
       "pack": "actors",
@@ -1449,6 +1453,7 @@
           "edition": "legacy",
           "kind": "rule",
           "kind_label": "Rule",
+          "level": null,
           "level_basis": null,
           "level_label": null,
           "pack": "actions",

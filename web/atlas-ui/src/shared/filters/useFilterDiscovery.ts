@@ -213,6 +213,7 @@ type OptionPage = {
     import("../../generated/atlas").FilterVocabularyView,
     "field" | "options" | "selected_values" | "total_values"
   >;
+  generation: string;
   contextual: boolean;
   pageKey: string;
   offset: number;
@@ -229,7 +230,13 @@ export function useFilterVocabulary(
   selectedValues: QueryLiteral[],
   enabled = true,
   applicable?: { context: FilterDiscoveryContext; clauseId: string | null },
+  pageGeneration?: string | null,
+  restart = 0,
 ) {
+  const expected =
+    pageGeneration === undefined
+      ? applicable?.context.expected_artifact_generation
+      : pageGeneration;
   return useQuery<OptionPage>({
     meta: referenceQueryMeta,
     queryKey: [
@@ -240,12 +247,17 @@ export function useFilterVocabulary(
       offset,
       selectedValues,
       applicable,
+      expected,
+      restart,
     ],
     enabled,
+    retry: false,
     // A selection edit must not temporarily remove or reorder the menu's rows.
     // Keep the list stable while a replacement page loads.
     // Never carry suggestions across a different scope, field or search.
     placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[8] === restart &&
+      (!expected || previous?.generation === expected) &&
       JSON.stringify(previousQuery?.queryKey.slice(0, 4)) ===
         JSON.stringify(["filter-vocabulary", scope, fieldId, text]) &&
       JSON.stringify(
@@ -254,6 +266,7 @@ export function useFilterVocabulary(
         ? previous
         : undefined,
     queryFn: async ({ signal }) => {
+      let generation = expected;
       const addressedClause = existingClauseId(
         applicable?.context,
         applicable?.clauseId ?? null,
@@ -266,7 +279,7 @@ export function useFilterVocabulary(
         const result = await discoverFilterValues(
           {
             kind: "contextual",
-            context: applicable.context,
+            context: { ...applicable.context, expected_artifact_generation: expected },
             field_id: fieldId,
             clause_id: addressedClause,
             text: text.trim() || null,
@@ -278,13 +291,11 @@ export function useFilterVocabulary(
         );
         if (result.kind !== "contextual")
           throw new Error("Unexpected vocabulary response");
-        assertSearchIdentity(
-          result,
-          applicable.context.search_profile,
-          applicable.context.expected_artifact_generation,
-        );
+        assertSearchIdentity(result, applicable.context.search_profile, expected);
+        generation = result.artifact_generation;
         if (result.outcome.status === "available")
           return {
+            generation: result.artifact_generation,
             contextual: true,
             pageKey: searchPageKey(text, offset),
             offset,
@@ -300,6 +311,7 @@ export function useFilterVocabulary(
       const result = await discoverFilterValues(
         {
           kind: "vocabulary",
+          expected_artifact_generation: generation ?? undefined,
           scope,
           field_id: fieldId,
           text: text.trim() || null,
@@ -311,7 +323,9 @@ export function useFilterVocabulary(
       );
       if (result.kind !== "vocabulary")
         throw new Error("Unexpected contextual response to vocabulary request");
+      assertSearchIdentity(result, undefined, generation);
       return {
+        generation: result.artifact_generation,
         values: result.values,
         contextual: false,
         pageKey: searchPageKey(text, offset),

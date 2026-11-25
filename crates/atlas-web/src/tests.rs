@@ -1631,6 +1631,251 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(body["code"], "encounter_not_found");
 }
 
+#[tokio::test]
+async fn condition_review_queries_and_lifecycle_json_use_typed_errors() {
+    let fixture = Fixture::new();
+    let base = format!("/api/encounters/{}", fixture.encounter_key);
+    for route in ["persistent-review", "condition-lifecycle-actions"] {
+        for (suffix, expected, code) in [
+            (String::new(), StatusCode::BAD_REQUEST, "invalid_request"),
+            (
+                "?participant_key=absent".into(),
+                StatusCode::NOT_FOUND,
+                "encounter_participant_not_found",
+            ),
+            (
+                format!("?participant_key={}", fixture.participant_key),
+                StatusCode::OK,
+                "",
+            ),
+        ] {
+            let (status, body) = fixture
+                .json(Method::GET, &format!("{base}/{route}{suffix}"), None)
+                .await;
+            assert_eq!(status, expected, "{body}");
+            if !status.is_success() {
+                assert_eq!(body["code"], code);
+            }
+        }
+    }
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            &format!("{base}/condition-lifecycle"),
+            Some(json!({})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+}
+
+#[tokio::test]
+async fn documented_json_operations_return_app_errors_for_malformed_bodies() {
+    let fixture = Fixture::without_reference();
+    let router = fixture.router();
+    let document = crate::openapi().unwrap();
+    for (template, operations) in document["paths"].as_object().unwrap() {
+        let path = template
+            .split('/')
+            .map(|segment| {
+                if segment.starts_with('{') {
+                    "1"
+                } else {
+                    segment
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("/");
+        for (method, operation) in operations.as_object().unwrap() {
+            if operation
+                .pointer("/requestBody/content/application~1json")
+                .is_none()
+            {
+                continue;
+            }
+            let response = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method.to_uppercase().as_str())
+                        .uri(&path)
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .body(Body::from("{"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            let (status, error) = response_json(response).await;
+            assert_eq!(
+                (status, error["code"].as_str()),
+                (StatusCode::BAD_REQUEST, Some("invalid_request")),
+                "{method} {template}: {error}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn sparse_condition_edits_preserve_values_and_bind_receipts_to_changes() {
+    let fixture = Fixture::new();
+    let encounter = || fixture.service.encounter(&fixture.encounter_key).unwrap();
+    let base = format!(
+        "/api/encounters/{}/participants/{}/conditions",
+        fixture.encounter_key, fixture.participant_key
+    );
+    let duration = json!({"unit":"minutes","amount":3,"timing":{"event":"end","participant_key":fixture.participant_key}});
+    let (status, body) = fixture.json(Method::POST, &base, Some(json!({
+        "request_id":"add", "expected_encounter_revision":encounter().revision,
+        "name":"Marked","value":2,"note":"original","source_participant_key":fixture.participant_key,"duration":duration,
+    }))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let before = encounter();
+    let original = &before.participants[0].conditions[0];
+    let path = format!("{base}/{}", original.condition_id);
+    let rename = json!({"request_id":"rename","expected_encounter_revision":before.revision,"name":"Marked by scout"});
+    let (status, preview) = fixture
+        .json(
+            Method::POST,
+            &format!("{path}/preview"),
+            Some(rename.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{preview}");
+    assert_eq!(preview["consequences"], json!([]));
+    assert_eq!(encounter(), before);
+    let (status, receipt) = fixture
+        .json(Method::PATCH, &path, Some(rename.clone()))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{receipt}");
+    let renamed = encounter();
+    let condition = &renamed.participants[0].conditions[0];
+    assert_eq!(condition.name, "Marked by scout");
+    assert_eq!(condition.duration, original.duration);
+    assert_eq!(condition.note, original.note);
+    assert_eq!(condition.value, original.value);
+    assert_eq!(
+        condition.source_participant_key,
+        original.source_participant_key
+    );
+    assert_eq!(condition.origin, original.origin);
+    let (status, recovered) = fixture
+        .json(Method::PATCH, &path, Some(rename.clone()))
+        .await;
+    assert_eq!((status, recovered), (StatusCode::OK, receipt));
+    assert_eq!(encounter(), renamed);
+    let mut other = rename.clone();
+    other["note"] = Value::Null;
+    let (status, error) = fixture.json(Method::PATCH, &path, Some(other)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(error["message"].as_str().unwrap().contains("reused"));
+    // A historical replacement receipt cannot establish whether absent fields were preserved.
+    let legacy = json!({"action":"update_condition","participant_key":fixture.participant_key,"request":{
+        "condition_id": original.condition_id, "name":"Marked by scout", "request_id":"rename",
+        "expected_encounter_revision":before.revision, "event_intent":"apply","decisions":{"keep_upright":false},
+        "scope":{"kind":"everyone"},"extra_action":{"kind":"unspecified"},"parameters":{"kind":"none"},"immunity_override":false
+    }});
+    let workspace = atlas_runtime::initialize_workspace(fixture.service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    assert_eq!(
+        write
+            .connection()
+            .execute(
+                "UPDATE encounter_command_receipts SET intent_json=?1 WHERE request_id='rename'",
+                [legacy.to_string()]
+            )
+            .unwrap(),
+        1
+    );
+    write.commit().unwrap();
+    let (status, error) = fixture.json(Method::PATCH, &path, Some(rename)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(error["message"].as_str().unwrap().contains("reused"));
+    assert_eq!(encounter(), renamed);
+    let (status, body) = fixture.json(Method::PATCH, &path, Some(json!({
+        "request_id":"clear", "expected_encounter_revision":renamed.revision, "duration":null, "note":null, "value":null, "source_participant_key":null,
+    }))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let after_clear = encounter();
+    let cleared = &after_clear.participants[0].conditions[0];
+    assert_eq!(cleared.name, condition.name);
+    assert!(
+        cleared.note.is_none()
+            && cleared.duration.is_none()
+            && cleared.value.is_none()
+            && cleared.source_participant_key.is_none()
+    );
+    let (status, _) = fixture.json(Method::PATCH, &path, Some(json!({
+        "request_id":"stale","expected_encounter_revision":renamed.revision, "note":"outdated",
+    }))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(encounter(), after_clear);
+}
+
+#[tokio::test]
+async fn sparse_modeled_condition_edits_keep_scope_parameters_and_application_identity() {
+    let fixture = Fixture::new();
+    let encounter = || fixture.service.encounter(&fixture.encounter_key).unwrap();
+    let base = format!(
+        "/api/encounters/{}/participants/{}/conditions",
+        fixture.encounter_key, fixture.participant_key
+    );
+    let catalog = fixture.service.encounter_condition_definitions().unwrap();
+    for (name, settings) in [
+        (
+            "Off-Guard",
+            json!({"scope":{"kind":"selected_participants","participant_keys":[fixture.participant_key]}}),
+        ),
+        (
+            "Fleeing",
+            json!({"parameters":{"kind":"fleeing","subject":{"kind":"other","description":"Thunder"}}}),
+        ),
+        (
+            "Quickened",
+            json!({"extra_action":{"kind":"restricted","actions":["stride"],"guidance":"When in sunlight"}}),
+        ),
+    ] {
+        let condition_ref = &catalog
+            .conditions
+            .iter()
+            .find(|entry| entry.name == name)
+            .unwrap()
+            .condition_ref;
+        let mut application = json!({"request_id":name, "expected_encounter_revision":encounter().revision, "condition_ref":condition_ref, "immunity_override":true});
+        application
+            .as_object_mut()
+            .unwrap()
+            .extend(settings.as_object().unwrap().clone());
+        let (status, body) = fixture.json(Method::POST, &base, Some(application)).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let before = encounter();
+        let condition = before.participants[0]
+            .conditions
+            .iter()
+            .find(|c| c.name == name)
+            .unwrap();
+        let path = format!("{base}/{}", condition.condition_id);
+        let (status, body) = fixture.json(Method::PATCH, &path, Some(json!({"request_id":format!("edit-{name}"),"expected_encounter_revision":before.revision,"note":"observed"}))).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let after = encounter();
+        let edited = after.participants[0]
+            .conditions
+            .iter()
+            .find(|c| c.condition_id == condition.condition_id)
+            .unwrap();
+        assert_eq!(edited.scope, condition.scope);
+        assert_eq!(edited.extra_action, condition.extra_action);
+        assert_eq!(edited.parameters, condition.parameters);
+        assert_eq!(edited.origin, condition.origin);
+        assert!(edited.immunity_override);
+        let (status, error) = fixture.json(Method::PATCH, &path, Some(json!({"request_id":format!("retarget-{name}"),"expected_encounter_revision":after.revision,"origin":{"application_id":"different","grant_slot":"condition"}}))).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(error["message"].as_str().unwrap().contains("identity"));
+        assert_eq!(encounter(), after);
+    }
+}
+
 fn participant_edit(participant: &atlas_app_model::EncounterParticipantView, name: &str) -> Value {
     json!({"expected_revision":participant.revision,"display_name":name})
 }

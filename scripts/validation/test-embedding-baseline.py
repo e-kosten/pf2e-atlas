@@ -19,6 +19,20 @@ PROBE = runpy.run_path(str(HERE / "probe-embedding-upgrade.py"))
 
 
 class SearchWitnesses(unittest.TestCase):
+    def test_exact_addresses_compare_across_cli_versions_and_publications(self):
+        address = PROBE["witness_address"]
+        record = "actions:one"
+        self.assertEqual(address({}, record, "new"), address({"navigation": {
+            "record_key": record, "embedded_path": [], "passage": {"kind": "identity"},
+            "field": "identity", "source_fingerprint": None}}, record, "old"))
+        section = {"record_key": record, "field": "description", "embedded_path": []}
+        self.assertEqual(address({"navigation": {**section, "artifact_generation": "new"}},
+                                 record, "new"), address({"navigation": section}, record, "old"))
+        self.assertNotEqual(address({"navigation": section}, record, "new"),
+                            address({}, record, "new"))
+        with self.assertRaisesRegex(ValueError, "generation"):
+            address({"navigation": {**section, "artifact_generation": "stale"}}, record, "new")
+
     def test_queries_compare_all_witnesses_on_current_and_historical_clients(self):
         search = PROBE["search"]
         navigation = {"record_key": "actions:one"}

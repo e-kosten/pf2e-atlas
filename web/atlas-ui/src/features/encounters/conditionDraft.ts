@@ -1,3 +1,4 @@
+import { hashKey } from "@tanstack/react-query";
 import type { UpdateConditionDraft } from "./useConditionEventPreview";
 import type {
   ConditionActionView,
@@ -76,27 +77,44 @@ export function editableConditionParameters(
   return parameters;
 }
 
+type ConditionChanges = Partial<
+  Pick<
+    UpdateConditionDraft,
+    | "value"
+    | "scope"
+    | "extra_action"
+    | "immunity_override"
+    | "source_participant_key"
+    | "duration"
+    | "note"
+    | "parameters"
+  >
+>;
+
 export function conditionUpdate(
   condition: EncounterParticipantConditionView,
   revision: number,
-  changes: Partial<UpdateConditionDraft>,
+  changes: ConditionChanges,
 ): UpdateConditionDraft {
+  const saved = {
+    ...condition,
+    parameters: editableConditionParameters(condition.parameters),
+  };
+  const edits = Object.fromEntries(
+    Object.entries(changes).filter(([key, value]) => {
+      const previous = saved[key as keyof ConditionChanges];
+      return hashKey([value]) !== hashKey([previous]);
+    }),
+  );
   return {
     expected_encounter_revision: revision,
-    event_intent: "apply",
-    decisions: { keep_upright: false },
+    event_intent: Object.keys(edits).some(
+      (key) => key !== "note" && key !== "source_participant_key",
+    )
+      ? "apply"
+      : "correction",
     condition_id: condition.condition_id,
-    name: condition.name,
-    value: condition.value,
-    duration: condition.duration,
-    source_participant_key: condition.source_participant_key,
-    note: condition.note,
-    scope: condition.scope,
-    extra_action: condition.extra_action,
-    immunity_override: condition.immunity_override,
-    parameters: editableConditionParameters(condition.parameters),
-    origin: condition.origin,
-    ...changes,
+    ...edits,
   };
 }
 
@@ -107,6 +125,7 @@ export function conditionDraft(
   participantKey: string,
   definition: EncounterConditionDefinitionView | undefined,
   condition?: EncounterParticipantConditionView,
+  isTouched: (key: keyof ConditionFormValues) => boolean = () => true,
 ): ConditionEventInput {
   const previous = condition?.parameters;
   let parameters: ConditionParametersInputView;
@@ -212,7 +231,34 @@ export function conditionDraft(
     source_participant_key: values.sourceParticipantKey,
     note: values.note || undefined,
   };
-  if (condition) return conditionUpdate(condition, revision, common);
+  if (condition) {
+    const changes: ConditionChanges = {};
+    if (isTouched("value") || isTouched("stunMode"))
+      changes.value = common.value ?? null;
+    if (durationEdited) changes.duration = common.duration ?? null;
+    if (isTouched("note")) changes.note = common.note ?? null;
+    if (isTouched("sourceParticipantKey"))
+      changes.source_participant_key = common.source_participant_key ?? null;
+    if (isTouched("againstKeys")) changes.scope = common.scope;
+    if (isTouched("extraActionKeys") || isTouched("extraActionGuidance"))
+      changes.extra_action = extra_action;
+    changes.immunity_override = common.immunity_override;
+    const parameterFields: Array<keyof ConditionFormValues> = [
+      "persistentFormula",
+      "persistentDamageType",
+      "persistentMultiplier",
+      "persistentRecoveryDc",
+      "sickenedRecoveryDc",
+      "wakingRule",
+      "conditionSubject",
+      "conditionSubjectDescription",
+      "frightenedRecovery",
+      "frightenedMinimum",
+      "brokenThreshold",
+    ];
+    if (parameterFields.some(isTouched)) changes.parameters = parameters;
+    return conditionUpdate(condition, revision, changes);
+  }
   if (!definition) throw new Error("Choose a condition.");
   return {
     participant_key: participantKey,

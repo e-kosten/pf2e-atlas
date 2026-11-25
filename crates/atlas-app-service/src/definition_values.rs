@@ -201,9 +201,8 @@ pub(crate) fn options(
     r: &AtlasRetrievalService,
     options: atlas_domain::QueryValueOptions,
 ) -> AppServiceResult<FilterValueOptionsView> {
-    let catalog = r.discover_filter_fields()?;
-    let field = catalog.fields.iter().find(|f| f.id == options.field);
-    let namespace = field.and_then(namespace);
+    let field = atlas_search::filter_field_definition(&options.field)?;
+    let namespace = namespace(field);
     let context = HelpContext::load(r, keys(namespace, options.options.iter().map(|o| &o.value)))?;
     let actions = action_choices(r, &options.field, options.options.iter().map(|o| &o.value))?;
     Ok(FilterValueOptionsView {
@@ -220,7 +219,7 @@ pub(crate) fn options(
                 {
                     choice.clone()
                 } else {
-                    let label = field.and_then(|field| fallback_label(field, &o.value));
+                    let label = fallback_label(field, &o.value);
                     decorate(&context, namespace, o.value, label)
                 };
                 FilterValueOptionView {
@@ -238,9 +237,8 @@ pub(crate) fn vocabulary(
     r: &AtlasRetrievalService,
     values: atlas_domain::QueryVocabulary,
 ) -> AppServiceResult<FilterVocabularyView> {
-    let catalog = r.discover_filter_fields()?;
-    let field = catalog.fields.iter().find(|f| f.id == values.field);
-    let namespace = field.and_then(namespace);
+    let field = atlas_search::filter_field_definition(&values.field)?;
+    let namespace = namespace(field);
     let context = HelpContext::load(r, keys(namespace, values.options.iter().map(|o| &o.value)))?;
     let mut actions = action_choices(
         r,
@@ -260,7 +258,7 @@ pub(crate) fn vocabulary(
             {
                 return choice;
             }
-            let label = field.and_then(|field| fallback_label(field, &o.value));
+            let label = fallback_label(field, &o.value);
             decorate(&context, namespace, o.value, label)
         })
         .collect::<Vec<_>>();

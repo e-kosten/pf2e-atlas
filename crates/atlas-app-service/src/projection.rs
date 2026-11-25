@@ -81,14 +81,8 @@ pub(crate) fn record_summary_view_with_display(
                 }
             )
         }),
-        level_basis: record.level_basis.map(|basis| {
-            match basis {
-                SourceLevelBasis::ActorLevel => "actor_level",
-                SourceLevelBasis::ItemLevel => "item_level",
-                SourceLevelBasis::SpellRank => "spell_rank",
-            }
-            .into()
-        }),
+        level_basis: record.level_basis,
+        level: record.level.as_value().cloned(),
         rarity: record
             .rarity
             .as_value()
@@ -518,6 +512,32 @@ mod tests {
             publication_remaster: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
             source_path: "items/unnamed.json".into(),
             content_hash: "source-content".into(),
+        }
+    }
+
+    #[test]
+    fn numeric_levels_and_ranks_preserve_source_values_and_absence() {
+        use atlas_domain::{QueryFieldState, SourceQueryFact};
+        let mut record = summary_with_name(SourceQueryFact::known("Record".into()));
+        for (number, basis, label) in [
+            ("-1", SourceLevelBasis::ActorLevel, "Level -1"),
+            ("0", SourceLevelBasis::ItemLevel, "Level 0"),
+            ("2.5", SourceLevelBasis::ItemLevel, "Level 2.5"),
+            ("4", SourceLevelBasis::SpellRank, "Rank 4"),
+        ] {
+            let number = serde_json::from_str::<serde_json::Number>(number).unwrap();
+            record.level = SourceQueryFact::known(number.clone());
+            record.level_basis = Some(basis);
+            let view = record_summary_view(&record);
+            assert_eq!(view.level.as_ref(), Some(&number));
+            assert_eq!(view.level_basis, Some(basis));
+            assert_eq!(view.level_label.as_deref(), Some(label));
+        }
+        record.level = SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap();
+        record.level_basis = None;
+        let wire = serde_json::to_value(record_summary_view(&record)).unwrap();
+        for key in ["level", "level_label", "level_basis"] {
+            assert_eq!(wire.get(key), Some(&serde_json::Value::Null));
         }
     }
 

@@ -43,6 +43,7 @@ const creature: RecordSummaryView = {
   kind_label: "Creature",
   source_type: null,
   level_label: "1",
+  level: null,
   level_basis: null,
   rarity: null,
   traits: [],

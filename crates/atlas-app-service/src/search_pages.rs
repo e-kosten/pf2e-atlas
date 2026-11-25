@@ -100,6 +100,9 @@ impl AtlasAppService {
                 | SearchCriteria::TextSearch { filter, .. }
                 | SearchCriteria::SimilarRecords { filter, .. } => filter.as_ref(),
             };
+            if !lexical && let Some(filter) = filter {
+                retrieval.prepare_page_filter(filter)?;
+            }
             let relationship_summaries =
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
 
@@ -253,10 +256,12 @@ impl AtlasAppService {
                     }
                 }
             }
-            crate::presentation::reference_help::annotate_summaries(
-                rows.iter_mut().map(|row| &mut row.record),
-                retrieval,
-            )?;
+            if request.include_summary_definitions {
+                crate::presentation::reference_help::annotate_summaries(
+                    rows.iter_mut().map(|row| &mut row.record),
+                    retrieval,
+                )?;
+            }
             Ok(SearchResultsPage {
                 result_detail,
                 connection_scope: connected.map(|scope| scope.view),

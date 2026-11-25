@@ -54,7 +54,7 @@ impl AtlasAppService {
             }
             let fields = crate::definition_values::association_fields(key.namespace());
             if !fields.is_empty() {
-                let catalog = r.discover_filter_fields()?;
+                let catalog = atlas_search::discover_filter_fields()?;
                 detail.related_filters = fields
                     .iter()
                     .map(|(field, label)| property_action(field, key.identifier(), label, &catalog))
@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn related_property_actions_are_executable_and_exclude_numeric_fields() {
         let (retrieval, _artifact) = crate::test_support::fixture_retrieval().unwrap();
-        let catalog = retrieval.discover_filter_fields().unwrap();
+        let catalog = atlas_search::discover_filter_fields().unwrap();
         for (definition, expected_labels) in [
             ("language:common", &["With this language"][..]),
             ("sense:darkvision", &["With this sense"]),

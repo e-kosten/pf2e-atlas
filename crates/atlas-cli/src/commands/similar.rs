@@ -110,7 +110,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
                 .retain(|part| inventory.core.selectors.contains(part.selector()));
         }
         if o.json {
-            write_json_data(&inventory)?;
+            write_json_data(super::search::locators::parts(&inventory))?;
         } else {
             println!("Comparison content for {}", o.record_ref);
             println!("Generation: {}", inventory.artifact_generation);
@@ -152,6 +152,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         service
             .search_page(
                 SearchResultsRequest {
+                    include_summary_definitions: o.json,
                     result_detail: if o.explain {
                         atlas_app_model::SearchResultDetail::Evidence
                     } else {
@@ -179,7 +180,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     if o.json {
-        write_json_data(&result)?;
+        write_json_data(super::search::locators::page(&result))?;
     } else {
         print_results(&result, o.explain);
     }

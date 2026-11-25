@@ -61,21 +61,17 @@ impl AtlasAppService {
 }
 
 pub(crate) fn compare_imports(
-    incoming_json: &str,
-    incoming: &CharacterSheetView,
-    incoming_source: &PathbuilderSheet,
+    incoming: &ProjectedImport<'_>,
     reference: &PcReference,
-    previous_json: Option<&str>,
+    previous: Option<&ProjectedImport<'_>>,
     previous_reference: Option<&PcReference>,
 ) -> AppServiceResult<ImportChangesView> {
     let mut sections = Vec::new();
-    if let Some(previous_json) = previous_json {
-        let previous_source = read_sheet(previous_json)?;
-        let before = project_sheet(previous_json, &previous_source, previous_reference, None)?;
-        let incoming_name = &incoming.name;
-        let incoming_level = incoming.level;
-        for (previous, incoming) in before.sections.iter().zip(&incoming.sections) {
-            let label = match incoming.kind {
+    if let Some(before) = previous {
+        for (previous, incoming_section) in
+            before.groups.sections.iter().zip(&incoming.groups.sections)
+        {
+            let label = match incoming_section.kind {
                 SheetSectionKind::Stats => "Stats",
                 SheetSectionKind::Progression => "Progression",
                 SheetSectionKind::Magic => "Magic",
@@ -83,7 +79,7 @@ pub(crate) fn compare_imports(
                 SheetSectionKind::Companions => "Companions",
                 SheetSectionKind::Proficiencies => "Proficiencies",
             };
-            let mut changes = if incoming.kind == SheetSectionKind::Magic {
+            let mut changes = if incoming_section.kind == SheetSectionKind::Magic {
                 let expanded = |section: &SheetSectionView| {
                     let mut section = section.clone();
                     for group in &mut section.groups {
@@ -93,20 +89,20 @@ pub(crate) fn compare_imports(
                     }
                     section
                 };
-                compare_section(&expanded(previous), &expanded(incoming))
+                compare_section(&expanded(previous), &expanded(incoming_section))
             } else {
-                compare_section(previous, incoming)
+                compare_section(previous, incoming_section)
             };
-            if incoming.kind == SheetSectionKind::Inventory {
+            if incoming_section.kind == SheetSectionKind::Inventory {
                 changes
                     .changed
-                    .extend(container_renames(&previous_source, incoming_source));
+                    .extend(container_renames(&before.parsed, &incoming.parsed));
             }
-            if incoming.kind == SheetSectionKind::Stats {
-                if &before.name != incoming_name {
+            if incoming_section.kind == SheetSectionKind::Stats {
+                if before.parsed.name.trim() != incoming.parsed.name.trim() {
                     changes.changed.push("Imported name".into());
                 }
-                if before.level != incoming_level {
+                if before.parsed.level != incoming.parsed.level {
                     changes.changed.push("Imported level".into());
                 }
             }
@@ -175,12 +171,12 @@ pub(crate) fn compare_imports(
         }
     }
     Ok(ImportChangesView {
-        had_sheet: previous_json.is_some(),
+        had_sheet: previous.is_some(),
         sections,
         removed_corrections,
         retained_corrections,
-        additional_fields_changed: previous_json
-            .map(|previous| changed_source_fields(previous, incoming_json))
+        additional_fields_changed: previous
+            .map(|previous| changed_source_fields(previous.json, incoming.json))
             .transpose()?
             .unwrap_or_default(),
     })

@@ -204,6 +204,30 @@ fn authored_embedded_conditions(
     conditions
 }
 
+/// A reader page needs only checked addresses in reading order. Rich action,
+/// damage and casting facts belong to the activity presentation.
+pub(crate) fn ability_owners(
+    record: &SourceBackedRecord,
+    node: SourceNodeView<'_>,
+    group: Option<ActorAbilityGroupView>,
+) -> Vec<OwnedContentLocator> {
+    let mut entries = Vec::new();
+    record.visit_immediate_actor_items(|_, owner, item| {
+        if activity_kind(item.family()) == ActorActivityKindView::Ability
+            && group.is_none_or(|g| ability_group_in_actor(node, item) == Some(g))
+        {
+            entries.push((
+                group == Some(ActorAbilityGroupView::Primary) && item_is_passive(item),
+                owner.clone(),
+            ));
+        }
+    });
+    if group == Some(ActorAbilityGroupView::Primary) {
+        entries.sort_by_key(|(passive, _)| *passive);
+    }
+    entries.into_iter().map(|(_, address)| address).collect()
+}
+
 pub(crate) fn authored_activities(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
@@ -999,6 +1023,7 @@ pub(crate) fn manual_presentation(
             kind_label: "PC".into(),
             source_type: None,
             level_label: None,
+            level: None,
             level_basis: None,
             rarity: None,
             traits: vec![],

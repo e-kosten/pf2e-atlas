@@ -39,6 +39,7 @@ it("shows compact scenario context on ungrouped rows and scopes grouped rows", (
   const record = {
     ...summaryFixture("actors:eltha", "Eltha"),
     kind_label: "Creature",
+    level: 11,
     level_label: "Level 11",
     publication: "Cavern of Sundered Songs",
     creature_display: {
@@ -124,6 +125,7 @@ it("keeps Search scenario context with the source and groups the chips in order"
   const record = {
     ...summaryFixture("actors:sparkles", "Sparkles"),
     kind_label: "Creature",
+    level: 9,
     level_label: "Level 9",
     publication: "Cavern of Sundered Songs",
     rarity: {

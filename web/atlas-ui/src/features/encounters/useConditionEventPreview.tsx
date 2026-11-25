@@ -115,7 +115,7 @@ export function useConditionEventPreview(
     return {
       ...request,
       expected_reference_revision: preview.reference_revision,
-      event_intent: retainChoices && correction ? "correction" : "apply",
+      event_intent: retainChoices && correction ? "correction" : request.event_intent,
       decisions: {
         ...request.decisions,
         keep_upright: retainChoices && keepUpright,

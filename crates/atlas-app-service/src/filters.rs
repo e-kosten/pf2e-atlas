@@ -17,32 +17,26 @@ use atlas_search::{
 
 #[derive(Debug, Clone)]
 pub struct CliFilterValuesRequest {
-    pub field: String,
+    pub field: &'static atlas_domain::QueryFieldDefinition,
     pub context: FilterDiscoveryContext,
     pub clause_id: Option<String>,
     pub text: Option<String>,
     pub offset: usize,
     pub limit: usize,
 }
-#[derive(Debug, Clone)]
-pub struct RawFilterCountsRequest {
-    pub field: String,
-    pub context: FilterDiscoveryContext,
-    pub clause_id: Option<String>,
+pub struct CliFilterValues {
+    pub counts: QueryFieldCounts,
+    pub values: Option<FilterValueOptionsView>,
+}
+pub fn discover_filter_fields() -> AppServiceResult<QueryCapability> {
+    Ok(atlas_search::discover_filter_fields()?)
+}
+pub fn filter_field_definition(
+    id: &str,
+) -> AppServiceResult<&'static atlas_domain::QueryFieldDefinition> {
+    Ok(atlas_search::filter_field_definition(id)?)
 }
 impl AtlasAppService {
-    pub fn discover_filter_fields(&self) -> AppServiceResult<QueryCapability> {
-        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), |retrieval| {
-            Ok(retrieval.discover_filter_fields()?)
-        })
-    }
-    pub fn discover_filter_group_names(
-        &self,
-    ) -> AppServiceResult<Vec<(&'static str, &'static str)>> {
-        self.discover_filter_fields()
-            .map(crate::discovery::filter_group_names)
-    }
-
     pub fn discover_filter_editor(
         &self,
         request: DiscoverFilterEditorRequest,
@@ -56,7 +50,7 @@ impl AtlasAppService {
                 let generation = retrieval.artifact_generation()?;
                 let presentations =
                     crate::relationship_search::presentations(retrieval, request.filter.as_ref())?;
-                let catalog = retrieval.discover_filter_fields()?;
+                let catalog = atlas_search::discover_filter_fields()?;
                 let editor = crate::discovery::filter_editor_view(
                     catalog,
                     &request.selected_field_ids,
@@ -74,10 +68,9 @@ impl AtlasAppService {
     pub fn discover_cli_filter_group(
         &self,
         group: String,
-        include_metadata: bool,
     ) -> AppServiceResult<Option<FilterEditorView>> {
         self.with_retrieval(&ReadExecutionContext::uncancellable(), move |retrieval| {
-            let mut catalog = retrieval.discover_filter_fields()?;
+            let mut catalog = atlas_search::discover_filter_fields()?;
             if !crate::discovery::select_filter_group(&mut catalog, &group) {
                 return Ok(None);
             }
@@ -87,18 +80,14 @@ impl AtlasAppService {
                 retrieval.artifact_generation()?,
                 vec![],
             )?;
-            if include_metadata {
-                enrich_editor(retrieval, editor, None).map(Some)
-            } else {
-                Ok(Some(editor))
-            }
+            enrich_editor(retrieval, editor, None).map(Some)
         })
     }
 
     pub fn discover_cli_filter_values(
         &self,
         request: CliFilterValuesRequest,
-    ) -> AppServiceResult<FilterValueOptionsView> {
+    ) -> AppServiceResult<CliFilterValues> {
         let execution = ReadExecutionContext::uncancellable();
         let (list, filter, text, profile, expected, content_scope, connection_scope) =
             context_parts(request.context)?;
@@ -106,58 +95,38 @@ impl AtlasAppService {
             let keys = discovery_keys(workspace, list.as_deref(), connection_scope.as_ref())?;
             let r = workspace.retrieval_mut();
             check_generation(r, expected.as_deref())?;
-            let values = required_facet(
-                r.discover_filter_values(SearchValues {
+            let context = SearchContext {
+                content_scope,
+                search_profile: profile.as_ref(),
+                text: text.as_deref(),
+                scope: scope(&keys),
+                filter: filter.as_ref(),
+            };
+            let field = request.field.id.as_str();
+            let clause_id = request.clause_id.as_deref();
+            let counts = required_facet(r.discover_filter_counts(SearchCounts {
+                field,
+                clause_id,
+                context,
+            })?)?;
+            let values = if matches!(
+                request.field.field_type,
+                atlas_domain::QueryFieldType::Number | atlas_domain::QueryFieldType::Collection
+            ) {
+                None
+            } else {
+                let values = required_facet(r.discover_filter_values(SearchValues {
                     only_matching: false,
-                    field: &request.field,
-                    clause_id: request.clause_id.as_deref(),
-                    context: SearchContext {
-                        content_scope,
-                        search_profile: profile.as_ref(),
-                        text: text.as_deref(),
-                        scope: keys
-                            .as_deref()
-                            .map(RecordScope::Keys)
-                            .unwrap_or(RecordScope::All),
-
-                        filter: filter.as_ref(),
-                    },
+                    field,
+                    clause_id,
+                    context,
                     text: request.text.as_deref(),
                     offset: request.offset,
                     limit: request.limit,
-                })?,
-            )?;
-            crate::definition_values::options(r, values)
-        })
-    }
-    pub fn discover_raw_filter_counts(
-        &self,
-        request: RawFilterCountsRequest,
-    ) -> AppServiceResult<QueryFieldCounts> {
-        let execution = ReadExecutionContext::uncancellable();
-        let (list, filter, text, profile, expected, content_scope, connection_scope) =
-            context_parts(request.context)?;
-        self.with_workspace(&execution, move |workspace| {
-            let keys = discovery_keys(workspace, list.as_deref(), connection_scope.as_ref())?;
-            let r = workspace.retrieval_mut();
-            check_generation(r, expected.as_deref())?;
-            required_facet(
-                r.discover_filter_counts(SearchCounts {
-                    field: &request.field,
-                    clause_id: request.clause_id.as_deref(),
-                    context: SearchContext {
-                        content_scope,
-                        search_profile: profile.as_ref(),
-                        text: text.as_deref(),
-                        scope: keys
-                            .as_deref()
-                            .map(RecordScope::Keys)
-                            .unwrap_or(RecordScope::All),
-
-                        filter: filter.as_ref(),
-                    },
-                })?,
-            )
+                })?)?;
+                Some(crate::definition_values::options(r, values)?)
+            };
+            Ok(CliFilterValues { counts, values })
         })
     }
     pub fn discover_filter_values(
@@ -230,6 +199,7 @@ impl AtlasAppService {
                 })
             }
             DiscoverFilterValuesRequest::Vocabulary {
+                expected_artifact_generation,
                 scope: vocabulary_scope,
                 field_id,
                 text,
@@ -244,6 +214,11 @@ impl AtlasAppService {
                     }
                 };
                 let retrieval = workspace.retrieval_mut();
+                let artifact_generation = retrieval.artifact_generation()?;
+                crate::connection_scope::check_generation(
+                    expected_artifact_generation.as_deref(),
+                    &artifact_generation,
+                )?;
                 let values = retrieval.discover_filter_vocabulary(SearchVocabulary {
                     field: &field_id,
                     scope: scope(&keys),
@@ -254,6 +229,7 @@ impl AtlasAppService {
                 })?;
                 projection_execution.check()?;
                 Ok(FilterValueListView::Vocabulary {
+                    artifact_generation,
                     scope: vocabulary_scope,
                     values: crate::definition_values::vocabulary(retrieval, values)?,
                 })
@@ -461,7 +437,7 @@ pub(crate) fn scoped_list_keys(
     let list = workspace
         .local_state()?
         .saved_lists()
-        .get_with_items(list_ref)?
+        .record_keys(list_ref)?
         .ok_or_else(|| {
             crate::AppServiceError::new(
                 atlas_app_model::AppErrorCode::SavedListNotFound,
@@ -469,10 +445,9 @@ pub(crate) fn scoped_list_keys(
             )
         })?;
     Ok(Some(
-        list.items
-            .into_iter()
+        list.into_iter()
             .map(|item| {
-                RecordKey::parse(&item.record_key)
+                RecordKey::parse(&item)
                     .map_err(|e| crate::AppServiceError::invalid_request(e.to_string()))
             })
             .collect::<AppServiceResult<Vec<_>>>()?,
@@ -605,6 +580,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        include_summary_definitions: true,
                         result_detail: atlas_app_model::SearchResultDetail::Evidence,
                         connection_scope: None,
                         sort: None,

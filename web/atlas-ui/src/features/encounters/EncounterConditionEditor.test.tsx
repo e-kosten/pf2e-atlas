@@ -77,14 +77,11 @@ it("preserves duration Stunned without manufacturing a numeric value", async () 
   expect(screen.queryByRole("spinbutton", { name: "Condition value" })).toBeNull();
   expect(screen.getByText("For a duration")).toBeVisible();
   await apply();
-  await waitFor(() =>
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        value: undefined,
-        duration: { amount: 1, unit: "minutes", timing: null },
-      }),
-    ),
-  );
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  const [edit] = onSave.mock.calls[0];
+  expect(edit.event_intent).toBe("correction");
+  expect(edit).not.toHaveProperty("value");
+  expect(edit).not.toHaveProperty("duration");
 });
 
 it("retains restricted extra actions and scoped participants independently of source and duration", async () => {
@@ -137,20 +134,11 @@ it("retains restricted extra actions and scoped participants independently of so
   expect(screen.queryByRole("combobox", { name: "Opponents" })).toBeNull();
   expect(screen.getByRole("textbox", { name: "Custom restriction" })).toBeVisible();
   await apply();
-  await waitFor(() =>
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        scope: { kind: "selected_participants", participant_keys: ["opponent"] },
-        extra_action: {
-          kind: "restricted",
-          actions: ["stride", "strike"],
-          guidance: "Only with the granted weapon",
-        },
-        source_participant_key: "source",
-        duration: undefined,
-      }),
-    ),
-  );
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  const [edit] = onSave.mock.calls[0];
+  for (const field of ["scope", "extra_action", "source_participant_key", "duration"]) {
+    expect(edit).not.toHaveProperty(field);
+  }
   expect(screen.getByRole("textbox", { name: "Custom restriction" })).toBeVisible();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Against" }));
   fireEvent.click(await screen.findByText("Everyone"));
@@ -175,7 +163,7 @@ it("retains restricted extra actions and scoped participants independently of so
   );
 });
 
-it("offers a deliberate override through the submit action", async () => {
+it("can correct a note after the participant becomes immune", async () => {
   const onSave = vi.fn().mockResolvedValue(undefined);
   render(
     <EncounterConditionEditor
@@ -211,13 +199,15 @@ it("offers a deliberate override through the submit action", async () => {
       onSave={onSave}
     />,
   );
-  expect(screen.queryByRole("textbox", { name: "GM override reason" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Add details" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Condition note" }), {
+    target: { value: "Revised note" },
+  });
   await apply();
-  await waitFor(() =>
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ immunity_override: true }),
-    ),
-  );
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  const [edit] = onSave.mock.calls[0];
+  expect(edit).toMatchObject({ note: "Revised note", event_intent: "correction" });
+  expect(edit).not.toHaveProperty("immunity_override");
 });
 
 it("keeps optional details collapsed for basic entry and reveals them on request", async () => {
@@ -412,18 +402,17 @@ it("keeps the fascinating subject separate from the effect's causal source", asy
   expect(screen.getByRole("textbox", { name: "Subject description" })).toHaveValue(
     "Dancing flame",
   );
+  fireEvent.change(screen.getByRole("textbox", { name: "Subject description" }), {
+    target: { value: "Falling stars" },
+  });
   await apply();
-  await waitFor(() =>
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parameters: {
-          kind: "fascinated",
-          subject: { kind: "other", description: "Dancing flame" },
-        },
-        source_participant_key: "caster",
-      }),
-    ),
-  );
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  const [edit] = onSave.mock.calls[0];
+  expect(edit.parameters).toEqual({
+    kind: "fascinated",
+    subject: { kind: "other", description: "Falling stars" },
+  });
+  expect(edit).not.toHaveProperty("source_participant_key");
 });
 
 it("edits a Fleeing subject independently of its causal source", async () => {
@@ -459,17 +448,10 @@ it("edits a Fleeing subject independently of its causal source", async () => {
   );
   expect(screen.getByRole("combobox", { name: "Fleeing from" })).toBeInTheDocument();
   await apply();
-  await waitFor(() =>
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parameters: {
-          kind: "fleeing",
-          subject: { kind: "participant", participant_key: "threat" },
-        },
-        source_participant_key: "caster",
-      }),
-    ),
-  );
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  const [edit] = onSave.mock.calls[0];
+  expect(edit).not.toHaveProperty("parameters");
+  expect(edit).not.toHaveProperty("source_participant_key");
 });
 
 function persistentEditor(unknown = false) {
@@ -575,8 +557,7 @@ it("keeps an existing unknown recovery DC blank while preserving unrelated sourc
           formula: "3d6",
           recovery: { kind: "source_dependent" },
         }),
-        note: "Existing note",
-        duration: expect.objectContaining({ amount: 2 }),
+        event_intent: "apply",
       }),
     ),
   );
@@ -654,10 +635,10 @@ it("switches duration Stunned to an exclusive action value", async () => {
   ).toHaveValue("1");
   expect(screen.queryByRole("button", { name: "Add duration" })).toBeNull();
   expect(screen.queryByRole("spinbutton", { name: "Duration amount" })).toBeNull();
-  await apply({ value: 1, duration: undefined });
+  await apply({ value: 1, duration: null });
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ value: 1, duration: undefined }),
+      expect.objectContaining({ value: 1, duration: null }),
     ),
   );
 });

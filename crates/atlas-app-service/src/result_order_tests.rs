@@ -33,6 +33,7 @@ fn fixture() -> crate::test_support::FixtureWorker {
 }
 fn search(sort: Option<ResultSort>, criteria: SearchCriteria) -> SearchResultsRequest {
     SearchResultsRequest {
+        include_summary_definitions: true,
         result_detail: atlas_app_model::SearchResultDetail::Evidence,
         connection_scope: None,
         sort,

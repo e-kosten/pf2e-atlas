@@ -158,6 +158,7 @@ fn boolean_links_share_root_scope_with_ordinary_fields_and_preserve_occurrence_e
     );
     let lexical = fixture.data(&[
         "search",
+        "--detail=preview",
         "Fixture",
         "--retrieval",
         "fts",
@@ -186,6 +187,7 @@ fn boolean_links_share_root_scope_with_ordinary_fields_and_preserve_occurrence_e
     );
     let alternatives = fixture.data(&[
         "search",
+        "--detail=preview",
         "--kind",
         "creature",
         "--where",
@@ -205,6 +207,7 @@ fn boolean_links_share_root_scope_with_ordinary_fields_and_preserve_occurrence_e
     );
     let negatives = fixture.data(&[
         "search",
+        "--detail=preview",
         "--kind",
         "creature",
         "--where",
@@ -220,6 +223,7 @@ fn boolean_links_share_root_scope_with_ordinary_fields_and_preserve_occurrence_e
     );
     let result = fixture.data(&[
         "search",
+        "--detail=preview",
         "--kind",
         "creature",
         "--links-to",
@@ -440,7 +444,13 @@ fn graph_navigation_reopens_at_both_detail_levels() {
 #[test]
 fn occurrence_pages_require_generation_and_relevant_positive_proof() {
     let fixture = Fixture::new();
-    let result = fixture.data(&["search", "--links-to", "Fixture Armor", "--json"]);
+    let result = fixture.data(&[
+        "search",
+        "--detail=preview",
+        "--links-to",
+        "Fixture Armor",
+        "--json",
+    ]);
     let generation = result["artifact_generation"].as_str().unwrap();
     let page = fixture.data(&[
         "graph",
@@ -557,11 +567,29 @@ fn followups_reopen_exact_hits_and_continue_seeded_and_multiclause_pages() {
         first["rows"][0]["record"]["record_key"],
         second["rows"][0]["record"]["record_key"]
     );
-    let selected = follow(&first["rows"][0]["open_args"]);
+    assert_eq!(first["result_detail"], "records");
+    assert_eq!(second["result_detail"], "records");
+    let first_row = &first["rows"][0];
+    assert!(first_row.get("open_args").is_none());
+    let selected = f.data(&[
+        "record",
+        "get",
+        first_row["record"]["record_key"].as_str().unwrap(),
+        "--json",
+    ]);
     assert_eq!(selected["results"][0]["status"], "ok");
 
+    for (detail, effective) in [("preview", "compact"), ("full", "evidence")] {
+        let first = f.data(&[
+            "search", "Fixture", "--detail", detail, "--limit", "1", "--json",
+        ]);
+        let second = follow(&first["next_args"]);
+        assert_eq!(second["result_detail"], effective);
+        assert_eq!(second["artifact_generation"], first["artifact_generation"]);
+    }
     let guarded = f.data(&[
         "search",
+        "--detail=preview",
         "--links-to",
         "Fixture Armor",
         "--links-to",

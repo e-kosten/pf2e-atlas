@@ -32,6 +32,7 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
     let error = service
         .search_page(
             SearchResultsRequest {
+                include_summary_definitions: true,
                 result_detail: atlas_app_model::SearchResultDetail::Evidence,
                 connection_scope: None,
                 sort: None,
@@ -117,6 +118,7 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
             limit: 10,
         },
         DiscoverFilterValuesRequest::Vocabulary {
+            expected_artifact_generation: None,
             scope: FilterVocabularyScope::SavedList {
                 list_ref: "absent-list".into(),
             },

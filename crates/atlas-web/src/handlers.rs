@@ -982,23 +982,25 @@ pub(crate) async fn encounter_casting_reminders(
     ))
 }
 
-pub(crate) type PersistentReviewQuery = std::collections::HashMap<String, String>;
-#[utoipa::path(get, path = "/api/encounters/{encounter_ref}/persistent-review", operation_id = "persistentDamageReview", params(("encounter_ref" = String, Path), ("participant_key" = Option<String>, Query), ("boundary_key" = Option<String>, Query)), responses((status = 200, description = "Successful response", body = atlas_app_model::PersistentReviewView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct ConditionReviewQuery {
+    participant_key: String,
+    boundary_key: Option<String>,
+}
+#[utoipa::path(get, path = "/api/encounters/{encounter_ref}/persistent-review", operation_id = "persistentDamageReview", params(("encounter_ref" = String, Path), ConditionReviewQuery), responses((status = 200, description = "Successful response", body = atlas_app_model::PersistentReviewView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn persistent_damage_review(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
-    query: Result<Query<PersistentReviewQuery>, QueryRejection>,
+    query: Result<Query<ConditionReviewQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Query(query) = query?;
     Ok(Json(
         call_service(state, move |service| {
             service.persistent_damage_review(
                 &encounter_ref,
-                query
-                    .get("participant_key")
-                    .map(String::as_str)
-                    .unwrap_or(""),
-                query.get("boundary_key").map(String::as_str),
+                &query.participant_key,
+                query.boundary_key.as_deref(),
             )
         })
         .await?,
@@ -1024,8 +1026,9 @@ pub(crate) async fn preview_encounter_hp_lifecycle(
 pub(crate) async fn apply_condition_lifecycle(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
-    Json(request): Json<atlas_app_model::ApplyConditionLifecycleRequest>,
+    payload: Result<Json<atlas_app_model::ApplyConditionLifecycleRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     Ok(Json(
         call_service(state, move |service| {
             service.apply_condition_lifecycle(&encounter_ref, request)
@@ -1033,22 +1036,19 @@ pub(crate) async fn apply_condition_lifecycle(
         .await?,
     ))
 }
-#[utoipa::path(get, path = "/api/encounters/{encounter_ref}/condition-lifecycle-actions", operation_id = "conditionLifecycleActions", params(("encounter_ref" = String, Path), ("participant_key" = Option<String>, Query), ("boundary_key" = Option<String>, Query)), responses((status = 200, description = "Successful response", body = atlas_app_model::ConditionLifecycleActionsView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(get, path = "/api/encounters/{encounter_ref}/condition-lifecycle-actions", operation_id = "conditionLifecycleActions", params(("encounter_ref" = String, Path), ConditionReviewQuery), responses((status = 200, description = "Successful response", body = atlas_app_model::ConditionLifecycleActionsView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn condition_lifecycle_actions(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
-    query: Result<Query<PersistentReviewQuery>, QueryRejection>,
+    query: Result<Query<ConditionReviewQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Query(query) = query?;
     Ok(Json(
         call_service(state, move |service| {
             service.condition_lifecycle_actions(
                 &encounter_ref,
-                query
-                    .get("participant_key")
-                    .map(String::as_str)
-                    .unwrap_or(""),
-                query.get("boundary_key").map(String::as_str),
+                &query.participant_key,
+                query.boundary_key.as_deref(),
             )
         })
         .await?,

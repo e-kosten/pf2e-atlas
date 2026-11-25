@@ -230,20 +230,23 @@ export function EncounterConditionEditor({
     },
   };
   const normalizeDraft = (values: ConditionFormValues): ConditionEventInput => {
-    return conditionDraft(
+    const draft = conditionDraft(
       {
         ...values,
         persistentRecoveryDcEdited: form.isFieldTouched("persistentRecoveryDc"),
         value: values.stunMode === "duration" ? undefined : values.value,
-        immunityOverride:
-          eligibility?.kind === "immune" || !!condition?.immunity_override,
+        immunityOverride: condition?.immunity_override,
       },
       form.isFieldsTouched(durationFields) || form.isFieldTouched("stunMode"),
       revision,
       participantKey,
       definition,
       condition,
+      (field) => form.isFieldTouched(field),
     );
+    if (draft.event_intent === "apply" && eligibility?.kind === "immune")
+      draft.immunity_override = true;
+    return draft;
   };
   const watchedDraft = Form.useWatch((values) => values, form);
   const draftIdentity = JSON.stringify({ ...watchedDraft, note: undefined });

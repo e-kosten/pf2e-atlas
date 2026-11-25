@@ -1,3 +1,4 @@
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { Button, Checkbox, Space, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
@@ -102,7 +103,12 @@ function FilterChoicePicker({
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
-  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState<{
+    identity: string;
+    offset: number;
+    generation: string | null;
+    restart: number;
+  }>();
   const [fullCatalogKey, setFullCatalogKey] = useState<string | null>(null);
   const closedChoices = field.short_choices;
   const isActions = field.definition.id === "actions";
@@ -147,8 +153,24 @@ function FilterChoicePicker({
   // Keep the requested catalog through edits within this chooser session.
   if (fullCatalogKey !== null && !showAllValues) {
     setFullCatalogKey(null);
-    setOffset(0);
+    setPage(undefined);
   }
+  const pageIdentity = JSON.stringify([
+    scope,
+    field.definition.id,
+    search,
+    narrowingKey,
+    showAllValues,
+    countContext?.expected_artifact_generation,
+  ]);
+  const activePage = page?.identity === pageIdentity ? page : undefined;
+  const offset = activePage?.offset ?? 0;
+  const connectionKey = countContext?.connection_scope
+    ? JSON.stringify(countContext.connection_scope)
+    : undefined;
+  const [staleConnectionKey, setStaleConnectionKey] = useState<string>();
+  const staleConnection =
+    connectionKey !== undefined && connectionKey === staleConnectionKey;
   const query = useFilterVocabulary(
     scope,
     field.definition.id,
@@ -156,10 +178,41 @@ function FilterChoicePicker({
     offset,
     selected,
     (open || loadSelectedLabels) && !closedChoices,
-    open && narrowingContext && !showAllValues
+    open && narrowingContext && !showAllValues && !staleConnection
       ? { context: narrowingContext, clauseId }
       : undefined,
+    activePage
+      ? activePage.generation
+      : staleConnection
+        ? undefined
+        : countContext?.expected_artifact_generation,
+    activePage?.restart,
   );
+  if (
+    isArtifactGenerationChanged(query.error) &&
+    !(activePage?.generation === null && offset === 0)
+  ) {
+    // Refetch the first option page against the current library. The filter draft,
+    // selected values and search input are independent of this cursor.
+    // Connected eligibility can include exact targets from the previous library.
+    // Keep their guards on the parent and offer the independent vocabulary here.
+    if (connectionKey) setStaleConnectionKey(connectionKey);
+    setPage({
+      identity: pageIdentity,
+      offset: 0,
+      generation: null,
+      restart: query.errorUpdatedAt,
+    });
+  }
+  function goToPage(nextOffset: number) {
+    if (query.data)
+      setPage({
+        identity: pageIdentity,
+        offset: nextOffset,
+        generation: query.data.generation,
+        restart: activePage?.restart ?? 0,
+      });
+  }
   useEffect(() => {
     const timeout = window.setTimeout(() => setSearch(text), 250);
     return () => window.clearTimeout(timeout);
@@ -229,7 +282,9 @@ function FilterChoicePicker({
   const contextualCounts =
     countsEnabled && !query.error ? query.data?.counts : undefined;
   const extraCounts = useFilterOptionCounts(
-    countContext,
+    countContext && query.data?.generation
+      ? { ...countContext, expected_artifact_generation: query.data.generation }
+      : countContext,
     field.definition.id,
     clauseId,
     [
@@ -244,7 +299,7 @@ function FilterChoicePicker({
           .map((choice) => choice.value),
       ]),
     ].filter((value) => !contextualCounts?.has(value)),
-    open && countsEnabled && (closedChoices || !!query.data),
+    open && countsEnabled && !staleConnection && (closedChoices || !!query.data),
     countLimit,
     countQueryKey,
   );
@@ -296,7 +351,7 @@ function FilterChoicePicker({
 
   function searchValues(next: string) {
     setText(next);
-    setOffset(0);
+    setPage(undefined);
   }
   function activate(value: string, next: ChoiceState): void | "close" {
     const option =
@@ -350,7 +405,11 @@ function FilterChoicePicker({
                 return help?.destination ? (
                   <ReferenceHelpLink
                     help={help}
-                    generation={countContext?.expected_artifact_generation ?? undefined}
+                    generation={
+                      query.data?.generation ??
+                      countContext?.expected_artifact_generation ??
+                      undefined
+                    }
                   >
                     Read<span className="sr-only"> {option.label}</span>
                   </ReferenceHelpLink>
@@ -380,7 +439,7 @@ function FilterChoicePicker({
             setFullCatalogKey(null);
             setText("");
             setSearch("");
-            setOffset(0);
+            setPage(undefined);
           }
         }}
         text={text}
@@ -415,7 +474,7 @@ function FilterChoicePicker({
                 checked={showAllValues}
                 onChange={(event) => {
                   setFullCatalogKey(event.target.checked ? narrowingKey : null);
-                  setOffset(0);
+                  setPage(undefined);
                 }}
               >
                 Show all values
@@ -447,7 +506,7 @@ function FilterChoicePicker({
                 size="small"
                 aria-label="Previous values"
                 disabled={offset === 0 || query.isFetching}
-                onClick={() => setOffset(Math.max(0, offset - VOCABULARY_PAGE_SIZE))}
+                onClick={() => goToPage(Math.max(0, offset - VOCABULARY_PAGE_SIZE))}
               >
                 Previous
               </Button>
@@ -457,7 +516,7 @@ function FilterChoicePicker({
                 disabled={
                   BigInt(offset) + pageSize >= BigInt(total) || query.isFetching
                 }
-                onClick={() => setOffset(offset + VOCABULARY_PAGE_SIZE)}
+                onClick={() => goToPage(offset + VOCABULARY_PAGE_SIZE)}
               >
                 Next
               </Button>

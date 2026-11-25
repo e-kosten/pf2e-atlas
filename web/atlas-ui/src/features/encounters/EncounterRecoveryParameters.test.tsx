@@ -107,11 +107,11 @@ it("edits typed recovery behavior and floor while preserving the source conditio
     expect(onUpdate).toHaveBeenCalledWith(
       "actor",
       expect.objectContaining({
-        value: 1,
         parameters: { kind: "frightened", recovery: { kind: "end_turn", minimum: 2 } },
       }),
     ),
   );
+  expect(onUpdate.mock.calls[0][1]).not.toHaveProperty("value");
 });
 it("retains a failed typed broken-threshold draft without deriving it from HP", async () => {
   const { onUpdate, applyWhenPreviewed } = setup(

@@ -92,21 +92,62 @@ fn key_ability(
     Ok(Some(row))
 }
 
-pub(super) fn identity_groups(
-    sheet: &PathbuilderSheet,
-    retrieval: Option<&AtlasRetrievalService>,
-) -> AppServiceResult<Vec<SheetGroupView>> {
-    let mut details = identity(sheet, retrieval)?;
-    details.rows.extend(key_ability(sheet, retrieval)?);
-    let mut background = group("Background & details", Vec::new());
-    add_biography(&mut background, sheet, resistances(sheet));
-    Ok(vec![details, background])
+#[derive(Clone)]
+struct Identity {
+    details: SheetGroupView,
+    key_ability: Option<SheetRowView>,
+    languages: Option<SheetRowView>,
+    resistances: Option<SheetRowView>,
+    biography: Vec<SheetRowView>,
 }
 
-fn resistances(sheet: &PathbuilderSheet) -> Option<String> {
-    text_list(&sheet.resistances).filter(|value| !value.is_empty())
+impl Identity {
+    fn read(
+        sheet: &PathbuilderSheet,
+        retrieval: Option<&AtlasRetrievalService>,
+    ) -> AppServiceResult<Self> {
+        let languages = values(&sheet.languages)
+            .filter(|language| !language.trim().eq_ignore_ascii_case("None selected"))
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
+        let row = |label, value: Option<String>| {
+            value
+                .filter(|s| !s.is_empty())
+                .map(|v| compact_row(label, Some(v), Vec::new()))
+        };
+        Ok(Self {
+            details: identity(sheet, retrieval)?,
+            key_ability: key_ability(sheet, retrieval)?,
+            languages: row("Languages", Some(languages)),
+            resistances: row("Resistances", text_list(&sheet.resistances)),
+            biography: [
+                (
+                    "Size",
+                    shown(&sheet.size_name).or_else(|| shown(&sheet.size)),
+                ),
+                ("Age", biography(&sheet.age)),
+                ("Gender", biography(&sheet.gender)),
+                ("Deity", biography(&sheet.deity)),
+            ]
+            .into_iter()
+            .filter_map(|(label, v)| row(label, v))
+            .collect(),
+        })
+    }
+    fn into_context(mut self) -> Vec<SheetGroupView> {
+        self.details.rows.extend(self.key_ability);
+        let rows = self
+            .languages
+            .into_iter()
+            .chain(self.resistances)
+            .chain(self.biography)
+            .collect();
+        vec![self.details, group("Background & details", rows)]
+    }
 }
 
+#[derive(Clone)]
 struct Statistics {
     defenses: SheetGroupView,
     saves: SheetGroupView,
@@ -115,39 +156,71 @@ struct Statistics {
     bonuses: SheetGroupView,
 }
 
-pub(super) fn groups(
-    sheet: &PathbuilderSheet,
-    retrieval: Option<&AtlasRetrievalService>,
-) -> AppServiceResult<Vec<SheetGroupView>> {
-    let mut stats = statistics(sheet);
-    let mut details = identity(sheet, retrieval)?;
-    stats.scores.rows.extend(key_ability(sheet, retrieval)?);
-    if let Some(value) = resistances(sheet) {
-        stats
-            .defenses
-            .rows
-            .push(compact_row("Resistances", Some(value), Vec::new()));
+impl Statistics {
+    fn into_context(self) -> Vec<SheetGroupView> {
+        vec![
+            self.defenses,
+            self.saves,
+            self.scores,
+            self.skills,
+            self.bonuses,
+        ]
     }
-    add_biography(&mut details, sheet, None);
-    Ok(vec![
-        stats.defenses,
-        stats.saves,
-        details,
-        stats.scores,
-        stats.skills,
-        stats.bonuses,
-    ])
+    fn into_sheet(mut self, mut identity: Identity) -> Vec<SheetGroupView> {
+        self.defenses.rows.extend(identity.resistances);
+        self.scores.rows.extend(identity.key_ability);
+        identity.details.rows.extend(identity.languages);
+        identity.details.rows.extend(identity.biography);
+        vec![
+            self.defenses,
+            self.saves,
+            identity.details,
+            self.scores,
+            self.skills,
+            self.bonuses,
+        ]
+    }
 }
 
-pub(super) fn statistics_groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
-    let stats = statistics(sheet);
-    vec![
-        stats.defenses,
-        stats.saves,
-        stats.scores,
-        stats.skills,
-        stats.bonuses,
-    ]
+pub(super) fn project(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+    layout: SheetLayout<'_>,
+    output: &mut SheetGroups,
+) -> AppServiceResult<()> {
+    use atlas_app_model::CharacterSection::{
+        Identity as IdentitySection, Statistics as StatsSection,
+    };
+    if layout.includes_sheet() {
+        let identity = Identity::read(sheet, retrieval)?;
+        let stats = statistics(sheet);
+        if layout.selected(IdentitySection) {
+            output
+                .context
+                .insert(IdentitySection, identity.clone().into_context());
+        }
+        if layout.selected(StatsSection) {
+            output
+                .context
+                .insert(StatsSection, stats.clone().into_context());
+        }
+        output
+            .sections
+            .push(section(SheetSectionKind::Stats, stats.into_sheet(identity)));
+    } else {
+        if layout.selected(IdentitySection) {
+            output.context.insert(
+                IdentitySection,
+                Identity::read(sheet, retrieval)?.into_context(),
+            );
+        }
+        if layout.selected(StatsSection) {
+            output
+                .context
+                .insert(StatsSection, statistics(sheet).into_context());
+        }
+    }
+    Ok(())
 }
 
 fn statistics(sheet: &PathbuilderSheet) -> Statistics {
@@ -297,32 +370,6 @@ fn statistics(sheet: &PathbuilderSheet) -> Statistics {
         scores: group("Ability scores", scores),
         skills,
         bonuses: group("Other exported bonuses", other_bonuses),
-    }
-}
-
-fn add_biography(
-    group: &mut SheetGroupView,
-    sheet: &PathbuilderSheet,
-    resistances: Option<String>,
-) {
-    let languages: Vec<_> = values(&sheet.languages)
-        .filter(|language| !language.trim().eq_ignore_ascii_case("None selected"))
-        .map(String::as_str)
-        .collect();
-    for (label, value) in [
-        ("Languages", Some(languages.join(", "))),
-        ("Resistances", resistances),
-        (
-            "Size",
-            shown(&sheet.size_name).or_else(|| shown(&sheet.size)),
-        ),
-        ("Age", biography(&sheet.age)),
-        ("Gender", biography(&sheet.gender)),
-        ("Deity", biography(&sheet.deity)),
-    ] {
-        if let Some(value) = value.filter(|value| !value.is_empty()) {
-            group.rows.push(compact_row(label, Some(value), Vec::new()));
-        }
     }
 }
 

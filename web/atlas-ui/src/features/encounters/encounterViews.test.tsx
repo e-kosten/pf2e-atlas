@@ -2764,7 +2764,7 @@ describe("encounter views", () => {
         expect.objectContaining({
           expected_encounter_revision: 9,
           note: "Reviewed note",
-          duration: expect.objectContaining({ amount: 1 }),
+          event_intent: "correction",
         }),
       ),
     );
@@ -3094,7 +3094,7 @@ describe("encounter views", () => {
         "participant_a",
         7,
         expect.objectContaining({
-          name: "Frightened",
+          event_intent: "apply",
           value: 2,
         }),
       ),
@@ -3127,7 +3127,7 @@ describe("encounter views", () => {
         "participant_a",
         7,
         expect.objectContaining({
-          name: "Frightened",
+          event_intent: "apply",
           duration: {
             amount: 4,
             unit: "rounds",

@@ -35,7 +35,7 @@ impl AtlasRetrievalService {
             include_contents,
         )?)
     }
-    /// Admit the page predicate before connection-scope resolution and retain its selections
+    /// Admit the page predicate and retain its selections
     /// for clause titles, retrieval, and evidence in the same snapshot.
     pub fn prepare_page_filter(&mut self, predicate: &QueryPredicate) -> Result<(), SearchError> {
         let query = atlas_index::validate_query(predicate)?;

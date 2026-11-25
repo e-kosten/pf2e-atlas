@@ -80,6 +80,7 @@ function page(count = 1): SearchResultsPage {
               ...summaryFixture(recordKey, recordTitle),
               kind: "feat",
               kind_label: "Feat",
+              level: 6,
               level_label: "Level 6",
               publication: "Player Core",
               edition: "remaster",

@@ -9,10 +9,12 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
 import { useState, type ComponentProps, type ReactElement } from "react";
+import { AtlasApiError } from "../../api/atlasApi";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import type {
   FilterVocabularyScope,
+  SearchConnectionScope,
   QueryPredicate,
   DiscoverFilterValuesRequest,
   FilterValueListView,
@@ -71,11 +73,13 @@ function picker({
   initial = null,
   scope = { kind: "artifact" },
   withCounts = false,
+  connectionScope,
 }: {
   closed?: boolean;
   initial?: QueryPredicate | null;
   scope?: FilterVocabularyScope;
   withCounts?: boolean;
+  connectionScope?: SearchConnectionScope;
 } = {}) {
   const definition = {
     ...fieldFixture("traits", "set", "Traits"),
@@ -94,7 +98,14 @@ function picker({
         scope={scope}
         countLimit={128}
         countContext={
-          withCounts ? { kind: "filtered", filter: clause, text: null } : undefined
+          withCounts
+            ? {
+                kind: "filtered",
+                filter: clause,
+                text: null,
+                connection_scope: connectionScope,
+              }
+            : undefined
         }
         onChange={(next) => {
           setClause(next);
@@ -151,6 +162,7 @@ describe("compact common choice picker", () => {
           }
         : {
             kind: "vocabulary",
+            artifact_generation: "generation-a",
             scope: request.scope,
             values: {
               field: request.field_id,
@@ -580,6 +592,7 @@ describe("compact common choice picker", () => {
     ).toBeInTheDocument();
     finish!({
       kind: "vocabulary",
+      artifact_generation: "generation-a",
       scope: { kind: "artifact" },
       values: {
         field: "traits",
@@ -596,6 +609,48 @@ describe("compact common choice picker", () => {
       expect(row).toHaveAccessibleName("Traits: Fire, included; activate to exclude"),
     );
     expect(row).toHaveFocus();
+  });
+  it("restarts vocabulary without reusing a stale connected parent", async () => {
+    const respond = api.discoverFilterValues.getMockImplementation()!;
+    api.discoverFilterValues.mockImplementation(async (request) => {
+      if (request.kind === "contextual") {
+        expect(
+          request.context.connection_scope?.parent.expected_artifact_generation,
+        ).toBe("prior");
+        throw new AtlasApiError(409, "Changed", {
+          code: "artifact_generation_changed",
+          message: "Changed",
+        });
+      }
+      return respond(request);
+    });
+    picker({
+      closed: false,
+      withCounts: true,
+      connectionScope: {
+        direction: "outgoing",
+        include_contents: true,
+        parent: { expected_artifact_generation: "prior" },
+      },
+    });
+    open();
+    await screen.findByRole("button", {
+      name: "Traits: Fire, neutral; activate to include",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "More values" }));
+    await screen.findByRole("button", {
+      name: "Traits: Second-page, neutral; activate to include",
+    });
+    expect(api.discoverFilterValues.mock.calls.map(([req]) => req.kind)).toEqual([
+      "contextual",
+      "vocabulary",
+      "vocabulary",
+    ]);
+    expect(api.discoverFilterValues.mock.lastCall?.[0]).toMatchObject({
+      expected_artifact_generation: "generation-a",
+      offset: 40,
+    });
+    expect(api.discoverFilterCounts).not.toHaveBeenCalled();
   });
   it("keeps the requested server page after the initial debounce settles", async () => {
     vi.useFakeTimers();

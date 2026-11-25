@@ -65,7 +65,11 @@ export function checkFilterCounts(value: FilterCountsView): FilterCountsView {
 }
 
 export function checkFilterValues(value: FilterValueListView): FilterValueListView {
-  if (isRecord(value)) {
+  if (
+    isRecord(value) &&
+    typeof value.artifact_generation === "string" &&
+    value.artifact_generation
+  ) {
     if (value.kind === "vocabulary" && isRecord(value.values)) {
       checkInteger(value.values.total_values);
       return value;

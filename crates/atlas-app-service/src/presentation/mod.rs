@@ -588,6 +588,7 @@ fn selected_identity(
         },
         source_type: Some(family.into()),
         level_label: level,
+        level: None,
         level_basis: None,
         rarity: reference_identifier(query.rarity()).value,
         traits: query

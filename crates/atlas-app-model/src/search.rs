@@ -34,6 +34,11 @@ pub use atlas_domain::SearchResultDetail;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SearchResultsRequest {
+    /// Enrich row rarity and trait labels with catalog definitions. When false,
+    /// rows retain their base labels and omit catalog-provided rarity help.
+    #[serde(default = "include_summary_definitions")]
+    #[cfg_attr(feature = "openapi", schema(default = true))]
+    pub include_summary_definitions: bool,
     /// Selects the post-ranking evidence supplied with each record.
     #[serde(default)]
     #[cfg_attr(feature = "openapi", schema(default = "records"))]
@@ -50,6 +55,9 @@ pub struct SearchResultsRequest {
     pub criteria: SearchCriteria,
     pub page: SearchPageRequest,
     pub expected_artifact_generation: Option<String>,
+}
+fn include_summary_definitions() -> bool {
+    true
 }
 /// Static parent eligibility. Text, Similar admission, ranking and paging are absent.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

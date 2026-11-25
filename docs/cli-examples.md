@@ -218,7 +218,7 @@ To delete a list, take its `list_key` from `lists list --json` and run
 
 The v2 export preserves saved item order, keys, notes, and snapshots. It can be
 written to a new file without loading reference records. An existing output file is preserved. Import accepts v2 files. A new list
-imported from one of these files starts active. Use a full workspace backup to
+imported from one of these files starts active. Replacing a list keeps its current archive status. Use a full workspace backup to
 carry archive status between workspaces.
 
 Each list needs a unique name among your active and archived lists. Atlas ignores
@@ -261,6 +261,7 @@ Find your saved party and inspect its actual equipment and build context:
 
 ```bash
 atlas parties list --json
+atlas parties list --detail full --json  # include ordered members and revisions
 atlas parties show "Example party" --json
 atlas characters list --json
 atlas characters show "Mira" --section equipment --section money --json
@@ -611,32 +612,31 @@ It works without the original source checkout.
 
 ### Inspect a matching passage
 
-Pass a search row's `navigation` object as one argument. A process runner can
-use the returned `open_args` array directly.
-
-```bash
-atlas record get --navigation 'RETURNED_NAVIGATION_JSON' --json
-```
-
-For example, to read the best match for a rules question from Python:
+Search returns record summaries by default. Read a whole record with
+`atlas record get RECORD_KEY`, using the row’s `record.record_key`. For a
+specific match, ask for a preview and pass its `navigation` object as one JSON
+argument. Use the same workspace for both commands.
 
 ```python
 import json
 import subprocess
 
-search = subprocess.run(
-    ["atlas", "search", "Treat Wounds", "--limit", "1", "--json"],
-    check=True, capture_output=True, text=True,
-)
-rows = json.loads(search.stdout)["data"]["rows"]
+workspace = ["--index", "/path/to/workspace.sqlite"]
+def atlas(*args):
+    output = subprocess.check_output(["atlas", *args, *workspace, "--json"], text=True)
+    return json.loads(output)["data"]
+
+rows = atlas("search", "Treat Wounds", "--detail", "preview", "--limit", "1")["rows"]
 if rows:
-    opened = subprocess.run(rows[0]["open_args"], capture_output=True, text=True)
-    print(opened.stdout)
+    row = rows[0]
+    locator = row.get("best_match", {}).get("navigation")
+    selection = ["--navigation", json.dumps(locator)] if locator else [row["record"]["record_key"]]
+    print(atlas("record", "get", *selection))
 ```
 
-The argument array includes the executable, selected workspace and output mode.
-The locator preserves the root or child address, field, passage, rank and
-generation. After a reference update, rerun the search for a fresh locator.
+An exact locator carries the reference generation and its selected field,
+passage, embedded entry or rank. Rerun the search if the library has changed
+and you need a fresh match. A record key opens the latest version.
 
 ### Filter discovery details
 
@@ -725,10 +725,12 @@ convenience flags.
 ### Search JSON and occurrence paging
 
 Browse and text search return rows, pagination, distinct-root coverage, ordering,
-profile and artifact generation. The default shows the best available match per
-row. Use `--detail full` for every returned witness. Each row has an executable
-`open_args` array. Page and relationship `next_args` retain the original filter,
-workspace, seed and generation. Similar returns at most one match pair by default.
+profile and artifact generation. Use `atlas search 'healing' --detail records` for the default summaries,
+`atlas search 'healing' --detail preview` for the best match and available excerpt,
+or `atlas search 'healing' --detail full` for all returned matches. JSON reports
+the corresponding `result_detail` as `records`, `compact` or `evidence`.
+Page and relationship `next_args` retain the workspace, filter, sort seed and
+generation. Similar returns at most one match pair by default.
 Use `atlas similar ... --explain --json` for additional pairs and contributions. Semantic
 counts describe the bounded candidate window.
 
@@ -780,6 +782,7 @@ On an existing workspace, `--no-embeddings` keeps already configured models.
 
 ```bash
 atlas index check --json
+atlas index check --detail full --json  # include storage, relationships and profile statistics
 atlas index check --no-embeddings --json
 atlas index validate --json
 ```

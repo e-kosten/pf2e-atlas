@@ -960,8 +960,11 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
     );
     assert!(
         f.worker
-            .discover_raw_filter_counts(crate::RawFilterCountsRequest {
-                field: "defenses.hp.maximum".into(),
+            .discover_cli_filter_values(crate::CliFilterValuesRequest {
+                field: crate::filter_field_definition("defenses.hp.maximum").unwrap(),
+                text: None,
+                offset: 0,
+                limit: 50,
                 context: atlas_app_model::FilterDiscoveryContext::Filtered {
                     connection_scope: None,
                     search_content: None,
@@ -1089,7 +1092,7 @@ fn rebuilt_snapshot_rejects_navigation_to_a_reordered_unstable_child() {
 #[test]
 fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields() {
     let f = fixture_worker();
-    let catalog = f.worker.discover_filter_fields().unwrap();
+    let catalog = crate::discover_filter_fields().unwrap();
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
@@ -1303,7 +1306,7 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
             false,
         )?)
     });
-    let f = fixture_worker_with_executor(executor);
+    let f = fixture_worker_with_executor(executor.clone());
     for (slug, items) in [
         (
             "fire-list",
@@ -1340,6 +1343,7 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
             })
             .unwrap();
     }
+    let mut generation = String::new();
     for (scope, expected) in [
         (FilterVocabularyScope::Artifact, vec!["cold", "fire"]),
         (
@@ -1365,6 +1369,7 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
             .worker
             .discover_filter_values(
                 DiscoverFilterValuesRequest::Vocabulary {
+                    expected_artifact_generation: None,
                     scope: scope.clone(),
                     field_id: "traits".into(),
                     text: None,
@@ -1379,12 +1384,15 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
             .unwrap();
         let FilterValueListView::Vocabulary {
             scope: actual_scope,
+            artifact_generation,
             values,
         } = response
         else {
             panic!("explicit vocabulary response")
         };
         assert_eq!(actual_scope, scope);
+        assert!(!artifact_generation.is_empty());
+        generation = artifact_generation;
         assert_eq!(values.total_values, expected.len() as u64);
         assert_eq!(
             values
@@ -1404,12 +1412,85 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
         let encoded = serde_json::to_value(values).unwrap().to_string();
         assert!(!encoded.contains("distinct_roots"));
     }
+    // Counts and suggested values must fit in one admitted reference/saved-state read.
+    // This bound would fail if a second read could observe a later membership.
+    executor.fail_after_submissions(1);
+    let answer = f
+        .worker
+        .discover_cli_filter_values(crate::CliFilterValuesRequest {
+            field: crate::filter_field_definition("traits").unwrap(),
+            context: atlas_app_model::FilterDiscoveryContext::SavedList {
+                list_ref: "fire-list".into(),
+                connection_scope: None,
+                search_content: None,
+                search_profile: None,
+                text: None,
+                filter: None,
+                expected_artifact_generation: Some(generation.clone()),
+            },
+            clause_id: None,
+            text: None,
+            offset: 0,
+            limit: 50,
+        })
+        .unwrap();
+    assert_eq!(executor.remaining_submission_budget(), Some(0));
+    assert_eq!(
+        answer
+            .counts
+            .states
+            .iter()
+            .map(|s| s.distinct_roots)
+            .sum::<u64>(),
+        1
+    );
+    let options = answer.values.unwrap().options;
+    assert_eq!(options.len(), 1);
+    assert_eq!(
+        options[0].value,
+        atlas_domain::QueryLiteral::String("fire".into())
+    );
+    assert_eq!(options[0].distinct_roots, 1);
+
+    crate::test_support::publish_input(
+        f.worker.workspace_path(),
+        &atlas_search::test_support::input(
+            vec![record(
+                "items",
+                "Item",
+                json!({"_id":"new0000000000000","type":"effect","name":"New effect"}),
+            )],
+            false,
+        ),
+    )
+    .unwrap();
+    executor.fail_after_submissions(1);
+    let error = f
+        .worker
+        .discover_filter_values(
+            DiscoverFilterValuesRequest::Vocabulary {
+                scope: FilterVocabularyScope::Artifact,
+                expected_artifact_generation: Some(generation),
+                field_id: "traits".into(),
+                text: None,
+                offset: 1,
+                limit: 20,
+                selected_values: vec![],
+            },
+            &crate::ReadExecutionContext::uncancellable(),
+        )
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(
+        error.code,
+        atlas_app_model::AppErrorCode::ArtifactGenerationChanged
+    );
 }
 
 #[test]
 fn explicit_collections_share_grouping_and_movement_uses_feet() {
     let editor = crate::discovery::filter_editor_view(
-        fixture_worker().worker.discover_filter_fields().unwrap(),
+        crate::discover_filter_fields().unwrap(),
         &[],
         String::new(),
         vec![],
