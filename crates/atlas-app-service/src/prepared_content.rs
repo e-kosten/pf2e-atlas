@@ -91,6 +91,34 @@ impl<'a> PreparedContentContext<'a> {
             encounter: None,
         }
     }
+    pub(crate) fn apply_runtime(
+        &mut self,
+        runtime: &RuntimeContentContext,
+        interactions: &[atlas_record::source_content::ContentInteraction],
+    ) {
+        let required = interactions.iter().any(|control| match &control.kind {
+            ContentInteractionKind::Damage { formula, .. } => formula.contains('@'),
+            ContentInteractionKind::Command { arguments, .. } => arguments.contains('@'),
+            ContentInteractionKind::Check { options, .. } => {
+                options.values().any(|v| v.contains('@'))
+            }
+            _ => false,
+        });
+        if required {
+            self.formula.actor_level = runtime.actor_level;
+            self.formula.badge_value = runtime.badge_value;
+        }
+        self.encounter = required.then(|| runtime.binding.clone());
+    }
+}
+
+pub(crate) fn field_visible(s: &SourceContentSelection<'_>, audience: ContentAudience) -> bool {
+    match s.visibility.value() {
+        Some(ContentVisibilityRule::All) => true,
+        Some(ContentVisibilityRule::Gm) => audience.include_gm,
+        Some(ContentVisibilityRule::Owner) => audience.include_owner,
+        _ => false,
+    }
 }
 
 pub(crate) fn prepared_fields(
@@ -109,13 +137,7 @@ pub(crate) fn prepared_fields(
             owners: owners.to_vec(),
             field: s.field.to_string(),
         };
-        let visible = match s.visibility.value() {
-            Some(ContentVisibilityRule::All) => true,
-            Some(ContentVisibilityRule::Gm) => audience.include_gm,
-            Some(ContentVisibilityRule::Owner) => audience.include_owner,
-            _ => false,
-        };
-        if !visible {
+        if !field_visible(s, audience) {
             continue;
         }
         let body = match (s.text, s.format) {
@@ -422,26 +444,24 @@ pub(crate) fn resolve_runtime_content(
     if !needs_context {
         return Ok(());
     }
+    // Recompose the complete selection so all included records share one budget and namespace.
+    let locators = view
+        .presentation
+        .content
+        .iter()
+        .filter(|field| matches!(field.body, PreparedFieldBodyView::Html { .. }))
+        .map(|field| SourceContentLocator {
+            record: field.locator.record.clone(),
+            owners: field.locator.owners.clone(),
+            field: field.locator.field.clone(),
+        })
+        .collect::<Vec<_>>();
     let mut context =
         PreparedContentContext::source(r, source, &view.selected.owners, view.selected.spell_rank);
     if context.formula.item_is_spell {
         context.formula.item_rank = view.selected.spell_rank;
         context.spell_rank = view.selected.spell_rank;
     }
-    context.formula.actor_level = runtime.actor_level;
-    context.formula.badge_value = runtime.badge_value;
-    context.encounter = Some(runtime.binding);
-    let locators = view
-        .presentation
-        .content
-        .iter()
-        .filter(|f| matches!(f.body, PreparedFieldBodyView::Html { .. }))
-        .map(|f| SourceContentLocator {
-            record: f.locator.record.clone(),
-            owners: f.locator.owners.clone(),
-            field: f.locator.field.clone(),
-        })
-        .collect::<Vec<_>>();
     let content = r.read_attributed_content(&locators)?;
     for field in &mut view.presentation.content {
         if let PreparedFieldBodyView::Html {
@@ -456,6 +476,7 @@ pub(crate) fn resolve_runtime_content(
             })
             && let Some(authored) = &cached.html
         {
+            context.apply_runtime(&runtime, &cached.interactions);
             let marked;
             let authored = if let Some(address) = view.selected.passage.as_ref()
                 && view.selected.field.as_deref() == Some(field.locator.field.as_str())

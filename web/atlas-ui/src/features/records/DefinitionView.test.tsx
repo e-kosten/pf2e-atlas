@@ -74,6 +74,7 @@ beforeEach(() => {
     artifact_generation: "generation-a",
     mode: { kind: "list_records" },
     coverage: null,
+    result_detail: "evidence" as const,
     relationship_clauses: [],
     rows: [
       {

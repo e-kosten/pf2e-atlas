@@ -5,6 +5,23 @@ use atlas_app_model::{
 };
 
 impl AtlasAppService {
+    pub fn party_directory(&self) -> AppServiceResult<atlas_app_model::PartyDirectoryView> {
+        self.with_state(|session| {
+            let parties = session
+                .local_state()?
+                .parties()
+                .directory()?
+                .into_iter()
+                .map(|p| atlas_app_model::PartySummaryView {
+                    party_key: p.party_key,
+                    name: p.name,
+                    revision: p.revision,
+                    member_count: p.member_count,
+                })
+                .collect();
+            Ok(atlas_app_model::PartyDirectoryView { parties })
+        })
+    }
     pub fn parties(&self) -> AppServiceResult<PartyIndexView> {
         self.with_state(|session| {
             Ok(PartyIndexView {

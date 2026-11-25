@@ -1,9 +1,8 @@
-import { isUnconfirmedMutation } from "../../api/apiError";
+import { AtlasApiError, isUnconfirmedMutation } from "../../api/apiError";
 import {
   MarkdownEditor,
   type MarkdownEditorHandle,
 } from "../../shared/documents/MarkdownEditor";
-import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoices";
@@ -13,12 +12,12 @@ import {
   recordAdditionRequest,
   encounterPreviewBasis,
   type PreparedCreatureAddition,
+  type ReviewedAddition,
   type EncounterRecordAddForm,
 } from "../encounters/EncounterAddDifficulty";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { difficultySummary } from "../encounters/EncounterDifficulty";
 import { EncounterRecordAdjustment } from "../encounters/EncounterRecordAdjustment";
-import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,7 +42,8 @@ import {
   createEncounterWithAddition,
   previewDraftEncounterAddition,
   createSavedList,
-  getEncounter,
+  getEncounterAdditionContext,
+  getCreatureAdditionContext,
   getEncounters,
   previewEncounterDifficulty,
 } from "../../api/atlasApi";
@@ -54,7 +54,6 @@ import {
   navigateDestination,
 } from "../../app/navigation";
 import type {
-  AddEncounterRecordParticipantRequest,
   CreateEncounterWithAdditionRequest,
   RecordSummaryView,
 } from "../../generated/atlas";
@@ -155,17 +154,6 @@ function AddToRecordModal({
   const [directoryChecked, setDirectoryChecked] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const expandButton = useRef<HTMLButtonElement>(null);
-  const backButton = useRef<HTMLSpanElement>(null);
-  const restoreExpandFocus = useRef(false);
-  useLayoutEffect(() => {
-    if (expanded) backButton.current?.closest("button")?.focus({ preventScroll: true });
-    else if (restoreExpandFocus.current) {
-      restoreExpandFocus.current = false;
-      expandButton.current?.focus({ preventScroll: true });
-    }
-  }, [expanded]);
   const noteEditor = useRef<MarkdownEditorHandle>(null);
   const focusNote = useRef(false);
   useLayoutEffect(() => {
@@ -197,7 +185,7 @@ function AddToRecordModal({
   const inFlight = useRef(false);
   const [unconfirmed, setUnconfirmed] = useState<{
     destination: Destination;
-    request: AddEncounterRecordParticipantRequest;
+    request: Parameters<typeof addEncounterRecordParticipant>[1];
   } | null>(null);
   const [unconfirmedCreation, setUnconfirmedCreation] =
     useState<CreateEncounterWithAdditionRequest | null>(null);
@@ -208,7 +196,6 @@ function AddToRecordModal({
       noteDraft.trim() ||
       (kind === "list" && creating && form.getFieldValue("name")?.trim()),
     );
-  useTabCloseGuard(() => (expanded && hasUnsavedDraft() ? "dirty" : undefined));
   const createdDestination = useRef<Destination | null>(null);
   const lists = useSavedLists({ enabled: open && kind === "list" });
   const encounters = useQuery({
@@ -228,20 +215,24 @@ function AddToRecordModal({
   const encounterKey =
     open && kind === "encounter" && !creating ? selected?.key : undefined;
   const encounter = useQuery({
-    queryKey: ["encounter", encounterKey],
-    queryFn: () => getEncounter(encounterKey!),
+    queryKey: ["encounter", encounterKey, "addition-context"],
+    queryFn: () => getEncounterAdditionContext(encounterKey!),
     enabled: Boolean(encounterKey),
   });
   const creature = record?.kind === "creature";
-  const detail = useQuery(
-    recordDetailQueryOptions(
-      open && kind === "encounter" && creature ? recordKey : null,
-    ),
-  );
+  const detail = useQuery({
+    queryKey: ["creature-addition-context", recordKey],
+    meta: referenceQueryMeta,
+    queryFn: ({ signal }) => getCreatureAdditionContext(recordKey, { signal }),
+    enabled: open && kind === "encounter" && creature,
+  });
   const { useId } = useCreatureScenario(recordKey);
+  const [reviewedAddition, setReviewedAddition] = useState<ReviewedAddition | null>(
+    null,
+  );
   const [preparedCreature, setPreparedCreature] =
     useState<PreparedCreatureAddition | null>(null);
-  const scenario = detail.data?.record.creature_display?.uses.length
+  const scenario = detail.data?.has_scenario_uses
     ? {
         artifact_generation: detail.data.artifact_generation,
         ...(useId === undefined ? {} : { use_id: useId }),
@@ -266,9 +257,7 @@ function AddToRecordModal({
     encounterKey && scenario && !currentAddition().creature_scenario?.expected,
   );
   const resolvedAdjustment =
-    detail.data?.record.record_key === recordKey
-      ? detail.data.encounter_adjustment
-      : undefined;
+    detail.data?.record_key === recordKey ? detail.data.adjustment : undefined;
   const adjustmentBlocked = kind === "encounter" && creature && !resolvedAdjustment;
   useLayoutEffect(() => {
     if (
@@ -284,6 +273,17 @@ function AddToRecordModal({
   }, [open, kind, creature, form, resolvedAdjustment]);
   const newEncounter = open && creating && kind === "encounter";
   const draftAddition = encounterRecordAddition(recordKey, creature, form, scenario);
+  const reviewMatches =
+    reviewedAddition &&
+    reviewedAddition.basis === previewBasis &&
+    JSON.stringify(reviewedAddition.request) === JSON.stringify(draftAddition);
+  async function refreshAdditionBasis() {
+    setReviewedAddition(null);
+    await Promise.all([encounter.refetch(), ...(creature ? [detail.refetch()] : [])]);
+    await queryClient.invalidateQueries({
+      queryKey: ["encounter-add-difficulty", encounterKey],
+    });
+  }
   const draftValid =
     Number.isInteger(draftAddition.quantity) &&
     draftAddition.quantity >= 1 &&
@@ -403,12 +403,22 @@ function AddToRecordModal({
           deleted: false,
         };
       }
-      const request = unconfirmed?.request ?? recordAdditionRequest(currentAddition());
+      if (!unconfirmed && (!reviewMatches || !encounter.data)) {
+        throw new Error("Review the updated addition first.");
+      }
+      const request = unconfirmed?.request ?? {
+        ...recordAdditionRequest(currentAddition()),
+        expected_revision: encounter.data!.revision,
+        expected_artifact_generation: reviewedAddition!.generation,
+      };
       let receipt;
       try {
         receipt = await addEncounterRecordParticipant(destination.key, request);
       } catch (error) {
         setUnconfirmed(isUnconfirmedMutation(error) ? { destination, request } : null);
+        if (error instanceof AtlasApiError && error.status === 409 && error.appError) {
+          await refreshAdditionBasis();
+        }
         throw error;
       }
       setUnconfirmed(null);
@@ -469,7 +479,7 @@ function AddToRecordModal({
   const nameConflict =
     creating && kind === "list" ? listNameConflictHelp(submit.error) : undefined;
   const run = (name?: string) => {
-    if (expanded || inFlight.current) return;
+    if (inFlight.current) return;
     inFlight.current = true;
     submit.mutate({ name, note: noteDraft.trim() ? noteDraft : undefined });
   };
@@ -488,8 +498,6 @@ function AddToRecordModal({
   return (
     <Modal
       open={open}
-      layout={expanded ? "document" : "form"}
-      width={expanded ? "100%" : undefined}
       afterClose={() => {
         // Reopening an unconfirmed add must retain its original destination and ID.
         if (frozen) return;
@@ -500,20 +508,13 @@ function AddToRecordModal({
         setCreatedList(false);
         setListCreateUncertain(false);
         setDirectoryChecked(false);
-        setExpanded(false);
         setNoteOpen(false);
         setNoteDraft("");
         form.resetFields();
         submit.reset();
       }}
       title={
-        expanded
-          ? "List entry note"
-          : encounterOnly
-            ? "Add to encounter"
-            : canAddEncounter
-              ? "Add to…"
-              : "Add to list"
+        encounterOnly ? "Add to encounter" : canAddEncounter ? "Add to…" : "Add to list"
       }
       transitionName=""
       maskTransitionName=""
@@ -527,23 +528,12 @@ function AddToRecordModal({
               waitingForDraft ||
               adjustmentBlocked ||
               waitingForCreaturePreview ||
+              (Boolean(encounterKey) && !reviewMatches) ||
               (!creating && !selected))),
       }}
-      closable={
-        expanded
-          ? {
-              closeIcon: <span ref={backButton}>Collapse editor</span>,
-              "aria-label": "Collapse editor",
-            }
-          : { disabled: submit.isPending }
-      }
-      styles={
-        expanded
-          ? { close: { width: "auto", paddingInline: "var(--space-control)" } }
-          : undefined
-      }
+      closable={{ disabled: submit.isPending }}
       keyboard={!submit.isPending}
-      mask={{ closable: !expanded && !submit.isPending }}
+      mask={{ closable: !submit.isPending }}
       okText={
         frozen
           ? "Retry to confirm"
@@ -554,43 +544,36 @@ function AddToRecordModal({
             : "Add"
       }
       confirmDiscard={{
-        when: () => !expanded && hasUnsavedDraft(),
+        when: hasUnsavedDraft,
         onDiscard: cancel,
       }}
-      onCancel={() => {
-        if (expanded) setExpanded(false);
-        else cancel();
-      }}
+      onCancel={cancel}
       onOk={() => {
-        if (expanded || paused) return;
+        if (paused) return;
         if (frozen) run();
         else if (creating || kind === "encounter") form.submit();
         else if (selected) run();
       }}
-      footer={
-        expanded
-          ? null
-          : (_, { OkBtn, CancelBtn }) => (
-              <div className="record-destination-picker__footer">
-                {creating && !frozen && (
-                  <Button disabled={submit.isPending} onClick={() => changeMode(false)}>
-                    Choose existing {kind}
-                  </Button>
-                )}
-                <div className="record-destination-picker__footer-actions">
-                  <CancelBtn />
-                  <OkBtn />
-                </div>
-              </div>
-            )
-      }
+      footer={(_, { OkBtn, CancelBtn }) => (
+        <div className="record-destination-picker__footer">
+          {creating && !frozen && (
+            <Button disabled={submit.isPending} onClick={() => changeMode(false)}>
+              Choose existing {kind}
+            </Button>
+          )}
+          <div className="record-destination-picker__footer-actions">
+            <CancelBtn />
+            <OkBtn />
+          </div>
+        </div>
+      )}
     >
-      {!expanded && record && (
+      {record && (
         <Typography.Text className="record-destination-picker__record">
           {record.title}
         </Typography.Text>
       )}
-      {!expanded && canAddEncounter && !encounterOnly && (
+      {canAddEncounter && !encounterOnly && (
         <Tabs
           activeKey={kind}
           animated={false}
@@ -620,7 +603,7 @@ function AddToRecordModal({
           ]}
         />
       )}
-      <div className="record-destination-picker" data-document={expanded || undefined}>
+      <div className="record-destination-picker">
         <Form
           className="record-destination-picker__form"
           form={form}
@@ -628,7 +611,6 @@ function AddToRecordModal({
           disabled={paused || submit.isPending || frozen}
           onFinish={({ name }) => {
             if (
-              expanded ||
               frozen ||
               listBlocked ||
               waitingForDraft ||
@@ -660,7 +642,7 @@ function AddToRecordModal({
                 }}
               />
             </Form.Item>
-          ) : !expanded ? (
+          ) : (
             <>
               <div className="record-destination-picker__choices">
                 <Select
@@ -707,7 +689,7 @@ function AddToRecordModal({
                   </Typography.Text>
                 )}
             </>
-          ) : null}
+          )}
           {kind === "encounter" && (
             <div className="record-destination-picker__encounter-fields">
               {creature && (
@@ -737,10 +719,7 @@ function AddToRecordModal({
           )}
           {kind === "list" && (
             <div className="record-destination-picker__note">
-              <div
-                className="record-destination-picker__note-controls"
-                hidden={expanded}
-              >
+              <div className="record-destination-picker__note-controls">
                 <Button
                   type="link"
                   size="small"
@@ -756,25 +735,12 @@ function AddToRecordModal({
                       ? "Edit note (included)"
                       : "Add a note"}
                 </Button>
-                {noteOpen && (
-                  <Button
-                    ref={expandButton}
-                    size="small"
-                    type="text"
-                    onClick={() => {
-                      restoreExpandFocus.current = true;
-                      setExpanded(true);
-                    }}
-                  >
-                    Expand editor
-                  </Button>
-                )}
               </div>
               {noteOpen && (
                 <MarkdownEditor
                   id="note"
                   label="Note"
-                  sizing={expanded ? "fill" : "compact"}
+                  expandedTitle="List entry note"
                   editorRef={noteEditor}
                   value={noteDraft}
                   onChange={setNoteDraft}
@@ -831,6 +797,8 @@ function AddToRecordModal({
             creature={creature}
             scenario={scenario}
             onPreparedCreature={setPreparedCreature}
+            onReviewed={setReviewedAddition}
+            refreshBasis={refreshAdditionBasis}
             recordName={record?.title ?? recordKey}
             disabled={submit.isPending || adjustmentBlocked || frozen}
           />
@@ -888,7 +856,10 @@ function AddToRecordModal({
             description={
               listCreateUncertain
                 ? "Check the list directory before creating another list."
-                : undefined
+                : submit.error instanceof AtlasApiError &&
+                    submit.error.appError?.code === "encounter_turn_conflict"
+                  ? "The encounter changed. Review the updated addition before trying again."
+                  : undefined
             }
             action={
               listCreateUncertain && (

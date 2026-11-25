@@ -1,5 +1,7 @@
+import { expectControlGaps } from "./controlGeometry";
 import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { readUrl } from "../readingUrl";
+import type { TableRollView } from "../../src/generated/http";
 import { decodeFilterUrl, encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 import { encodeReadingAddress } from "../../src/app/readingUrl";
 import { expect, test } from "./fixtures";
@@ -96,15 +98,18 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
       };
     });
   const before = await geometry();
+  await expectControlGaps(
+    tools.locator(".record-reference__kind, button, a[href]"),
+    8,
+    4,
+  );
   await activate(exploreButton, info);
   const region = page.getByRole("region", { name: "Explore record", exact: true });
   await expect(region).toBeVisible();
   const after = await geometry();
   expect(after).toEqual(before);
   expect(after.buttons).toHaveLength(3);
-  for (const [index, button] of after.buttons.entries()) {
-    const previous = after.buttons[index - 1];
-    if (previous) expect(button.x - previous.x - previous.width).toBe(4);
+  for (const button of after.buttons) {
     expect(button.width).toBe(34);
     expect(button.height).toBe(34);
     expect(Math.abs(button.center - after.badge.center)).toBeLessThanOrEqual(1);
@@ -829,6 +834,13 @@ test("closing a reference with a feature-action tooltip preserves the owner view
   const drawer = page.getByRole("dialog", { name: "Off-Guard", exact: true });
   await expect(drawer).toBeVisible();
   const save = drawer.getByRole("button", { name: "Add to list", exact: true });
+  await expectControlGaps(
+    drawer.locator(
+      ".record-reference__tools :is(.record-reference__kind, button, a[href])",
+    ),
+    8,
+    4,
+  );
   await save.focus();
   await save.hover();
   await expect(page.getByRole("tooltip", { name: "Add to list" })).toBeVisible();
@@ -1739,11 +1751,9 @@ test("named parties add everyone directly and archive views stay separate", asyn
   } finally {
     await page.request.delete(path);
     if (partyKey) {
-      const index = await (await page.request.get("/api/parties")).json();
-      const party = index.parties.find(
-        (p: { party_key: string }) => p.party_key === partyKey,
-      );
-      if (party) {
+      const response = await page.request.get(`/api/parties/${partyKey}`);
+      if (response.ok()) {
+        const party = await response.json();
         for (const member of party.members) {
           await page.request.delete(`/api/characters/${member.character_key}`, {
             data: { expected_revision: member.character_revision },
@@ -2715,16 +2725,11 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
     await activate(page.getByRole("button", { name: label, exact: true }), info);
     const rolledResponse = await response;
     expect(rolledResponse.ok()).toBe(true);
-    const rolled = await rolledResponse.json();
+    const rolled: TableRollView = await rolledResponse.json();
     expect(rolled.outcome.total).toBeGreaterThanOrEqual(1);
     expect(rolled.outcome.total).toBeLessThanOrEqual(4);
     expect(rolled.invalid_ranges).toEqual([]);
-    expect(
-      rolled.matches.map(
-        (match: { selected: { record_key: string; embedded_path: unknown[] } }) =>
-          match.selected,
-      ),
-    ).toMatchObject([
+    expect(rolled.matches.map((match) => match.navigation)).toMatchObject([
       {
         record_key: key,
         embedded_path: [

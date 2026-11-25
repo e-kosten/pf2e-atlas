@@ -1,3 +1,4 @@
+import { expectControlGaps } from "./controlGeometry";
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 
@@ -18,7 +19,9 @@ test("spell links keep rank through effect reading, explanations and full-page n
       const title = rect("h2");
       const titleRow = rect(".record-reference__title");
       const actions = [
-        ...node.querySelectorAll(".record-reference__actions button"),
+        ...node.querySelectorAll(
+          ".record-reference__tools button:not(.record-reference__kind)",
+        ),
       ].map((button) => button.getBoundingClientRect());
       return {
         kindCenter: kind.y + kind.height / 2,
@@ -30,6 +33,11 @@ test("spell links keep rank through effect reading, explanations and full-page n
         actions: actions.map((a) => ({ center: a.y + a.height / 2, height: a.height })),
       };
     });
+  await expectControlGaps(
+    header.locator(".record-reference__tools :is(button, a[href])"),
+    8,
+    4,
+  );
   const beforeHeader = await headerGeometry();
   expect(beforeHeader.actions).toHaveLength(3);
   for (const action of beforeHeader.actions) {

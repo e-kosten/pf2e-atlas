@@ -163,7 +163,7 @@ fn shared_characters_keep_identity_when_memberships_and_parties_change() {
             UpdateCharacterRequest {
                 expected_revision: first.character_revision,
                 name: "Renamed".into(),
-                level: Some(8),
+                level: Some(Some(8)),
             },
         )
         .unwrap();
@@ -246,7 +246,7 @@ fn stale_character_or_party_inputs_preserve_the_reviewed_roster() {
             UpdateCharacterRequest {
                 expected_revision: 0,
                 name: "First".into(),
-                level: Some(8),
+                level: Some(Some(8)),
             },
         )
         .unwrap();
@@ -1110,7 +1110,7 @@ fn saved_pathbuilder_sheet_preserves_full_source_and_reads_known_fields_independ
             UpdateCharacterRequest {
                 expected_revision: view.character_revision,
                 name: "Atlas name".into(),
-                level: Some(8),
+                level: Some(Some(8)),
             },
         )
         .unwrap();
@@ -1244,6 +1244,145 @@ fn saved_pathbuilder_sheet_preserves_full_source_and_reads_known_fields_independ
             .iter()
             .any(|r| r["intent_version"] == 2)
     );
+}
+
+#[test]
+fn character_rename_observes_absence_and_explicit_level_edits_in_rosters() {
+    let (_directory, service) = service();
+    let pc = character(&service, "Before", Some(6));
+    let group = party(&service, "Heroes", &[&pc]);
+    let mut revision = pc.character_revision;
+    for (extra, expected) in [
+        (None, Some(6)),
+        (Some(serde_json::Value::Null), None),
+        (Some(serde_json::json!(9)), Some(9)),
+    ] {
+        let mut patch = serde_json::json!({"name":"Renamed","expected_revision":revision});
+        if let Some(level) = extra {
+            patch["level"] = level;
+        }
+        let request: UpdateCharacterRequest = serde_json::from_value(patch.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&request).unwrap(), patch);
+        service
+            .update_character(&pc.character_key, request.clone())
+            .unwrap();
+        assert_eq!(
+            service
+                .update_character(&pc.character_key, request)
+                .unwrap_err()
+                .into_app_error()
+                .code,
+            AppErrorCode::CharacterConflict
+        );
+        revision += 1;
+        let member = &service.party_roster(&group.party_key).unwrap().members[0];
+        assert_eq!(
+            (
+                member.name.as_str(),
+                member.level,
+                member.character_revision
+            ),
+            ("Renamed", expected, revision)
+        );
+    }
+    let renamed = service
+        .edit_party_name(&group.party_key, group.revision, "New party".into())
+        .unwrap();
+    assert_eq!(renamed.members[0].level, Some(9));
+}
+
+#[test]
+fn reimport_recovers_one_revision_across_concurrent_submissions_restart_and_archive() {
+    let (directory, service) = pathbuilder_service();
+    let pc = character(&service, "Original", Some(1));
+    let json = pathbuilder_export(7);
+    let request = SavePathbuilderPcRequest {
+        request_id: "same-reimport".into(),
+        expected_artifact_generation: service
+            .preview_pathbuilder_pc(&json, None)
+            .unwrap()
+            .artifact_generation,
+        json,
+        character_key: Some(pc.character_key.clone()),
+        expected_character_revision: Some(pc.character_revision),
+        party: None,
+        rule_links: Default::default(),
+    };
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let sql = |sql: &str| {
+        let write = workspace
+            .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        write.connection().execute_batch(sql).unwrap();
+        write.commit().unwrap();
+    };
+    sql(
+        "CREATE TRIGGER stop_reimport BEFORE INSERT ON character_creation_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END;",
+    );
+    assert!(service.save_pathbuilder_pc(request.clone()).is_err());
+    assert_eq!(
+        serde_json::to_value(service.character(&pc.character_key).unwrap()).unwrap(),
+        serde_json::to_value(&pc).unwrap()
+    );
+    sql("DROP TRIGGER stop_reimport");
+    let barrier = std::sync::Barrier::new(2);
+    let [first, second] = std::thread::scope(|threads| {
+        let submit = || {
+            barrier.wait();
+            service.save_pathbuilder_pc(request.clone()).unwrap()
+        };
+        let a = threads.spawn(submit);
+        let b = threads.spawn(submit);
+        [a.join().unwrap(), b.join().unwrap()]
+    });
+    assert_eq!(first, second);
+    assert_eq!(first.character_key, pc.character_key);
+    assert!(first.available);
+    let restarted = service_at(service.workspace_path());
+    assert_eq!(
+        restarted.save_pathbuilder_pc(request.clone()).unwrap(),
+        first
+    );
+    assert_eq!(
+        restarted
+            .character(&pc.character_key)
+            .unwrap()
+            .character_revision,
+        pc.character_revision + 1
+    );
+    let mut changed = request.clone();
+    changed.json.push(' ');
+    assert_eq!(
+        restarted
+            .save_pathbuilder_pc(changed)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
+    let mut stale = request.clone();
+    stale.request_id = "other-reimport".into();
+    assert_eq!(
+        restarted
+            .save_pathbuilder_pc(stale)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::CharacterConflict
+    );
+    restarted
+        .delete_character(
+            &pc.character_key,
+            DeleteCharacterRequest {
+                expected_revision: pc.character_revision + 1,
+            },
+        )
+        .unwrap();
+    let target = directory.path().join("restored-reimport.sqlite");
+    restore_archive(&target, &capture_archive(service.workspace_path()));
+    let after_deletion = service_at(&target).save_pathbuilder_pc(request).unwrap();
+    assert_eq!(after_deletion.character_key, pc.character_key);
+    assert!(!after_deletion.available);
 }
 
 #[test]

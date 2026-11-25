@@ -400,6 +400,7 @@ function workspace(
 function searchResultsPage(): SearchResultsPage {
   return {
     search_content: "all",
+    result_detail: "records" as const,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

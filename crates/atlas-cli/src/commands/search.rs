@@ -59,15 +59,12 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         Ok(service) => service,
         Err(error) => return report_app_error(error, o.json),
     };
-    let mode = if o.query.is_some() && o.retrieval.is_none() && o.search_profile.is_none() {
-        let readiness = service.readiness();
-        if readiness.status == atlas_app_model::AppReadinessStatus::Ready
-            && readiness.search_profiles.is_empty()
-        {
-            RetrievalModeView::Lexical
-        } else {
-            mode
-        }
+    let mode = if o.query.is_some()
+        && o.retrieval.is_none()
+        && o.search_profile.is_none()
+        && service.keyword_only_workspace()
+    {
+        RetrievalModeView::Lexical
     } else {
         mode
     };
@@ -90,7 +87,11 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         None => SearchCriteria::ListRecords { filter },
     };
     let request = SearchResultsRequest {
-        result_detail: atlas_app_model::SearchResultDetail::Evidence,
+        result_detail: if o.detail == super::followup::EvidenceDetail::Full {
+            atlas_app_model::SearchResultDetail::Evidence
+        } else {
+            atlas_app_model::SearchResultDetail::Compact
+        },
         connection_scope: None,
         sort,
         ranking: Some(o.ranking),

@@ -1,5 +1,59 @@
+import { markdownSource } from "./markdownEditor";
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
+import { expectControlGaps } from "./controlGeometry";
+
+test("the hazard badge, reference and state action stay together through activation", async ({
+  page,
+}, info) => {
+  const name = `Hazard header ${Date.now()}`;
+  const created = await page.request.post("/api/encounters", { data: { name } });
+  expect(created.ok()).toBe(true);
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const added = await page.request.post(`${path}/participants/record`, {
+      data: {
+        request_id: crypto.randomUUID(),
+        record_ref: "browser-hazards:chime00000000001",
+        quantity: 1,
+      },
+    });
+    expect(added.ok()).toBe(true);
+    await page.goto("/encounters");
+    const indexRow = page
+      .getByRole("row")
+      .filter({ has: page.getByRole("link", { name, exact: true }) });
+    const rowActions = indexRow.getByRole("button");
+    await expectControlGaps(rowActions, 4, 2);
+    const heights = await rowActions.evaluateAll((buttons) =>
+      buttons.map((button) => button.getBoundingClientRect().height),
+    );
+    expect(heights[0]).toBe(heights[1]);
+    await activate(indexRow.getByRole("link", { name, exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "Warning Chime", exact: true }),
+      info,
+    );
+
+    const header = page.locator(".encounter-reference__header");
+    const badge = header.getByText("Simple Hazard 7", { exact: true });
+    const book = header.getByRole("link", { name: "View hazard reference" });
+    const disable = header.getByRole("button", { name: "Disable", exact: true });
+    const activateHazard = header.getByRole("button", {
+      name: "Activate",
+      exact: true,
+    });
+    for (const status of [disable, activateHazard]) {
+      await expectControlGaps(badge.or(book).or(status), 8, 3);
+      await activate(status, info);
+    }
+    await expect(disable).toBeEnabled();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(path);
+  }
+});
 
 test("overnight review reopens a stale draft and checks current values after a lost response", async ({
   page,
@@ -734,5 +788,46 @@ test("overnight review preserves zero healing and unavailable HP through the rea
     ).not.toHaveProperty("current_hp");
   } finally {
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});
+
+test("encounter settings previews the saved GM note as Markdown and keeps sibling edits", async ({
+  page,
+}, info) => {
+  const source = "## Ambush\n\n[Sentinel](record:browser-actors:sentinel00000001)";
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `GM note ${Date.now()}`, note: source },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    await page.goto(`/encounters/${encounter.slug}/edit`);
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    const description = settings.getByRole("textbox", { name: "Description" });
+    await description.fill("Gatehouse");
+    const expand = settings.getByRole("button", { name: "Expand editor" });
+    await activate(expand, info);
+    const full = page.getByRole("dialog", { name: "Encounter note", exact: true });
+    await expect(full.getByRole("button", { name: "Save" })).toHaveCount(0);
+    await expect(full.getByRole("textbox", { name: "Description" })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        markdownSource(full.getByRole("textbox", { name: "Note", exact: true })),
+      )
+      .toBe(source);
+    await activate(full.getByText("Preview", { exact: true }), info);
+    await expect(full.getByRole("heading", { name: "Ambush" })).toBeVisible();
+    await expect(full.getByRole("link", { name: "Sentinel" })).toBeVisible();
+    await activate(full.getByRole("button", { name: "Collapse editor" }), info);
+    await expect(expand).toBeFocused();
+    await expect(description).toHaveValue("Gatehouse");
+    await activate(settings.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(settings).toBeHidden();
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.note).toBe(source);
+    expect(saved.encounter.description).toBe("Gatehouse");
+  } finally {
+    await page.request.delete(path);
   }
 });

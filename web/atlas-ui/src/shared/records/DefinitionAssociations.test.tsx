@@ -43,6 +43,7 @@ function page(request: SearchResultsRequest, count = 5): SearchResultsPage {
     artifact_generation: request.expected_artifact_generation!,
     mode: { kind: "list_records" },
     coverage: null,
+    result_detail: request.result_detail ?? "records",
     relationship_clauses: [],
     rows: Array.from({ length: count }, (_, index) => ({
       record: summaryFixture(`actors:speaker-${index}`, `Speaker ${index}`),

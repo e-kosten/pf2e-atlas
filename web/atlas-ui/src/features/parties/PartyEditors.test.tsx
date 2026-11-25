@@ -14,7 +14,8 @@ import { RouterTestContext } from "../../test/router";
 import { RenameParty, SetPartyLevels } from "./PartyEditors";
 
 const api = vi.hoisted(() => ({
-  getParties: vi.fn(),
+  getParty: vi.fn(),
+  renameParty: vi.fn(),
   updateParty: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -58,7 +59,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  api.getParties.mockResolvedValue({ parties: [party] });
+  api.getParty.mockResolvedValue(party);
   api.updateParty.mockResolvedValue(party);
 });
 afterEach(cleanup);
@@ -79,7 +80,7 @@ it("closes a reverted rename directly, including whitespace-only differences", a
   fireEvent.click(dialog.getByRole("button", { name: "Cancel" }));
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
   expect(screen.queryByText("Discard this draft?")).toBeNull();
-  expect(api.updateParty).not.toHaveBeenCalled();
+  expect(api.renameParty).not.toHaveBeenCalled();
 });
 
 it.each(["pristine", "same level", "cleared target", "empty selection"])(

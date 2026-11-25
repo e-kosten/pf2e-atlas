@@ -6,7 +6,7 @@ import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import {
   createCharacter,
   getCharacter,
-  getParties,
+  getParty,
   updateCharacter,
 } from "../../api/atlasApi";
 import type {
@@ -68,11 +68,7 @@ export function CharacterEditor({
     retry: false,
     mutationFn: async () => {
       if (character) return { character: await getCharacter(character.character_key) };
-      const latestParty = (await getParties()).parties.find(
-        (item) => item.party_key === party?.party_key,
-      );
-      if (party && !latestParty) throw new Error("This party is no longer available.");
-      return { party: latestParty };
+      return { party: party ? await getParty(party.party_key) : undefined };
     },
     onSuccess: (latest) => {
       setCharacterRevision(latest.character?.character_revision);
@@ -128,7 +124,11 @@ export function CharacterEditor({
     if (character) {
       write({
         characterKey: character.character_key,
-        request: { ...fields, expected_revision: characterRevision! },
+        request: {
+          ...fields,
+          level: parsed ?? null,
+          expected_revision: characterRevision!,
+        },
       });
     } else {
       write({

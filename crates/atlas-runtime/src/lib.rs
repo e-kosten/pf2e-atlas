@@ -21,6 +21,7 @@ mod setup_freshness;
 mod setup_model;
 mod source_acquisition;
 mod source_configuration;
+pub use source_configuration::ReferenceBuildError;
 #[cfg(test)]
 mod tests;
 mod workspace;

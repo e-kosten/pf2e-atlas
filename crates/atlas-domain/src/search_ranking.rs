@@ -19,3 +19,19 @@ impl std::str::FromStr for SearchRanking {
         }
     }
 }
+
+/// Amount of evidence to materialize after ranking a result page.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchResultDetail {
+    #[default]
+    Records,
+    Compact,
+    Evidence,
+}
+impl SearchResultDetail {
+    pub fn includes_evidence(self) -> bool {
+        self != Self::Records
+    }
+}

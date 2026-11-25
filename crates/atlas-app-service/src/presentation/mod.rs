@@ -20,6 +20,7 @@ mod spell_forms;
 pub(crate) mod spell_rank;
 pub(crate) mod strike;
 use crate::projection::{field_state, navigation_fingerprint};
+use crate::records::RecordReadSection;
 use action_cost::{casting_cost, item_action_cost};
 pub(crate) use actor::compose_participant;
 use atlas_app_model::*;
@@ -30,6 +31,44 @@ use atlas_record::source_record::{
 };
 use facts::*;
 
+fn selected_spell_rank(
+    record: &SourceBackedRecord,
+    source: &atlas_foundry_model::generated::SpellSource,
+    requested: Option<u8>,
+) -> crate::AppServiceResult<(Option<u8>, bool)> {
+    let ranks = spell_context::ranks(record, source);
+    if let Some(rank) = requested
+        && (!(1..=10).contains(&rank)
+            || spell_context::base_rank(source).is_some_and(|base| rank < base))
+    {
+        return Err(crate::AppServiceError::invalid_request(
+            "Choose a spell rank from its original rank through 10.",
+        ));
+    }
+    let rank = requested.or_else(|| (ranks.len() == 1).then(|| ranks[0]));
+    Ok((rank, ranks.len() > 1))
+}
+
+/// Resolve the same effective rank as the reader without constructing display statistics.
+pub(crate) fn content_casting_rank(
+    record: &SourceBackedRecord,
+    node: SourceNodeView<'_>,
+    requested: Option<u8>,
+) -> crate::AppServiceResult<Option<u8>> {
+    match node {
+        SourceNodeView::Item(ItemSourceView::SpellSource(source)) => {
+            let (rank, _) = selected_spell_rank(record, source, requested)?;
+            Ok(rank.filter(|rank| spell_rank::heighten(source, *rank).is_ok()))
+        }
+        SourceNodeView::Item(ItemSourceView::EffectSource(source)) => {
+            Ok(spell_effect::selected_rank(source, requested)?.map(|(_, rank)| rank))
+        }
+        _ if requested.is_some() => Err(crate::AppServiceError::invalid_request(
+            "Rank preview requires a spell.",
+        )),
+        _ => Ok(None),
+    }
+}
 pub(crate) fn apply_casting_rank(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
@@ -48,20 +87,9 @@ pub(crate) fn apply_casting_rank(
         }
         return Ok(None);
     };
-    let ranks = spell_context::ranks(record, source);
-    if let Some(rank) = requested
-        && (!(1..=10).contains(&rank)
-            || spell_context::base_rank(source).is_some_and(|base| rank < base))
-    {
-        return Err(crate::AppServiceError::invalid_request(
-            "Choose a spell rank from its original rank through 10.",
-        ));
-    }
-    let rank = requested.or_else(|| (ranks.len() == 1).then(|| ranks[0]));
+    let (rank, multiple) = selected_spell_rank(record, source, requested)?;
     let Some(rank) = rank else {
-        if ranks.len() > 1
-            && let RecordBodyView::Spell(view) = &mut presentation.body
-        {
+        if multiple && let RecordBodyView::Spell(view) = &mut presentation.body {
             view.rank_note =
                 Some("Prepared at multiple ranks. Choose a rank to preview its mechanics.".into());
         }
@@ -116,13 +144,13 @@ pub(crate) fn apply_casting_rank(
 
 /// One dispatch policy for selected item bodies and summary link usefulness.
 #[derive(Clone, Copy)]
-enum SelectedItemBody<'a> {
+pub(crate) enum SelectedItemBody<'a> {
     Spell(&'a atlas_foundry_model::generated::SpellSource),
     Activity { casting_context: bool },
     Physical,
     Content,
 }
-fn selected_item_body(item: ItemSourceView<'_>) -> SelectedItemBody<'_> {
+pub(crate) fn selected_item_body(item: ItemSourceView<'_>) -> SelectedItemBody<'_> {
     match item {
         ItemSourceView::SpellSource(source) => SelectedItemBody::Spell(source),
         _ if matches!(
@@ -154,12 +182,26 @@ pub(crate) fn record_presentation(
     node: SourceNodeView<'_>,
     summary: &RecordSummaryView,
     owners: &[OwnedContentLocator],
-    content: Vec<PreparedContentFieldView>,
+    sections: Option<&[RecordReadSection]>,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> crate::AppServiceResult<RecordPresentationView> {
     let identity = selected_identity(record, node, summary, owners, retrieval);
-    let mut owned = owned_links(record, node, owners, retrieval.source_fingerprint());
+    let mut owned = if sections.is_none() {
+        owned_links(record, node, owners, retrieval.source_fingerprint())
+    } else {
+        vec![]
+    };
+    let needs_body = sections.is_none_or(|requested| match node {
+        SourceNodeView::Actor(_) => true,
+        SourceNodeView::Item(ItemSourceView::SpellSource(_)) => true,
+        SourceNodeView::Item(item) => requested
+            .iter()
+            .any(|section| section.includes_activity(&actor::activity_kind(item.family()))),
+        _ => false,
+    });
     let profile = match node {
+        _ if !needs_body => Some(RecordBodyView::Content),
+        _ if sections.is_some() => None,
         SourceNodeView::Actor(_) => reference_profiles::actor(record, node),
         SourceNodeView::Item(item) => reference_profiles::item(item),
         _ => None,
@@ -171,7 +213,12 @@ pub(crate) fn record_presentation(
                 broken_threshold: number(SourceFieldView::NotApplicable),
                 defense_block: hazard_defense_block(node),
                 show_saves: hazard_show_saves(node),
-                actor: actor::authored_actor(record, node, retrieval.source_fingerprint()),
+                actor: actor::authored_actor(
+                    record,
+                    node,
+                    retrieval.source_fingerprint(),
+                    sections,
+                ),
                 complex: fact(
                     SourceFieldView::from(&source.system)
                         .and_then(|s| (&s.details).into())
@@ -205,8 +252,10 @@ pub(crate) fn record_presentation(
                 record,
                 node,
                 retrieval.source_fingerprint(),
+                sections,
             )))
         }
+        SourceNodeView::Actor(_) if sections.is_some() => RecordBodyView::Content,
         SourceNodeView::Item(item) => match selected_item_body(item) {
             SelectedItemBody::Spell(source) => {
                 RecordBodyView::Spell(Box::new(spell::authored_spell(source)))
@@ -232,30 +281,8 @@ pub(crate) fn record_presentation(
                 if let (Some(consumable), ItemSourceView::ConsumableSource(source)) =
                     (&mut view.consumable, item)
                 {
-                    consumable.spell = fact(
-                        SourceFieldView::from(&source.system)
-                            .and_then(|s| (&s.spell).into())
-                            .and_then(|_| match owned.pop() {
-                                Some(mut link) => {
-                                    if let Some(SourceNodeView::Item(
-                                        ItemSourceView::SpellSource(spell),
-                                    )) = record.node_at(&link.navigation.owners)
-                                    {
-                                        let ranks = spell_context::ranks(record, spell);
-                                        link.navigation.spell_rank = if ranks.len() == 1 {
-                                            Some(ranks[0])
-                                        } else {
-                                            None
-                                        };
-                                    }
-                                    SourceFieldView::Value(link)
-                                }
-                                None => SourceFieldView::ProjectionInvalid {
-                                    source_path: "/system/spell",
-                                    reason: "Embedded spell address unavailable",
-                                },
-                            }),
-                    );
+                    consumable.spell =
+                        consumable_spell(record, source, owners, retrieval.source_fingerprint());
                 }
                 RecordBodyView::PhysicalReference(Box::new(view))
             }
@@ -355,8 +382,12 @@ pub(crate) fn record_presentation(
                         .focus_capacity(),
                     );
                 }
-                let activities =
-                    actor::authored_activities(record, parent_node, retrieval.source_fingerprint());
+                let activities = actor::authored_activities(
+                    record,
+                    parent_node,
+                    retrieval.source_fingerprint(),
+                    Some(&[RecordReadSection::Spellcasting]),
+                );
                 let state = activities.state;
                 let spells = activities.value.map(|activities| {
                     activities
@@ -397,7 +428,7 @@ pub(crate) fn record_presentation(
         grants: None,
         classification: classification(node, &identity),
         identity,
-        content,
+        content: vec![],
         owned,
         body,
     })
@@ -597,6 +628,48 @@ fn node_title(node: SourceNodeView<'_>) -> String {
             .into(),
     })
 }
+/// A consumable's authored embedded spell is the same reading destination in every projection.
+pub(crate) fn consumable_spell(
+    record: &SourceBackedRecord,
+    source: &atlas_foundry_model::generated::ConsumableSource,
+    owners: &[OwnedContentLocator],
+    fingerprint: &str,
+) -> FactView<EmbeddedRecordLinkView> {
+    fact(
+        SourceFieldView::from(&source.system)
+            .and_then(|s| (&s.spell).into())
+            .and_then(|_| {
+                let mut link = None;
+                record.visit_immediate_children(owners, |path, child| {
+                    if let SourceNodeView::Item(ItemSourceView::SpellSource(spell)) = child {
+                        let mut navigation = crate::definitions::record_navigation(
+                            record.key().clone(),
+                            path.to_vec(),
+                            fingerprint,
+                        );
+                        if let [rank] = spell_context::ranks(record, spell).as_slice() {
+                            navigation.spell_rank = Some(*rank);
+                        }
+                        link = Some(EmbeddedRecordLinkView {
+                            navigation,
+                            title: node_title(child),
+                            family: "spell".into(),
+                            usage: None,
+                            action_cost: unavailable(),
+                        });
+                    }
+                });
+                match link {
+                    Some(link) => SourceFieldView::Value(link),
+                    None => SourceFieldView::ProjectionInvalid {
+                        source_path: "/system/spell",
+                        reason: "Embedded spell address unavailable",
+                    },
+                }
+            }),
+    )
+}
+
 pub(crate) fn owned_links(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
@@ -604,30 +677,6 @@ pub(crate) fn owned_links(
     fingerprint: &str,
 ) -> Vec<EmbeddedRecordLinkView> {
     let mut links = vec![];
-    if matches!(
-        node,
-        SourceNodeView::Item(ItemSourceView::ConsumableSource(_))
-    ) {
-        record.visit_immediate_children(owners, |path, child| {
-            if let SourceNodeView::Item(ItemSourceView::SpellSource(_)) = child {
-                links.push(EmbeddedRecordLinkView {
-                    navigation: RecordNavigationView {
-                        spell_rank: None,
-                        record_key: record.key().to_string(),
-                        source_fingerprint: navigation_fingerprint(path, fingerprint),
-                        owners: path.to_vec(),
-                        field: None,
-                        passage: None,
-                    },
-                    title: node_title(child),
-                    family: "spell".into(),
-                    usage: None,
-                    action_cost: unavailable(),
-                });
-            }
-        });
-        return links;
-    }
     if !owners.is_empty() {
         return links;
     }

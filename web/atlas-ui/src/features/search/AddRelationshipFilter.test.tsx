@@ -124,6 +124,7 @@ beforeEach(() => {
     artifact_generation: "generation-a",
     search_profile: "bge-base",
     ranking: "score",
+    result_detail: "records" as const,
     relationship_clauses: [],
     coverage: null,
     sort: effectiveResultSort({

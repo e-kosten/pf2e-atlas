@@ -432,14 +432,12 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
     ).await;
     assert!((1..=2).contains(&table["outcome"]["total"].as_i64().unwrap()));
     assert_eq!(table["matches"].as_array().unwrap().len(), 1);
-    assert_eq!(
-        table["matches"][0]["presentation"]["body"]["kind"],
-        "table_result"
-    );
-    assert_eq!(
-        table["matches"][0]["presentation"]["body"]["value"]["weight"]["value"],
-        1
-    );
+    let matched = &table["matches"][0];
+    assert!(matched["title"].is_string());
+    assert_eq!(matched["navigation"]["record_key"], TABLE);
+    assert!(matched["content"].is_array());
+    assert!(matched["relationships"].is_array());
+    assert!(matched.get("presentation").is_none());
     let flat = response(
         &fixture,
         Method::POST,

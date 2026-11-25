@@ -4,6 +4,7 @@ import {
   replaceMarkdown,
 } from "./markdownEditor";
 import { expect, test } from "./fixtures";
+import { expectControlGaps } from "./controlGeometry";
 import {
   activate,
   creatureFilter,
@@ -59,9 +60,36 @@ test(
       );
       expect(earlyVisibility).toEqual([]);
 
-      await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`/lists/${list.slug}`);
       const trigger = page.getByRole("button", { name: "About" });
+      const headerActions = page.locator(
+        ".list-browse-header .workspace-context-bar__actions",
+      );
+      const controls = headerActions.getByRole("button");
+      for (const [width, gap] of [
+        [960, 8],
+        [320, 4],
+      ]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expectControlGaps(controls, gap, 3);
+        await expect
+          .poll(() =>
+            controls.evaluateAll(
+              (buttons) =>
+                new Set(buttons.map((button) => button.getBoundingClientRect().top))
+                  .size,
+            ),
+          )
+          .toBe(1);
+        await noPageOverflow(page);
+      }
+      for (const name of ["About", "List actions"]) {
+        await expect(headerActions.getByRole("button", { name })).not.toHaveCSS(
+          "border-top-color",
+          "rgba(0, 0, 0, 0)",
+        );
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
       await activate(trigger, info);
       const content = page.getByLabel("List tags", { exact: true });
       const popup = page.getByRole("dialog", { name: "About", exact: true });

@@ -38,14 +38,12 @@
   min-width: 0;
 }
 
-.encounter-reference__title > .record-reference__kind {
-  flex-shrink: 0;
+.encounter-reference__actions {
+  max-inline-size: 100%;
 }
 
-.encounter-reference__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.encounter-reference__actions > .record-reference__kind {
+  flex-shrink: 0;
 }
 .encounter-reference > .actor-encounter-host {
   max-width: 52rem;
@@ -157,23 +155,10 @@
   font-size: 13px;
 }
 
-.encounter-hp-control__row {
-  align-items: center;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(5rem, 10rem) auto;
-  justify-content: start;
-  min-width: 0;
-}
-
-.encounter-hp-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.encounter-hp-actions > button {
-  min-width: 48px;
+.encounter-hp-control__row > input {
+  flex: 1 1 5rem;
+  min-inline-size: min(5rem, 100%);
+  max-inline-size: 10rem;
 }
 
 .encounter-record-pane:focus-visible {
@@ -237,11 +222,6 @@
 
   .encounter-reference__name {
     flex-basis: 100%;
-  }
-
-  .encounter-reference__title > .record-reference__kind {
-    margin-inline-start: 0;
-    text-align: start;
   }
 }
 

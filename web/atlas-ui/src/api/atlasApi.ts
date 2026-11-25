@@ -170,6 +170,10 @@ export async function getEncounterConditionDefinitions(
   );
 }
 
+export const getEncounterRevision = http.encounterRevision;
+export const getEncounterAdditionContext = http.encounterAdditionContext;
+export const getCreatureAdditionContext = http.creatureAdditionContext;
+
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
   return checkEncounterDetail(await http.encounter(encounterRef));
 }
@@ -215,11 +219,18 @@ export async function updateEncounter(
 
 export async function addEncounterRecordParticipant(
   encounterRef: string,
-  request: AddEncounterRecordParticipantRequest,
+  request: AddEncounterRecordParticipantRequest &
+    http.AddEncounterRecordParticipantParams,
 ): Promise<EncounterMutationView> {
-  return http.addEncounterRecordParticipant(encounterRef, checkRequest(request), {
-    intent: "action",
-  });
+  const { expected_revision, expected_artifact_generation, ...addition } = request;
+  return http.addEncounterRecordParticipant(
+    encounterRef,
+    checkRequest(addition),
+    { expected_revision, expected_artifact_generation },
+    {
+      intent: "action",
+    },
+  );
 }
 
 export async function addEncounterInitiativeEntry(
@@ -563,6 +574,10 @@ export async function getSavedList(listRef: string): Promise<SavedListDetailView
   return checkedSavedListDetail(await http.savedList(listRef));
 }
 
+export async function getSavedListHeader(listRef: string, signal?: AbortSignal) {
+  return http.savedListHeader(listRef, { signal, intent: "read" });
+}
+
 export async function filterSavedList(
   listRef: string,
   request: FilterSavedListRequest,
@@ -683,9 +698,21 @@ export async function rollFlatCheck(
   return http.rollFlatCheck(checkRequest(request), { intent: "action" });
 }
 export async function getParties(): Promise<
-  import("../generated/atlas").PartyIndexView
+  import("../generated/atlas").PartyDirectoryView
 > {
   return http.parties();
+}
+export async function getPartyRosters() {
+  return http.partyRosters();
+}
+export async function getParty(key: string, signal?: AbortSignal) {
+  return http.partyRoster(key, { signal, intent: "read" });
+}
+export async function renameParty(
+  key: string,
+  request: import("../generated/atlas").RenamePartyRequest,
+) {
+  return http.renameParty(key, checkRequest(request), { intent: "action" });
 }
 export async function createParty(
   request: import("../generated/atlas").CreatePartyRequest,

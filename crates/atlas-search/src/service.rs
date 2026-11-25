@@ -14,6 +14,13 @@ pub struct AtlasRetrievalService {
     )>,
 }
 impl AtlasRetrievalService {
+    pub fn has_recognized_search_profiles(&self) -> bool {
+        self.artifact_context()
+            .search_profiles
+            .iter()
+            .any(|stored| atlas_embedding::search_profile(&stored.profile_id).is_ok())
+    }
+
     /// Whether the admitted reference corpus declares this record's pack as PF2e.
     pub fn is_pf2e_record(&self, key: &atlas_domain::RecordKey) -> bool {
         atlas_index::reference_pack_applies(

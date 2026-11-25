@@ -1,3 +1,4 @@
+import { markdownSource, replaceMarkdown } from "../../test/markdownEditor";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
@@ -82,7 +83,7 @@ const apiMocks = vi.hoisted(() => ({
   getEncounterConditionConsequences: vi.fn(),
   encounterCastingReminders: vi.fn(),
   getEncounters: vi.fn(),
-  getParties: vi.fn(),
+  getPartyRosters: vi.fn(),
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
   getEmbeddedReading: vi.fn(),
@@ -123,7 +124,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   getEncounterConditionConsequences: apiMocks.getEncounterConditionConsequences,
   encounterCastingReminders: apiMocks.encounterCastingReminders,
   getEncounters: apiMocks.getEncounters,
-  getParties: apiMocks.getParties,
+  getPartyRosters: apiMocks.getPartyRosters,
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
   getEmbeddedReading: apiMocks.getEmbeddedReading,
@@ -331,7 +332,7 @@ describe("encounter views", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.clearAllMocks();
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
-    apiMocks.getParties.mockResolvedValue({ parties: [] });
+    apiMocks.getPartyRosters.mockResolvedValue({ parties: [] });
     apiMocks.addEncounterCharacter.mockResolvedValue({
       encounter_key: "encounter_ambush",
       character_key: "character_new",
@@ -780,7 +781,7 @@ describe("encounter views", () => {
         );
       }
       await waitFor(() =>
-        expect(editor.getByLabelText("Note")).toHaveValue("Fresh note"),
+        expect(markdownSource(editor.getByLabelText("Note"))).toBe("Fresh note"),
       );
       expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush");
       expect(editor.getByLabelText("Name")).toBe(name);
@@ -891,8 +892,8 @@ describe("encounter views", () => {
     );
     expect(name).toHaveValue("My name");
     const note = screen.getByLabelText("Note");
-    expect(note).toHaveValue(" New server note ");
-    fireEvent.change(note, { target: { value: "" } });
+    expect(markdownSource(note)).toBe(" New server note ");
+    replaceMarkdown(note, "");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledExactlyOnceWith({
@@ -931,9 +932,7 @@ describe("encounter views", () => {
     });
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My name" } });
-    fireEvent.change(screen.getByLabelText("Note"), {
-      target: { value: "My note" },
-    });
+    replaceMarkdown(screen.getByLabelText("Note"), "My note");
     fireEvent.change(screen.getByLabelText("Description"), {
       target: { value: "My description" },
     });
@@ -956,7 +955,7 @@ describe("encounter views", () => {
     expect(name).toHaveFocus();
     expect(save).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Use saved Note" }));
-    expect(screen.getByLabelText("Note")).toHaveValue("Other note");
+    expect(markdownSource(screen.getByLabelText("Note"))).toBe("Other note");
     expect(screen.getByLabelText("Description")).toHaveValue("My description");
     expect(apiMocks.updateEncounter).toHaveBeenCalledOnce();
 
@@ -1650,7 +1649,7 @@ describe("encounter views", () => {
     expect(
       participantHeading
         .closest(".encounter-reference__header")
-        ?.querySelector(".encounter-reference__title > .record-reference__kind"),
+        ?.querySelector(".record-reference__kind"),
     ).toHaveTextContent("Creature");
     const summary = await screen.findByLabelText("HP summary");
     expect(screen.getByRole("button", { name: "Damage" })).toBeVisible();
@@ -3386,7 +3385,7 @@ describe("encounter views", () => {
     );
     expect(name).toHaveValue("My draft");
     await waitFor(() =>
-      expect(screen.getByLabelText("Note")).toHaveValue("Server note"),
+      expect(markdownSource(screen.getByLabelText("Note"))).toBe("Server note"),
     );
     const other = {
       ...encounterDetailFixture(),
@@ -4074,6 +4073,7 @@ function participantFixture(
 function searchResultsFixture(): SearchResultsPage {
   return {
     search_content: "all",
+    result_detail: "records" as const,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

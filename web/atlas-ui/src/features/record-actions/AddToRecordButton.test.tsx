@@ -19,14 +19,13 @@ import {
 } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import type { RecordSummaryView } from "../../generated/atlas";
-import { detailFixture } from "../../test/fixtures";
 import { AddToRecordButton } from "./AddToRecordButton";
 
 const api = vi.hoisted(() => ({
   getSavedLists: vi.fn(),
   getEncounters: vi.fn(),
-  getEncounter: vi.fn(),
-  getRecordDetail: vi.fn(),
+  getEncounterAdditionContext: vi.fn(),
+  getCreatureAdditionContext: vi.fn(),
   createSavedList: vi.fn(),
   createEncounterWithAddition: vi.fn(),
   previewDraftEncounterAddition: vi.fn(),
@@ -86,7 +85,7 @@ beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getSavedLists.mockResolvedValue({ lists: [] });
   api.getEncounters.mockResolvedValue({ encounters: [] });
-  api.getEncounter.mockResolvedValue(null);
+  api.getEncounterAdditionContext.mockResolvedValue(null);
   api.previewDraftEncounterAddition.mockResolvedValue({
     artifact_generation: "generation",
     projected: {
@@ -95,9 +94,11 @@ beforeEach(() => {
       party_level: null,
     },
   });
-  api.getRecordDetail.mockResolvedValue({
-    ...detailFixture(creature.record_key),
-    encounter_adjustment: "normal",
+  api.getCreatureAdditionContext.mockResolvedValue({
+    record_key: creature.record_key,
+    artifact_generation: "generation",
+    adjustment: "normal",
+    has_scenario_uses: false,
   });
 });
 it("removes an archived encounter from an open destination picker", async () => {
@@ -111,7 +112,9 @@ it("removes an archived encounter from an open destination picker", async () => 
   fireEvent.change(picker, { target: { value: "Ambush" } });
   fireEvent.click(await screen.findByText("Ambush"));
   await waitFor(() =>
-    expect(api.getEncounter).toHaveBeenCalledWith(encounter.encounter_key),
+    expect(api.getEncounterAdditionContext).toHaveBeenCalledWith(
+      encounter.encounter_key,
+    ),
   );
   await act(async () => {
     client.setQueryData(["encounters"], {
@@ -350,7 +353,7 @@ it.each(["creature", "hazard"])("keeps both destinations for a %s", (kind) => {
 });
 
 it("blocks adding a creature while its adjustment lookup is unavailable and lets the user retry", async () => {
-  api.getRecordDetail.mockRejectedValueOnce(new Error("Disconnected"));
+  api.getCreatureAdditionContext.mockRejectedValueOnce(new Error("Disconnected"));
   setup();
   fireEvent.click(screen.getByRole("tab", { name: "Encounters" }));
   fireEvent.click(screen.getByRole("button", { name: "New encounter" }));

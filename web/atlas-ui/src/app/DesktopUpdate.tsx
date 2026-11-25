@@ -86,7 +86,6 @@ export function DesktopUpdateShortcut({
   if (!label) return null;
   return (
     <Button
-      size="small"
       type="primary"
       icon={<ArrowDownToLine size={15} />}
       onClick={() => onOpen(showChannel ? "channel" : "updates")}

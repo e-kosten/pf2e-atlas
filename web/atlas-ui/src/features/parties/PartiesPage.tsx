@@ -10,7 +10,7 @@ import { createParty } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
 import { useDesktopTab } from "../../app/DesktopTabContext";
 import { partiesDestination, partyDestination } from "../../app/destinations";
-import type { PartyView } from "../../generated/atlas";
+import type { PartySummaryView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -131,7 +131,7 @@ function PartyDirectory({
   selected,
   restorationId,
 }: {
-  parties: PartyView[];
+  parties: PartySummaryView[];
   selected?: string;
   restorationId: string;
 }) {
@@ -175,7 +175,7 @@ function PartyDirectory({
               aria-current={party.party_key === selected ? "page" : undefined}
             >
               <strong>{party.name}</strong>
-              <span>{memberCount(party.members.length)}</span>
+              <span>{memberCount(party.member_count)}</span>
             </AtlasLink>
           </li>
         ))}

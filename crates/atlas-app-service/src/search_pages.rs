@@ -2,8 +2,8 @@ use crate::projection::{localized_summary_view, search_page_view, search_results
 use crate::retrieval::retrieval_mode;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    AppErrorCode, AppRecoverableAction, SearchCriteria, SearchModeSummary, SearchResultRow,
-    SearchResultsPage, SearchResultsRequest,
+    AppErrorCode, SearchCriteria, SearchModeSummary, SearchResultRow, SearchResultsPage,
+    SearchResultsRequest,
 };
 use atlas_search::{ListRecordsRequest, RecordScope, SearchPage, TextSearchRequest};
 
@@ -18,8 +18,7 @@ impl AtlasAppService {
         let page = SearchPage::new(request.page.number, request.page.size)?;
         let sort = crate::result_order::search_sort(request.sort, &request.criteria)?;
         let projection_execution = execution.clone();
-        let include_evidence =
-            request.result_detail == atlas_app_model::SearchResultDetail::Evidence;
+        let result_detail = request.result_detail;
         let query_request = match &request.criteria {
             SearchCriteria::TextSearch {
                 query,
@@ -33,7 +32,8 @@ impl AtlasAppService {
                         "Lexical options require lexical retrieval",
                     ));
                 }
-                Some((query, filter, *mode))
+                (*mode != atlas_app_model::RetrievalModeView::Lexical)
+                    .then_some((query, filter, *mode))
             }
             _ => None,
         };
@@ -42,16 +42,10 @@ impl AtlasAppService {
             let filter = filter.clone();
             let connection = request.connection_scope.clone();
             self.with_retrieval(execution, move |r| {
-                let actual = r.artifact_generation()?;
-                if let Some(expected) = expected
-                    && expected != actual
-                {
-                    return Err(AppServiceError::artifact_generation_changed(
-                        &expected,
-                        &actual,
-                        AppRecoverableAction::RefreshResults,
-                    ));
-                }
+                crate::connection_scope::check_generation(
+                    expected.as_deref(),
+                    &r.artifact_generation()?,
+                )?;
                 if let Some(filter) = filter {
                     r.validate_filter(&filter)?;
                 }
@@ -66,22 +60,39 @@ impl AtlasAppService {
         };
         execution.check()?;
         self.with_prepared_workspace(execution, prepared, move |workspace| {
+            let artifact_generation = workspace.retrieval().artifact_generation()?;
+            let lexical = matches!(
+                request.criteria,
+                SearchCriteria::TextSearch {
+                    mode: atlas_app_model::RetrievalModeView::Lexical,
+                    ..
+                }
+            );
+            let check_generation = || {
+                crate::connection_scope::check_generation(
+                    request.expected_artifact_generation.as_deref(),
+                    &artifact_generation,
+                )
+            };
+            if lexical {
+                check_generation()?;
+                if let SearchCriteria::TextSearch {
+                    filter: Some(filter),
+                    ..
+                } = &request.criteria
+                {
+                    workspace.retrieval().validate_filter(filter)?;
+                }
+            }
             let connected = request
                 .connection_scope
                 .as_ref()
                 .map(|scope| crate::connection_scope::resolve_connection_scope(workspace, scope))
                 .transpose()?;
-            let retrieval = workspace.retrieval_mut();
-            let artifact_generation = retrieval.artifact_generation()?;
-            if let Some(expected) = &request.expected_artifact_generation
-                && expected != &artifact_generation
-            {
-                return Err(AppServiceError::artifact_generation_changed(
-                    expected,
-                    &artifact_generation,
-                    AppRecoverableAction::RefreshResults,
-                ));
+            if !lexical {
+                check_generation()?;
             }
+            let retrieval = workspace.retrieval_mut();
             let search_profile =
                 retrieval.resolve_search_profile(request.search_profile.as_ref(), false)?;
             let filter = match &request.criteria {
@@ -93,7 +104,7 @@ impl AtlasAppService {
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
 
             let evidence_filter = filter
-                .filter(|_| include_evidence && !relationship_summaries.is_empty())
+                .filter(|_| result_detail.includes_evidence() && !relationship_summaries.is_empty())
                 .cloned();
             let scope = connected
                 .as_ref()
@@ -129,7 +140,7 @@ impl AtlasAppService {
                     let (mode, results, effective) = crate::similarity::configured_results(
                         retrieval,
                         atlas_search::ConfigurableSimilarRequest {
-                            include_evidence,
+                            result_detail,
                             cancelled: Some(&cancelled),
                             seed: &seed,
                             options: &options,
@@ -180,7 +191,7 @@ impl AtlasAppService {
                 } => {
                     let result = retrieval.search_text(TextSearchRequest {
                         lexical: lexical.unwrap_or_default(),
-                        include_evidence,
+                        result_detail,
                         content_scope: search_content,
                         sort: sort.clone(),
                         ranking: request.ranking.unwrap_or_default(),
@@ -192,7 +203,7 @@ impl AtlasAppService {
                         page,
                     })?;
                     projection_execution.check()?;
-                    let results = search_results_view(result, retrieval);
+                    let results = search_results_view(result, result_detail, retrieval);
                     (
                         SearchModeSummary::TextSearch { query, mode },
                         results.rows,
@@ -247,6 +258,7 @@ impl AtlasAppService {
                 retrieval,
             )?;
             Ok(SearchResultsPage {
+                result_detail,
                 connection_scope: connected.map(|scope| scope.view),
                 core_recipe: if matches!(mode, SearchModeSummary::TextSearch { .. })
                     && search_content == atlas_domain::SearchContentScope::Core

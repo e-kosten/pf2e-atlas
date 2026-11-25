@@ -190,7 +190,7 @@ export function AppShell({
           selectedKeys={[selectedView]}
           theme={resolvedColorScheme}
         />
-        <Space className="topbar__actions" size="small">
+        <div className="action-group topbar__actions">
           <Popover
             trigger="click"
             open={themeOpen}
@@ -225,7 +225,6 @@ export function AppShell({
             >
               <Button
                 ref={themeTrigger}
-                type="text"
                 aria-label="Theme"
                 icon={
                   colorScheme === "system" ? (
@@ -240,7 +239,7 @@ export function AppShell({
             </Tooltip>
           </Popover>
           <DesktopSettingsControls />
-        </Space>
+        </div>
       </header>
       {readiness?.saved_writes_paused && (
         <Alert

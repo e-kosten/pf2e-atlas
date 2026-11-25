@@ -342,9 +342,16 @@ fn agent_can_repair_an_ability_and_refresh_without_losing_its_correction() {
         "--expected-generation",
         refresh["artifact_generation"].as_str().unwrap(),
     ];
-    f.data(&args);
+    let retry = [&args[..], &["--request-id", "reviewed-refresh"]].concat();
+    let saved = f.data(&retry);
+    assert_eq!(f.data(&retry), saved);
     assert_eq!(
         f.run(&[&args[..], &["--json"]].concat()).status.code(),
+        Some(2)
+    );
+    fs::write(&path, original).unwrap();
+    assert_eq!(
+        f.run(&[&retry[..], &["--json"]].concat()).status.code(),
         Some(2)
     );
     let after = f.data(&["characters", "show", &key, "--section", "abilities"]);

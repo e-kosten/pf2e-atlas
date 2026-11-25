@@ -92,6 +92,17 @@ impl AtlasRetrievalService {
                 values: request.values.to_vec(),
             })?)
     }
+    /// Values actually represented in the matching records, without per-value counts.
+    pub fn matching_field_values(
+        &self,
+        field: &str,
+        filter: Option<&QueryPredicate>,
+    ) -> Result<Vec<QueryLiteral>, SearchError> {
+        Ok(self
+            .index
+            .matching_field_values(field, &self.predicate(filter)?)?)
+    }
+
     pub fn discover_filter_fields(&self) -> Result<QueryCapability, SearchError> {
         Ok(atlas_index::query_capabilities()?)
     }

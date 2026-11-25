@@ -1,3 +1,4 @@
+use crate::error::Path;
 use crate::{
     error::WebError,
     service::{AtlasWebState, call_service},
@@ -8,7 +9,7 @@ use atlas_app_model::SavePcAbilityLinkRequest;
 use atlas_app_model::SetEncounterPcReferenceRequest;
 use axum::{
     Json,
-    extract::{Path, State, rejection::JsonRejection},
+    extract::{State, rejection::JsonRejection},
     response::IntoResponse,
 };
 

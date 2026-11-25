@@ -1,3 +1,4 @@
+use crate::error::Path;
 use atlas_app_model::{
     AddEncounterInitiativeEntryRequest, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
@@ -13,7 +14,7 @@ use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
 use axum::Json;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
-use axum::extract::{Path, Query, State};
+use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 
 use crate::error::WebError;
@@ -81,13 +82,23 @@ pub(crate) async fn saved_lists(
     ))
 }
 
-#[utoipa::path(get, path = "/api/lists/{list_ref}", operation_id = "savedList", params(("list_ref" = String, Path)), responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(get, path = "/api/lists/{list_ref}", operation_id = "savedList", params(("list_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
 ) -> Result<impl IntoResponse, WebError> {
     Ok(Json(
         call_service(state, move |service| service.saved_list(&list_ref)).await?,
+    ))
+}
+
+#[utoipa::path(get, path = "/api/lists/{list_ref}/header", operation_id = "savedListHeader", params(("list_ref" = String, Path, description = "Saved list key or slug")), responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListSummaryView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn saved_list_header(
+    State(state): State<AtlasWebState>,
+    Path(list_ref): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    Ok(Json(
+        call_service(state, move |service| service.saved_list_header(&list_ref)).await?,
     ))
 }
 
@@ -117,7 +128,7 @@ pub(crate) async fn create_saved_list(
     ))
 }
 
-#[utoipa::path(patch, path = "/api/lists/{list_ref}", operation_id = "updateSavedList", params(("list_ref" = String, Path)), request_body = UpdateSavedListRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(patch, path = "/api/lists/{list_ref}", operation_id = "updateSavedList", params(("list_ref" = String, Path, description = "Stable key returned by GET. Fetch by slug first if needed.")), request_body = UpdateSavedListRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn update_saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
@@ -177,7 +188,7 @@ pub(crate) async fn reorder_saved_list_item(
     ))
 }
 
-#[utoipa::path(delete, path = "/api/lists/{list_ref}", operation_id = "deleteSavedList", params(("list_ref" = String, Path)), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteSavedListView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(delete, path = "/api/lists/{list_ref}", operation_id = "deleteSavedList", params(("list_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteSavedListView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn delete_saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
@@ -208,7 +219,7 @@ pub(crate) async fn encounter_condition_definitions(
     ))
 }
 
-#[utoipa::path(get, path = "/api/encounters/{encounter_ref}", operation_id = "encounter", params(("encounter_ref" = String, Path)), responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(get, path = "/api/encounters/{encounter_ref}", operation_id = "encounter", params(("encounter_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
@@ -257,7 +268,7 @@ pub(crate) async fn create_encounter_with_addition(
     ))
 }
 
-#[utoipa::path(delete, path = "/api/encounters/{encounter_ref}", operation_id = "deleteEncounter", params(("encounter_ref" = String, Path)), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteEncounterView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(delete, path = "/api/encounters/{encounter_ref}", operation_id = "deleteEncounter", params(("encounter_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteEncounterView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn delete_encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
@@ -270,7 +281,7 @@ pub(crate) async fn delete_encounter(
     ))
 }
 
-#[utoipa::path(patch, path = "/api/encounters/{encounter_ref}", operation_id = "updateEncounter", params(("encounter_ref" = String, Path)), request_body = UpdateEncounterRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(patch, path = "/api/encounters/{encounter_ref}", operation_id = "updateEncounter", params(("encounter_ref" = String, Path, description = "Stable key returned by GET. Fetch by slug first if needed.")), request_body = UpdateEncounterRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn update_encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
@@ -285,17 +296,30 @@ pub(crate) async fn update_encounter(
     ))
 }
 
-#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/record", operation_id = "addEncounterRecordParticipant", params(("encounter_ref" = String, Path)), request_body = AddEncounterRecordParticipantRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[derive(serde::Deserialize)]
+pub(crate) struct AdditionPreconditions {
+    expected_revision: Option<i64>,
+    expected_artifact_generation: Option<String>,
+}
+
+#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/record", operation_id = "addEncounterRecordParticipant", params(("encounter_ref" = String, Path), ("expected_revision" = Option<i64>, Query, description = "Encounter revision used for the reviewed addition."), ("expected_artifact_generation" = Option<String>, Query, description = "Reference generation returned by the addition preview.")), request_body = AddEncounterRecordParticipantRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn add_encounter_record_participant(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
+    guards: Result<Query<AdditionPreconditions>, QueryRejection>,
     payload: Result<Json<AddEncounterRecordParticipantRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Query(guards) = guards?;
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     Ok(Json(
         call_service(state, move |service| {
             service
-                .add_encounter_record_participant(&encounter_ref, request)
+                .add_reviewed_encounter_record_participant(
+                    &encounter_ref,
+                    request,
+                    guards.expected_revision,
+                    guards.expected_artifact_generation,
+                )
                 .map(|result| atlas_app_model::EncounterMutationView {
                     encounter_key: result.encounter_key,
                 })
@@ -465,7 +489,7 @@ pub(crate) async fn add_encounter_participant_condition(
     ))
 }
 
-#[utoipa::path(patch, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}", operation_id = "updateEncounterParticipantCondition", params(("encounter_ref" = String, Path), ("participant_key" = String, Path), ("condition_id" = String, Path, pattern = "^-?[0-9]+$")), request_body = UpdateEncounterParticipantConditionRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(patch, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}", operation_id = "updateEncounterParticipantCondition", params(("encounter_ref" = String, Path), ("participant_key" = String, Path), ("condition_id" = String, Path, description = "Decimal signed 64-bit integer (-9223372036854775808 through 9223372036854775807).", pattern = "^[+-]?[0-9]+$")), request_body = UpdateEncounterParticipantConditionRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn update_encounter_participant_condition(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key, condition_id)): Path<(String, String, i64)>,
@@ -485,7 +509,7 @@ pub(crate) async fn update_encounter_participant_condition(
     ))
 }
 
-#[utoipa::path(delete, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}", operation_id = "removeEncounterParticipantCondition", params(("encounter_ref" = String, Path), ("participant_key" = String, Path), ("condition_id" = String, Path, pattern = "^-?[0-9]+$")), request_body = atlas_app_model::RemoveEncounterParticipantConditionRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(delete, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}", operation_id = "removeEncounterParticipantCondition", params(("encounter_ref" = String, Path), ("participant_key" = String, Path), ("condition_id" = String, Path, description = "Decimal signed 64-bit integer (-9223372036854775808 through 9223372036854775807).", pattern = "^[+-]?[0-9]+$")), request_body = atlas_app_model::RemoveEncounterParticipantConditionRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn remove_encounter_participant_condition(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key, condition_id)): Path<(String, String, i64)>,
@@ -752,7 +776,7 @@ pub(crate) async fn preview_encounter_condition_add(
         .await?,
     ))
 }
-#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}/preview", operation_id = "previewEncounterConditionUpdate", params(("encounter_ref" = String, Path), ("participant_key" = String, Path), ("condition_id" = String, Path, pattern = "^-?[0-9]+$")), request_body = atlas_app_model::UpdateEncounterParticipantConditionRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::ConditionEventPreviewView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}/preview", operation_id = "previewEncounterConditionUpdate", params(("encounter_ref" = String, Path), ("participant_key" = String, Path), ("condition_id" = String, Path, description = "Decimal signed 64-bit integer (-9223372036854775808 through 9223372036854775807).", pattern = "^[+-]?[0-9]+$")), request_body = atlas_app_model::UpdateEncounterParticipantConditionRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::ConditionEventPreviewView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn preview_encounter_condition_update(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key, condition_id)): Path<(String, String, i64)>,
@@ -935,8 +959,9 @@ pub(crate) type PersistentReviewQuery = std::collections::HashMap<String, String
 pub(crate) async fn persistent_damage_review(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
-    axum::extract::Query(query): axum::extract::Query<PersistentReviewQuery>,
+    query: Result<Query<PersistentReviewQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Query(query) = query?;
     Ok(Json(
         call_service(state, move |service| {
             service.persistent_damage_review(
@@ -984,8 +1009,9 @@ pub(crate) async fn apply_condition_lifecycle(
 pub(crate) async fn condition_lifecycle_actions(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
-    axum::extract::Query(query): axum::extract::Query<PersistentReviewQuery>,
+    query: Result<Query<PersistentReviewQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Query(query) = query?;
     Ok(Json(
         call_service(state, move |service| {
             service.condition_lifecycle_actions(
@@ -1225,6 +1251,45 @@ pub(crate) async fn apply_encounter_recovery(
     Ok(Json(
         call_service(state, move |service| {
             service.apply_encounter_recovery(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(get, path = "/api/encounters/{encounter_ref}/revision", operation_id = "encounterRevision", params(("encounter_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterRevisionView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn encounter_revision(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    Ok(Json(
+        call_service(state, move |service| {
+            service.encounter_revision(&encounter_ref)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(get, path = "/api/encounters/{encounter_ref}/addition-context", operation_id = "encounterAdditionContext", params(("encounter_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterAdditionContextView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn encounter_addition_context(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    Ok(Json(
+        call_service(state, move |service| {
+            service.encounter_addition_context(&encounter_ref)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(get, path = "/api/records/{record_key}/creature-addition", operation_id = "creatureAdditionContext", params(("record_key" = String, Path, description = "Stable record key.")), responses((status = 200, description = "Successful response", body = atlas_app_model::CreatureAdditionContextView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn creature_addition_context(
+    State(state): State<AtlasWebState>,
+    Path(record_key): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    Ok(Json(
+        call_service(state, move |service| {
+            service.creature_addition_context(&record_key)
         })
         .await?,
     ))

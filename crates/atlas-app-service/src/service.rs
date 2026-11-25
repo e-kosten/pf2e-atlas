@@ -57,19 +57,35 @@ impl AtlasAppService {
         self.runtime.warm_default_search_profile()
     }
 
-    pub fn readiness(&self) -> AppReadinessView {
-        let readiness = self.with_saved_operation(|runtime| {
+    fn reference_metadata<T: Send + 'static>(
+        &self,
+        select: impl FnOnce(&AtlasRetrievalService) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<AppServiceResult<T>> {
+        self.with_saved_operation(move |runtime| {
             let state = runtime.read_state()?;
-            let metadata = (|| -> AppServiceResult<_> {
-                let workspace = runtime.reference_read(state, None)?;
-                let retrieval = workspace.retrieval();
-                Ok((
-                    retrieval.artifact_generation()?,
-                    retrieval.artifact_context().search_profiles.clone(),
-                    retrieval.default_search_profile().clone(),
-                ))
-            })();
+            let metadata = runtime
+                .reference_read(state, None)
+                .map_err(AppServiceError::from)
+                .and_then(|workspace| select(workspace.retrieval()));
             Ok(metadata)
+        })
+    }
+
+    /// A blocked reference workspace keeps the requested search path and its normal error.
+    pub fn keyword_only_workspace(&self) -> bool {
+        matches!(
+            self.reference_metadata(|r| Ok(!r.has_recognized_search_profiles())),
+            Ok(Ok(true))
+        )
+    }
+
+    pub fn readiness(&self) -> AppReadinessView {
+        let readiness = self.reference_metadata(|retrieval| {
+            Ok((
+                retrieval.artifact_generation()?,
+                retrieval.artifact_context().search_profiles.clone(),
+                retrieval.default_search_profile().clone(),
+            ))
         });
         let (metadata, workspace_error, reference_error) = match readiness {
             Ok(Ok(metadata)) => (Some(metadata), None, None),

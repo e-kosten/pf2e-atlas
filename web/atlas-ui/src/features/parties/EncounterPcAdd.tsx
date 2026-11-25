@@ -2,7 +2,7 @@ import { isUnconfirmedMutation } from "../../api/apiError";
 import { Button, Form, Input, InputNumber } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
-import { addEncounterCharacter, getEncounter } from "../../api/atlasApi";
+import { addEncounterCharacter, getEncounterRevision } from "../../api/atlasApi";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
@@ -31,7 +31,7 @@ export function EncounterPcAdd({
   const [revision, setRevision] = useState(encounter.revision);
   const review = useMutation({
     retry: false,
-    mutationFn: () => getEncounter(encounter.encounterKey),
+    mutationFn: () => getEncounterRevision(encounter.encounterKey),
     onSuccess: (latest) => {
       setRevision(latest.revision);
       save.reset();

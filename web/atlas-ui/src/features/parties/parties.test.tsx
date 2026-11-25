@@ -18,6 +18,9 @@ import { PartyPage } from "./PartyPage";
 import { PartiesPage, PartiesWorkspace } from "./PartiesPage";
 const api = vi.hoisted(() => ({
   getParties: vi.fn(),
+  getParty: vi.fn(),
+  getPartyRosters: vi.fn(),
+  renameParty: vi.fn(),
   createParty: vi.fn(),
   updateParty: vi.fn(),
   deleteParty: vi.fn(),
@@ -57,7 +60,19 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
-  api.getParties.mockResolvedValue({ parties: [party] });
+  api.getParties.mockResolvedValue({
+    parties: [
+      {
+        party_key: party.party_key,
+        revision: party.revision,
+        name: party.name,
+        member_count: party.members.length,
+      },
+    ],
+  });
+  api.getParty.mockResolvedValue(party);
+  api.getPartyRosters.mockResolvedValue({ parties: [party] });
+  api.renameParty.mockResolvedValue(party);
 });
 afterEach(cleanup);
 it("adds the whole chosen party in one click without a modal or subset fields", async () => {
@@ -72,7 +87,7 @@ it("adds the whole chosen party in one click without a modal or subset fields", 
     />,
     { wrapper },
   );
-  expect(api.getParties).not.toHaveBeenCalled();
+  expect(api.getPartyRosters).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
   const item = await screen.findByRole("menuitem", { name: /Campaign.*Aster, Bram/ });
   await waitFor(() => expect(item).not.toHaveAttribute("aria-disabled", "true"));
@@ -123,7 +138,7 @@ it("prevents duplicate additions while the write and refresh remain pending", as
   );
 });
 it("offers a local read retry when parties cannot load", async () => {
-  api.getParties.mockRejectedValueOnce(new Error("Offline"));
+  api.getPartyRosters.mockRejectedValueOnce(new Error("Offline"));
   render(
     <EncounterAddMenu
       encounterRevision={9}
@@ -138,7 +153,7 @@ it("offers a local read retry when parties cannot load", async () => {
   fireEvent.click(
     await screen.findByRole("menuitem", { name: "Parties could not load. Retry" }),
   );
-  await waitFor(() => expect(api.getParties).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(api.getPartyRosters).toHaveBeenCalledTimes(2));
 });
 
 it("retains the new party name after a failed save and retries the empty roster", async () => {
@@ -227,8 +242,11 @@ it("reviews a concurrent roster change before retrying retained level and charac
     imported: false,
   };
   const members = [newMember, { ...party.members[0], character_revision: 6, level: 4 }];
-  api.getParties.mockResolvedValue({
-    parties: [{ ...party, name: "Saved elsewhere", revision: 9, members }],
+  api.getParty.mockResolvedValue({
+    ...party,
+    name: "Saved elsewhere",
+    revision: 9,
+    members,
   });
   fireEvent.click(review);
   expect(await dialog.findByRole("status")).toHaveTextContent(
@@ -258,7 +276,7 @@ it("reviews a concurrent roster change before retrying retained level and charac
 });
 
 it("reviews the saved name and current roster while retaining a separate rename draft", async () => {
-  api.updateParty.mockRejectedValueOnce(new AtlasApiError(409, "The party changed."));
+  api.renameParty.mockRejectedValueOnce(new AtlasApiError(409, "The party changed."));
   render(<PartyPage partyKey="party" />, { wrapper });
   fireEvent.click(await screen.findByRole("button", { name: "Party actions" }));
   fireEvent.click(await screen.findByRole("menuitem", { name: "Rename party" }));
@@ -271,30 +289,38 @@ it("reviews the saved name and current roster while retaining a separate rename 
   await waitFor(() => expect(save).toBeEnabled());
   fireEvent.click(save);
   const review = await dialog.findByRole("button", { name: "Review latest changes" });
-  api.getParties.mockResolvedValue({
-    parties: [
-      { ...party, name: "Saved elsewhere", revision: 9, members: [party.members[0]] },
-    ],
+  api.getParty.mockResolvedValue({
+    ...party,
+    name: "Saved elsewhere",
+    revision: 9,
+    members: [party.members[0]],
   });
   fireEvent.click(review);
   expect(await dialog.findByText("Saved name: Saved elsewhere")).toBeVisible();
   expect(input).toHaveValue("My draft");
-  expect(api.updateParty).toHaveBeenCalledTimes(1);
+  expect(api.renameParty).toHaveBeenCalledTimes(1);
   await waitFor(() => expect(save).toBeEnabled());
   fireEvent.click(save);
   await waitFor(() =>
-    expect(api.updateParty).toHaveBeenLastCalledWith("party", {
+    expect(api.renameParty).toHaveBeenLastCalledWith("party", {
       name: "My draft",
       expected_revision: 9,
-      members: [{ character_key: "pc-a", expected_character_revision: 2 }],
-      level_updates: [],
     }),
   );
 });
 
 it("keeps one party directory and creation control while the selected roster changes", async () => {
   const second = { ...party, party_key: "second", name: "Second group", members: [] };
-  api.getParties.mockResolvedValue({ parties: [party, second] });
+  const rosters = [party, second];
+  api.getParties.mockResolvedValue({
+    parties: rosters.map(({ members, ...p }) => ({
+      ...p,
+      member_count: members.length,
+    })),
+  });
+  api.getParty.mockImplementation(async (key: string) =>
+    rosters.find((p) => p.party_key === key),
+  );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function StableWrapper({ children }: { children: ReactNode }) {
     return (

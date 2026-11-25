@@ -463,7 +463,7 @@ export function ReferenceReader({
     (!inIdentity && selectionActions),
   );
   const documentActions = (
-    <Space wrap size={4}>
+    <>
       {detail && recordActions?.(detail.record)}
       {active && detail && entityRoute !== "/lists/$slug/edit" && (
         <CopyEntityLink
@@ -491,7 +491,7 @@ export function ReferenceReader({
         />
       )}
       {inIdentity && selectionActions}
-    </Space>
+    </>
   );
   const header = (
     <>

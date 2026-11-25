@@ -15,6 +15,14 @@ pub struct PartyMember {
     pub level: Option<i64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartySummary {
+    pub party_key: String,
+    pub name: String,
+    pub revision: i64,
+    pub member_count: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct PartyMemberInput {
     pub character_key: String,

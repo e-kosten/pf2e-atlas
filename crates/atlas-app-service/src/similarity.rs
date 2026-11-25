@@ -92,6 +92,7 @@ pub(crate) fn configured_results(
     atlas_app_model::SearchResultsView,
     atlas_app_model::SimilarityConfigurationView,
 )> {
+    let detail = request.result_detail;
     let result = retrieval.configurable_similar(request)?.ok_or_else(|| {
         AppServiceError::new(
             atlas_app_model::AppErrorCode::RecordNotFound,
@@ -106,7 +107,7 @@ pub(crate) fn configured_results(
         )),
     };
     execution.check()?;
-    let addresses = if result.evidence.is_empty() {
+    let addresses = if !result.evidence.iter().any(|(_, e)| !e.parts.is_empty()) {
         Default::default()
     } else {
         retrieval.similarity_part_addresses(&result.seed.key)?
@@ -127,7 +128,7 @@ pub(crate) fn configured_results(
             )
         })
         .collect::<std::collections::BTreeMap<_, _>>();
-    let mut results = crate::projection::search_results_view(result.results, retrieval);
+    let mut results = crate::projection::search_results_view(result.results, detail, retrieval);
     for row in &mut results.rows {
         row.similarity = evidence.remove(&row.record.record_key);
     }
@@ -326,7 +327,7 @@ mod tests {
             let (mode, results, _) = configured_results(
                 &retrieval,
                 atlas_search::ConfigurableSimilarRequest {
-                    include_evidence: true,
+                    result_detail: atlas_domain::SearchResultDetail::Evidence,
                     seed: &seed,
                     options: &options,
                     source_sections: None,
@@ -375,7 +376,7 @@ mod tests {
         let error = configured_results(
             &retrieval,
             atlas_search::ConfigurableSimilarRequest {
-                include_evidence: true,
+                result_detail: atlas_domain::SearchResultDetail::Evidence,
                 seed: &seed,
                 options: &options,
                 source_sections: None,

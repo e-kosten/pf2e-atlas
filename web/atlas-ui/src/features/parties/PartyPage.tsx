@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Button, Tooltip } from "antd";
 import { GripVertical, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { deleteParty, getParties, updateParty } from "../../api/atlasApi";
+import { deleteParty, getParty, updateParty } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
 import { characterDestination, partiesDestination } from "../../app/destinations";
 import type { PartyView } from "../../generated/atlas";
@@ -20,9 +20,10 @@ import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocu
 import { AddCharacter } from "./AddCharacter";
 import { CharacterEditor } from "./CharacterEditor";
 import { refreshCharacters } from "./characterQueries";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { memberCount } from "./PartiesPage";
 import { RenameParty, SetPartyLevels } from "./PartyEditors";
-import { cacheParty, useParties } from "./useParties";
+import { cacheParty, useParties, useParty } from "./useParties";
 
 function membershipInputs(members: PartyView["members"]) {
   return members.map(({ character_key, character_revision }) => ({
@@ -33,11 +34,27 @@ function membershipInputs(members: PartyView["members"]) {
 
 export function PartyPage({ partyKey }: { partyKey: string }) {
   const query = useParties();
-  const party = query.data?.parties.find((p) => p.party_key === partyKey);
-  usePageTitle(party?.name ?? "Party");
-  return party ? (
-    <PartyRoster key={partyKey} party={party} />
-  ) : query.data ? (
+  const summary = query.data?.parties.find((p) => p.party_key === partyKey);
+  const roster = useParty(partyKey, !!summary);
+  usePageTitle(summary?.name ?? "Party");
+  if (summary)
+    return (
+      <>
+        {roster.error && (
+          <ErrorNotice
+            title="Party could not load"
+            error={roster.error}
+            action={<Button onClick={() => void roster.refetch()}>Retry</Button>}
+          />
+        )}
+        {roster.data ? (
+          <PartyRoster key={partyKey} party={roster.data} />
+        ) : roster.isPending ? (
+          <LoadingStatus label="Loading party…" />
+        ) : null}
+      </>
+    );
+  return query.data ? (
     <section className="party-selection-prompt">
       <h2 data-party-title tabIndex={-1}>
         Party unavailable
@@ -79,9 +96,9 @@ function PartyRoster({ party }: { party: PartyView }) {
   });
   const review = useMutation({
     retry: false,
-    mutationFn: getParties,
-    onSuccess: (latest) => {
-      client.setQueryData(["parties"], latest);
+    mutationFn: () => getParty(party.party_key),
+    onSuccess: async (latest) => {
+      await cacheParty(client, latest);
       change.reset();
     },
   });
@@ -126,7 +143,7 @@ function PartyRoster({ party }: { party: PartyView }) {
             {memberCount(party.members.length)}
           </span>
         </div>
-        <div className="party-heading-actions">
+        <div className="action-group">
           <AddCharacter
             party={party}
             onManual={() => setManual(party)}
@@ -136,6 +153,7 @@ function PartyRoster({ party }: { party: PartyView }) {
           />
           <EntityActionsMenu
             label="Party actions"
+            appearance="outlined"
             trigger={actions}
             items={[
               { key: "rename", label: "Rename party", disabled: busy },

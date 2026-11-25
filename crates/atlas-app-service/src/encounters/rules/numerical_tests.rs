@@ -327,6 +327,69 @@ fn deafened_initiative_status_penalty_competes_with_frightened() {
 }
 
 #[test]
+fn encounter_senses_distinguish_absent_vision_from_condition_suppression() {
+    let record = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Sightless Ooze","system":{"perception":{
+            "vision":false,"senses":[{"type":"motion-sense","acuity":"precise","range":60}]
+        }}}),
+    );
+    let baseline = super::authored_stat_baseline(&record.record, "fixture", None).unwrap();
+    let mut participant = participant();
+    for rule in [
+        None,
+        Some(ConditionRule::Blinded),
+        Some(ConditionRule::Petrified),
+    ] {
+        participant.conditions = rule.map(|r| condition(1, r, None)).into_iter().collect();
+        let projected = project_participant(&participant, &baseline, true, &[]);
+        let [vision, motion] = projected.senses.as_slice() else {
+            panic!("expected ordinary vision and motion sense");
+        };
+        assert_eq!(vision.sense_type.value, "vision");
+        assert_eq!(vision.available, Some(false));
+        assert_eq!(vision.reason, None);
+        assert_eq!(motion.sense_type.value, "motion-sense");
+        assert_eq!(motion.precision.as_deref(), Some("precise"));
+        assert_eq!(
+            motion
+                .range_feet
+                .as_ref()
+                .and_then(serde_json::Number::as_u64),
+            Some(60)
+        );
+        let petrified = rule == Some(ConditionRule::Petrified);
+        assert_eq!(motion.available, Some(!petrified));
+        assert_eq!(motion.reason.as_deref(), petrified.then_some("Petrified"));
+    }
+    participant.conditions = vec![condition(1, ConditionRule::Blinded, None)];
+    let sighted = project_participant(&participant, &source_baseline(), true, &[]);
+    let vision = &sighted.senses[0];
+    assert_eq!(vision.sense_type.label, "Vision");
+    assert_eq!(vision.available, Some(false));
+    assert_eq!(vision.reason.as_deref(), Some("Blinded"));
+}
+
+#[test]
+fn unknown_ordinary_vision_leaves_other_encounter_senses_visible() {
+    let record = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Creature","system":{"perception":{
+            "vision":null,"senses":[{"type":"motion-sense","acuity":"precise","range":60}]
+        }}}),
+    );
+    let baseline = super::authored_stat_baseline(&record.record, "fixture", None).unwrap();
+    let projected = project_participant(&participant(), &baseline, true, &[]);
+    let [motion] = projected.senses.as_slice() else {
+        panic!("expected only the authored motion sense");
+    };
+    assert_eq!(motion.sense_type.value, "motion-sense");
+    assert_eq!(motion.available, Some(true));
+}
+
+#[test]
 fn dazzled_targeting_uses_usable_precision_and_blinded_suppresses_it() {
     use super::sensory_context::dazzled_concealment;
     let mut participant = participant();

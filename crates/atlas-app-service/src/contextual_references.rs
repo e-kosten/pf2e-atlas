@@ -2,27 +2,52 @@
 use atlas_app_model::{RecordBodyView, RecordDetailView};
 use atlas_domain::RecordKey;
 use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
+use atlas_record::source_record::{ItemSourceView, SourceBackedRecord, SourceNodeView};
 use atlas_search::{AtlasRetrievalService, SourceRelationshipDirection, SourceRelationshipRequest};
 
 pub(crate) fn attach_consumable_spell(
     view: &mut RecordDetailView,
+    record: &SourceBackedRecord,
+    node: SourceNodeView<'_>,
     retrieval: &AtlasRetrievalService,
 ) -> crate::AppServiceResult<()> {
-    let RecordBodyView::PhysicalReference(physical) = &mut view.presentation.body else {
+    let SourceNodeView::Item(ItemSourceView::ConsumableSource(source)) = node else {
         return Ok(());
     };
-    let Some(consumable) = &mut physical.consumable else {
+    // A source identity can qualify an inline link only when this selection actually contains a record link.
+    if !view.relationships.iter().any(|edge| {
+        edge.origin == "content"
+            && edge.source.owners == view.selected.owners
+            && edge.destination.record_target().is_some()
+    }) {
+        return Ok(());
+    }
+    let mut consumable = match &mut view.presentation.body {
+        RecordBodyView::PhysicalReference(physical) => physical.consumable.as_mut(),
+        _ => None,
+    };
+    let spell = match &consumable {
+        Some(consumable) => consumable
+            .spell
+            .value
+            .as_ref()
+            .map(|link| link.navigation.clone()),
+        None => crate::presentation::consumable_spell(
+            record,
+            source,
+            &view.selected.owners,
+            retrieval.source_fingerprint(),
+        )
+        .value
+        .map(|link| link.navigation),
+    };
+    let Some(spell) = spell else {
         return Ok(());
     };
-    let Some(spell) = &consumable.spell.value else {
-        return Ok(());
-    };
-    let key = RecordKey::parse(&spell.navigation.record_key)
-        .map_err(|e| crate::AppServiceError::invalid_request(e.to_string()))?;
     let provenance = retrieval.read_non_content_relationships(&SourceRelationshipRequest {
-        record: key,
-        owners: Some(spell.navigation.owners.clone()),
-        field: None,
+        record: record.key().clone(),
+        owners: Some(spell.owners.clone()),
+        fields: vec![],
         direction: SourceRelationshipDirection::Outgoing,
         limit: 1024,
     })?;
@@ -56,15 +81,17 @@ pub(crate) fn attach_consumable_spell(
                 target.record_key == canonical.to_string() && target.owners.is_empty()
             })
         {
-            edge.contextual_target = Some(spell.navigation.clone());
+            edge.contextual_target = Some(spell.clone());
             // Only selected visible prepared fields may replace the explicit Spell row.
-            if view.presentation.content.iter().any(|field| {
-                field.locator == edge.source
-                    && matches!(
-                        field.body,
-                        atlas_app_model::PreparedFieldBodyView::Html { .. }
-                    )
-            }) {
+            if let Some(consumable) = &mut consumable
+                && view.presentation.content.iter().any(|field| {
+                    field.locator == edge.source
+                        && matches!(
+                            field.body,
+                            atlas_app_model::PreparedFieldBodyView::Html { .. }
+                        )
+                })
+            {
                 consumable.spell_presented_inline = true;
             }
         }
@@ -75,15 +102,15 @@ pub(crate) fn attach_consumable_spell(
 /// Preserve a selected casting rank on exact effect links without replacing identity.
 pub(crate) fn attach_ranked_effects(
     view: &mut RecordDetailView,
+    node: SourceNodeView<'_>,
     retrieval: &AtlasRetrievalService,
 ) -> crate::AppServiceResult<()> {
-    use atlas_record::source_record::{ItemSourceView, SourceNodeView};
     let Some(rank) = view.selected.spell_rank else {
         return Ok(());
     };
-    let from_spell = matches!(view.presentation.body, RecordBodyView::Spell(_));
-    let from_effect =
-        matches!(&view.presentation.body, RecordBodyView::Activity(a) if a.spell_effect.is_some());
+    let from_spell = matches!(node, SourceNodeView::Item(ItemSourceView::SpellSource(_)));
+    // Only supported spell effects can receive a selected casting rank.
+    let from_effect = matches!(node, SourceNodeView::Item(ItemSourceView::EffectSource(_)));
     if !from_spell && !from_effect {
         return Ok(());
     }

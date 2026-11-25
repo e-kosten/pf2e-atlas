@@ -1,5 +1,13 @@
+import { AtlasModal } from "../ui/overlays/AtlasModal";
 import { EditorView } from "@codemirror/view";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Form } from "antd";
 import { useState } from "react";
@@ -189,6 +197,7 @@ function inlinePage(query: string, title: string): SearchResultsPage {
     ranking: "score",
     search_profile: "bge-base",
     artifact_generation: "reference-a",
+    result_detail: "records" as const,
     relationship_clauses: [],
     coverage: null,
     mode: { kind: "text_search", mode: "lexical", query },
@@ -334,5 +343,41 @@ it("keeps an earlier cached suggestion unavailable after the collection changes"
     mounted.unmount();
     client.clear();
     search.mockRestore();
+  }
+});
+
+it("expands each bound field in the same form and preserves its edit session", () => {
+  const save = vi.fn();
+  render(
+    <AtlasModal open title="Settings">
+      <Form onFinish={save}>
+        <Form.Item name="first" label="First">
+          <MarkdownEditor label="First" />
+        </Form.Item>
+        <section>
+          <Form.Item name="second" label="Second">
+            <MarkdownEditor label="Second" />
+          </Form.Item>
+        </section>
+      </Form>
+    </AtlasModal>,
+  );
+  for (const label of ["First", "Second"]) {
+    const box = screen.getByRole("textbox", { name: label });
+    replaceMarkdown(box, "# Ambush");
+    const expand = within(box.closest(".markdown-editor") as HTMLElement).getByRole(
+      "button",
+      { name: "Expand editor" },
+    );
+    fireEvent.click(expand);
+    const dialog = screen.getByRole("dialog", { name: label });
+    expect(within(dialog).getByRole("textbox", { name: label })).toBe(box);
+    fireEvent.submit(box.closest("form")!);
+    const collapse = within(dialog).getByRole("button", { name: "Collapse editor" });
+    expect(collapse).toHaveFocus();
+    fireEvent.click(collapse);
+    expect(expand).toHaveFocus();
+    expect(markdownSource(box)).toBe("# Ambush");
+    expect(save).not.toHaveBeenCalled();
   }
 });

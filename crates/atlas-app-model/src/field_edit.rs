@@ -74,6 +74,14 @@ where
     FieldEdit::deserialize(deserializer).map(Some)
 }
 
+pub(crate) fn present_nullable<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::deserialize(deserializer).map(Some)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{UpdateSavedListItemNoteRequest, UpdateSavedListRequest};

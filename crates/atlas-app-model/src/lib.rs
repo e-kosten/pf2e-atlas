@@ -107,7 +107,7 @@ pub use traits::{
     TraitDetailRequest, TraitDetailView, TraitRecordView, TraitRecordsPage, TraitRecordsRequest,
 };
 mod table_roll;
-pub use table_roll::{RollTableRequest, TableRollView};
+pub use table_roll::{RollTableRequest, TableRollMatchView, TableRollView};
 mod strike_roll;
 pub use strike_roll::{
     EncounterStrikeOptionsRequest, EncounterStrikeOptionsView, EncounterStrikeRollView,
@@ -146,8 +146,9 @@ pub use pc_reference::{
 };
 mod party;
 pub use party::{
-    AddEncounterPartyRequest, CreatePartyRequest, DeletePartyRequest, PartyIndexView,
-    PartyMemberInput, PartyMemberView, PartyMutationView, PartyView, UpdatePartyRequest,
+    AddEncounterPartyRequest, CreatePartyRequest, DeletePartyRequest, PartyDirectoryView,
+    PartyIndexView, PartyMemberInput, PartyMemberView, PartyMutationView, PartySummaryView,
+    PartyView, RenamePartyRequest, UpdatePartyRequest,
 };
 mod prepared_content;
 mod presentation;
@@ -178,7 +179,8 @@ pub use encounter::{
     AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest,
     ConditionActionView, ConditionDurationUnit, ConditionDurationView, ConditionExtraActionView,
     ConditionScopeView, ConditionTimingView, ConditionTurnEvent, CreateEncounterRequest,
-    CreatureScenarioContext, DeleteEncounterView, EncounterConditionApplicabilityView,
+    CreatureAdditionContextView, CreatureScenarioContext, DeleteEncounterView,
+    EncounterAdditionContextView, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView,
     EncounterConditionEligibilityView, EncounterCreateView, EncounterDetailView, EncounterHpAction,
@@ -186,7 +188,7 @@ pub use encounter::{
     EncounterNextTurnUnavailableReason, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
     EncounterParticipantVariantView, EncounterParticipantView, EncounterRecordAdditionResult,
-    EncounterReferenceRequest, EncounterSpellAction, EncounterSpellRankView,
+    EncounterReferenceRequest, EncounterRevisionView, EncounterSpellAction, EncounterSpellRankView,
     EncounterSpellResourceScope, EncounterSpellResourceView, EncounterSpellView,
     EncounterSpellcastingView, EncounterSummaryView, EncounterTurnBoundaryView,
     EncounterTurnReminderView, EncounterTurnReviewView, InherentConditionView,
@@ -210,9 +212,9 @@ pub use filter::{
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
-    RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView, SearchResultsView,
-    SimilarRecordsView, VariantAxisSliceView, VariantEvidenceView, VariantFamilyChoiceView,
-    VariantFamilyView, VariantGroupView,
+    RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView, RelatedReferencesView,
+    SearchResultsView, SimilarRecordsView, VariantAxisSliceView, VariantEvidenceView,
+    VariantFamilyChoiceView, VariantFamilyView, VariantGroupView,
 };
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,

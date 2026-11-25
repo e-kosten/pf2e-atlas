@@ -94,7 +94,16 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
                 &navigation::root(&key.to_string()),
             ));
         }
-        let (record, excerpt) = s.record_read_at(request).map_err(|e| e.into_app_error())?;
+        let (record, excerpt) = s
+            .record_read_at(
+                request,
+                o.section
+                    .iter()
+                    .copied()
+                    .map(args::RecordSection::read_section)
+                    .collect(),
+            )
+            .map_err(|e| e.into_app_error())?;
         let abilities = if o.section.contains(&args::RecordSection::Abilities) {
             ability_reading(&s, &record)?
         } else {

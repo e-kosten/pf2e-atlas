@@ -57,6 +57,23 @@ impl ProductGroup {
         }
     }
 }
+pub(crate) fn filter_group_names(catalog: QueryCapability) -> Vec<(&'static str, &'static str)> {
+    catalog
+        .fields
+        .iter()
+        .filter(|field| visible_field(field))
+        .map(product_group)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .map(ProductGroup::metadata)
+        .collect()
+}
+
+fn visible_field(field: &QueryFieldDefinition) -> bool {
+    // Technical binding; ancestry has a separate slug control.
+    field.path != "heritage.ancestry.uuid"
+}
+
 pub(crate) fn filter_editor_view(
     catalog: QueryCapability,
     selected: &[String],
@@ -64,12 +81,7 @@ pub(crate) fn filter_editor_view(
     relationship_clauses: Vec<atlas_app_model::RelationshipClausePresentationView>,
 ) -> crate::AppServiceResult<FilterEditorView> {
     let mut groups = BTreeMap::<ProductGroup, FilterEditorGroupView>::new();
-    for definition in catalog.fields {
-        // Source identifiers remain executable technical bindings, but are not
-        // useful product filter controls. Ancestry has a separate slug filter.
-        if definition.path == "heritage.ancestry.uuid" {
-            continue;
-        }
+    for definition in catalog.fields.into_iter().filter(visible_field) {
         let group = product_group(&definition);
         let control = match definition.field_type {
             QueryFieldType::String => FilterControlView::Text,

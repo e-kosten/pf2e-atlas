@@ -309,7 +309,6 @@ export function ListEntryNoteEditor({
   const paused = useSavedWritesPaused();
   const editButton = useRef<HTMLButtonElement>(null);
   const openButton = useRef<HTMLButtonElement>(null);
-  const expandButton = useRef<HTMLButtonElement>(null);
   const [overflowSource, setOverflowSource] = useState<string>();
   const heading = useRef<HTMLHeadingElement>(null);
   const region = useRef<HTMLElement>(null);
@@ -428,23 +427,6 @@ export function ListEntryNoteEditor({
             {state.detached && draft ? `Note for ${draft.title}` : "Note"}
           </Typography.Text>
         )}
-        {editing && !reading && !state.detached && !removed && (
-          <Button
-            ref={expandButton}
-            type="text"
-            disabled={pending}
-            onClick={() => {
-              if (expanded) state.closePane();
-              else {
-                footer?.rememberReaderPosition();
-                state.openPane("edit");
-              }
-              expandButton.current?.focus({ preventScroll: true });
-            }}
-          >
-            {expanded ? "Collapse editor" : "Expand editor"}
-          </Button>
-        )}
         {!readingFullNote && !draft && note.data && !removed && (
           <Space wrap>
             {!expanded && overflow && (
@@ -502,7 +484,19 @@ export function ListEntryNoteEditor({
             disabled={pending}
             readOnly={removed || paused}
             onChange={state.change}
-            sizing={expanded ? "roomy" : "compact"}
+            pane={{
+              expanded,
+              toggle:
+                !reading && !detached && !removed && !pending
+                  ? () => {
+                      if (expanded) state.closePane();
+                      else {
+                        footer?.rememberReaderPosition();
+                        state.openPane("edit");
+                      }
+                    }
+                  : undefined,
+            }}
           />
         ) : !removed && savedNote ? (
           <ListNoteReadout

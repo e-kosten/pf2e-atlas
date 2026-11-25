@@ -40,7 +40,7 @@ export function EncounterHpAmount({
       <label htmlFor={id} className="encounter-hp-control__label">
         HP change
       </label>
-      <div className="encounter-hp-control__row">
+      <div className="action-group encounter-hp-control__row">
         <Input
           id={id}
           aria-label="HP change"
@@ -55,28 +55,26 @@ export function EncounterHpAmount({
             }
           }}
         />
-        <div className="encounter-hp-actions">
-          {actions.map((kind) => (
-            <Tooltip
-              key={kind}
-              title={kind === "heal" ? healUnavailableReason : undefined}
-              trigger={["hover", "focus"]}
-            >
-              <span>
-                <Button
-                  disabled={
-                    disabled ||
-                    !amount.trim() ||
-                    (kind === "heal" && !!healUnavailableReason)
-                  }
-                  onClick={() => void apply(kind)}
-                >
-                  {kind === "damage" ? "Damage" : "Heal"}
-                </Button>
-              </span>
-            </Tooltip>
-          ))}
-        </div>
+        {actions.map((kind) => (
+          <Tooltip
+            key={kind}
+            title={kind === "heal" ? healUnavailableReason : undefined}
+            trigger={["hover", "focus"]}
+          >
+            <span>
+              <Button
+                disabled={
+                  disabled ||
+                  !amount.trim() ||
+                  (kind === "heal" && !!healUnavailableReason)
+                }
+                onClick={() => void apply(kind)}
+              >
+                {kind === "damage" ? "Damage" : "Heal"}
+              </Button>
+            </span>
+          </Tooltip>
+        ))}
       </div>
     </div>
   );

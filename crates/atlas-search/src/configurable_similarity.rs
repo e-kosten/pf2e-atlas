@@ -91,7 +91,7 @@ pub struct ConfigurableSimilarRequest<'a> {
     pub page: SearchPage,
     pub sort: ResultSort,
 
-    pub include_evidence: bool,
+    pub result_detail: atlas_domain::SearchResultDetail,
     pub cancelled: Option<&'a dyn Fn() -> bool>,
 }
 #[derive(Debug)]
@@ -190,6 +190,79 @@ struct PendingEvidence {
     truncated: bool,
 }
 
+struct EvidenceIndices<'a> {
+    seed_parts: BTreeMap<&'a SimilarityPartSelector, usize>,
+    seed_units: HashMap<Option<i64>, usize>,
+}
+
+impl EvidenceIndices<'_> {
+    fn pending(
+        &self,
+        score: crate::similarity_scoring::Score<'_>,
+        score_selected_parts: usize,
+    ) -> Result<PendingEvidence, SearchError> {
+        let pairs = score
+            .pairs
+            .into_iter()
+            .filter(|pair| pair.candidate.location.is_some())
+            .map(|pair| {
+                Ok(PendingPair {
+                    seed_unit: self
+                        .seed_units
+                        .get(&pair.seed.location.as_ref().map(|location| location.unit_id))
+                        .copied()
+                        .ok_or_else(|| {
+                            SearchError::artifact_contract_violation(
+                                "comparison seed unit disappeared",
+                            )
+                        })?,
+                    candidate: pair.candidate.location.clone().ok_or_else(|| {
+                        SearchError::artifact_contract_violation(
+                            "comparison candidate location disappeared",
+                        )
+                    })?,
+                    cosine: pair.cosine,
+                    candidate_label: pair.candidate.component.label().to_owned(),
+                })
+            })
+            .collect::<Result<Vec<_>, SearchError>>()?;
+        let (parts, truncated) = compact_part_scores(score.parts, &self.seed_parts)?;
+
+        Ok(PendingEvidence {
+            score: score.score,
+            aggregation: score.aggregation,
+            selected_parts: score_selected_parts,
+            comparable_parts: score.comparable_parts,
+            parts,
+            roles: score
+                .roles
+                .into_iter()
+                .map(|role| SimilarityRoleScore {
+                    key: role.key,
+                    score: role.score,
+                    weight: role.weight,
+                    comparable: role.comparable,
+                })
+                .collect(),
+            pairs,
+            representative: score.representative,
+            truncated,
+        })
+    }
+}
+
+fn group_units(units: Vec<SourceSimilarityUnit>) -> BTreeMap<RecordKey, Vec<SourceSimilarityUnit>> {
+    let mut grouped = BTreeMap::<RecordKey, Vec<SourceSimilarityUnit>>::new();
+    for unit in units {
+        if let Some(location) = &unit.location {
+            grouped
+                .entry(location.record.clone())
+                .or_default()
+                .push(unit);
+        }
+    }
+    grouped
+}
 fn compact_part_scores(
     parts: Vec<crate::similarity_scoring::PartScore>,
     source_indices: &BTreeMap<&SimilarityPartSelector, usize>,
@@ -300,10 +373,16 @@ impl crate::AtlasRetrievalService {
                 request.content_scope,
                 request.filter,
                 request.scope,
-                request.include_evidence,
+                request.result_detail,
             )?;
-            let results =
-                self.finish_results(&profile, roots, request.page, window, request.sort)?;
+            let results = self.finish_results(
+                &profile,
+                roots,
+                request.page,
+                window,
+                request.sort,
+                request.result_detail,
+            )?;
             return Ok(Some(ConfigurableSimilarResult {
                 seed,
                 results,
@@ -374,7 +453,7 @@ impl crate::AtlasRetrievalService {
             ));
         }
         let seed_parts = crate::similarity_scoring::parts(&seed_units)?;
-        let evidence_indices = request.include_evidence.then(|| {
+        let evidence_indices = request.result_detail.includes_evidence().then(|| {
             let seed_part_indices = seed_parts
                 .iter()
                 .enumerate()
@@ -390,7 +469,10 @@ impl crate::AtlasRetrievalService {
                     )
                 })
                 .collect::<HashMap<_, _>>();
-            (seed_part_indices, seed_unit_indices)
+            EvidenceIndices {
+                seed_parts: seed_part_indices,
+                seed_units: seed_unit_indices,
+            }
         });
         let mode = request.options.candidate_parts();
         let predicate = self.predicate(request.filter)?;
@@ -503,6 +585,11 @@ impl crate::AtlasRetrievalService {
         let keys = keys.into_iter().collect::<Vec<_>>();
         let mut roots = Vec::new();
         let mut pending = BTreeMap::new();
+        // Centroid ranking needs no representative pair. Recover one for each
+        // displayed root once sorting and pagination have selected the page.
+        let defer_average_pairs = request.result_detail
+            == atlas_domain::SearchResultDetail::Compact
+            && matches!(request.options, SimilarityOptions::ContentAverage { .. });
         let mut budget = CandidateWorkBudget::default();
         for batch in keys.chunks(128) {
             request.check()?;
@@ -526,16 +613,7 @@ impl crate::AtlasRetrievalService {
                 matches!(request.options, SimilarityOptions::Passages { .. }),
             )?;
             diagnostics.candidate_vectors = budget.vectors;
-            let mut grouped = BTreeMap::<RecordKey, Vec<SourceSimilarityUnit>>::new();
-            for unit in units {
-                if let Some(location) = &unit.location {
-                    grouped
-                        .entry(location.record.clone())
-                        .or_default()
-                        .push(unit);
-                }
-            }
-            for (key, units) in grouped {
+            for (key, units) in group_units(units) {
                 request.check()?;
                 let candidate_parts = crate::similarity_scoring::parts(&units)?;
                 let score = match request.options {
@@ -545,7 +623,7 @@ impl crate::AtlasRetrievalService {
                             &candidate_parts,
                             mode,
                             *decay,
-                            request.include_evidence,
+                            request.result_detail,
                             request.cancelled,
                         )?)
                     }
@@ -554,7 +632,11 @@ impl crate::AtlasRetrievalService {
                             &seed_parts,
                             &candidate_parts,
                             mode,
-                            request.include_evidence,
+                            if defer_average_pairs {
+                                atlas_domain::SearchResultDetail::Records
+                            } else {
+                                request.result_detail
+                            },
                             request.cancelled,
                         )?
                     }
@@ -579,58 +661,11 @@ impl crate::AtlasRetrievalService {
                     // candidate witnesses together once the page is known.
                     witnesses: vec![],
                 });
-                let Some((seed_part_indices, seed_unit_indices)) = &evidence_indices else {
-                    continue;
-                };
-                let pairs = score
-                    .pairs
-                    .into_iter()
-                    .filter(|pair| pair.candidate.location.is_some())
-                    .map(|pair| {
-                        Ok(PendingPair {
-                            seed_unit: seed_unit_indices
-                                .get(&pair.seed.location.as_ref().map(|location| location.unit_id))
-                                .copied()
-                                .ok_or_else(|| {
-                                    SearchError::artifact_contract_violation(
-                                        "comparison seed unit disappeared",
-                                    )
-                                })?,
-                            candidate: pair.candidate.location.clone().ok_or_else(|| {
-                                SearchError::artifact_contract_violation(
-                                    "comparison candidate location disappeared",
-                                )
-                            })?,
-                            cosine: pair.cosine,
-                            candidate_label: pair.candidate.component.label().to_owned(),
-                        })
-                    })
-                    .collect::<Result<Vec<_>, SearchError>>()?;
-                let (parts, truncated) = compact_part_scores(score.parts, seed_part_indices)?;
-
-                pending.insert(
-                    key,
-                    PendingEvidence {
-                        score: score.score,
-                        aggregation: score.aggregation,
-                        selected_parts: seed_parts.len(),
-                        comparable_parts: score.comparable_parts,
-                        parts,
-                        roles: score
-                            .roles
-                            .into_iter()
-                            .map(|role| SimilarityRoleScore {
-                                key: role.key,
-                                score: role.score,
-                                weight: role.weight,
-                                comparable: role.comparable,
-                            })
-                            .collect(),
-                        pairs,
-                        representative: score.representative,
-                        truncated,
-                    },
-                );
+                if let Some(indices) = &evidence_indices
+                    && !defer_average_pairs
+                {
+                    pending.insert(key, indices.pending(score, seed_parts.len())?);
+                }
             }
             *diagnostics.timings.scoring_ms.get_or_insert(0.0) +=
                 scoring_started.elapsed().as_secs_f64() * 1000.0;
@@ -645,9 +680,42 @@ impl crate::AtlasRetrievalService {
             request.page,
             Some(CANDIDATE_WINDOW),
             request.sort.clone(),
+            request.result_detail,
         )?;
         let mut evidence = Vec::new();
-        if request.include_evidence {
+        if let Some(indices) = &evidence_indices {
+            if defer_average_pairs && !results.records.is_empty() {
+                let keys = results
+                    .records
+                    .iter()
+                    .map(|row| row.record.key.clone())
+                    .collect::<Vec<_>>();
+                let units = self.index.similarity_units(
+                    &profile,
+                    &keys,
+                    request.content_scope,
+                    candidate_identity,
+                    MAX_CANDIDATE_UNITS,
+                )?;
+                for (key, units) in group_units(units) {
+                    request.check()?;
+                    let candidate_parts = crate::similarity_scoring::parts(&units)?;
+                    let score = crate::similarity_scoring::content_average(
+                        &seed_parts,
+                        &candidate_parts,
+                        mode,
+                        request.result_detail,
+                        request.cancelled,
+                    )?
+                    .ok_or_else(|| {
+                        SearchError::artifact_contract_violation(
+                            "ranked content average unavailable in the same snapshot",
+                        )
+                    })?;
+                    diagnostics.pairwise_comparisons += score.comparisons;
+                    pending.insert(key, indices.pending(score, seed_parts.len())?);
+                }
+            }
             for record in &results.records {
                 request.check()?;
                 if let Some(pending) = pending.remove(&record.record.key) {
@@ -668,17 +736,20 @@ impl crate::AtlasRetrievalService {
                 })
                 .collect::<Vec<_>>();
             self.hydrate_similarity_witnesses(&mut witnesses, &request)?;
-            for (key, evidence) in &evidence {
-                if let Some(record) = results
-                    .records
-                    .iter_mut()
-                    .find(|record| &record.record.key == key)
-                {
-                    record.matches = evidence
-                        .pairs
-                        .iter()
-                        .map(|pair| pair.candidate.clone())
-                        .collect();
+            // Compact consumers read the candidate from its representative pair.
+            if request.result_detail == atlas_domain::SearchResultDetail::Evidence {
+                for (key, evidence) in &evidence {
+                    if let Some(record) = results
+                        .records
+                        .iter_mut()
+                        .find(|record| &record.record.key == key)
+                    {
+                        record.matches = evidence
+                            .pairs
+                            .iter()
+                            .map(|pair| pair.candidate.clone())
+                            .collect();
+                    }
                 }
             }
         }

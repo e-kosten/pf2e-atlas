@@ -320,7 +320,13 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             detail,
             participant,
         } => {
-            let view = view!(service.encounter_with_reference(&encounter, party.into()));
+            use atlas_app_service::EncounterReadDetail;
+            let scope = match (&participant, detail) {
+                (Some(key), _) => EncounterReadDetail::Participant(key.clone()),
+                (None, Detail::Full) => EncounterReadDetail::Full,
+                _ => EncounterReadDetail::Compact,
+            };
+            let view = view!(service.encounter_projected(&encounter, party.into(), scope));
             if let Some(key) = &participant
                 && !view.participants.iter().any(|p| &p.participant_key == key)
             {

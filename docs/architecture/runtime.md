@@ -616,10 +616,16 @@ the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
 The default `result_detail: records` returns localized summaries, ordering and
-query-level metadata. Consumers that display witnesses, occurrence proofs or
-Similarity explanations request `result_detail: evidence`. Both projections use
-the same eligible records, scoring, sorting and page boundaries. Records-only
-retrieval skips reads and comparisons used solely to explain results.
+query-level metadata. The page reports its effective `result_detail`. Compact
+text detail supplies the first witness with a preview, falling back to the first
+witness. Compact relationship rows include the occurrence page. For configurable
+Similar, compact rows put the candidate in `similarity.pairs` alongside its seed
+and leave `matches`, `parts` and `roles` empty. Baseline Similar uses text witnesses.
+Evidence detail supplies all returned witnesses, matching sections, and available
+part and role contributions. All three projections use the same eligible records,
+scoring, sorting and page boundaries. Records-only retrieval skips reads and
+comparisons used solely to explain results. The ranking field selects the fusion
+method for hybrid text search.
 
 Lexical text searches can select `lexical.fields: record_names` to search
 indexed names and verified aliases. With `lexical.match: last_token_prefix`,
@@ -760,18 +766,18 @@ late old reads from restoring retired data. Similar previews reload their actual
 owning detail before retrying against a new generation, including encounter-owned
 reference previews. Snapshot-local owner selections remain exact.
 
-One bounded app-service Related operation returns verified nonempty categories
-with separate empty, unavailable and error outcomes. Its reference scope is the
-exact selected owner (including the empty root owner path). Direct remaster
-information describes that selection; an owned entry's exact source-origin context
-is a separately labelled category, with independent availability/error outcomes.
-Typed variant checks apply only to roots. Variant checks retain their bounded
-source-snapshot compatibility verification; category discovery never runs Similar
-ranking. Responses and browser caches use the complete selection and immutable
-artifact-context hash, distinct from snapshot-local navigation fingerprints.
+The Related operation checks incoming and outgoing record availability using the
+same indexed occurrence scope and product eligibility as relationship Search.
+It also returns up to five additional outgoing links for the exact selected
+owner and field. The destination filter runs before the limit. Version discovery
+retains bounded typed variant and equipment family checks for roots. Explore
+reuses the reader's direct remaster and source-origin context. Each category
+preserves its empty, unavailable and error outcomes. The explicit CLI graph
+operation remains available for callers that need complete occurrence details.
 
-Browser exploration previews are independent first-page Search requests limited
-to five rows. Full-result actions enter primary Search rather than an inline
+The active direction in Explore requests one five-row Search page with
+relationship evidence. Browser cache keys include the selection, direction,
+profile and artifact generation. Full-result actions enter primary Search rather than an inline
 association pager.
 Trait-reference searches obtain complete distinct owning-record eligibility from
 index evidence through search, then apply the ordinary predicates, ordering and
@@ -851,12 +857,19 @@ encounter layouts prioritize combat state. Immediate Ability-class actions, effe
 bounded embedded-reading batches: one checked parent decode and one attributed
 prepared-content batch, up to 32 entries and 256 fields. Roll-table result reading
 uses the same bounded owner with range facts retained in the parent presentation.
-Table reference rolls remain non-consuming; matched results are shown even when
-their reading page is not loaded. Index owns exact
+A reference table roll checks one source, rolls once and prepares each matching
+result from that same source. Browser matches carry the title, navigation,
+prepared content and links. The CLI requests standard reading detail for each
+match. Both retain overlapping matches and unavailable ranges without consuming rows. Index owns exact
 locator SQL and complete relationship attribution for each delivered field.
 Fields exceeding the 1024 occurrence response budget have an explicit bounded
 outcome; valid rich content is never delivered with silently disabled links.
-Separate non-content relationship discovery remains bounded. Reading continuations
+Multi-field detail selections return their distinct field paths in source order.
+Reopening a selection binds those paths to its artifact generation. Field
+selection also scopes non-content relationships before their response limit.
+Explicit terminal sections share one selected record read and prepare rich
+content and actor activity references only for the requested sections. Defense
+readings retain the ordinary defense labels and rule definitions. Reading continuations
 and browser caches bind the checked reference generation; partial content never
 seeds selected-detail caches. Direct late-owner landing loads its bounded range
 without predecessor reads and retains explicit backward/forward continuation.
@@ -1088,9 +1101,10 @@ query probes before atomic publication. Evidence remains in the caller checkout.
 
 ### Authored content reference rolls
 
-App-service resolves a selected source field and interaction ordinal from the
-checked record, verifies its source fingerprint, interpretation version, authored
-command mode and exact formula, then
+App-service reopens the selected field and resolves its individual interaction
+ordinal with the reader's control preparation. It applies the selected casting
+rank and encounter binding, checks the source fingerprint, interpretation version,
+authored command mode and exact formula, then
 validates every supported instance before rolling. Complete bounded damage
 expressions with recognized options receive a roll offer after any supported
 variables resolve from checked source, selected rank or encounter context. Literal
@@ -1130,7 +1144,7 @@ Schema32 removes the experimental declaration framework and keeps only the alias
 pair and context projections. Normal setup preserves saved state and compatible
 vectors; ordinary reads keep the normal readiness boundary until required
 preparation completes. Search retains all independently matching records.
-App-service supplies compact facts and useful journal destinations through ordinary
-record and related reads. No term catalog, missing-save inspector or dedicated
+App-service supplies compact facts and journal destinations through ordinary
+record reads. Explore reuses those facts when offering versions. No term catalog, missing-save inspector or dedicated
 relationship API is retained. See [ADR0067](decisions/0067-remaster-relationships.md)
 and the [artifact contract](artifact-contract.md).

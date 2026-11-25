@@ -36,6 +36,13 @@ impl AtlasAppService {
             Ok(retrieval.discover_filter_fields()?)
         })
     }
+    pub fn discover_filter_group_names(
+        &self,
+    ) -> AppServiceResult<Vec<(&'static str, &'static str)>> {
+        self.discover_filter_fields()
+            .map(crate::discovery::filter_group_names)
+    }
+
     pub fn discover_filter_editor(
         &self,
         request: DiscoverFilterEditorRequest,
@@ -296,44 +303,14 @@ fn editor_values(
     field: &str,
     filter: Option<&QueryPredicate>,
 ) -> AppServiceResult<Vec<String>> {
-    let mut values = Vec::new();
-    let mut offset = 0;
-    loop {
-        let result = retrieval.discover_filter_values(SearchValues {
-            only_matching: true,
-            field,
-            clause_id: None,
-            context: SearchContext {
-                content_scope: atlas_domain::SearchContentScope::All,
-                search_profile: None,
-                text: None,
-                scope: RecordScope::All,
-
-                filter,
-            },
-            text: None,
-            offset,
-            limit: 40,
-        })?;
-        let QueryFacetOutcome::Available { value } = result else {
-            return Ok(values);
-        };
-        let length = value.options.len();
-        values.extend(
-            value
-                .options
-                .into_iter()
-                .filter_map(|option| match option.value {
-                    atlas_domain::QueryLiteral::String(value) => Some(value),
-                    _ => None,
-                }),
-        );
-        offset += length;
-        if length == 0 || offset as u64 >= value.total_values {
-            break;
-        }
-    }
-    Ok(values)
+    Ok(retrieval
+        .matching_field_values(field, filter)?
+        .into_iter()
+        .filter_map(|value| match value {
+            atlas_domain::QueryLiteral::String(value) => Some(value),
+            _ => None,
+        })
+        .collect())
 }
 type ContextParts = (
     Option<String>,

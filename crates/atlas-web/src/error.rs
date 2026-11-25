@@ -86,3 +86,38 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
+
+/// URL parameter rejections use the same JSON envelope as service errors.
+pub(crate) struct Path<T>(pub T);
+
+impl<T, S> axum::extract::FromRequestParts<S> for Path<T>
+where
+    T: serde::de::DeserializeOwned + Send,
+    S: Send + Sync,
+{
+    type Rejection = WebError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &S,
+    ) -> Result<Self, WebError> {
+        axum::extract::Path::<T>::from_request_parts(parts, state)
+            .await
+            .map(|path| Self(path.0))
+            .map_err(|error| {
+                WebError(AppError::new(
+                    AppErrorCode::InvalidRequest,
+                    error.body_text(),
+                ))
+            })
+    }
+}
+
+impl From<axum::extract::rejection::QueryRejection> for WebError {
+    fn from(error: axum::extract::rejection::QueryRejection) -> Self {
+        Self(AppError::new(
+            AppErrorCode::InvalidRequest,
+            error.body_text(),
+        ))
+    }
+}

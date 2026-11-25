@@ -777,7 +777,7 @@ pub struct UpdateEncounterParticipantEdit {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "present_nullable_participant_field"
+        deserialize_with = "crate::field_edit::present_nullable"
     )]
     #[cfg_attr(feature = "openapi", schema(value_type = Option<i64>))]
     pub initiative: Option<Option<i64>>,
@@ -805,7 +805,7 @@ pub struct UpdateEncounterParticipantEdit {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "present_nullable_participant_field"
+        deserialize_with = "crate::field_edit::present_nullable"
     )]
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
     pub note: Option<Option<String>>,
@@ -817,16 +817,6 @@ where
     T: Deserialize<'de>,
 {
     T::deserialize(deserializer).map(Some)
-}
-
-fn present_nullable_participant_field<'de, D, T>(
-    deserializer: D,
-) -> Result<Option<Option<T>>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    Option::deserialize(deserializer).map(Some)
 }
 
 /// A supplied exact value; null explicitly clears current/maximum availability.
@@ -1270,4 +1260,28 @@ mod turn_boundary_wire_tests {
         json.as_object_mut().unwrap().remove("source_revision");
         assert!(serde_json::from_value::<EncounterTurnBoundaryView>(json).is_err());
     }
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncounterRevisionView {
+    pub revision: i64,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncounterAdditionContextView {
+    pub revision: i64,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub artifact_generation: Option<String>,
+    pub difficulty: crate::EncounterDifficultyView,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreatureAdditionContextView {
+    pub record_key: String,
+    pub artifact_generation: String,
+    pub has_scenario_uses: bool,
+    pub adjustment: EncounterParticipantVariantView,
 }

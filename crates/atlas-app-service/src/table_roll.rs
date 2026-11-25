@@ -1,15 +1,74 @@
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    AppRecoverableAction, RecordAddress, RecordBodyView, RecordSelection, RollTableRequest,
-    TableRollView,
+    AppRecoverableAction, RecordAddress, RecordBodyView, RecordDetailView, RecordNavigationView,
+    RecordSelection, RollTableRequest, TableRollMatchView, TableRollView,
 };
+
+#[derive(Debug)]
+pub struct RolledTable<T> {
+    pub table: atlas_app_model::RecordSummaryView,
+    pub outcome: atlas_dice::RollOutcome,
+    pub matches: Vec<T>,
+    pub invalid_ranges: Vec<RecordNavigationView>,
+}
 
 impl AtlasAppService {
     /// Reference roll only: no deck consumption or recursive linked-table execution.
     pub fn roll_table(&self, request: RollTableRequest) -> AppServiceResult<TableRollView> {
+        let roll = self.project_table_roll(request, false, |loaded, selection| {
+            let (view, _) = loaded.project_with_excerpt(
+                selection,
+                None,
+                crate::records::ReadingProjection::TableMatch,
+            )?;
+            Ok(TableRollMatchView {
+                title: view.presentation.identity.title,
+                navigation: view.selected,
+                content: view.presentation.content,
+                relationships: view.relationships,
+            })
+        })?;
+        Ok(TableRollView {
+            outcome: roll.outcome,
+            matches: roll.matches,
+            invalid_ranges: roll.invalid_ranges,
+        })
+    }
+
+    pub fn roll_table_full(
+        &self,
+        request: RollTableRequest,
+    ) -> AppServiceResult<RolledTable<RecordDetailView>> {
+        self.project_table_roll(request, true, |loaded, selection| {
+            loaded.project(selection, None)
+        })
+    }
+
+    fn project_table_roll<T: Send + 'static>(
+        &self,
+        request: RollTableRequest,
+        check_retained_location: bool,
+        project: impl Fn(
+            &crate::records::LoadedRecordDetail<'_>,
+            RecordSelection,
+        ) -> AppServiceResult<T>
+        + Send
+        + 'static,
+    ) -> AppServiceResult<RolledTable<T>> {
         self.with_retrieval(&ReadExecutionContext::uncancellable(), move |retrieval| {
-            let (loaded, detail) =
-                crate::records::LoadedRecordDetail::read(retrieval, request.selection, None)?;
+            if check_retained_location {
+                crate::records::check_retained_location(
+                    retrieval,
+                    Some(&request.artifact_generation),
+                    request.selection.address.source_fingerprint.as_deref(),
+                )?;
+            }
+            let loaded = crate::records::LoadedRecordDetail::load(retrieval, &request.selection)?;
+            let (detail, _) = loaded.project_with_excerpt(
+                request.selection,
+                None,
+                crate::records::ReadingProjection::Table,
+            )?;
             if detail.artifact_generation != request.artifact_generation {
                 return Err(AppServiceError::artifact_generation_changed(
                     &request.artifact_generation,
@@ -36,7 +95,8 @@ impl AtlasAppService {
                 match row.range.value {
                     None => invalid_ranges.push(navigation),
                     Some(range) if contains(range, outcome.total.into()) => {
-                        let result = loaded.project(
+                        let result = project(
+                            &loaded,
                             RecordSelection {
                                 address: RecordAddress {
                                     record_key: navigation.record_key,
@@ -47,14 +107,14 @@ impl AtlasAppService {
                                 fields: vec![],
                                 passage: None,
                             },
-                            None,
                         )?;
                         matches.push(result);
                     }
                     Some(_) => {}
                 }
             }
-            Ok(TableRollView {
+            Ok(RolledTable {
+                table: detail.presentation.identity,
                 outcome,
                 matches,
                 invalid_ranges,
@@ -141,7 +201,7 @@ mod service_tests {
             }
             .into_selection(),
         };
-        let rolled = fixture.worker.roll_table(request.clone()).unwrap();
+        let rolled = fixture.worker.roll_table_full(request.clone()).unwrap();
         assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 1);
         assert_eq!(rolled.outcome.total, 4);
         assert_eq!(rolled.matches.len(), 2);
@@ -152,6 +212,16 @@ mod service_tests {
             .zip(["<p>First match</p>", "<p>Second match</p>"])
         {
             assert!(result.presentation.content.iter().any(|field| matches!(&field.body, atlas_app_model::PreparedFieldBodyView::Html { html, .. } if html == expected)));
+        }
+        let compact = fixture.worker.roll_table(request.clone()).unwrap();
+        assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 1);
+        assert_eq!(compact.matches.len(), rolled.matches.len());
+        assert_eq!(compact.invalid_ranges, rolled.invalid_ranges);
+        for (compact, full) in compact.matches.iter().zip(&rolled.matches) {
+            assert_eq!(compact.navigation, full.selected);
+            assert_eq!(compact.title, full.presentation.identity.title);
+            assert_eq!(compact.content, full.presentation.content);
+            assert_eq!(compact.relationships, full.relationships);
         }
         for result in &rolled.matches {
             let ordinary = fixture
@@ -181,7 +251,7 @@ mod service_tests {
         assert_eq!(
             fixture
                 .worker
-                .roll_table(request.clone())
+                .roll_table_full(request.clone())
                 .unwrap()
                 .matches
                 .len(),
@@ -192,7 +262,7 @@ mod service_tests {
         assert!(
             fixture
                 .worker
-                .roll_table(request.clone())
+                .roll_table_full(request.clone())
                 .unwrap()
                 .matches
                 .is_empty()
@@ -259,7 +329,7 @@ mod service_tests {
         ]);
         let request = request(&fixture, "tables:table00000000000");
         for _ in 0..2 {
-            let rolled = fixture.worker.roll_table(request.clone()).unwrap();
+            let rolled = fixture.worker.roll_table_full(request.clone()).unwrap();
             assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 1);
             assert_eq!(rolled.outcome.total, 4);
             assert_eq!(rolled.matches.len(), 2);

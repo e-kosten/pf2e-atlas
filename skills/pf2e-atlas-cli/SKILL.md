@@ -274,7 +274,9 @@ Similar also accepts `--page` and `--limit` for stateless result pages.
 Browse and text search return `data.rows`, `page`, `coverage`, ordering, profile
 and artifact generation. The default supplies the best available witness and
 relationship evidence. Use `search --detail full` for all returned witnesses and
-ranking detail. Similar retains its comparison evidence and `--explain` option.
+ranking detail. Similar returns up to one representative pair per row by default.
+Supply `--explain --json` to read additional pairs and part or role contributions.
+Search and Similar return the effective `result_detail` on the page.
 Report bounded semantic and hybrid counts with their coverage and count basis.
 
 Each search row supplies `open_args` to read its exact selection. `next_args`
@@ -509,10 +511,11 @@ Take SHA256/generation/revision from preview, inspect `proposed` and any `curren
 context plus `changes`, then save the same input. `-` accepts bounded UTF-8 stdin.
 Refresh replaces canonical name/level, complete source and rule references; retained
 manual corrections follow the existing ability identities. A changed file,
-generation or revision requires a fresh review. Refresh is revision guarded and
-has no automatic replay promise. New character creation/import and encounter PC
-addition use explicit request IDs: replay only the identical original intent,
-including its original guards; never substitute newer values into a retry.
+generation or revision requires a fresh review for a new action. For refresh
+recovery across invocations, supply `--request-id REFRESH_ID` from the first
+attempt. Reuse that ID with the original reviewed export, revision, generation
+and choices. Character creation/import and encounter PC addition also accept
+exact replays of their original request IDs and inputs.
 
 Create manual characters and reusable rosters, or edit reviewed canonical metadata:
 

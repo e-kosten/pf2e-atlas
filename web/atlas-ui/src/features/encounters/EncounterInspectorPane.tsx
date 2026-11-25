@@ -705,12 +705,12 @@ function EncounterParticipantSurface({
                 }
               />
             </div>
-            <p className="record-reference__kind">
-              {presentation
-                ? recordClassification(presentation)
-                : participant.participant_kind}
-            </p>
-            <div className="encounter-reference__actions">
+            <div className="action-group encounter-reference__actions">
+              <p className="record-reference__kind">
+                {presentation
+                  ? recordClassification(presentation)
+                  : participant.participant_kind}
+              </p>
               {participant.participant_kind === "pc" && (
                 <EncounterPcReferenceButton
                   encounterKey={encounterKey}

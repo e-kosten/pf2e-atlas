@@ -9,20 +9,12 @@ use crate::commands::{
 };
 use atlas_app_model::{
     RecordNavigationView, RetrievalModeView, SearchModeSummary, SearchResultRow, SearchResultsPage,
-    SearchWitnessView,
 };
 use atlas_domain::{ResultSort, SearchContentScope, SearchRanking};
 use serde_json::{Value, json};
 
-fn best_witness(row: &SearchResultRow) -> Option<&SearchWitnessView> {
-    row.matches
-        .iter()
-        .find(|m| m.preview.is_some())
-        .or_else(|| row.matches.first())
-}
-
 fn selected(row: &SearchResultRow) -> RecordNavigationView {
-    if let Some(witness) = best_witness(row) {
+    if let Some(witness) = row.best_match() {
         return witness.navigation.clone();
     }
     for edge in row
@@ -143,7 +135,7 @@ fn compact_row(result: &SearchResultsPage, row: &SearchResultRow) -> Value {
         .collect();
     let mut summary =
         json!({"record":evidence::identity(&row.record), "relationship_evidence":evidence});
-    if let Some(witness) = best_witness(row) {
+    if let Some(witness) = row.best_match() {
         summary["best_match"] =
             json!({"label":witness.label,"preview":witness.preview,"lane":witness.lane});
     }
@@ -155,7 +147,7 @@ fn json_page(result: &SearchResultsPage, continuation: &OccurrenceArgs<'_>) -> V
         json!(result)
     } else {
         json!({
-            "artifact_generation":result.artifact_generation,"mode":result.mode,"search_profile":result.search_profile,
+            "result_detail":result.result_detail, "artifact_generation":result.artifact_generation,"mode":result.mode,"search_profile":result.search_profile,
             "coverage":result.coverage,"sort":result.sort,"search_content":result.search_content,"ranking":result.ranking,
             "page":result.page,"relationship_clauses":result.relationship_clauses.iter().map(|c| json!({
                 "clause_id":c.clause_id,"title":c.title,"relationship":c.relationship
@@ -193,7 +185,7 @@ fn print_page(result: &SearchResultsPage, continuation: &OccurrenceArgs<'_>) {
         let witnesses: Vec<_> = if continuation.detail == EvidenceDetail::Full {
             row.matches.iter().collect()
         } else {
-            best_witness(row).into_iter().collect()
+            row.best_match().into_iter().collect()
         };
         for witness in witnesses {
             if let Some(label) = &witness.label

@@ -33,9 +33,14 @@ impl AtlasAppService {
         revision: i64,
         name: String,
     ) -> AppServiceResult<PartyView> {
-        let mut request = self.party_edit_snapshot(key, revision)?;
-        request.name = name;
-        self.update_party(key, request)
+        self.with_write(|state| {
+            Ok(crate::parties::party_view(
+                state
+                    .local_state()?
+                    .parties()
+                    .rename(key, revision, &name)?,
+            ))
+        })
     }
 
     pub fn add_party_members(

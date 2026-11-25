@@ -548,7 +548,7 @@ fn actor_collection_availability_is_independent_of_zero_and_empty() {
         }
         let input = record("actors", "Actor", source);
         let node = SourceQueryView::new(input.record.source(), "actors", "").source;
-        let a = actor::authored_actor(&input.record, node, "fixture");
+        let a = actor::authored_actor(&input.record, node, "fixture", None);
         assert_eq!(a.activities.state, expected);
         assert_eq!(a.skills.state, QueryFieldState::Value);
         assert!(a.skills.value.unwrap().is_empty());
@@ -565,7 +565,7 @@ fn custom_iwr_qualifiers_use_the_authored_label_without_evaluating_predicates() 
         json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"attributes":{"immunities":[{"type":"fire","exceptions":[{"label":"silver weapons","definition":["damage:material:silver"]}]}],"weaknesses":[{"type":"cold","value":2,"exceptions":[{"label":"while sheltered","definition":["sheltered"]}]}],"resistances":[{"type":"all-damage","value":10,"exceptions":[{"label":"blessed silver","definition":["damage:material:silver","blessed"]}],"doubleVs":[{"label":"unholy fire","definition":["damage:type:fire","unholy"]}]}]}}}),
     );
     let node = SourceQueryView::new(input.record.source(), "actors", "").source;
-    let a = actor::authored_actor(&input.record, node, "fixture");
+    let a = actor::authored_actor(&input.record, node, "fixture", None);
     assert_eq!(
         a.immunities.value.unwrap()[0].exceptions.value,
         Some(vec!["silver weapons".into()])
@@ -587,7 +587,7 @@ fn duplicate_casting_ids_preserve_ambiguous_authored_association() {
         json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[entry.clone(),entry,{"_id":"ssssssssssssssss","type":"spell","system":{"location":{"value":"eeeeeeeeeeeeeeee"}}}]}),
     );
     let node = SourceQueryView::new(input.record.source(), "actors", "").source;
-    let a = actor::authored_actor(&input.record, node, "fixture");
+    let a = actor::authored_actor(&input.record, node, "fixture", None);
     let activity = &a.activities.value.unwrap()[2];
     assert_eq!(
         activity.association.value.as_deref(),
@@ -603,7 +603,7 @@ fn authored_iwr_preserves_qualifiers_zero_and_unavailable_members() {
         json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"attributes":{"hp":{"max":0},"immunities":[],"weaknesses":null,"resistances":[{"type":"all-damage","value":10,"exceptions":["force","ghost-touch","vitality"],"doubleVs":["non-magical"]},{"type":"cold","value":"broken"}]},"saves":{"will":{"value":0}}}}),
     );
     let node = SourceQueryView::new(input.record.source(), "actors", "").source;
-    let a = actor::authored_actor(&input.record, node, "fixture");
+    let a = actor::authored_actor(&input.record, node, "fixture", None);
     assert_eq!(a.maximum_hp.value, Some(0.into()));
     assert_eq!(a.saves.will.value, Some(0.into()));
     assert_eq!(a.saves.reflex.state, QueryFieldState::Missing);
@@ -919,7 +919,7 @@ fn hazard_primary_defense_presence_requires_known_hp_and_ac_and_preserves_zero_s
         assert_eq!(defense.state, state);
         assert_eq!(defense.value, presence);
         if presence == Some(false) {
-            let authored = actor::authored_actor(&input.record, node, "fixture");
+            let authored = actor::authored_actor(&input.record, node, "fixture", None);
             assert_eq!(
                 authored.armor_class.value,
                 system["attributes"]["ac"]["value"].as_number().cloned(),
@@ -968,7 +968,7 @@ fn hazard_save_omission_requires_the_complete_known_zero_blank_detail_shape() {
         );
         let node = SourceQueryView::new(input.record.source(), "hazards", "").source;
         assert_eq!(hazard_show_saves(node), expected);
-        let actor = actor::authored_actor(&input.record, node, "fixture");
+        let actor = actor::authored_actor(&input.record, node, "fixture", None);
         for (name, fact) in [
             ("fortitude", actor.saves.fortitude),
             ("reflex", actor.saves.reflex),
@@ -1234,7 +1234,12 @@ fn activity_reference_details_use_selected_body_and_declared_content_not_names()
         "Actor",
         json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":items}),
     );
-    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    let body = actor::authored_actor(
+        &input.record,
+        input.record.node_at(&[]).unwrap(),
+        "fixture",
+        None,
+    );
     let activities = body.activities.value.unwrap();
     assert_eq!(activities.len(), 13);
     let flags = activities
@@ -1436,7 +1441,12 @@ fn reference_defense_notes_preserve_qualifiers_without_changing_statistics() {
                          "reflex":{"value":0,"saveDetail":""},"will":{"value":8,"saveDetail":42}}}
         }),
     );
-    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    let body = actor::authored_actor(
+        &input.record,
+        input.record.node_at(&[]).unwrap(),
+        "fixture",
+        None,
+    );
     assert_eq!(body.armor_class.value, Some(25.into()));
     assert_eq!(body.saves.fortitude.value, Some(10.into()));
     assert_eq!(
@@ -1475,8 +1485,12 @@ fn reference_frequency_uses_capacity_not_remaining_uses_and_preserves_invalid_in
                 }]
             }),
         );
-        let body =
-            actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+        let body = actor::authored_actor(
+            &input.record,
+            input.record.node_at(&[]).unwrap(),
+            "fixture",
+            None,
+        );
         let activities = body.activities.value.unwrap();
         let frequency = activities[0].frequency.value.as_ref().unwrap();
         assert_eq!(frequency.maximum.value, Some(3.into()));
@@ -1613,8 +1627,12 @@ fn reference_frequency_marks_only_matching_standalone_prose_as_duplicate() {
                 }]
             }),
         );
-        let body =
-            actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+        let body = actor::authored_actor(
+            &input.record,
+            input.record.node_at(&[]).unwrap(),
+            "fixture",
+            None,
+        );
         let activities = body.activities.value.unwrap();
         let frequency = activities[0].frequency.value.as_ref().unwrap();
         assert_eq!(frequency.repeats_description, expected, "{description}");
@@ -1637,7 +1655,12 @@ fn reference_casting_capacity_requires_focus_context_and_ritual_dc_stays_separat
             ]
         }),
     );
-    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    let body = actor::authored_actor(
+        &input.record,
+        input.record.node_at(&[]).unwrap(),
+        "fixture",
+        None,
+    );
     assert_eq!(
         body.size.value.as_ref().map(|v| v.value.as_str()),
         Some("lg")
@@ -1676,8 +1699,12 @@ fn reference_optional_actor_facts_keep_missing_null_invalid_and_zero_distinct() 
             "Actor",
             json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"attributes":attrs}}),
         );
-        let body =
-            actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+        let body = actor::authored_actor(
+            &input.record,
+            input.record.node_at(&[]).unwrap(),
+            "fixture",
+            None,
+        );
         assert_eq!(body.hardness.state, expected);
         if let Some(value) = attrs["hardness"]["value"].as_i64() {
             assert_eq!(body.hardness.value, Some(value.into()));
@@ -2083,13 +2110,19 @@ fn consumable_spell_navigation_keeps_exact_nested_identity_and_authored_rank() {
                 selected.push(owner.clone());
             });
         }
-        let node = input.record.node_at(&selected).unwrap();
-        let links = owned_links(&input.record, node, &selected, "fingerprint");
-        assert_eq!(links.len(), 1);
-        assert_eq!(links[0].title, "Customized Heal");
-        assert_eq!(links[0].navigation.owners.len(), selected.len() + 1);
+        let Some(SourceNodeView::Item(ItemSourceView::ConsumableSource(source))) =
+            input.record.node_at(&selected)
+        else {
+            panic!("consumable")
+        };
+        let link = consumable_spell(&input.record, source, &selected, "fingerprint")
+            .value
+            .unwrap();
+        assert_eq!(link.title, "Customized Heal");
+        assert_eq!(link.navigation.spell_rank, Some(2));
+        assert_eq!(link.navigation.owners.len(), selected.len() + 1);
         let SourceNodeView::Item(ItemSourceView::SpellSource(spell)) =
-            input.record.node_at(&links[0].navigation.owners).unwrap()
+            input.record.node_at(&link.navigation.owners).unwrap()
         else {
             panic!("spell")
         };
@@ -2105,14 +2138,15 @@ fn empty_scroll_has_no_invented_spell_link() {
         "Item",
         json!({"_id":"cccccccccccccccc","type":"consumable","system":{"category":"scroll","spell":null}}),
     );
+    let Some(SourceNodeView::Item(ItemSourceView::ConsumableSource(source))) =
+        input.record.node_at(&[])
+    else {
+        panic!("consumable")
+    };
     assert!(
-        owned_links(
-            &input.record,
-            input.record.node_at(&[]).unwrap(),
-            &[],
-            "fingerprint"
-        )
-        .is_empty()
+        consumable_spell(&input.record, source, &[], "fingerprint")
+            .value
+            .is_none()
     );
 }
 
@@ -2575,7 +2609,12 @@ fn parity_skill_qualifications_keep_boolean_context_and_unavailable_fields() {
             {"base":12,"label":"Blank predicate","predicate":[" "]}
         ]}}}}),
     );
-    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    let body = actor::authored_actor(
+        &input.record,
+        input.record.node_at(&[]).unwrap(),
+        "fixture",
+        None,
+    );
     let values = body.skills.value.unwrap()[0]
         .conditional
         .value

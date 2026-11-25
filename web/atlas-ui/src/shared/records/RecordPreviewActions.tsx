@@ -24,7 +24,7 @@ export function RecordPreviewActions({
   return (
     <div className="record-preview-toolbar">
       {contextActions}
-      <div className="record-preview-toolbar__navigation">
+      <div className="action-group record-preview-toolbar__navigation">
         {readingHistory?.canGoBack && (
           <Button
             size="middle"

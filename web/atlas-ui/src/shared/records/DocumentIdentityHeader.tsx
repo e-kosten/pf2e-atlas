@@ -53,9 +53,9 @@ export function DocumentIdentityHeader({
           {identityActions}
         </div>
         {(kind || actions) && (
-          <div className="record-reference__tools">
+          <div className="action-group record-reference__tools">
             {kind}
-            {actions && <div className="record-reference__actions">{actions}</div>}
+            {actions}
           </div>
         )}
       </div>

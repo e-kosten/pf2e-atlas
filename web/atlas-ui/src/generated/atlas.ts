@@ -23,10 +23,6 @@ export type DamageComponentView = NonNullable<
   Models.FactViewVecDamageComponentView["value"]
 >[number];
 export type FactView<T> = Omit<Models.FactViewString, "value"> & { value: T | null };
-export type GraphContextView = Extract<
-  Models.RelatedCategoryViewGraphContextView,
-  { kind: "content" }
->["content"];
 export type HeighteningDamageView = NonNullable<
   Models.FactViewVecHeighteningDamageView["value"]
 >[number];
@@ -48,9 +44,9 @@ export type SpellHeighteningView = NonNullable<
   Models.FactViewSpellHeighteningView["value"]
 >;
 export type RelatedCategoryView<T> =
-  | Exclude<Models.RelatedCategoryViewGraphContextView, { kind: "content" }>
+  | Exclude<Models.RelatedCategoryViewRelatedReferencesView, { kind: "content" }>
   | (Omit<
-      Extract<Models.RelatedCategoryViewGraphContextView, { kind: "content" }>,
+      Extract<Models.RelatedCategoryViewRelatedReferencesView, { kind: "content" }>,
       "content"
     > & { content: T });
 export type ConsumableDamageView = NonNullable<

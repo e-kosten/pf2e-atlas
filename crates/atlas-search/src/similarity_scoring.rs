@@ -1,5 +1,6 @@
 //! Pure hierarchical aggregation over already selected, normalized vectors.
 use crate::SearchError;
+use atlas_domain::SearchResultDetail;
 use atlas_domain::{
     SimilarityCandidateParts, SimilarityComparisonKey, SimilarityComponent, SourceByteRange,
     SourcePassageAddress,
@@ -213,10 +214,14 @@ pub(crate) fn passages<'a>(
     candidate: &[Part<'a>],
     mode: SimilarityCandidateParts,
     decay: f64,
-    include_evidence: bool,
+    detail: SearchResultDetail,
     cancelled: Option<&dyn Fn() -> bool>,
 ) -> Result<Score<'a>, SearchError> {
-    let pair_limit = if include_evidence { 3 } else { 0 };
+    let pair_limit = match detail {
+        SearchResultDetail::Records => 0,
+        SearchResultDetail::Compact => 1,
+        SearchResultDetail::Evidence => 3,
+    };
     passages_with_limit(seed, candidate, mode, decay, pair_limit, cancelled)
 }
 
@@ -317,13 +322,11 @@ fn passages_with_limit<'a>(
     let mut score = 0.0;
     let mut comparable_parts = 0;
     let mut parts = Vec::new();
-    for ((part, part_score, comparable), weight) in part_scores
-        .into_iter()
-        .zip(decay_weights(seed.len(), decay))
-    {
+    let weights = decay_weights(seed.len(), decay);
+    for (&(part, part_score, comparable), &weight) in part_scores.iter().zip(&weights) {
         score += part_score * weight;
         comparable_parts += usize::from(comparable);
-        if evidence_limit > 0 {
+        if evidence_limit > 1 {
             parts.push(PartScore {
                 part: part.clone(),
                 score: part_score,
@@ -333,10 +336,11 @@ fn passages_with_limit<'a>(
         }
     }
     let contribution = |pair: &Pair<'_>| {
-        parts
+        part_scores
             .iter()
-            .find(|part| part.part.selector() == pair.seed.component.selector())
-            .map_or(0.0, |part| part.score * part.weight)
+            .zip(&weights)
+            .find(|((part, _, _), _)| part.selector() == pair.seed.component.selector())
+            .map_or(0.0, |((_, score, _), weight)| score * weight)
     };
     let pairs = select_passage_pairs(&pairs, contribution, evidence_limit);
     Ok(Score {
@@ -441,7 +445,7 @@ pub(crate) fn content_average<'a>(
     seed: &[Part<'a>],
     candidate: &[Part<'a>],
     mode: SimilarityCandidateParts,
-    include_evidence: bool,
+    detail: SearchResultDetail,
     cancelled: Option<&dyn Fn() -> bool>,
 ) -> Result<Option<Score<'a>>, SearchError> {
     let mut control = ScoringControl::new(cancelled)?;
@@ -466,7 +470,7 @@ pub(crate) fn content_average<'a>(
         evidence.score = cosine(&seed_vector, &candidate_vector).max(0.0);
         evidence.comparisons = 1;
         evidence.comparable_parts = seed.len();
-        if include_evidence && evidence.score > 0.0 {
+        if detail.includes_evidence() && evidence.score > 0.0 {
             let (pair, comparisons) = representative_pair(
                 seed.iter()
                     .flat_map(|part| part.units.iter().copied())
@@ -535,7 +539,7 @@ pub(crate) fn content_average<'a>(
             };
             let weight = parts.len() as f64 / seed.len() as f64;
             evidence.score += score * weight;
-            if include_evidence {
+            if detail == SearchResultDetail::Evidence {
                 evidence.roles.push(RoleScore {
                     key,
                     score,
@@ -543,35 +547,44 @@ pub(crate) fn content_average<'a>(
                     comparable: !eligible.is_empty(),
                 });
             }
-            if include_evidence
+            if detail.includes_evidence()
                 && score > 0.0
                 && let Some(candidate_vector) = candidate_vector
             {
-                let (pair, comparisons) = representative_pair(
-                    parts
-                        .iter()
-                        .flat_map(|part| part.units.iter().copied())
-                        .collect(),
-                    eligible
-                        .iter()
-                        .flat_map(|part| part.units.iter().copied())
-                        .collect(),
-                    &seed_vector,
-                    &candidate_vector,
-                    &mut control,
-                )?;
-                evidence.comparisons += comparisons;
-                if let Some(pair) = pair {
-                    representative_pairs.push((score * weight, pair));
-                }
+                representative_pairs.push((
+                    score * weight,
+                    parts,
+                    eligible,
+                    seed_vector,
+                    candidate_vector,
+                ));
             }
         }
         representative_pairs.sort_by(|a, b| b.0.total_cmp(&a.0));
-        evidence.pairs = representative_pairs
-            .into_iter()
-            .take(3)
-            .map(|(_, pair)| pair)
-            .collect();
+        let limit = if detail == SearchResultDetail::Compact {
+            1
+        } else {
+            3
+        };
+        for (_, parts, eligible, seed_vector, candidate_vector) in
+            representative_pairs.into_iter().take(limit)
+        {
+            let (pair, comparisons) = representative_pair(
+                parts
+                    .iter()
+                    .flat_map(|part| part.units.iter().copied())
+                    .collect(),
+                eligible
+                    .iter()
+                    .flat_map(|part| part.units.iter().copied())
+                    .collect(),
+                &seed_vector,
+                &candidate_vector,
+                &mut control,
+            )?;
+            evidence.comparisons += comparisons;
+            evidence.pairs.extend(pair);
+        }
         evidence.aggregation = "role_centroids";
     }
     Ok(Some(evidence))

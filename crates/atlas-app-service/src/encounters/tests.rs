@@ -158,6 +158,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
         None,
         Default::default(),
         Default::default(),
+        &super::EncounterReadDetail::Full,
     );
     assert!(projected.artifact_generation.is_none());
     assert_eq!(
@@ -971,6 +972,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
                     workspace.retrieval_mut(),
                     snapshot.encounter,
                     snapshot.participants,
+                    &super::EncounterReadDetail::Full,
                 )?;
                 Ok((
                     detail,
@@ -985,6 +987,57 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
     assert_eq!(metrics.source_body_decodes, 2);
     assert_eq!(metrics.prepared_content_batches, 0);
     assert_eq!((authored, baselines), (2, 2));
+    let compact = f
+        .worker
+        .encounter_projected(
+            &e.encounter_key,
+            Default::default(),
+            super::EncounterReadDetail::Compact,
+        )
+        .unwrap();
+    assert_eq!(compact.difficulty, detail.difficulty);
+    for (row, full) in compact.participants.iter().zip(&detail.participants) {
+        assert!(row.presentation.is_none());
+        assert!(row.spellcasting.is_none());
+        assert!(row.ability_states.is_none());
+        assert!(row.turn_resources.is_none());
+        assert_eq!(
+            (&row.status, &row.effective_max_hp, row.current_hp),
+            (&full.status, &full.effective_max_hp, full.current_hp)
+        );
+    }
+    let selected = f
+        .worker
+        .encounter_projected(
+            &e.encounter_key,
+            Default::default(),
+            super::EncounterReadDetail::Participant(detail.participants[0].participant_key.clone()),
+        )
+        .unwrap();
+    assert_eq!(selected.participants, detail.participants[..1]);
+    assert_eq!(
+        selected.encounter.participant_count,
+        detail.encounter.participant_count
+    );
+    let context = f
+        .worker
+        .encounter_addition_context(&e.encounter_key)
+        .unwrap();
+    assert_eq!(
+        (context.difficulty, context.artifact_generation),
+        (
+            detail.difficulty.clone(),
+            detail.artifact_generation.clone()
+        )
+    );
+    assert_eq!(
+        f.worker
+            .encounter_revision(&e.encounter_key)
+            .unwrap()
+            .revision,
+        detail.revision
+    );
+
     assert!(
         detail
             .participants

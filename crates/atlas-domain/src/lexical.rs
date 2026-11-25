@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 #[serde(deny_unknown_fields)]
 pub struct LexicalOptions {
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(default = "all"))]
     pub fields: LexicalFields,
     #[serde(default, rename = "match")]
+    #[cfg_attr(feature = "openapi", schema(default = "complete_terms"))]
     pub matching: LexicalMatch,
 }
 

@@ -8,7 +8,6 @@
   gap: clamp(1rem, 3vw, 2.5rem);
 }
 .party-page-heading,
-.party-heading-actions,
 .character-ability-row {
   display: flex;
   align-items: center;
@@ -26,9 +25,6 @@
 }
 .party-page-heading h2 {
   font-size: clamp(1.25rem, 2vw, 1.65rem);
-}
-.party-heading-actions {
-  flex-wrap: wrap;
 }
 .party-workspace-detail {
   min-inline-size: 0;

@@ -57,6 +57,8 @@ const apiMocks = vi.hoisted(() => ({
   getRelatedRecords: vi.fn(),
   getEncounters: vi.fn(),
   getEncounter: vi.fn(),
+  getEncounterAdditionContext: vi.fn(),
+  getCreatureAdditionContext: vi.fn(),
   previewEncounterDifficulty: vi.fn(),
   getSavedLists: vi.fn(),
   filterSavedList: vi.fn(),
@@ -75,6 +77,8 @@ vi.mock("../api/atlasApi", async (original) => ({
   getRelatedRecords: apiMocks.getRelatedRecords,
   getEncounters: apiMocks.getEncounters,
   getEncounter: apiMocks.getEncounter,
+  getEncounterAdditionContext: apiMocks.getEncounterAdditionContext,
+  getCreatureAdditionContext: apiMocks.getCreatureAdditionContext,
   previewEncounterDifficulty: apiMocks.previewEncounterDifficulty,
   getSavedLists: apiMocks.getSavedLists,
   filterSavedList: apiMocks.filterSavedList,
@@ -231,10 +235,8 @@ describe("AtlasApp routing", () => {
       Promise.resolve({
         selection: request.selection,
         artifact_generation: request.artifact_generation,
-        seed: summaryFixture(request.selection.record_key),
         show_versions: false,
         references: { kind: "empty" },
-        remaster_relationships: { kind: "empty" },
         variants: { kind: "empty" },
       }),
     );
@@ -1374,12 +1376,19 @@ describe("AtlasApp routing", () => {
         total_xp: 80,
         budgets: [{ label: "Extreme", xp: 160 }],
       };
-      apiMocks.getEncounter.mockResolvedValue({
+      apiMocks.getCreatureAdditionContext.mockResolvedValue({
+        record_key: linkedKey,
+        artifact_generation: "generation",
+        has_scenario_uses: false,
+        adjustment: "normal",
+      });
+      apiMocks.getEncounterAdditionContext.mockResolvedValue({
         revision: 1,
         artifact_generation: "generation-a",
         difficulty,
       });
       apiMocks.previewEncounterDifficulty.mockResolvedValue({
+        addition_generation: "generation-a",
         ...difficulty,
         rating: "Severe",
         total_xp: 120,
@@ -1439,7 +1448,9 @@ describe("AtlasApp routing", () => {
           ),
         );
       }
-      fireEvent.click(within(picker).getByRole("button", { name: "Add" }));
+      const addButton = within(picker).getByRole("button", { name: "Add" });
+      await waitFor(() => expect(addButton).toBeEnabled());
+      fireEvent.click(addButton);
       const mutation = compatible
         ? apiMocks.addEncounterRecordParticipant
         : apiMocks.addSavedListItem;
@@ -1449,6 +1460,8 @@ describe("AtlasApp routing", () => {
         compatible
           ? {
               request_id: expect.any(String),
+              expected_revision: 1,
+              expected_artifact_generation: "generation-a",
               record_ref: linkedKey,
               quantity: 2,
               ...(kind === "creature" ? { participant_variant: "weak" } : {}),
@@ -1519,6 +1532,7 @@ function emptyFilterEditor(): FilterEditorView {
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
     search_content: "all",
+    result_detail: "records" as const,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

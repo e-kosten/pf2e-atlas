@@ -45,7 +45,9 @@ JSON payloads are written to stdout. Routine progress is not part of the JSON co
 Browse and text search project the shared SearchResultsPage into compact CLI
 rows with an attributable match, selected record navigation and executable
 follow-up arguments. Full detail includes the complete witness set. Similar
-retains its comparison evidence and seed. All use the service's ordering,
+returns its seed and up to one representative pair per row by default. Supply
+`--explain` in terminal or JSON mode for full comparison evidence. Search and
+Similar pages report their effective `result_detail`. All use the service's ordering,
 profile, page, generation and coverage semantics. A continuation carries the
 original generation, predicate, workspace and sort seed.
 

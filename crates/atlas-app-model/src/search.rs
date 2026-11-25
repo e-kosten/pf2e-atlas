@@ -12,7 +12,9 @@ pub enum RetrievalModeView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SearchPageRequest {
+    #[cfg_attr(feature = "openapi", schema(minimum = 1))]
     pub number: u32,
+    #[cfg_attr(feature = "openapi", schema(minimum = 1, maximum = 100))]
     pub size: u32,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -26,14 +28,7 @@ pub struct SearchPageView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub next_page: Option<u32>,
 }
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SearchResultDetail {
-    #[default]
-    Records,
-    Evidence,
-}
+pub use atlas_domain::SearchResultDetail;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -41,13 +36,16 @@ pub enum SearchResultDetail {
 pub struct SearchResultsRequest {
     /// Selects the post-ranking evidence supplied with each record.
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(default = "records"))]
     pub result_detail: SearchResultDetail,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub connection_scope: Option<SearchConnectionScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Omission orders browsing by name ascending, and text or Similar results by relevance.
     pub sort: Option<atlas_domain::ResultSort>,
     #[serde(default)]
     pub ranking: Option<atlas_domain::SearchRanking>,
+    /// Omission uses the configured profile, otherwise the sole stored profile or bge-base when both are stored.
     pub search_profile: Option<atlas_domain::SearchProfileId>,
     pub criteria: SearchCriteria,
     pub page: SearchPageRequest,
@@ -99,6 +97,7 @@ pub enum SearchCriteria {
         seed_record_key: String,
         filter: Option<QueryPredicate>,
         #[serde(default)]
+        /// Omission or null uses passage similarity, decay 0.5, and any candidate part.
         similarity: Option<atlas_domain::SimilarityOptions>,
         #[serde(default)]
         source_sections: Option<atlas_domain::SimilaritySourceSections>,
@@ -110,7 +109,7 @@ pub enum SearchCriteria {
     },
     TextSearch {
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[cfg_attr(feature = "openapi", schema(nullable = false))]
+        /// Omission and null both use all lexical fields and complete terms.
         lexical: Option<atlas_domain::LexicalOptions>,
         query: String,
         filter: Option<QueryPredicate>,
@@ -135,6 +134,8 @@ pub enum SearchModeSummary {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchResultsPage {
+    /// Effective post-ranking projection for this page.
+    pub result_detail: SearchResultDetail,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub connection_scope: Option<ConnectionScopeView>,
@@ -147,6 +148,7 @@ pub struct SearchResultsPage {
     pub similarity: Option<crate::SimilarityConfigurationView>,
     pub sort: atlas_domain::ResultSort,
     pub relationship_clauses: Vec<RelationshipClauseSummaryView>,
+    /// Fusion method used by hybrid text retrieval. Other retrieval modes do not apply it.
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
@@ -270,6 +272,16 @@ pub struct RelationshipOccurrencesPage {
     pub result_record: RecordSummaryView,
     pub occurrences: Vec<crate::RecordRelationshipView>,
     pub page: SearchPageView,
+}
+
+impl SearchResultRow {
+    /// Preferred navigation and citation for an evidence-bearing row.
+    pub fn best_match(&self) -> Option<&SearchWitnessView> {
+        self.matches
+            .iter()
+            .find(|witness| witness.preview.is_some())
+            .or_else(|| self.matches.first())
+    }
 }
 
 #[cfg(test)]

@@ -28,105 +28,23 @@ pub(crate) fn read_encounter_reference(
     participant_key: &str,
     request: EncounterReferenceRequest,
 ) -> AppServiceResult<RecordDetailView> {
-    let encounter = workspace
-        .local_state()?
-        .encounters()
-        .get_with_participants(encounter_ref)?
-        .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-    let participant = encounter
-        .participants
-        .iter()
-        .find(|p| p.participant_key == participant_key)
-        .ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::EncounterParticipantNotFound,
-                "participant is no longer in this encounter",
-            )
-        })?;
-    let binding = atlas_app_model::ContentRollEncounterContext {
-        encounter_ref: encounter.encounter.encounter_key.clone(),
-        participant_key: participant.participant_key.clone(),
-        participant_revision: participant.revision,
-        artifact_generation: request.artifact_generation.clone(),
-        condition_id: request.condition_id,
-    };
-    if let Some(condition_id) = request.condition_id {
-        let condition = participant
-            .conditions
-            .iter()
-            .find(|c| c.condition_id == condition_id)
-            .ok_or_else(|| {
-                AppServiceError::invalid_request("condition is no longer on this participant")
-            })?;
-        if condition.condition_key.as_deref() != Some(request.selection.address.record_key.as_str())
-            || !request.selection.address.owners.is_empty()
-        {
-            return Err(AppServiceError::invalid_request(
-                "selected reference does not belong to this condition",
-            ));
-        }
-        let r = workspace.retrieval_mut();
-        let generation = r.artifact_generation()?;
-        if generation != request.artifact_generation {
-            return Err(AppServiceError::artifact_generation_changed(
-                &request.artifact_generation,
-                &generation,
-                AppRecoverableAction::ReloadRecord,
-            ));
-        }
-        let mut records = std::collections::BTreeMap::new();
-        super::hydration::load_participant_sources(
-            r,
-            std::slice::from_ref(participant),
-            &mut records,
-        )?;
-        let sources = super::hydration::roster_source_conditions_from_sources(
-            r,
-            std::slice::from_ref(participant),
-            &records,
-            Default::default(),
-        )?
-        .remove(participant_key)
-        .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable);
+    let (encounter, index, runtime) =
+        checked_reference(workspace, encounter_ref, participant_key, &request)?;
+    let participant = &encounter.participants[index];
+    let r = workspace.retrieval_mut();
+    if request.condition_id.is_some() {
         let (source, mut selected) =
             crate::records::read_record_detail(r, request.selection, None)?;
-        let badge_value = super::conditions::condition_rule_for_key(
-            condition.condition_key.as_deref(),
-        )
-        .and_then(|rule| {
-            super::rules::causes::condition_causes(participant, None, &sources)
-                .known_value(rule)
-                .ok()
-                .filter(|value| *value > 0)
-        });
         crate::prepared_content::resolve_runtime_content(
             r,
             &source.source,
             &mut selected,
-            crate::prepared_content::RuntimeContentContext {
-                actor_level: None,
-                badge_value,
-                binding,
-            },
+            runtime,
         )?;
         return Ok(selected);
     }
-    if participant.record_key.as_deref() != Some(request.selection.address.record_key.as_str()) {
-        return Err(AppServiceError::invalid_request(
-            "selected reference does not belong to this participant",
-        ));
-    }
-    let r = workspace.retrieval_mut();
-
-    let generation = r.artifact_generation()?;
-    if generation != request.artifact_generation {
-        return Err(AppServiceError::artifact_generation_changed(
-            &request.artifact_generation,
-            &generation,
-            AppRecoverableAction::ReloadRecord,
-        ));
-    }
     let (source, mut selected) = crate::records::read_record_detail(r, request.selection, None)?;
+    check_participant_selection(&source.source, &selected.selected.owners)?;
     let root_node = source
         .source
         .node_at(&[])
@@ -136,7 +54,7 @@ pub(crate) fn read_encounter_reference(
         root_node,
         &selected.record,
         &[],
-        vec![],
+        None,
         r,
     )?;
     let baseline = super::hydration::source_baseline(
@@ -189,11 +107,191 @@ pub(crate) fn read_encounter_reference(
         &mut selected,
         crate::prepared_content::RuntimeContentContext {
             actor_level: block.adjusted_level.as_ref().and_then(|n| n.as_i64()),
-            badge_value: None,
-            binding,
+            ..runtime
         },
     )?;
     Ok(selected)
+}
+
+fn checked_reference(
+    workspace: &mut atlas_runtime::WorkspaceRead,
+    encounter_ref: &str,
+    participant_key: &str,
+    request: &EncounterReferenceRequest,
+) -> AppServiceResult<(
+    atlas_local_state::EncounterWithParticipants,
+    usize,
+    crate::prepared_content::RuntimeContentContext,
+)> {
+    let encounter = workspace
+        .local_state()?
+        .encounters()
+        .get_with_participants(encounter_ref)?
+        .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
+    let index = encounter
+        .participants
+        .iter()
+        .position(|p| p.participant_key == participant_key)
+        .ok_or_else(|| {
+            AppServiceError::new(
+                AppErrorCode::EncounterParticipantNotFound,
+                "participant is no longer in this encounter",
+            )
+        })?;
+    let participant = &encounter.participants[index];
+    let binding = atlas_app_model::ContentRollEncounterContext {
+        encounter_ref: encounter.encounter.encounter_key.clone(),
+        participant_key: participant.participant_key.clone(),
+        participant_revision: participant.revision,
+        artifact_generation: request.artifact_generation.clone(),
+        condition_id: request.condition_id,
+    };
+    let condition = if let Some(condition_id) = request.condition_id {
+        let condition = participant
+            .conditions
+            .iter()
+            .find(|c| c.condition_id == condition_id)
+            .ok_or_else(|| {
+                AppServiceError::invalid_request("condition is no longer on this participant")
+            })?;
+        if condition.condition_key.as_deref() != Some(request.selection.address.record_key.as_str())
+            || !request.selection.address.owners.is_empty()
+        {
+            return Err(AppServiceError::invalid_request(
+                "selected reference does not belong to this condition",
+            ));
+        }
+        Some(condition)
+    } else {
+        if participant.record_key.as_deref() != Some(request.selection.address.record_key.as_str())
+        {
+            return Err(AppServiceError::invalid_request(
+                "selected reference does not belong to this participant",
+            ));
+        }
+        None
+    };
+    let r = workspace.retrieval_mut();
+    let generation = r.artifact_generation()?;
+    if generation != request.artifact_generation {
+        return Err(AppServiceError::artifact_generation_changed(
+            &request.artifact_generation,
+            &generation,
+            AppRecoverableAction::ReloadRecord,
+        ));
+    }
+    let badge_value = if let Some(condition) = condition {
+        let mut records = std::collections::BTreeMap::new();
+        super::hydration::load_participant_sources(
+            r,
+            std::slice::from_ref(participant),
+            &mut records,
+        )?;
+        let sources = super::hydration::roster_source_conditions_from_sources(
+            r,
+            std::slice::from_ref(participant),
+            &records,
+            Default::default(),
+        )?
+        .remove(participant_key)
+        .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable);
+        super::conditions::condition_rule_for_key(condition.condition_key.as_deref()).and_then(
+            |rule| {
+                super::rules::causes::condition_causes(participant, None, &sources)
+                    .known_value(rule)
+                    .ok()
+                    .filter(|value| *value > 0)
+            },
+        )
+    } else {
+        None
+    };
+    Ok((
+        encounter,
+        index,
+        crate::prepared_content::RuntimeContentContext {
+            actor_level: None,
+            badge_value,
+            binding,
+        },
+    ))
+}
+
+pub(crate) fn roll_control(
+    workspace: &mut atlas_runtime::WorkspaceRead,
+    binding: &atlas_app_model::ContentRollEncounterContext,
+    selection: atlas_app_model::RecordSelection,
+    ordinal: usize,
+) -> AppServiceResult<atlas_app_model::ContentControlView> {
+    let request = EncounterReferenceRequest {
+        artifact_generation: binding.artifact_generation.clone(),
+        condition_id: binding.condition_id,
+        selection,
+    };
+    let (encounter, index, mut runtime) = checked_reference(
+        workspace,
+        &binding.encounter_ref,
+        &binding.participant_key,
+        &request,
+    )?;
+    let loaded =
+        crate::records::LoadedRecordDetail::load(workspace.retrieval_mut(), &request.selection)?;
+    if request.condition_id.is_none() {
+        let source = loaded.source();
+        check_participant_selection(source, &request.selection.address.owners)?;
+        let root = source
+            .node_at(&[])
+            .ok_or_else(|| AppServiceError::invalid_request("participant source is unavailable"))?;
+        if !matches!(root, atlas_record::source_record::SourceNodeView::Actor(_)) {
+            return Err(AppServiceError::invalid_request(
+                "this participant has no actor runtime context",
+            ));
+        }
+        let actor = atlas_record::source_record::ActorQueryView { source: root };
+        runtime.actor_level = super::rules::effective_participant_level(
+            &encounter.participants[index],
+            actor.level().value(),
+            super::hydration::adjustment_applicable(source),
+        )
+        .and_then(|level| level.as_i64());
+    }
+    loaded.roll_control(&request.selection, ordinal, Some(runtime))
+}
+
+/// Actor runtime overlays apply to the root or exact immediate actor activities.
+fn check_participant_selection(
+    source: &atlas_record::source_record::SourceBackedRecord,
+    owners: &[atlas_domain::OwnedContentLocator],
+) -> AppServiceResult<()> {
+    use atlas_record::source_record::SourceNodeView;
+    if owners.is_empty() {
+        return Ok(());
+    }
+    let root = source.node_at(&[]);
+    if !root.is_some_and(|root| {
+        matches!(root, SourceNodeView::Actor(_))
+            && root
+                .source_type()
+                .value()
+                .is_some_and(|kind| matches!(kind, "npc" | "character" | "familiar" | "hazard"))
+    }) {
+        return Err(AppServiceError::invalid_request(
+            "participant actor is unavailable",
+        ));
+    }
+    if let Some(SourceNodeView::Item(item)) = source.node_at(owners) {
+        let kind = match crate::presentation::selected_item_body(item) {
+            crate::presentation::SelectedItemBody::Spell(_) => "spell",
+            crate::presentation::SelectedItemBody::Activity { .. } => "activity",
+            _ => return Ok(()),
+        };
+        if !matches!(owners, [owner] if owner.collection == "/items") {
+            return Err(AppServiceError::invalid_request(format!(
+                "selected {kind} is no longer available on this participant"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn compose_selected(
