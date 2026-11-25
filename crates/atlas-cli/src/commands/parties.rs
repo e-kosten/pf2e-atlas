@@ -17,7 +17,10 @@ pub(crate) struct PartiesArgs {
 #[derive(Debug, Subcommand)]
 enum PartyCommand {
     #[command(alias = "ls", about = "List saved parties and their roster sizes")]
-    List,
+    List {
+        #[arg(long, value_enum, default_value_t = super::ReportDetail::Summary, help = "Include every ordered roster with --detail full")]
+        detail: super::ReportDetail,
+    },
     /// Show the ordered roster and reviewed character revisions.
     Show {
         #[arg(add = clap_complete::ArgValueCompleter::new(crate::commands::completions::party_keys))]
@@ -122,8 +125,19 @@ pub(crate) fn run(args: PartiesArgs) -> Result<ExitCode, String> {
         Err(e) => return super::product::report_app_error(e, json),
     };
     match args.command {
-        PartyCommand::List if json => super::saved_workspace::respond_json(service.parties()),
-        PartyCommand::List => respond(service.party_directory(), false, |view| {
+        PartyCommand::List {
+            detail: super::ReportDetail::Full,
+        } => respond(service.parties(), json, |view| {
+            if view.parties.is_empty() {
+                return "No saved parties.\n".into();
+            }
+            view.parties
+                .iter()
+                .map(roster)
+                .collect::<Vec<_>>()
+                .join("\n")
+        }),
+        PartyCommand::List { .. } => respond(service.party_directory(), json, |view| {
             if view.parties.is_empty() {
                 return "No saved parties.\n".into();
             }

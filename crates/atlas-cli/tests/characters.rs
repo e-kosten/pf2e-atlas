@@ -417,6 +417,17 @@ fn party_context_drives_encounter_and_saved_loot_planning_with_replay_guards() {
         &format!("{bran}=0"),
     ]);
     let party_key = party["party_key"].as_str().unwrap();
+    let directory = f.data(&["parties", "list"]);
+    let summary = directory["parties"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["party_key"] == party_key)
+        .unwrap();
+    assert_eq!(summary["member_count"], 2);
+    assert!(summary.get("members").is_none());
+    let full = f.data(&["parties", "list", "--detail", "full"]);
+    assert!(full["parties"].as_array().unwrap().contains(&party));
     let context = f.data(&[
         "parties",
         "context",

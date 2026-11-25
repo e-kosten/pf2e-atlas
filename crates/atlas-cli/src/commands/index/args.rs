@@ -95,6 +95,8 @@ pub(crate) struct ValidateIndexOptions {
     after_help = "Examples:\n  atlas index check\n  atlas index check --no-embeddings\n  atlas index check --json"
 )]
 pub(crate) struct CheckIndexOptions {
+    #[arg(long, value_enum, default_value_t = super::super::ReportDetail::Summary, help = "Include storage, relationship and profile statistics with --detail full")]
+    pub(crate) detail: super::super::ReportDetail,
     #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
