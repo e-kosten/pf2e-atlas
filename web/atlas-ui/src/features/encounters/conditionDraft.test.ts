@@ -48,12 +48,10 @@ it.each(["standard", "source_dependent"] as const)(
         recovery: { kind },
       },
     };
-    expect(draft(fields, source)).toMatchObject({
-      note: "updated",
-      duration: condition.duration,
-      parameters: { recovery: { kind } },
-    });
-    expect(draft(fields, source).parameters).not.toHaveProperty("episode_id");
+    const edit = draft(fields, source);
+    expect(edit).toMatchObject({ note: "updated", event_intent: "correction" });
+    expect(edit).not.toHaveProperty("duration");
+    expect(edit).not.toHaveProperty("parameters");
   },
 );
 it("distinguishes an explicitly cleared DC or duration from an untouched field", () => {
@@ -64,7 +62,7 @@ it("distinguishes an explicitly cleared DC or duration from an untouched field",
       true,
     ),
   ).toMatchObject({
-    duration: undefined,
+    duration: null,
     parameters: { recovery: { kind: "source_dependent" } },
   });
   expect(
@@ -112,7 +110,7 @@ it.each([
   {
     keys: ["unspecified"] as const,
     guidance: "Old hidden guidance",
-    expected: { kind: "unspecified" },
+    expected: undefined,
   },
 ])("builds extra actions from selected keys $keys", ({ keys, guidance, expected }) => {
   expect(

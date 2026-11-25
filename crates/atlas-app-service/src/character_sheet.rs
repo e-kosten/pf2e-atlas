@@ -20,35 +20,129 @@ use std::{collections::HashMap, fmt::Display};
 
 pub(super) use details::compare_imports;
 
-/// The same sheet presenters, selected by semantic category rather than visible labels.
-pub(crate) fn context_groups(
+use atlas_app_model::CharacterSection;
+use std::collections::BTreeMap;
+
+#[derive(Clone, Copy)]
+pub(super) enum SheetLayout<'a> {
+    Browser,
+    Context(&'a [CharacterSection]),
+    Refresh(&'a [CharacterSection]),
+}
+
+impl SheetLayout<'_> {
+    fn includes_sheet(self) -> bool {
+        !matches!(self, Self::Context(_))
+    }
+    fn selected(self, section: CharacterSection) -> bool {
+        match self {
+            Self::Browser => false,
+            Self::Context(selected) | Self::Refresh(selected) => selected.contains(&section),
+        }
+    }
+    fn links(self, section: CharacterSection) -> bool {
+        matches!(self, Self::Browser) || self.selected(section)
+    }
+}
+
+#[derive(Default)]
+pub(super) struct SheetGroups {
+    pub(super) context: BTreeMap<CharacterSection, Vec<SheetGroupView>>,
+    pub(super) sections: Vec<SheetSectionView>,
+}
+
+pub(super) fn project_groups(
     sheet: &PathbuilderSheet,
     reference: Option<&PcReference>,
     retrieval: Option<&AtlasRetrievalService>,
-    selected: &[atlas_app_model::CharacterSection],
-) -> AppServiceResult<
-    std::collections::BTreeMap<atlas_app_model::CharacterSection, Vec<SheetGroupView>>,
-> {
-    use atlas_app_model::CharacterSection as S;
-    let mut result: std::collections::BTreeMap<_, Vec<_>> = std::collections::BTreeMap::new();
+    layout: SheetLayout<'_>,
+) -> AppServiceResult<SheetGroups> {
+    use CharacterSection as C;
+    use SheetSectionKind as S;
+    let mut output = SheetGroups::default();
+    stats::project(
+        sheet,
+        retrieval.filter(|_| layout.links(C::Identity)),
+        layout,
+        &mut output,
+    )?;
     let keys = std::cell::LazyCell::new(|| ability_keys(reference));
-    let mut item_links = inventory::ItemLinks::new(retrieval);
-    for section in selected {
-        let groups = match section {
-            S::Identity => stats::identity_groups(sheet, retrieval)?,
-            S::Statistics => stats::statistics_groups(sheet),
-            S::Equipment => inventory::equipment(sheet, &mut item_links)?,
-            S::Money => inventory::coins(sheet).into_iter().collect(),
-            S::Crafting => inventory::formulas(sheet, &mut item_links)?,
-            S::Proficiencies => stats::proficiencies(sheet),
-            S::CharacterOptions => progression::groups(sheet, &keys),
-            S::Spellcasting => magic::groups(sheet, &keys),
-            S::Companions => companions(sheet),
-            S::Abilities | S::Source => continue,
-        };
-        result.insert(*section, groups);
+    let mut linked_items = inventory::ItemLinks::new(retrieval);
+    let mut plain_items = inventory::ItemLinks::new(None);
+    for (kind, parts) in [
+        (S::Progression, &[C::CharacterOptions][..]),
+        (S::Magic, &[C::Spellcasting]),
+        (S::Inventory, &[C::Equipment, C::Money, C::Crafting]),
+        (S::Companions, &[C::Companions]),
+        (S::Proficiencies, &[C::Proficiencies]),
+    ] {
+        let mut combined = Vec::new();
+        for &part in parts {
+            let selected = layout.selected(part);
+            if !layout.includes_sheet() && !selected {
+                continue;
+            }
+            let items = if layout.links(part) {
+                &mut linked_items
+            } else {
+                &mut plain_items
+            };
+            let groups = match part {
+                C::Equipment => inventory::equipment(sheet, items)?,
+                C::Money => inventory::coins(sheet).into_iter().collect(),
+                C::Crafting => inventory::formulas(sheet, items)?,
+                C::Proficiencies => stats::proficiencies(sheet),
+                C::CharacterOptions => progression::groups(sheet, &keys),
+                C::Spellcasting => magic::groups(sheet, &keys),
+                C::Companions => companions(sheet),
+                C::Identity | C::Statistics | C::Abilities | C::Source => continue,
+            };
+            if layout.includes_sheet() {
+                if selected {
+                    output.context.insert(part, groups.clone());
+                }
+                combined.extend(groups);
+            } else {
+                output.context.insert(part, groups);
+            }
+        }
+        if layout.includes_sheet() {
+            output.sections.push(section(kind, combined));
+        }
     }
-    Ok(result)
+    Ok(output)
+}
+
+pub(super) struct ProjectedImport<'a> {
+    pub(super) json: &'a str,
+    pub(super) parsed: PathbuilderSheet,
+    pub(super) groups: SheetGroups,
+}
+
+impl<'a> ProjectedImport<'a> {
+    pub(super) fn read(
+        json: &'a str,
+        reference: Option<&PcReference>,
+        retrieval: Option<&AtlasRetrievalService>,
+        layout: SheetLayout<'_>,
+    ) -> AppServiceResult<Self> {
+        let parsed = read_sheet(json)?;
+        let groups = project_groups(&parsed, reference, retrieval, layout)?;
+        Ok(Self {
+            json,
+            parsed,
+            groups,
+        })
+    }
+
+    pub(super) fn into_sheet(self) -> AppServiceResult<CharacterSheetView> {
+        Ok(CharacterSheetView {
+            name: self.parsed.name.trim().to_owned(),
+            level: self.parsed.level,
+            has_additional_details: source_details::has_source_details(self.json)?,
+            sections: self.groups.sections,
+        })
+    }
 }
 
 impl AtlasAppService {
@@ -64,14 +158,16 @@ impl AtlasAppService {
                 Ok(((character, source), needs_catalog))
             },
             |(character, source), reference| {
+                let retrieval = crate::character_context::optional_retrieval(reference)?;
                 let sheet = source
                     .map(|source| {
-                        project_sheet(
+                        ProjectedImport::read(
                             source.json(),
-                            &read_sheet(source.json())?,
                             character.reference.as_ref(),
-                            reference.ok().flatten().map(|session| session.retrieval()),
-                        )
+                            retrieval,
+                            SheetLayout::Browser,
+                        )?
+                        .into_sheet()
                     })
                     .transpose()?;
                 Ok(CharacterSheetResponse {
@@ -82,34 +178,6 @@ impl AtlasAppService {
             },
         )
     }
-}
-
-pub(super) fn project_sheet(
-    source: &str,
-    sheet: &PathbuilderSheet,
-    reference: Option<&PcReference>,
-    retrieval: Option<&AtlasRetrievalService>,
-) -> AppServiceResult<CharacterSheetView> {
-    let abilities = ability_keys(reference);
-    Ok(CharacterSheetView {
-        name: sheet.name.trim().to_owned(),
-        level: sheet.level,
-        has_additional_details: source_details::has_source_details(source)?,
-        sections: vec![
-            section(SheetSectionKind::Stats, stats::groups(sheet, retrieval)?),
-            section(
-                SheetSectionKind::Progression,
-                progression::groups(sheet, &abilities),
-            ),
-            section(SheetSectionKind::Magic, magic::groups(sheet, &abilities)),
-            section(
-                SheetSectionKind::Inventory,
-                inventory::groups(sheet, retrieval)?,
-            ),
-            section(SheetSectionKind::Companions, companions(sheet)),
-            section(SheetSectionKind::Proficiencies, stats::proficiencies(sheet)),
-        ],
-    })
 }
 
 fn unique_pf2e_record(

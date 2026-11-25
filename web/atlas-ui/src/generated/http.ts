@@ -2302,6 +2302,15 @@ export const RecordEditionView = {
   remaster: 'remaster',
 } as const;
 
+export type SourceLevelBasis = typeof SourceLevelBasis[keyof typeof SourceLevelBasis];
+
+
+export const SourceLevelBasis = {
+  actor_level: 'actor_level',
+  item_level: 'item_level',
+  spell_rank: 'spell_rank',
+} as const;
+
 export interface RecordSummaryView {
   creature_display?: CreatureDisplayView;
   /** The selected document's explicit publication era; absent when unavailable. */
@@ -2309,7 +2318,8 @@ export interface RecordSummaryView {
   kind: string;
   kind_label: string;
   /** @nullable */
-  level_basis: string | null;
+  level: number | null;
+  level_basis: SourceLevelBasis | null;
   /** @nullable */
   level_label: string | null;
   /** @nullable */
@@ -2812,6 +2822,8 @@ export type DiscoverFilterValuesRequest = {
   /** @nullable */
   text?: string | null;
 } | {
+  /** @nullable */
+  expected_artifact_generation?: string | null;
   field_id: string;
   kind: 'vocabulary';
   /** @minimum 0 */
@@ -4777,6 +4789,7 @@ export type FilterValueListView = {
   outcome: QueryFacetOutcomeFilterValueOptionsView;
   search_profile: SearchProfileId;
 } | {
+  artifact_generation: string;
   kind: 'vocabulary';
   scope: FilterVocabularyScope;
   values: FilterVocabularyView;
@@ -5945,6 +5958,11 @@ export interface SearchResultsRequest {
   criteria: SearchCriteria;
   /** @nullable */
   expected_artifact_generation?: string | null;
+  /**
+     * Enrich row rarity and trait labels with catalog definitions. When false,
+     * rows retain their base labels and omit catalog-provided rarity help.
+     */
+  include_summary_definitions?: boolean;
   page: SearchPageRequest;
   ranking?: SearchRanking | null;
   /** Selects the post-ranking evidence supplied with each record. */
@@ -6108,11 +6126,14 @@ export interface UpdateEncounterManualTrackerRequest {
   request_id: string;
 }
 
+/**
+ * Apply only the submitted fields. Null explicitly clears a nullable field.
+ */
 export interface UpdateEncounterParticipantConditionRequest {
-  /** @nullable */
-  condition_ref?: string | null;
+  condition_ref?: string;
   decisions?: ConditionApplicationDecisionsView;
   duration?: ConditionDurationViewInputSchema | null;
+  /** Correct saved state by default. Apply also processes the change as a gameplay event. */
   event_intent?: ConditionEventIntentView;
   expected_encounter_revision: number;
   /**
@@ -6123,10 +6144,10 @@ export interface UpdateEncounterParticipantConditionRequest {
   expected_reference_revision?: number | null;
   extra_action?: ConditionExtraActionViewInputSchema;
   immunity_override?: boolean;
-  name: string;
+  name?: string;
   /** @nullable */
   note?: string | null;
-  origin?: ConditionOriginViewInputSchema | null;
+  origin?: ConditionOriginViewInputSchema;
   parameters?: ConditionParametersInputView;
   request_id: string;
   scope?: ConditionScopeView;
@@ -6191,7 +6212,7 @@ export type CharacterImportDetailsParams = {
 };
 
 export type ConditionLifecycleActionsParams = {
-  participant_key?: string;
+  participant_key: string;
   boundary_key?: string;
 };
 
@@ -6203,7 +6224,7 @@ export type AddEncounterRecordParticipantParams = {
 };
 
 export type PersistentDamageReviewParams = {
-  participant_key?: string;
+  participant_key: string;
   boundary_key?: string;
 };
 
@@ -7059,7 +7080,7 @@ return fetchGenerated<ConditionLifecycleResultView>(getApplyConditionLifecycleUr
 
 
 export const getConditionLifecycleActionsUrl = (encounterRef: string,
-    params?: ConditionLifecycleActionsParams,) => {
+    params: ConditionLifecycleActionsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -7075,7 +7096,7 @@ export const getConditionLifecycleActionsUrl = (encounterRef: string,
 }
 
 export const conditionLifecycleActions = async (encounterRef: string,
-    params?: ConditionLifecycleActionsParams, options?: Parameters<typeof fetchGenerated>[1]): Promise<ConditionLifecycleActionsView> => {
+    params: ConditionLifecycleActionsParams, options?: Parameters<typeof fetchGenerated>[1]): Promise<ConditionLifecycleActionsView> => {
 
   return fetchGenerated<ConditionLifecycleActionsView>(getConditionLifecycleActionsUrl(encounterRef,params),
   {
@@ -8348,7 +8369,7 @@ return fetchGenerated<PersistentRecoveryResultView>(getRecoverPersistentDamageUr
 
 
 export const getPersistentDamageReviewUrl = (encounterRef: string,
-    params?: PersistentDamageReviewParams,) => {
+    params: PersistentDamageReviewParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -8364,7 +8385,7 @@ export const getPersistentDamageReviewUrl = (encounterRef: string,
 }
 
 export const persistentDamageReview = async (encounterRef: string,
-    params?: PersistentDamageReviewParams, options?: Parameters<typeof fetchGenerated>[1]): Promise<PersistentReviewView> => {
+    params: PersistentDamageReviewParams, options?: Parameters<typeof fetchGenerated>[1]): Promise<PersistentReviewView> => {
 
   return fetchGenerated<PersistentReviewView>(getPersistentDamageReviewUrl(encounterRef,params),
   {

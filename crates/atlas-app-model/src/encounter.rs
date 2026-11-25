@@ -947,6 +947,7 @@ pub struct AddEncounterParticipantConditionRequest {
     pub note: Option<String>,
 }
 
+/// Apply only the submitted fields. Null explicitly clears a nullable field.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -956,32 +957,94 @@ pub struct UpdateEncounterParticipantConditionRequest {
     /// Reference revision used by the confirmed preview, when it consulted source data.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expected_reference_revision: Option<u64>,
-    #[serde(default)]
+    /// Correct saved state by default. Apply also processes the change as a gameplay event.
+    #[serde(default = "condition_edit_intent")]
+    #[cfg_attr(feature = "openapi", schema(default = "correction"))]
     pub event_intent: ConditionEventIntentView,
     #[serde(default)]
     pub decisions: crate::ConditionApplicationDecisionsView,
     pub expected_encounter_revision: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub condition_ref: Option<String>,
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_participant_key: Option<String>,
-    #[serde(default)]
-    pub scope: ConditionScopeView,
-    #[serde(default)]
-    pub extra_action: ConditionExtraActionView,
-    #[serde(default)]
-    pub immunity_override: bool,
-    #[serde(default)]
-    pub parameters: crate::ConditionParametersInputView,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub name: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::present_nullable"
+    )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<i64>))]
+    pub value: Option<Option<i64>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::present_nullable"
+    )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub source_participant_key: Option<Option<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub scope: Option<ConditionScopeView>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub extra_action: Option<ConditionExtraActionView>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub immunity_override: Option<bool>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub parameters: Option<crate::ConditionParametersInputView>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub origin: Option<ConditionOriginView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub duration: Option<ConditionDurationView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::present_nullable"
+    )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<ConditionDurationView>))]
+    pub duration: Option<Option<ConditionDurationView>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::present_nullable"
+    )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub note: Option<Option<String>>,
+}
+
+fn condition_edit_intent() -> ConditionEventIntentView {
+    ConditionEventIntentView::Correction
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

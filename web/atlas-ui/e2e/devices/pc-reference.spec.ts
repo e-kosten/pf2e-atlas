@@ -69,6 +69,51 @@ async function deleteParties(request: APIRequestContext, ...keys: string[]) {
   }
 }
 
+test("a failed character sheet read can be retried on the same character", async ({
+  page,
+}, info) => {
+  const json = exportedCharacter("Sheet retry " + Date.now());
+  const preview = await page.request.post("/api/characters/pathbuilder/preview", {
+    data: { json },
+  });
+  expect(preview.ok()).toBe(true);
+  const saved = await page.request.post("/api/characters/pathbuilder", {
+    data: {
+      json,
+      request_id: crypto.randomUUID(),
+      expected_artifact_generation: (await preview.json()).artifact_generation,
+    },
+  });
+  expect(saved.ok()).toBe(true);
+  const { character_key, character_revision } = await saved.json();
+  try {
+    await page.route(
+      `**/api/characters/${character_key}/sheet`,
+      (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          json: {
+            code: "query_failed",
+            message: "Could not read the reference catalog.",
+          },
+        }),
+      { times: 1 },
+    );
+    await page.goto(`/characters/${character_key}`);
+    await expect(
+      page.getByText("Could not load character sheet", { exact: true }),
+    ).toBeVisible();
+    await activate(page.getByRole("button", { name: "Retry", exact: true }), info);
+    await expect(page.getByText("Max HP", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(character_key));
+  } finally {
+    await page.request.delete(`/api/characters/${character_key}`, {
+      data: { expected_revision: character_revision },
+    });
+  }
+});
+
 test("Pathbuilder character rules stay shared between parties and encounters", async ({
   page,
 }, info) => {

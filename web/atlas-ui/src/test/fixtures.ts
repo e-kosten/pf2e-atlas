@@ -179,6 +179,7 @@ export function summaryFixture(
     kind_label: "Spell",
     source_type: "spell",
     level_label: null,
+    level: null,
     level_basis: null,
     rarity: null,
     traits: [],

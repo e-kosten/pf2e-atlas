@@ -57,17 +57,6 @@ impl<'a> ItemLinks<'a> {
     }
 }
 
-pub(super) fn groups(
-    sheet: &PathbuilderSheet,
-    retrieval: Option<&AtlasRetrievalService>,
-) -> AppServiceResult<Vec<SheetGroupView>> {
-    let mut links = ItemLinks::new(retrieval);
-    let mut groups = equipment(sheet, &mut links)?;
-    groups.extend(coins(sheet));
-    groups.extend(formulas(sheet, &mut links)?);
-    Ok(groups)
-}
-
 pub(super) fn equipment(
     sheet: &PathbuilderSheet,
     links: &mut ItemLinks<'_>,

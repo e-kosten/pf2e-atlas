@@ -868,6 +868,31 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
         .add_encounter_participant_condition(&key, &a, request)
         .unwrap();
     let condition_id = f.worker.encounter(&key).unwrap().participants[0].conditions[0].condition_id;
+    // Updating the note or correcting the magnitude cannot consume the last action.
+    for (id, field) in [
+        ("annotate-stun", serde_json::json!({"note":"observed"})),
+        ("correct-stun", serde_json::json!({"value":2})),
+    ] {
+        let mut fields = serde_json::json!({
+            "request_id": id,
+            "expected_encounter_revision": f.worker.encounter(&key).unwrap().revision,
+        });
+        fields
+            .as_object_mut()
+            .unwrap()
+            .extend(field.as_object().unwrap().clone());
+        let patch: UpdateEncounterParticipantConditionRequest =
+            serde_json::from_value(fields).unwrap();
+        let preview = f
+            .worker
+            .preview_encounter_condition_update(&key, &a, condition_id, patch.clone())
+            .unwrap();
+        assert!(preview.consequences.is_empty());
+        f.worker
+            .update_encounter_participant_condition(&key, &a, condition_id, patch)
+            .unwrap();
+        assert_eq!(resources(&f, &key, &a).regular_remaining, Some(1));
+    }
     let request = UpdateEncounterParticipantConditionRequest {
         expected_reference_revision: None,
         request_id: "updated-stun".into(),
@@ -875,16 +900,16 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
         event_intent: ConditionEventIntentView::Apply,
         decisions: Default::default(),
         condition_ref: None,
-        name: "Stunned".into(),
-        value: Some(3),
+        name: Some("Stunned".into()),
+        value: Some(Some(3)),
         source_participant_key: None,
-        scope: Default::default(),
-        extra_action: Default::default(),
-        immunity_override: false,
-        parameters: Default::default(),
+        scope: None,
+        extra_action: None,
+        immunity_override: None,
+        parameters: None,
         origin: None,
         duration: None,
-        note: Some("Edited source note".into()),
+        note: Some(Some("Edited source note".into())),
     };
     let preview = f
         .worker

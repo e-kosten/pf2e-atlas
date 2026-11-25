@@ -32,6 +32,7 @@ fn fixture(semantic: bool) -> (FixtureWorker, RetrievalExecutor) {
 
 fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
     SearchResultsRequest {
+        include_summary_definitions: true,
         result_detail: atlas_app_model::SearchResultDetail::Evidence,
         connection_scope: None,
         sort: None,
@@ -735,7 +736,7 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
                     json!({"_id":"actor00000000000","name":"Guard","type":"npc","items":[{"_id":"owned00000000000","name":"Guard's armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.target0000000000"},"system":{"description":{"value":"<p>Wears @UUID[Compendium.pf2e.items.Item.target0000000000].</p>"}}}]}),
                 ),
             ],
-            false,
+            true,
         )?)
     });
     let f = fixture_worker_with_executor(executor);
@@ -825,7 +826,17 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
             selection: crate::relationship_search::query_selection(address).unwrap(),
             include_contents: true,
         });
-        let mut page = request(
+        for criteria in [
+            SearchCriteria::ListRecords {
+                filter: Some(filter.clone()),
+            },
+            SearchCriteria::SimilarRecords {
+                seed_record_key: "actors:actor00000000000".into(),
+                filter: Some(filter.clone()),
+                similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
+                search_content: None,
+                source_sections: None,
+            },
             SearchCriteria::TextSearch {
                 query: "Leather Armor".into(),
                 mode: RetrievalModeView::Lexical,
@@ -833,25 +844,26 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
                 lexical: None,
                 search_content: None,
             },
-            1,
-        );
-        page.result_detail = atlas_app_model::SearchResultDetail::Records;
-        let matched = f.worker.search_page(page, &execution).unwrap();
-        assert_eq!(matched.page.total, 1, "{address:?}");
-        assert_eq!(matched.rows[0].record.record_key, "items:target0000000000");
-        assert_eq!(
-            matched.relationship_clauses[0].title,
-            if address.owners.is_empty() {
-                "Guard"
-            } else {
-                "Guard's armor"
-            }
-        );
-        assert_eq!(
-            f.worker.last_read_metrics().source_body_decodes,
-            expected_decodes,
-            "{address:?}"
-        );
+        ] {
+            let mut page = request(criteria, 1);
+            page.result_detail = atlas_app_model::SearchResultDetail::Records;
+            let matched = f.worker.search_page(page, &execution).unwrap();
+            assert_eq!(matched.page.total, 1, "{address:?}");
+            assert_eq!(matched.rows[0].record.record_key, "items:target0000000000");
+            assert_eq!(
+                matched.relationship_clauses[0].title,
+                if address.owners.is_empty() {
+                    "Guard"
+                } else {
+                    "Guard's armor"
+                }
+            );
+            assert_eq!(
+                f.worker.last_read_metrics().source_body_decodes,
+                expected_decodes,
+                "{address:?}"
+            );
+        }
     }
 }
 

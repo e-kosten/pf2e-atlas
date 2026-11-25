@@ -19,6 +19,39 @@ PROBE = runpy.run_path(str(HERE / "probe-embedding-upgrade.py"))
 
 
 class SearchWitnesses(unittest.TestCase):
+    def test_frozen_manifest_compares_with_current_search_witnesses(self):
+        record = "actions:one"
+        section = {"field": "/system/description/value", "passage": {
+            "kind": "html_section", "section_ordinal": 0,
+            "canonical_text_sha256": "a" * 64, "chunk_bytes": {"start": 0, "end": 40},
+        }}
+        legacy = {"record_key": record, "embedded_path": [], "source_fingerprint": None}
+        def rows(address):
+            return [[record, [[address, 0.75]]]]
+
+        for old, current in (
+            ({**legacy, "field": None, "passage": {"kind": "identity"}}, {}),
+            ({**legacy, "field": "identity", "passage": {"kind": "identity"}}, {}),
+            ({**legacy, **section}, {"navigation": {
+                "artifact_generation": "new", "record_key": record, **section}}),
+        ):
+            live = PROBE["witness_address"](current, record, "new")
+            for compare in (PROBE["compare"], PROBE["compare_predecessor_hit"]):
+                with self.subTest(old=old, compare=compare.__name__):
+                    compare(rows(old), rows(live), "profile")
+                    for change in (
+                        {"record_key": "actions:two"}, {"embedded_path": [{"id": "different"}]},
+                        {"field": "/different"}, {"spell_rank": 2}, {"source_fingerprint": "hash"},
+                        {"passage": {**section["passage"], "chunk_bytes": {"start": 0, "end": 39}}},
+                    ):
+                        with self.subTest(change=change), self.assertRaises(RuntimeError):
+                            compare(rows(old), rows({**live, **change}), "profile")
+
+    def test_rejects_witness_from_a_different_publication(self):
+        with self.assertRaisesRegex(ValueError, "generation"):
+            PROBE["witness_address"]({"navigation": {"artifact_generation": "stale"}},
+                                     "actions:one", "current")
+
     def test_queries_compare_all_witnesses_on_current_and_historical_clients(self):
         search = PROBE["search"]
         navigation = {"record_key": "actions:one"}
@@ -208,13 +241,13 @@ class Routing(unittest.TestCase):
 class PredecessorSearch(unittest.TestCase):
     def test_requires_known_semantic_hit_without_fixing_unrelated_ranks(self):
         compare = PROBE["compare_predecessor_hit"]
-        expected = [["known", [["passage", 0.75]]], ["other", [["elsewhere", 0.5]]]]
-        compare(expected, [expected[0], ["unrelated", [["different", 0.4]]]], "bge-base")
+        passage = {"record_key": "known", "field": "/description"}
+        expected = [["known", [[passage, 0.75]]], ["other", []]]
+        compare(expected, [expected[0], ["unrelated", []]], "bge-base")
         for actual in (
             list(reversed(expected)),
-            [["other", [["elsewhere", 0.75]]]],
-            [["known", [["wrong passage", 0.75]]]],
-            [["known", [["passage", 0.6]]]],
+            [["known", []]],
+            [["known", [[passage, 0.6]]]],
         ):
             with self.subTest(actual=actual):
                 with self.assertRaisesRegex(RuntimeError, "witness changed"):

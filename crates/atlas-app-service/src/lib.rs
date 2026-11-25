@@ -67,10 +67,13 @@ pub use completions::{
     complete_character_keys, complete_encounter_keys, complete_party_keys, complete_record_keys,
     complete_saved_list_keys, complete_saved_list_slugs,
 };
+pub use discovery::{filter_group_fields, filter_group_names};
 pub use encounters::EncounterReadDetail;
 pub use encounters::portability::EncounterImportReport;
 pub use error::{AppServiceError, AppServiceResult};
-pub use filters::{CliFilterValuesRequest, RawFilterCountsRequest};
+pub use filters::{
+    CliFilterValues, CliFilterValuesRequest, discover_filter_fields, filter_field_definition,
+};
 pub use read_execution::ReadExecutionContext;
 pub use records::{RecordReadDetail, RecordReadSection};
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};

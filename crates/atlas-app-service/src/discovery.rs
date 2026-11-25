@@ -57,16 +57,40 @@ impl ProductGroup {
         }
     }
 }
-pub(crate) fn filter_group_names(catalog: QueryCapability) -> Vec<(&'static str, &'static str)> {
-    catalog
-        .fields
-        .iter()
-        .filter(|field| visible_field(field))
-        .map(product_group)
-        .collect::<std::collections::BTreeSet<_>>()
-        .into_iter()
-        .map(ProductGroup::metadata)
-        .collect()
+// Only these product groups currently contain executable fields. The CLI contract
+// test compares this directory to the complete grouped editor.
+const DIRECTORY: &[ProductGroup] = &[
+    ProductGroup::Common,
+    ProductGroup::Creatures,
+    ProductGroup::Defenses,
+    ProductGroup::Movement,
+    ProductGroup::Languages,
+    ProductGroup::Embedded,
+    ProductGroup::Hazards,
+    ProductGroup::Equipment,
+    ProductGroup::Spells,
+    ProductGroup::Feats,
+    ProductGroup::Ancestries,
+    ProductGroup::Heritages,
+    ProductGroup::Deities,
+    ProductGroup::Effects,
+    ProductGroup::Campaign,
+    ProductGroup::Source,
+];
+
+pub fn filter_group_names() -> impl Iterator<Item = (&'static str, &'static str)> {
+    DIRECTORY.iter().map(|group| group.metadata())
+}
+
+pub fn filter_group_fields(
+    id: &str,
+) -> crate::AppServiceResult<Option<(&'static str, Vec<QueryFieldDefinition>)>> {
+    let Some((_, label)) = filter_group_names().find(|(group, _)| *group == id) else {
+        return Ok(None);
+    };
+    let mut catalog = atlas_search::discover_filter_fields()?;
+    select_filter_group(&mut catalog, id);
+    Ok(Some((label, catalog.fields)))
 }
 
 pub(crate) fn select_filter_group(catalog: &mut QueryCapability, id: &str) -> bool {

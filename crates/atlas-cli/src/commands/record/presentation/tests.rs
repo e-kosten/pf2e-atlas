@@ -336,6 +336,7 @@ fn summary(title: &str, family: &str) -> RecordSummaryView {
         kind_label: family.into(),
         source_type: None,
         level_label: Some("Rank 2".into()),
+        level: None,
         level_basis: None,
         rarity: Some("uncommon".into()),
         traits: vec![RecordBadgeView {

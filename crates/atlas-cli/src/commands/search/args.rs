@@ -6,16 +6,16 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search fire --search-content core\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas search --links-to \"Leather Armor\" --kind creature\n  atlas search --where 'links_to(\"equipment-srd:KEY\") || linked_from(\"bestiary:KEY\", \"main_entry\")'\n  atlas filters fields\n\nUse atlas graph occurrences to page link evidence for a result. Repeat the filter and pass the returned artifact generation."
+    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search fire --detail preview\n  atlas search fire --detail full --json\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas search --links-to \"Leather Armor\" --kind creature\n  atlas search --where 'links_to(\"equipment-srd:KEY\") || linked_from(\"bestiary:KEY\", \"main_entry\")'\n  atlas filters fields\n\nOpen a result with atlas record get RECORD_KEY. To read a specific match, pass its navigation JSON to atlas record get --navigation. Use the same --index or --path-mode as the search. JSON next_args continues a page in the same workspace."
 )]
 pub(crate) struct SearchOptions {
     #[arg(
         long,
         value_enum,
-        default_value = "standard",
-        help = "Choose compact evidence or full reference details"
+        default_value = "records",
+        help = "Return record summaries, a best-match preview, or full evidence"
     )]
-    pub(crate) detail: super::super::followup::EvidenceDetail,
+    pub(crate) detail: SearchDetail,
     #[arg(
         long,
         value_enum,
@@ -55,6 +55,7 @@ pub(crate) struct SearchOptions {
     #[arg(
         long,
         value_enum,
+        requires = "query",
         help = "Text retrieval; defaults to hybrid with semantic models or fts on a keyword-only workspace"
     )]
     pub(crate) retrieval: Option<CliRetrievalMode>,
@@ -88,6 +89,23 @@ impl From<CliRetrievalMode> for RetrievalModeView {
             CliRetrievalMode::Fts => Self::Lexical,
             CliRetrievalMode::Vector => Self::Semantic,
             CliRetrievalMode::Hybrid => Self::Hybrid,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum SearchDetail {
+    Records,
+    Preview,
+    Full,
+}
+
+impl From<SearchDetail> for atlas_app_model::SearchResultDetail {
+    fn from(value: SearchDetail) -> Self {
+        match value {
+            SearchDetail::Records => Self::Records,
+            SearchDetail::Preview => Self::Compact,
+            SearchDetail::Full => Self::Evidence,
         }
     }
 }

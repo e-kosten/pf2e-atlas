@@ -27,3 +27,10 @@ pub(crate) mod desktop;
 mod desktop_workspace;
 
 pub(crate) mod workspace;
+
+/// Select all available fields on commands with a summary default.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub(crate) enum ReportDetail {
+    Summary,
+    Full,
+}

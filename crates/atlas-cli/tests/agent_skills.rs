@@ -478,6 +478,36 @@ fn json_errors_cover_missing_confirmation_and_invalid_target()
     Ok(())
 }
 
+#[test]
+fn filesystem_install_failure_has_the_same_exit_in_both_formats() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join(".codex"), "obstructed").unwrap();
+    for json in [false, true] {
+        let mut command = atlas(root.path());
+        command.args([
+            "agent",
+            "skills",
+            "install",
+            "--target",
+            "codex",
+            "--scope",
+            "workspace",
+            "--yes",
+        ]);
+        if json {
+            command.arg("--json");
+        }
+        let output = command.output().unwrap();
+        assert_eq!(output.status.code(), Some(3));
+        if json {
+            let error: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(error["error"]["code"], "install_failed");
+        } else {
+            assert!(!output.stderr.is_empty());
+        }
+    }
+}
+
 fn atlas(root: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
     command.current_dir(root);

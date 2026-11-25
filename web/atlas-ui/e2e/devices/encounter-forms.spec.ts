@@ -571,6 +571,18 @@ test("incomplete persistent damage is a reminder without eager errors or automat
     expect(detail.participants[0].conditions[0].note).toBe(
       "Burning until the blessing ends",
     );
+    await activate(
+      page.getByRole("button", { name: "Edit Persistent Damage", exact: true }),
+      info,
+    );
+    await edit.getByRole("textbox", { name: "Condition note" }).fill("");
+    await activate(edit.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(edit).toBeHidden();
+    const afterClear = await (await page.request.get(path)).json();
+    expect(afterClear.participants[0].conditions[0]).not.toHaveProperty("note");
+    expect(afterClear.participants[0].conditions[0].parameters).toEqual(
+      detail.participants[0].conditions[0].parameters,
+    );
   } finally {
     await page.request.delete(path);
   }

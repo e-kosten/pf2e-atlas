@@ -95,6 +95,60 @@ fn simultaneous_launchers_share_a_service_and_exit_releases_ownership() {
 }
 
 #[test]
+fn running_service_and_direct_search_return_the_same_projection() {
+    use atlas_search::test_support::{input, record};
+    use serde_json::{Value, json};
+
+    let home = tempfile::tempdir().unwrap();
+    let index = home.path().join("workspace.sqlite");
+    let workspace = atlas_runtime::initialize_workspace(&index).unwrap();
+    let source = record(
+        "actions",
+        "Item",
+        json!({
+            "_id":"aaaaaaaaaaaaaaaa","name":"Treat Wounds","type":"action",
+            "system":{"description":{"value":"<h2>Fever Signs</h2><p>Chills.</p>"}}
+        }),
+    );
+    atlas_index::test_support::publish_input_in(
+        &workspace,
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        &input(vec![source], false),
+    )
+    .unwrap();
+    let search = |detail, execution| {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(["search", "fever", "--detail", detail, "--json", "--index"])
+            .arg(&index)
+            .env("HOME", home.path())
+            .env("LOCALAPPDATA", home.path())
+            .env("ATLAS_LOG", "info")
+            .output()
+            .unwrap();
+        let log = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success(),
+            "{log}: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(log.contains(execution), "{log}");
+        let data: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(data["data"]["rows"][0]["record"]["title"], "Treat Wounds");
+        data
+    };
+    let details = ["records", "preview", "full"];
+    let direct = details.map(|d| search(d, "using direct Atlas search"));
+    let (_launcher, ready) = launch(home.path());
+    ready.recv_timeout(Duration::from_secs(20)).unwrap();
+    for (detail, expected) in details.into_iter().zip(direct) {
+        assert_eq!(
+            search(detail, "using the running Atlas service for search"),
+            expected
+        );
+    }
+}
+
+#[test]
 fn desktop_launcher_releases_the_service_when_its_input_pipe_closes() {
     let home = tempfile::tempdir().unwrap();
     let mut process = Command::new(env!("CARGO_BIN_EXE_atlas"))

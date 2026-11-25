@@ -57,6 +57,14 @@ pub struct DiscoverFilterVocabularyRequest<'a> {
     pub limit: usize,
     pub selected_values: &'a [QueryLiteral],
 }
+pub fn discover_filter_fields() -> Result<QueryCapability, SearchError> {
+    Ok(atlas_index::query_capabilities()?)
+}
+pub fn filter_field_definition(
+    id: &str,
+) -> Result<&'static atlas_domain::QueryFieldDefinition, SearchError> {
+    Ok(atlas_index::query_field_definition(id)?)
+}
 impl AtlasRetrievalService {
     pub fn discover_filter_value_counts(
         &mut self,
@@ -103,9 +111,6 @@ impl AtlasRetrievalService {
             .matching_field_values(field, &self.predicate(filter)?)?)
     }
 
-    pub fn discover_filter_fields(&self) -> Result<QueryCapability, SearchError> {
-        Ok(atlas_index::query_capabilities()?)
-    }
     fn discovery_context(
         &mut self,
         field: &str,

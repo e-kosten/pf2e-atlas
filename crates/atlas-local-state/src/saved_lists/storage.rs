@@ -149,6 +149,23 @@ pub(super) fn item_note(
     ).optional()?.ok_or_else(|| LocalStateError::ListNotFound(list_ref.into()))
 }
 
+pub(super) fn record_keys(
+    connection: &Connection,
+    owner_id: i64,
+    list_ref: &str,
+) -> LocalStateResult<Option<Vec<String>>> {
+    let Some(id) = list_id(connection, owner_id, list_ref)? else {
+        return Ok(None);
+    };
+    let mut statement = connection.prepare(
+        "SELECT record_key FROM saved_list_items WHERE list_id = ?1 ORDER BY position, record_key",
+    )?;
+    let keys = statement
+        .query_map([id], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(Some(keys))
+}
+
 pub(crate) fn get_with_items(
     connection: &Connection,
     owner_id: i64,

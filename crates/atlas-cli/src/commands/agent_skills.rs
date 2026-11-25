@@ -110,17 +110,24 @@ pub(crate) fn run_agent_skills_doctor(
 pub(crate) fn run_agent_skills_install(
     options: AgentSkillsInstallOptions,
 ) -> Result<ExitCode, String> {
+    let json = options.json;
+    match install(options) {
+        Err(error) => super::product::command_error(json, "install_failed", error, 3),
+        result => result,
+    }
+}
+
+fn install(options: AgentSkillsInstallOptions) -> Result<ExitCode, String> {
     let workspace = std::env::current_dir()
         .map_err(|error| format!("failed to determine current working directory: {error}"))?;
     let package = match resolve_package(&options.skill) {
         Ok(package) => package,
-        Err(error) if options.json => {
-            write_json_error("unknown_skill", error)?;
-            return Ok(ExitCode::from(2));
+        Err(error) => {
+            return super::product::command_error(options.json, "unknown_skill", error, 2);
         }
-        Err(error) => return Err(error),
     };
-    let interactive = options.target.is_none()
+    let interactive = !options.json
+        && options.target.is_none()
         && options.scope.is_none()
         && !options.yes
         && std::io::stdin().is_terminal()
@@ -137,11 +144,7 @@ pub(crate) fn run_agent_skills_install(
         if options.target.is_none() || options.scope.is_none() || !options.yes {
             let message =
                 "non-interactive install requires --target, --scope, and --yes".to_string();
-            if options.json {
-                write_json_error("invalid_input", message)?;
-                return Ok(ExitCode::from(2));
-            }
-            return Err(message);
+            return super::product::command_error(options.json, "invalid_input", message, 2);
         }
         (
             selected_targets(options.target.map(SkillTargetId::from)),
@@ -162,14 +165,11 @@ pub(crate) fn run_agent_skills_install(
 
     let mut results = Vec::new();
     for plan in &plans {
-        match install_skill(&package, plan, confirmed_force || options.force) {
-            Ok(result) => results.push(result),
-            Err(error) if options.json => {
-                write_json_error("install_failed", error)?;
-                return Ok(ExitCode::from(3));
-            }
-            Err(error) => return Err(error),
-        }
+        results.push(install_skill(
+            &package,
+            plan,
+            confirmed_force || options.force,
+        )?);
     }
 
     let data = AgentSkillsInstallData {

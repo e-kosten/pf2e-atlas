@@ -27,9 +27,7 @@ impl AtlasAppService {
                     .iter()
                     .find(|p| p.participant_key == participant_key)
                     .ok_or_else(|| {
-                        AppServiceError::invalid_request(
-                            "Participant is no longer in this encounter",
-                        )
+                        AppServiceError::new(atlas_app_model::AppErrorCode::EncounterParticipantNotFound, format!("Encounter participant `{participant_key}` was not found"))
                     })?;
                 let boundary = super::outgoing_turns::boundary(
                     &store,
@@ -83,7 +81,12 @@ impl AtlasAppService {
             .participants
             .iter()
             .find(|p| p.participant_key == participant_key)
-            .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    atlas_app_model::AppErrorCode::EncounterParticipantNotFound,
+                    format!("Encounter participant `{participant_key}` was not found"),
+                )
+            })?;
         let frozen = boundary
             .as_ref()
             .map(|saved| super::outgoing_turns::frozen_participant(saved, participant))

@@ -172,12 +172,31 @@ pub(crate) fn run_index_check(options: CheckIndexOptions) -> Result<ExitCode, St
         options.index,
     );
     let target = diagnostic_target(options.no_embeddings);
-    if options.json {
+    if options.detail == super::ReportDetail::Full {
         let report = runtime.and_then(|runtime| runtime.check_index_report(target));
-        crate::output::index_diagnostic(report, true, |_| {})
+        crate::output::index_diagnostic(report, options.json, |r| {
+            println!(
+                "ok: {} records ({} available in Atlas) in {} packs, {} lexical units, {} semantic units",
+                r.records, r.product_records, r.packs, r.lexical_units, r.semantic_units
+            );
+            println!(
+                "{} relationships, {} prepared fields",
+                r.relationships, r.prepared_fields
+            );
+            println!(
+                "bytes: {} artifact, {} snapshots, {} prepared HTML",
+                r.artifact_bytes, r.snapshot_bytes, r.prepared_html_bytes
+            );
+            for p in r.search_profiles {
+                println!(
+                    "profile {}: {} units, {} dimensions",
+                    p.profile_id, p.semantic_units, p.dimensions
+                );
+            }
+        })
     } else {
         let counts = runtime.and_then(|runtime| runtime.check_index_counts(target));
-        crate::output::index_diagnostic(counts, false, |report| {
+        crate::output::index_diagnostic(counts, options.json, |report| {
             println!(
                 "ok: {} records ({} available in Atlas, {} developer-only macros), {} lexical units, {} semantic units",
                 report.records,

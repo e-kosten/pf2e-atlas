@@ -289,6 +289,10 @@ impl<'a> SavedListsRead<'a> {
         )
     }
 
+    pub fn record_keys(&self, list_ref: &str) -> LocalStateResult<Option<Vec<String>>> {
+        storage::validate_list_ref(list_ref)?;
+        storage::record_keys(self.connection, self.owner_id, list_ref)
+    }
     pub fn get_with_items(&self, list_ref: &str) -> LocalStateResult<Option<SavedListWithItems>> {
         storage::validate_list_ref(list_ref)?;
         let transaction = self.connection;

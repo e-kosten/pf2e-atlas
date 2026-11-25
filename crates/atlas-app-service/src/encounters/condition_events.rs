@@ -191,7 +191,7 @@ impl AtlasAppService {
         mut request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         let expected_reference = request.expected_reference_revision.take();
-        let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":receipt_request(&request, "condition_id", condition_id)});
+        let intent = serde_json::json!({"action":"patch_condition","participant_key":participant_key,"request":receipt_request(&request, "condition_id", condition_id)});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
@@ -214,7 +214,7 @@ impl AtlasAppService {
         condition_id: i64,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<ConditionEventPreviewView> {
-        let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":receipt_request(&request, "condition_id", condition_id)});
+        let intent = serde_json::json!({"action":"patch_condition","participant_key":participant_key,"request":receipt_request(&request, "condition_id", condition_id)});
         Ok(preview(prepare_update(
             self,
             encounter_ref,
@@ -590,15 +590,13 @@ fn prepare_add(
         condition.key.as_deref(),
         request.immunity_override,
     )?;
-    workflow::validate_condition_parameters(
-        condition.key.as_deref(),
-        &request.scope,
-        &request.extra_action,
-    )?;
+    let scope = workflow::condition_scope_input(request.scope, &snapshot)?;
+    let extra_action = workflow::condition_extra_action_input(request.extra_action)?;
+    workflow::validate_condition_parameters(condition.key.as_deref(), &scope, &extra_action)?;
     validate_value(
         condition.key.as_deref(),
         request.value,
-        request.duration.as_ref(),
+        request.duration.is_some(),
     )?;
     let mut parameters = parameters_input(
         request.parameters,
@@ -631,8 +629,8 @@ fn prepare_add(
         name: condition.name,
         value: request.value,
         source_participant_key: request.source_participant_key,
-        scope: workflow::condition_scope_input(request.scope, &snapshot)?,
-        extra_action: workflow::condition_extra_action_input(request.extra_action)?,
+        scope,
+        extra_action,
         immunity_override: request.immunity_override,
         parameters,
         origin: Some(origin),
@@ -702,7 +700,12 @@ fn prepare_update(
         (
             workflow::ConditionInput {
                 key: existing.condition_key.clone(),
-                name: request.name.trim().into(),
+                name: request
+                    .name
+                    .as_deref()
+                    .unwrap_or(&existing.name)
+                    .trim()
+                    .into(),
             },
             None,
         )
@@ -714,35 +717,66 @@ fn prepare_update(
     }
     let reference_revision =
         preparation_reference_revision(subject.reference_revision, reference_revision)?;
-    workflow::validate_condition_subject(
-        &subject,
-        condition.key.as_deref(),
-        request.immunity_override,
-    )?;
-    workflow::validate_condition_parameters(
-        condition.key.as_deref(),
-        &request.scope,
-        &request.extra_action,
-    )?;
+    let immunity_override = request
+        .immunity_override
+        .unwrap_or(existing.immunity_override);
+    if request.event_intent == ConditionEventIntentView::Apply
+        || condition.key != existing.condition_key
+        || immunity_override != existing.immunity_override
+    {
+        workflow::validate_condition_subject(
+            &subject,
+            condition.key.as_deref(),
+            immunity_override,
+        )?;
+    }
+    let scope = match request.scope {
+        Some(scope) => workflow::condition_scope_input(scope, &snapshot)?,
+        None => existing.scope.clone(),
+    };
+    let extra_action = match request.extra_action {
+        Some(action) => workflow::condition_extra_action_input(action)?,
+        None => existing.extra_action.clone(),
+    };
+    workflow::validate_condition_parameters(condition.key.as_deref(), &scope, &extra_action)?;
+    let value = request.value.unwrap_or(existing.value);
+    let has_duration = request
+        .duration
+        .as_ref()
+        .map_or(existing.duration.is_some(), Option::is_some);
+    // Legacy unknown magnitudes remain editable until a caller supplies a new value.
     if !(request.value.is_none()
         && existing.value.is_none()
         && existing.condition_key == condition.key)
     {
-        validate_value(
-            condition.key.as_deref(),
-            request.value,
-            request.duration.as_ref(),
-        )?;
+        validate_value(condition.key.as_deref(), value, has_duration)?;
     }
-    let mut parameters = parameters_input(
-        request.parameters,
-        condition.key.as_deref(),
-        &snapshot,
-        participant_key,
-        Some(&existing),
-        &request.request_id,
-    )?;
-    hydrate_broken_threshold(&mut parameters, &subject.facts, request.immunity_override)?;
+    let same_rule = condition_rule_for_key(condition.key.as_deref())
+        == condition_rule_for_key(existing.condition_key.as_deref());
+    let parameters = match request.parameters {
+        None if same_rule => existing.parameters.clone(),
+        None if existing.parameters != ConditionParameters::None => {
+            return Err(AppServiceError::invalid_request(
+                "Specify parameters when changing this condition's rule",
+            ));
+        }
+        input => {
+            let mut parameters = parameters_input(
+                input.unwrap_or_default(),
+                condition.key.as_deref(),
+                &snapshot,
+                participant_key,
+                Some(&existing),
+                &request.request_id,
+            )?;
+            hydrate_broken_threshold(&mut parameters, &subject.facts, immunity_override)?;
+            parameters
+        }
+    };
+    let source_changed = request.source_participant_key.is_some();
+    let source_participant_key = request
+        .source_participant_key
+        .unwrap_or_else(|| existing.source_participant_key.clone());
     let mut origin = if let Some(provided) = request.origin {
         let prior = existing.origin.as_ref().ok_or_else(|| {
             AppServiceError::invalid_request("this condition has no recorded application origin")
@@ -757,16 +791,16 @@ fn prepare_update(
         Some(origin_input(
             Some(provided),
             &request.request_id,
-            request.source_participant_key.as_deref(),
+            source_participant_key.as_deref(),
             &snapshot,
         )?)
     } else {
         existing.origin.clone()
     };
-    if let Some(origin) = &mut origin {
-        origin.participant_key = request.source_participant_key.clone();
+    if source_changed && let Some(origin) = &mut origin {
+        origin.participant_key = source_participant_key.clone();
     }
-    if let Some(source) = request.source_participant_key.as_deref()
+    if let Some(source) = source_participant_key.as_deref()
         && !snapshot.participants.iter().any(|p| {
             p.participant_key == source
                 && p.participant_kind != atlas_local_state::ParticipantKind::InitiativeEntry
@@ -782,15 +816,18 @@ fn prepare_update(
         condition_id,
         condition_key: condition.key,
         name: condition.name,
-        value: request.value,
-        source_participant_key: request.source_participant_key,
-        scope: workflow::condition_scope_input(request.scope, &snapshot)?,
-        extra_action: workflow::condition_extra_action_input(request.extra_action)?,
-        immunity_override: request.immunity_override,
+        value,
+        source_participant_key,
+        scope,
+        extra_action,
+        immunity_override,
         parameters,
         origin,
-        duration: timing::duration_input(request.duration, existing.duration.as_ref(), &snapshot)?,
-        note: request.note,
+        duration: match request.duration {
+            Some(edit) => timing::duration_input(edit, existing.duration.as_ref(), &snapshot)?,
+            None => existing.duration,
+        },
+        note: request.note.unwrap_or(existing.note),
     };
     let prone_prevented = prone_exception(&subject, request.decisions.keep_upright);
     let change = ConditionEventChange::Replace(input);
@@ -834,7 +871,7 @@ fn prepare_update(
 fn validate_value(
     key: Option<&str>,
     value: Option<i64>,
-    duration: Option<&ConditionDurationView>,
+    has_duration: bool,
 ) -> AppServiceResult<()> {
     let rule = condition_rule_for_key(key);
     if key
@@ -857,7 +894,7 @@ fn validate_value(
             "condition value must be a safe integer",
         ));
     }
-    if rule == Some(ConditionRule::Stunned) && value.is_some() && duration.is_some() {
+    if rule == Some(ConditionRule::Stunned) && value.is_some() && has_duration {
         return Err(AppServiceError::invalid_request(
             "Stunned uses an action value or a duration",
         ));
@@ -1292,6 +1329,76 @@ mod lifecycle_event_tests {
                 },
             )
             .unwrap();
+    }
+    #[test]
+    fn note_correction_preserves_a_condition_after_its_subject_becomes_immune() {
+        use atlas_search::test_support::{input, record};
+        use serde_json::json;
+
+        let fixture = crate::test_support::encounter_fixture_worker();
+        let worker = &fixture.worker;
+        let encounter = worker
+            .create_encounter(serde_json::from_value(json!({"name": "Immunity change"})).unwrap())
+            .unwrap()
+            .encounter;
+        let key = &encounter.encounter_key;
+        worker
+            .add_encounter_record_participant(
+                key,
+                serde_json::from_value(json!({
+                    "request_id": "subject", "record_ref": "actors:testCreature1000", "quantity": 1
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        let detail = worker.encounter(key).unwrap();
+        let participant = &detail.participants[0].participant_key;
+        add(
+            worker,
+            key,
+            participant,
+            ConditionRule::Drained,
+            "initial",
+            Some(1),
+            ConditionEventIntentView::Apply,
+        );
+        let saved = worker.encounter(key).unwrap();
+        let condition_id = saved.participants[0].conditions[0].condition_id;
+        let updated = input(
+            vec![record(
+                "actors",
+                "Actor",
+                json!({
+                    "_id": "testCreature1000", "type": "npc", "name": "Immune creature",
+                    "system": {
+                        "details": {"level": {"value": 5}},
+                        "attributes": {"hp": {"max": 60}, "immunities": [{"type": "drained"}]}
+                    }
+                }),
+            )],
+            false,
+        );
+        crate::test_support::publish_input(worker.workspace_path(), &updated).unwrap();
+
+        let update: UpdateEncounterParticipantConditionRequest = serde_json::from_value(json!({
+            "request_id": "correct-note", "expected_encounter_revision": saved.revision,
+            "note": "Revised note"
+        }))
+        .unwrap();
+        let mut apply = update.clone();
+        apply.event_intent = ConditionEventIntentView::Apply;
+        let error = worker
+            .preview_encounter_condition_update(key, participant, condition_id, apply)
+            .unwrap_err();
+        assert!(error.into_app_error().message.contains("Immune to drained"));
+        worker
+            .update_encounter_participant_condition(key, participant, condition_id, update)
+            .unwrap();
+        let updated = worker.encounter(key).unwrap();
+        let subject = &updated.participants[0];
+        assert_eq!(subject.current_hp, saved.participants[0].current_hp);
+        assert_eq!(subject.conditions[0].note.as_deref(), Some("Revised note"));
+        assert!(!subject.conditions[0].immunity_override);
     }
     #[test]
     fn stale_drained_preview_blocks_save_without_an_encounter_edit() {
@@ -1781,16 +1888,16 @@ mod lifecycle_event_tests {
                         decisions: Default::default(),
                         expected_encounter_revision: detail.revision,
                         condition_ref: None,
-                        name: definition.name.into(),
+                        name: Some(definition.name.into()),
                         value: None,
                         source_participant_key: None,
-                        scope: Default::default(),
-                        extra_action: Default::default(),
-                        immunity_override: false,
-                        parameters: Default::default(),
+                        scope: None,
+                        extra_action: None,
+                        immunity_override: None,
+                        parameters: None,
                         origin: None,
                         duration: None,
-                        note: Some("Retained unknown magnitude".into()),
+                        note: Some(Some("Retained unknown magnitude".into())),
                     },
                 )
                 .unwrap();

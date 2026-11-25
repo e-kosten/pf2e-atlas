@@ -270,6 +270,28 @@ fn collection_discovery_lists_members_and_suggests_the_collection_path() {
             .unwrap()
             .contains("Unknown field")
     );
+    let absent = f.root.join("absent.sqlite");
+    for (args, ok) in [
+        (vec!["fields", "--json"], true),
+        (vec!["fields", "--text", "speed"], true),
+        (vec!["fields", "--group", "movement"], true),
+        (vec!["fields", "--group", "movement", "--json"], false),
+        (vec!["values", "--field", "traits", "--json"], false),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .arg("filters")
+            .args(args)
+            .arg("--index")
+            .arg(&absent)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.success(), ok, "{output:?}");
+        if !ok {
+            let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(response["error"]["code"], "setup_required");
+        }
+    }
+    assert!(!absent.exists());
     // Group browsing and unknown-group diagnostics don't require rich sense metadata.
     let db = rusqlite::Connection::open(&f.index).unwrap();
     db.execute("DROP TABLE actor_senses", []).unwrap();
@@ -482,6 +504,17 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     let check = f.data(&["index", "check", "--no-embeddings", "--json"]);
     assert_eq!(check["valid"], true);
     assert_eq!(check["product_records"], 1);
+    assert!(check.get("snapshot_bytes").is_none());
+    let statistics = f.data(&[
+        "index",
+        "check",
+        "--no-embeddings",
+        "--detail",
+        "full",
+        "--json",
+    ]);
+    assert_eq!(statistics["records"], check["records"]);
+    assert!(statistics["snapshot_bytes"].as_u64().unwrap() > 0);
     let validation = f.data(&["index", "validate", "--no-embeddings", "--json"]);
     assert_eq!(validation["valid"], true);
     assert_eq!(validation["checked_snapshots"], 2);
@@ -529,14 +562,18 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
         &passage,
         "--json",
     ]);
-    let mut guarded = navigation.clone();
-    guarded["artifact_generation"] = results["artifact_generation"].clone();
-    assert_eq!(selected["results"][0]["value"]["selected"], guarded);
+    assert_eq!(
+        navigation["artifact_generation"],
+        results["artifact_generation"]
+    );
+    for (key, value) in navigation.as_object().unwrap() {
+        assert_eq!(&selected["results"][0]["value"]["selected"][key], value);
+    }
     let direct = f.data(&[
         "record",
         "get",
         "--navigation",
-        &guarded.to_string(),
+        &navigation.to_string(),
         "--detail",
         "full",
         "--json",
@@ -1300,25 +1337,56 @@ fn keyword_only_cli_defaults_to_fts_and_rejects_explicit_semantic_requests() {
     let fixture = Fixture::new();
     let search = fixture.data(&["search", "Treat Wounds", "--json"]);
     assert_eq!(search["mode"]["mode"], "lexical");
-    assert_eq!(search["result_detail"], "compact");
+    assert_eq!(search["result_detail"], "records");
+    let preview = fixture.data(&["search", "Treat Wounds", "--detail", "preview", "--json"]);
     let full = fixture.data(&["search", "Treat Wounds", "--detail", "full", "--json"]);
+    assert_eq!(preview["result_detail"], "compact");
     assert_eq!(full["result_detail"], "evidence");
     assert_eq!(search["page"], full["page"]);
-    let compact_rows = search["rows"].as_array().unwrap();
-    let full_rows = full["rows"].as_array().unwrap();
-    assert!(!compact_rows.is_empty());
-    assert_eq!(compact_rows.len(), full_rows.len());
-    for (compact, full) in compact_rows.iter().zip(full_rows) {
-        assert_eq!(compact["navigation"], full["navigation"]);
+    assert_eq!(preview["page"], full["page"]);
+    let rows = search["rows"].as_array().unwrap();
+    assert!(!rows.is_empty());
+    for (index, row) in rows.iter().enumerate() {
+        assert!(row.get("best_match").is_none());
+        assert!(row.get("relationship_evidence").is_none());
+        let preview = &preview["rows"][index];
+        let full = &full["rows"][index];
+        for level in [row, preview, full] {
+            assert!(level.get("navigation").is_none());
+            assert!(level.get("open_args").is_none());
+            assert_eq!(level["record"]["record_key"], row["record"]["record_key"]);
+        }
         let witnesses = full["matches"].as_array().unwrap();
         let best = witnesses
             .iter()
             .find(|witness| !witness["preview"].is_null())
             .or_else(|| witnesses.first())
             .unwrap();
-        for field in ["label", "preview", "lane"] {
-            assert_eq!(compact["best_match"][field], best[field]);
+        for field in ["label", "preview", "lane", "navigation"] {
+            assert_eq!(preview["best_match"].get(field), best.get(field));
         }
+    }
+    let text = fixture.command(&["search", "Defined Fever"], false);
+    let text = String::from_utf8(text.stdout).unwrap();
+    assert!(text.contains("Treat Wounds"));
+    assert!(!text.contains("Defined Fever"));
+    assert!(!text.contains("atlas record get"));
+    for args in [
+        vec!["search", "--detail", "standard", "--json"],
+        vec!["search", "--retrieval", "fts", "--json"],
+    ] {
+        assert_eq!(fixture.command(&args, false).status.code(), Some(2));
+    }
+    for blank in ["", "   "] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(["search", "--retrieval", "fts", "--json", "--index"])
+            .arg(fixture.index.join("unusable"))
+            .args(["--", blank])
+            .output()
+            .unwrap();
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(output.status.code(), Some(2), "{response}");
+        assert_eq!(response["error"]["code"], "invalid_input");
     }
     for options in [["--retrieval", "hybrid"], ["--search-profile", "bge-base"]] {
         let result = fixture.command(
@@ -1330,6 +1398,59 @@ fn keyword_only_cli_defaults_to_fts_and_rejects_explicit_semantic_requests() {
         assert_eq!(
             envelope["error"]["code"], "vector_readiness_required",
             "{envelope}"
+        );
+    }
+}
+
+#[test]
+fn detailed_search_reopens_secondary_passages_and_rejects_a_stale_address() {
+    let f = Fixture::new();
+    let path = f.root.join("packs/actions/heal.json");
+    let mut source: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    source["system"]["description"]["value"] =
+        "<h2>Fever Signs</h2><p>Chills and aches.</p><h2>Fever Duration</h2><p>Two days.</p>"
+            .into();
+    fs::write(path, serde_json::to_vec(&source).unwrap()).unwrap();
+    assert!(
+        f.command(&["index", "build", "--no-embeddings", "--json"], true)
+            .status
+            .success()
+    );
+    let page = f.data(&["search", "fever", "--detail", "full", "--json"]);
+    let row = &page["rows"][0];
+    for section in [&row["matches"][1], &row["matching_sections"][1]] {
+        let mut navigation = section["navigation"].clone();
+        assert_eq!(
+            navigation["artifact_generation"],
+            page["artifact_generation"]
+        );
+        let selected = f.data(&[
+            "record",
+            "get",
+            "--navigation",
+            &navigation.to_string(),
+            "--json",
+        ]);
+        assert_eq!(
+            selected["results"][0]["value"]["selected"]["passage"],
+            navigation["passage"]
+        );
+        navigation["artifact_generation"] = "stale".into();
+        let failed = f.command(
+            &[
+                "record",
+                "get",
+                "--navigation",
+                &navigation.to_string(),
+                "--json",
+            ],
+            false,
+        );
+        assert!(!failed.status.success());
+        let body: Value = serde_json::from_slice(&failed.stdout).unwrap();
+        assert_eq!(
+            body["data"]["results"][0]["error"]["code"],
+            "artifact_generation_changed"
         );
     }
 }
@@ -2342,11 +2463,106 @@ fn similar_discovers_exact_record_parts_without_stored_vectors() {
         "All discovery includes every source component, including identity"
     );
     assert!(parts.iter().any(|part| part["role_label"] == "Ability"));
+    let section = parts.iter().find(|part| part["kind"] == "section").unwrap();
+    let navigation = &section["navigation"];
+    assert_eq!(
+        navigation["artifact_generation"],
+        record["artifact_generation"]
+    );
+    let reopened = fixture.data(&[
+        "record",
+        "get",
+        "--navigation",
+        &navigation.to_string(),
+        "--json",
+    ]);
+    assert_eq!(reopened["results"][0]["status"], "ok");
+    assert_eq!(
+        reopened["results"][0]["value"]["selected"]["field"],
+        navigation["field"]
+    );
 
     let output = fixture.command(&["similar", "trait:fire", "--list-parts", "--json"], false);
     assert!(!output.status.success());
     let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(envelope["error"]["code"], "invalid_request");
+}
+
+#[test]
+fn similar_pairs_reopen_the_seed_and_candidate_in_the_reported_generation() {
+    let f = Fixture::new();
+    let make = |id, title| {
+        atlas_search::test_support::record(
+            "items",
+            "Item",
+            serde_json::json!({
+                "_id":id, "name":title, "type":"effect",
+                "system":{"description":{"value":format!("<h2>{title}</h2><p>Shared remedy.</p>")}}
+            }),
+        )
+    };
+    let mut input = atlas_search::test_support::input(
+        vec![
+            make("aaaaaaaaaaaaaaaa", "First Remedy"),
+            make("bbbbbbbbbbbbbbbb", "Second Remedy"),
+        ],
+        true,
+    );
+    // The fixture assigns orthogonal root vectors; give the candidate a positive comparison.
+    for unit in &mut input.semantic_units {
+        unit.vector.fill(0.0);
+        unit.vector[0] = 1.0;
+    }
+    let workspace = atlas_runtime::initialize_workspace(&f.index).unwrap();
+    atlas_index::test_support::publish_input_in(
+        &workspace,
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        &input,
+    )
+    .unwrap();
+    let seed = "items:aaaaaaaaaaaaaaaa";
+    let parts = f.data(&["similar", seed, "--list-parts", "--json"]);
+    let part = parts["parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["kind"] == "section")
+        .unwrap();
+    for explain in [false, true] {
+        let mut args = vec![
+            "similar",
+            seed,
+            "--part",
+            part["selector"].as_str().unwrap(),
+            "--artifact-generation",
+            parts["artifact_generation"].as_str().unwrap(),
+            "--json",
+        ];
+        if explain {
+            args.push("--explain");
+        }
+        let page = f.data(&args);
+        let row = &page["rows"][0];
+        let pair = &row["similarity"]["pairs"][0];
+        for (side, key) in [
+            ("seed", seed),
+            ("candidate", row["record"]["record_key"].as_str().unwrap()),
+        ] {
+            let address = &pair[side]["navigation"];
+            assert_eq!(address["artifact_generation"], page["artifact_generation"]);
+            let selected = f.data(&[
+                "record",
+                "get",
+                "--navigation",
+                &address.to_string(),
+                "--json",
+            ]);
+            assert_eq!(
+                selected["results"][0]["value"]["selected"]["record_key"],
+                key
+            );
+        }
+    }
 }
 
 #[test]

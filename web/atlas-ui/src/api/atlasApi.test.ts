@@ -184,10 +184,27 @@ describe("source-backed API transport", () => {
     });
   });
 
+  it("rejects a vocabulary page without a generation for continuation", async () => {
+    respond({
+      kind: "vocabulary",
+      scope: { kind: "artifact" },
+      values: { total_values: 1 },
+    });
+    await expect(
+      discoverFilterValues({
+        kind: "vocabulary",
+        scope: { kind: "artifact" },
+        field_id: "traits",
+        limit: 40,
+      }),
+    ).rejects.toThrow("Invalid filter-value response");
+  });
+
   it("normalizes tagged vocabulary totals without fabricating option counts", async () => {
     const controller = new AbortController();
     respond({
       kind: "vocabulary",
+      artifact_generation: "generation-a",
       scope: { kind: "artifact" },
       values: {
         field: "traits",
@@ -212,6 +229,7 @@ describe("source-backed API transport", () => {
     expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
     expect(result).toMatchObject({
       kind: "vocabulary",
+      artifact_generation: "generation-a",
       values: {
         total_values: 1,
         options: [{ value: "fire" }],

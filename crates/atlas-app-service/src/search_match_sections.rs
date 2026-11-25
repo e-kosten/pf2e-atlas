@@ -8,29 +8,6 @@ fn same_entry(a: &RecordNavigationView, b: &RecordNavigationView) -> bool {
         && a.spell_rank == b.spell_rank
 }
 
-fn has_location(navigation: &RecordNavigationView) -> bool {
-    !navigation.owners.is_empty()
-        || navigation
-            .field
-            .as_deref()
-            .is_some_and(|field| field != "identity")
-        || navigation
-            .passage
-            .as_ref()
-            .is_some_and(|passage| !matches!(passage, SourcePassageAddress::Identity {}))
-}
-
-fn whole_entry(navigation: &RecordNavigationView) -> bool {
-    navigation
-        .field
-        .as_deref()
-        .is_none_or(|field| field == "identity")
-        && navigation
-            .passage
-            .as_ref()
-            .is_none_or(|passage| matches!(passage, SourcePassageAddress::Identity {}))
-}
-
 fn same_landing(a: &RecordNavigationView, b: &RecordNavigationView) -> bool {
     if !same_entry(a, b) || a.field != b.field {
         return false;
@@ -186,16 +163,16 @@ pub(crate) fn matching_sections(
     for (index, witness) in witnesses
         .iter()
         .enumerate()
-        .filter(|(_, w)| has_location(&w.navigation))
+        .filter(|(_, w)| w.navigation.selects_record_part())
     {
-        let (selected_index, selected) = if whole_entry(&witness.navigation) {
+        let (selected_index, selected) = if !witness.navigation.selects_content() {
             witnesses
                 .iter()
                 .enumerate()
                 .find(|(_, other)| {
                     same_entry(&witness.navigation, &other.navigation)
-                        && !whole_entry(&other.navigation)
-                        && has_location(&other.navigation)
+                        && other.navigation.selects_content()
+                        && other.navigation.selects_record_part()
                 })
                 .unwrap_or((index, witness))
         } else {

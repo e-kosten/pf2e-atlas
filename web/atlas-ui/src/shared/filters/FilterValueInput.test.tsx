@@ -170,6 +170,7 @@ describe("shared value control vocabulary", () => {
             }
           : {
               kind: "vocabulary",
+              artifact_generation: "generation-a",
               scope: request.scope,
               values: {
                 field: "traits",
@@ -192,6 +193,7 @@ describe("shared value control vocabulary", () => {
   it("omits blank catalog values that would clear an Advanced operand", async () => {
     api.discoverFilterValues.mockResolvedValue({
       kind: "vocabulary",
+      artifact_generation: "generation-a",
       scope: { kind: "saved_list", list_ref: "research" },
       values: {
         field: "traits",
@@ -358,6 +360,7 @@ describe("shared value control vocabulary", () => {
         };
       return {
         kind: "vocabulary",
+        artifact_generation: "generation-a",
         scope: request.scope,
         values: {
           field: "traits",
@@ -475,6 +478,7 @@ it("uses supplied Actions labels and Read while refusing arbitrary manual values
     if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
     return {
       kind: "vocabulary",
+      artifact_generation: "generation-a",
       values: {
         field: "actions",
         selected_values: request.selected_values ?? [],
@@ -564,6 +568,7 @@ it("retains a chosen action's label while searching and reopening its picker", a
       return new Promise(() => {});
     return {
       kind: "vocabulary",
+      artifact_generation: "generation-a",
       scope: request.scope,
       values: {
         field: "actions",

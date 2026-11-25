@@ -702,6 +702,7 @@ describe("list views", () => {
         const empty = affected && removed;
         return {
           kind: "vocabulary",
+          artifact_generation: "generation-a",
           scope: request.scope,
           values: {
             field: request.field_id,

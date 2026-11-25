@@ -127,6 +127,7 @@ it("shows reviewed scenario context on compact reference results", () => {
   const record = {
     ...summaryFixture("actors:eltha", "Eltha"),
     kind_label: "Creature",
+    level: 11,
     level_label: "Level 11",
     publication: "Cavern of Sundered Songs",
     creature_display: {

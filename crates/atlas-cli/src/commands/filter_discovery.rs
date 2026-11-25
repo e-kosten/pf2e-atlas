@@ -1,31 +1,17 @@
 use super::{filters::resolve_filter, product::app_result};
 use crate::client::{ClientOptions, connect};
-use atlas_app_service::{CliFilterValuesRequest, RawFilterCountsRequest};
+use atlas_app_service::{CliFilterValues, CliFilterValuesRequest};
 use atlas_cli_support::write_json_data;
 use atlas_domain::{QueryFieldDefinition, QueryFieldType};
 use std::process::ExitCode;
 pub(crate) mod args;
 use args::{FiltersFieldsOptions, FiltersValuesOptions};
 pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, String> {
-    let s = match connect(ClientOptions {
-        search_profile: None,
-        path_mode: crate::cli::runtime_path_mode(o.path_mode),
-        index: o.index,
-        embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
-    }) {
-        Ok(service) => service,
-        Err(error) => return crate::commands::product::report_app_error(error, o.json),
-    };
     if o.field.is_none() && !o.all && o.text.is_none() {
         if o.detail.is_none() && o.group.is_none() {
-            let groups = match app_result(s.discover_filter_group_names(), o.json)? {
-                std::ops::ControlFlow::Continue(groups) => groups,
-                std::ops::ControlFlow::Break(exit) => return Ok(exit),
-            };
+            let groups = atlas_app_service::filter_group_names();
             if o.json {
                 let groups: Vec<_> = groups
-                    .into_iter()
                     .map(|(id, label)| serde_json::json!({"id": id, "label": label}))
                     .collect();
                 write_json_data(serde_json::json!({"groups": groups}))?;
@@ -37,8 +23,40 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
             }
             return Ok(ExitCode::SUCCESS);
         }
+        if let Some(id) = &o.group
+            && !o.json
+        {
+            let group = match app_result(atlas_app_service::filter_group_fields(id), false)? {
+                std::ops::ControlFlow::Continue(group) => group,
+                std::ops::ControlFlow::Break(exit) => return Ok(exit),
+            };
+            let Some((label, fields)) = group else {
+                return unknown_group(id, false);
+            };
+            println!("{id}\t{label}");
+            for field in fields.iter().filter(|f| f.scope.is_none()) {
+                println!(
+                    "  {}\t{}\t{}",
+                    field.id,
+                    type_label(&field.field_type),
+                    field.label
+                );
+            }
+            print_group_help();
+            return Ok(ExitCode::SUCCESS);
+        }
+        let s = match connect(ClientOptions {
+            search_profile: None,
+            path_mode: crate::cli::runtime_path_mode(o.path_mode),
+            index: o.index,
+            embedding_cache: None,
+            retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
+        }) {
+            Ok(service) => service,
+            Err(error) => return crate::commands::product::report_app_error(error, o.json),
+        };
         let result = if let Some(id) = &o.group {
-            s.discover_cli_filter_group(id.clone(), o.json)
+            s.discover_cli_filter_group(id.clone())
         } else {
             s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 filter: None,
@@ -47,45 +65,16 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
             })
             .map(Some)
         };
-        let editor = match app_result(result, o.json)? {
-            std::ops::ControlFlow::Continue(Some(editor)) => editor,
+        match app_result(result, o.json)? {
+            std::ops::ControlFlow::Continue(Some(editor)) => write_json_data(&editor)?,
             std::ops::ControlFlow::Continue(None) => {
-                return super::product::command_error(
-                    o.json,
-                    "invalid_input",
-                    format!(
-                        "Unknown group `{}`; use atlas filters fields to list groups",
-                        o.group.as_deref().unwrap_or_default()
-                    ),
-                    2,
-                );
+                return unknown_group(o.group.as_deref().unwrap_or_default(), o.json);
             }
             std::ops::ControlFlow::Break(exit) => return Ok(exit),
-        };
-        if o.json {
-            write_json_data(&editor)?;
-        } else {
-            for group in editor.groups {
-                println!("{}\t{}", group.id, group.label);
-                for field in group
-                    .fields
-                    .iter()
-                    .filter(|field| field.definition.scope.is_none())
-                {
-                    println!(
-                        "  {}\t{}\t{}",
-                        field.definition.id,
-                        type_label(&field.definition.field_type),
-                        field.label
-                    );
-                }
-                // Embedded members are discovered through their collection.
-            }
-            print_group_help();
         }
         return Ok(ExitCode::SUCCESS);
     }
-    let mut c = match app_result(s.discover_filter_fields(), o.json)? {
+    let mut c = match app_result(atlas_app_service::discover_filter_fields(), o.json)? {
         std::ops::ControlFlow::Continue(value) => value,
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
@@ -179,6 +168,14 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
     }
     Ok(ExitCode::SUCCESS)
 }
+fn unknown_group(id: &str, json: bool) -> Result<ExitCode, String> {
+    super::product::command_error(
+        json,
+        "invalid_input",
+        format!("Unknown group `{id}`; use atlas filters fields to list groups"),
+        2,
+    )
+}
 fn print_group_help() {
     println!(
         "\nUse --group ID to browse, --field ID to inspect, or --text QUERY to search all fields."
@@ -219,28 +216,10 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
             expected_artifact_generation: o.artifact_generation,
         },
     };
-    let counts = match app_result(
-        s.discover_raw_filter_counts(RawFilterCountsRequest {
-            field: o.field.clone(),
-            context: context.clone(),
-            clause_id: o.clause_id.clone(),
-        }),
-        o.json,
-    )? {
+    let definition = match app_result(atlas_app_service::filter_field_definition(&o.field), o.json)?
+    {
         std::ops::ControlFlow::Continue(value) => value,
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
-    };
-    let catalog = match app_result(s.discover_filter_fields(), o.json)? {
-        std::ops::ControlFlow::Continue(value) => value,
-        std::ops::ControlFlow::Break(exit) => return Ok(exit),
-    };
-    let Some(definition) = catalog.fields.iter().find(|field| field.id == o.field) else {
-        return super::product::command_error(
-            o.json,
-            "invalid_input",
-            format!("Unknown field `{}`", o.field),
-            2,
-        );
     };
     let statistics_only = matches!(
         definition.field_type,
@@ -254,24 +233,19 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
             2,
         );
     }
-    let values = if statistics_only {
-        None
-    } else {
-        let values = match app_result(
-            s.discover_cli_filter_values(CliFilterValuesRequest {
-                field: o.field,
-                context,
-                clause_id: o.clause_id,
-                text: o.text,
-                offset: o.offset,
-                limit: o.limit,
-            }),
-            o.json,
-        )? {
-            std::ops::ControlFlow::Continue(value) => value,
-            std::ops::ControlFlow::Break(exit) => return Ok(exit),
-        };
-        Some(values)
+    let CliFilterValues { counts, values } = match app_result(
+        s.discover_cli_filter_values(CliFilterValuesRequest {
+            field: definition,
+            context,
+            clause_id: o.clause_id,
+            text: o.text,
+            offset: o.offset,
+            limit: o.limit,
+        }),
+        o.json,
+    )? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     if o.json {
         write_json_data(serde_json::json!({"values":values,"counts":counts}))?;

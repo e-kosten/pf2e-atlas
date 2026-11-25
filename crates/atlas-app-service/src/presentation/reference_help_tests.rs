@@ -425,6 +425,7 @@ fn alternate_melee_and_spell_patch_traits_keep_labels_and_raw_identity() {
 
 fn list_request(filter: Option<atlas_domain::QueryPredicate>) -> SearchResultsRequest {
     SearchResultsRequest {
+        include_summary_definitions: true,
         result_detail: atlas_app_model::SearchResultDetail::Evidence,
         connection_scope: None,
         criteria: SearchCriteria::ListRecords { filter },
@@ -638,6 +639,31 @@ fn browse_summary_keeps_canonical_trait_labels_and_rarity_fallback() {
             .worker
             .search_page(list_request(None), &execution)
             .unwrap();
+        let annotated_reads = fixture.worker.last_read_metrics();
+        let undecorated = fixture
+            .worker
+            .search_page(
+                SearchResultsRequest {
+                    include_summary_definitions: false,
+                    ..list_request(None)
+                },
+                &execution,
+            )
+            .unwrap();
+        let base_reads = fixture.worker.last_read_metrics();
+        assert_eq!(
+            annotated_reads.sql_statements,
+            base_reads.sql_statements + 1
+        );
+        assert_eq!(undecorated.page, page.page);
+        let base = undecorated
+            .rows
+            .iter()
+            .find(|r| r.record.record_key == HOLDER)
+            .unwrap();
+        let rarity = base.record.rarity.as_ref().unwrap();
+        assert_eq!(rarity.label, "Uncommon");
+        assert!(rarity.help.is_none());
         let record = &page
             .rows
             .iter()
@@ -704,6 +730,7 @@ fn size_aliases_share_label_only_editor_metadata_and_value_transport() {
         .worker
         .discover_filter_values(
             DiscoverFilterValuesRequest::Vocabulary {
+                expected_artifact_generation: None,
                 scope: FilterVocabularyScope::Artifact,
                 field_id: "body.size".into(),
                 text: None,

@@ -565,7 +565,11 @@ membership scope, value-search text, bounded paging and selected literals. It ha
 no query predicate, query text or retrieval mode. App-service resolves saved-list
 keys; search forwards scope without embedding; index enumerates known applicable
 product values. Empty membership remains empty, and
-retained selections do not inflate suggestion totals. Contextual counts retain
+retained selections do not inflate suggestion totals. Each vocabulary page
+returns the reference generation. On a generation conflict the picker restarts
+at offset zero and retains the current draft. The categorical CLI directory
+reads counts and values with one membership selection in a single snapshot.
+The static field and group directory uses the compiled catalog independently of workspace admission. Contextual counts retain
 their exact same-child/counterfactual semantics over structured eligibility.
 The app counts operation accepts a bounded explicit literal page, independently
 of vocabulary enumeration. It uses the same index-owned counterfactual compiler
@@ -709,6 +713,13 @@ The detailed weight table hides rows rounding to 0.0% unless Show smaller weight
 is enabled. That option defaults off and is shown only for Detailed Similar results.
 Same-record evidence navigates through the reader; cross-record seed or reference evidence uses the shared linked-record
 Drawer, preserving the selected result and its return context.
+
+Search pages enrich row rarity and trait labels with catalog definitions by
+default. Clients that discard that decoration can send
+`include_summary_definitions: false`. Rarity retains its base display label and
+has no catalog help. Trait badges retain their value, key when available, and
+the summary’s base label. Record summaries carry numeric `level`, its nullable
+basis (actor level, item level, or spell rank), and the display label.
 
 Record Similar carries the exact root seed and canonical filters, and returns a
 body-free seed summary beside bounded candidate pages. It uses stored vectors. Every request supplies its complete criteria, page and optional

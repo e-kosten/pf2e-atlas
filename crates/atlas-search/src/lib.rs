@@ -60,7 +60,8 @@ pub use atlas_index::{
 };
 pub use discovery::{
     DiscoverFilterCountsRequest, DiscoverFilterValueCountsRequest, DiscoverFilterValuesRequest,
-    DiscoverFilterVocabularyRequest, FilterDiscoveryContext,
+    DiscoverFilterVocabularyRequest, FilterDiscoveryContext, discover_filter_fields,
+    filter_field_definition,
 };
 pub use error::{SearchError, SearchErrorKind};
 pub use graph::{GraphContextRequest, GraphContextResult, GraphContextSection};

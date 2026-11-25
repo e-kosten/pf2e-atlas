@@ -4610,6 +4610,12 @@
           {
             "additionalProperties": false,
             "properties": {
+              "expected_artifact_generation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "field_id": {
                 "type": "string"
               },
@@ -11069,6 +11075,9 @@
           },
           {
             "properties": {
+              "artifact_generation": {
+                "type": "string"
+              },
               "kind": {
                 "enum": [
                   "vocabulary"
@@ -11083,6 +11092,7 @@
               }
             },
             "required": [
+              "artifact_generation",
               "scope",
               "values",
               "kind"
@@ -16123,10 +16133,21 @@
           "kind_label": {
             "type": "string"
           },
-          "level_basis": {
+          "level": {
+            "format": "double",
             "type": [
-              "string",
+              "number",
               "null"
+            ]
+          },
+          "level_basis": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SourceLevelBasis"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "level_label": {
@@ -16190,6 +16211,7 @@
           "source_type",
           "level_label",
           "level_basis",
+          "level",
           "rarity",
           "traits",
           "publication",
@@ -18619,6 +18641,11 @@
               "null"
             ]
           },
+          "include_summary_definitions": {
+            "default": true,
+            "description": "Enrich row rarity and trait labels with catalog definitions. When false,\nrows retain their base labels and omit catalog-provided rarity help.",
+            "type": "boolean"
+          },
           "page": {
             "$ref": "#/components/schemas/SearchPageRequest"
           },
@@ -19813,6 +19840,14 @@
           "end"
         ],
         "type": "object"
+      },
+      "SourceLevelBasis": {
+        "enum": [
+          "actor_level",
+          "item_level",
+          "spell_rank"
+        ],
+        "type": "string"
       },
       "SourcePassageAddress": {
         "description": "Root, owner chain and field belong to the outer hit/field locator. Hashes bind\nsections to one source/preparation context; these are not cross-build IDs.",
@@ -21439,12 +21474,10 @@
       },
       "UpdateEncounterParticipantConditionRequest": {
         "additionalProperties": false,
+        "description": "Apply only the submitted fields. Null explicitly clears a nullable field.",
         "properties": {
           "condition_ref": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "decisions": {
             "$ref": "#/components/schemas/ConditionApplicationDecisionsView"
@@ -21460,7 +21493,9 @@
             ]
           },
           "event_intent": {
-            "$ref": "#/components/schemas/ConditionEventIntentView"
+            "$ref": "#/components/schemas/ConditionEventIntentView",
+            "default": "correction",
+            "description": "Correct saved state by default. Apply also processes the change as a gameplay event."
           },
           "expected_encounter_revision": {
             "format": "int64",
@@ -21491,14 +21526,7 @@
             ]
           },
           "origin": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ConditionOriginViewInputSchema"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ConditionOriginViewInputSchema"
           },
           "parameters": {
             "$ref": "#/components/schemas/ConditionParametersInputView"
@@ -21525,8 +21553,7 @@
         },
         "required": [
           "request_id",
-          "expected_encounter_revision",
-          "name"
+          "expected_encounter_revision"
         ],
         "type": "object"
       },
@@ -23322,7 +23349,7 @@
           {
             "in": "query",
             "name": "participant_key",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -25576,7 +25603,7 @@
           {
             "in": "query",
             "name": "participant_key",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string"
             }

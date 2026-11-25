@@ -1,3 +1,4 @@
+import { encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 import { expect, test } from "./fixtures";
 import { creatureFilter, landedSearch, noPageOverflow, sentinel } from "./reading";
 
@@ -182,4 +183,99 @@ test("short landscape filter popovers keep their footer reachable by pointer", a
   expect(box).not.toBeNull();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
   await expect(footer).toBeChecked();
+});
+
+test("replacing the reference library restarts only the open vocabulary page", async ({
+  page,
+}) => {
+  let changed = false;
+  let continued = false;
+  let recovered = false;
+  await page.route("**/api/filters/values", async (route) => {
+    const request = route.request().postDataJSON();
+    if (request.kind !== "vocabulary" || request.field_id !== "traits")
+      return route.continue();
+    const original = await route.fetch({
+      postData: { ...request, expected_artifact_generation: null },
+    });
+    const result = await original.json();
+    if (changed && request.offset > 0) {
+      continued = request.expected_artifact_generation === result.artifact_generation;
+      await route.fulfill({
+        response: original,
+        status: 409,
+        json: {
+          code: "artifact_generation_changed",
+          message: "The reference library changed.",
+          recoverable_action: "refresh_results",
+        },
+      });
+      return;
+    }
+    recovered ||=
+      changed &&
+      request.offset === 0 &&
+      !request.expected_artifact_generation &&
+      request.text === "test" &&
+      request.selected_values.includes("fire");
+    await route.fulfill({
+      response: original,
+      json: {
+        ...result,
+        artifact_generation: changed
+          ? "replacement-generation"
+          : result.artifact_generation,
+        values: {
+          ...result.values,
+          total_values: 60,
+          options: [
+            { value: "fire", label: "Fire" },
+            {
+              value: "test",
+              label: changed ? "Test after update" : "Test before update",
+            },
+          ],
+        },
+      },
+    });
+  });
+  const filter = encodeFilterUrl({
+    kind: "set_match",
+    field: "traits",
+    op: "includes_any",
+    clause_id: "traits",
+    values: ["fire"],
+  });
+  await Promise.all([
+    page.waitForResponse((response) => response.url().endsWith("/api/search/page")),
+    page.goto(`/search?filter=${encodeURIComponent(filter)}`),
+  ]);
+  await page.getByRole("button", { name: "Edit Traits filter", exact: true }).click();
+  const menu = page.getByRole("dialog", { name: "Traits choices" });
+  await menu.getByRole("checkbox", { name: "Show all values" }).check();
+  const input = menu.getByLabel("Search traits choices", { exact: true });
+  await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/filters/values") &&
+        r.request().postDataJSON().text === "test",
+    ),
+    input.fill("test"),
+  ]);
+  changed = true;
+  await menu.getByRole("button", { name: "More values" }).click();
+  await expect(
+    menu.getByRole("button", { name: /^Traits: Test after update, neutral/ }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole("button", { name: /^Traits: Fire, included/ }),
+  ).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Previous values" })).toBeDisabled();
+  await expect(input).toHaveValue("test");
+  expect(continued).toBe(true);
+  expect(recovered).toBe(true);
+  await test.info().attach("Recovered vocabulary page", {
+    body: await menu.screenshot(),
+    contentType: "image/png",
+  });
 });

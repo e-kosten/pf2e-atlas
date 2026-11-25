@@ -33,10 +33,7 @@ export function RecordBrowseSummary({
   previewOnEnter?: boolean;
 }) {
   const atlasRouter = useAtlasRouter();
-  const classification = [
-    record.kind_label,
-    record.level_label?.replace(/^(Level|Rank)\s+/, ""),
-  ]
+  const classification = [record.kind_label, record.level?.toString()]
     .filter(Boolean)
     .join(" ");
   const recordHref =

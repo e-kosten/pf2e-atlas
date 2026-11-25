@@ -67,7 +67,7 @@ source, the default pinned BGE Base profile and artifact, or `atlas setup
 `--no-embeddings` preserves configured profiles; it does not remove them.
 Setup can download assets and run lengthy inference; inspect readiness before
 starting a build and preserve the chosen source, locale and profiles.
-`atlas index check --json` checks readiness; `atlas index validate --json` deeply
+`atlas index check --json` checks readiness. Add `--detail full` for storage and profile statistics; `atlas index validate --json` deeply
 checks the artifact.
 Use `--no-embeddings` with either index command for a lexical workspace. Supported
 workspace upgrades preserve saved state through migrations and component backfills.
@@ -255,8 +255,7 @@ weights, and `--retrieval vector` selects semantic search alone. Hybrid
 `--ranking score` is the default; `--ranking rrf` compares rank-based fusion on
 the same data. Keep the default unless the caller asks to compare approaches.
 Ranking selection does not rebuild data and applies only to hybrid text search.
-`--limit` sets page size (1-100); `--page` starts at 1. Query-free browsing ignores
-text retrieval and ranking options.
+`--limit` sets page size (1-100); `--page` starts at 1. Pass query text when selecting a retrieval mode.
 `--sort` accepts `name_asc`, `name_desc`, `level_asc`, `level_desc`,
 `unit_price_asc` or `unit_price_desc`. Repeat it for later tie-breaking attributes;
 each field appears at most once. Text and Similar also accept sole `relevance`.
@@ -268,24 +267,25 @@ name/key order. `--sort random` shuffles the same complete matching set before
 paging. `--seed` accepts an unsigned32-bit integer only with Random; omission
 generates a seed reported in the result. Reuse it to retain the same order for
 unchanged matching records across pages. Random does not expand semantic coverage.
-A lexical-only workspace needs `--retrieval fts` for text queries.
+With no configured embeddings, ordinary text search automatically uses FTS.
 The Name and identity method uses the seed's stored root identity vector; Passage matches and Content average use the selected source components. Similar filters constrain
 candidates, not seed resolution; resolve an ambiguous seed separately.
 Similar also accepts `--page` and `--limit` for stateless result pages.
 Browse and text search return `data.rows`, `page`, `coverage`, ordering, profile
-and artifact generation. The default supplies the best available witness and
-relationship evidence. Use `search --detail full` for all returned witnesses and
-ranking detail. Similar returns up to one representative pair per row by default.
+and artifact generation. Use `--detail records` (the default) for record keys and summaries,
+`--detail preview` for the best available match, excerpt and relevant relationship
+evidence, or `--detail full` for every returned witness and ranking detail. Similar returns up to one representative pair per row by default.
 Supply `--explain --json` to read additional pairs and part or role contributions.
 Search and Similar return the effective `result_detail` on the page.
 Report bounded semantic and hybrid counts with their coverage and count basis.
 
-Each search row supplies `open_args` to read its exact selection. `next_args`
-on the page or on relationship evidence continues that result. Pass the argument
-array directly to a process runner to preserve workspace paths, filters and the
-generation. If a named affliction lives inside a creature, this opens the
-embedded passage. Use the supplied locator when a question needs another
-section of that selection. GM prose and check DCs follow the artifact policy.
+Use `atlas record get RECORD_KEY --json` with a row’s `record.record_key`
+to read the current record. For an exact selection, serialize
+`best_match.navigation` (preview) or the chosen `matches[i].navigation`
+(full) as one JSON argument to `atlas record get --navigation`. When the match
+identifies only the record, use its key. Repeat the search command’s workspace
+options on the read. Rerun search if an exact locator’s generation has changed.
+Page and relationship `next_args` can be passed directly to a process runner.
 
 ## Filter discovery
 
@@ -307,14 +307,12 @@ atlas search --kind spell --where 'level <= 2' --json
 `filters fields` describes allowed choices; `filters values` retains all supplied
 filters and returns contextual counts (including zero-match closed choices).
 `--text` searches values, not record content. Relationship conditions use the
-same predicate and are retained in counts and statistics. `--query` adds record
-content context with `--retrieval` and `--search-profile`; `--list ID` restricts
-membership. `--artifact-generation` binds a prior generation, and optional
-`--clause-id` requests replacements at one clause. Unsupported grouped or text
-count contexts fail explicitly; do not reinterpret that as zero matches. Value counts refer to distinct
-parent records after remaster preference; source-availability statistics are
-before that preference and may count multiple collection occurrences per parent.
-Unavailable discovery is an error, never a zero count. For same-entry constraints,
+same predicate and are retained in counts and statistics. Use `--list ID` to restrict membership and
+`--artifact-generation` to require a prior reference generation. Optional
+`--clause-id` requests replacements at one clause. Counts describe distinct
+matching parent records. Source-availability statistics describe the applicable
+vocabulary and can count multiple collection occurrences per parent.
+Unavailable counts differ from zero matches. For same-entry constraints,
 combine conditions inside one CEL `exists`, for example
 `movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)`.
 Use `embedded.spells.exists(s, "fire" in s.traits)` for records containing a fire
@@ -448,6 +446,7 @@ Discover saved identities, then read the sections relevant to the task:
 ```sh
 atlas characters list --json
 atlas parties list --json
+atlas parties list --detail full --json
 atlas parties show PARTY_KEY --json
 atlas characters show CHARACTER_KEY --section equipment --section money --json
 atlas characters show CHARACTER_KEY --section spellcasting --section proficiencies --json

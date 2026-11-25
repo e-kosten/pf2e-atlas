@@ -128,16 +128,16 @@ fn money_and_crafting_read_only_their_selected_facts_and_links() {
     source["build"]["formula"] = json!([{"type":"Alchemical","known":["Rope"]}]);
     source["build"]["money"] = json!({"gp":5});
     let sections = |source: &serde_json::Value, section| {
-        let sheet = crate::pathbuilder_sheet::read_sheet(&source.to_string()).unwrap();
+        let json = source.to_string();
         retrieval.reset_read_metrics();
-        let view = crate::character_context::source_sections(
-            Some(&sheet),
+        let projected = crate::character_sheet::ProjectedImport::read(
+            &json,
             None,
-            None,
-            &[section],
             Some(&retrieval),
+            crate::character_sheet::SheetLayout::Context(&[section]),
         )
         .unwrap();
+        let view = crate::character_context::source_sections(Some(projected), &[section]);
         (
             serde_json::to_value(view).unwrap(),
             retrieval.read_metrics().sql_statements,
@@ -153,6 +153,112 @@ fn money_and_crafting_read_only_their_selected_facts_and_links() {
     assert_eq!(money["money"]["fields"]["money"]["value"]["gp"]["value"], 5);
 }
 
+#[test]
+fn fresh_money_only_preview_skips_catalog_work_and_keeps_save_guards() {
+    let service = crate::test_support::fixture_worker().worker;
+    let source = pathbuilder_export(7);
+    let preview = service
+        .preview_character_import(
+            &source,
+            None,
+            CharacterContextRequest {
+                sections: vec![S::Money],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let money_reads = service.last_read_metrics();
+    let full = service
+        .preview_character_import(&source, None, CharacterContextRequest::default())
+        .unwrap();
+    assert_eq!(money_reads.sql_statements, 0, "{money_reads:?}");
+    assert!(service.last_read_metrics().sql_statements > money_reads.sql_statements);
+    assert_eq!(preview.source_sha256, full.source_sha256);
+    assert_eq!(preview.artifact_generation, full.artifact_generation);
+    assert_eq!(
+        serde_json::to_value(&preview.proposed[&S::Money]).unwrap(),
+        serde_json::to_value(&full.proposed[&S::Money]).unwrap()
+    );
+    assert_eq!(preview.proposed.len(), 1);
+}
+
+#[test]
+fn refresh_shares_selected_groups_with_full_comparison_and_skips_unrequested_links() {
+    let service = crate::test_support::fixture_worker().worker;
+    let mut source: serde_json::Value = serde_json::from_str(&pathbuilder_export(7)).unwrap();
+    source["build"]["class"] = json!("Wizard");
+    source["build"]["keyability"] = json!("int");
+    source["build"]["money"] = json!({"gp":5});
+    source["build"]["equipment"] = json!([["Rope", 1, "Not Invested"]]);
+    source["build"]["resistances"] = json!(["Cold 2"]);
+    let key = import_source(&service, source.to_string());
+    source["build"]["money"]["gp"] = json!(8);
+    source["build"]["equipment"][0][1] = json!(3);
+    source["build"]["level"] = json!(8);
+    source["build"]["futureFeature"] = json!("new detail");
+    let source = source.to_string();
+    let preview = |sections| {
+        service
+            .preview_character_import(
+                &source,
+                Some(&key),
+                CharacterContextRequest {
+                    sections,
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+    };
+    let money = preview(vec![S::Money]);
+    assert_eq!(service.last_read_metrics().sql_statements, 0);
+    let full = preview(vec![]);
+    assert!(service.last_read_metrics().sql_statements > 0);
+    let browser = service.preview_pathbuilder_pc(&source, Some(&key)).unwrap();
+    for changes in [&money.changes, &full.changes] {
+        assert_eq!(
+            serde_json::to_value(changes).unwrap(),
+            serde_json::to_value(&browser.changes).unwrap()
+        );
+    }
+    let changes = browser.changes.unwrap();
+    assert!(
+        changes
+            .sections
+            .iter()
+            .any(|s| s.label == "Stats" && s.changed.iter().any(|v| v == "Imported level"))
+    );
+    assert!(
+        changes
+            .sections
+            .iter()
+            .any(|s| s.label == "Inventory" && s.changed.len() >= 2)
+    );
+    assert!(!changes.additional_fields_changed.is_empty());
+    assert_eq!(money.source_sha256, full.source_sha256);
+    assert_eq!(money.artifact_generation, browser.artifact_generation);
+    let fresh = service
+        .preview_character_import(&source, None, CharacterContextRequest::default())
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&full.proposed).unwrap(),
+        serde_json::to_value(fresh.proposed).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(&money.proposed[&S::Money]).unwrap(),
+        serde_json::to_value(&full.proposed[&S::Money]).unwrap()
+    );
+    let saved = service
+        .character_context(&key, CharacterContextRequest::default())
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(full.current.unwrap()).unwrap(),
+        serde_json::to_value(&saved).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(&money.current.unwrap().sections[&S::Money]).unwrap(),
+        serde_json::to_value(&saved.sections[&S::Money]).unwrap()
+    );
+}
 #[test]
 fn sheet_places_imported_stats_by_use_and_keeps_cli_section_membership() {
     use atlas_app_model::{SheetGroupView, SheetSectionKind};
@@ -578,6 +684,12 @@ fn saved_sheet_states_and_owner_isolation_work_without_reference_content() {
         .character_context(&manual.character_key, request.clone())
         .unwrap();
     assert_eq!(view.source_state, CharacterSourceState::Available);
+    let sheet = service
+        .character_sheet(&manual.character_key)
+        .unwrap()
+        .sheet
+        .unwrap();
+    assert_eq!(sheet.name, "Imported PC");
     let json = serde_json::to_value(view).unwrap();
     assert_eq!(
         json["sections"]["equipment"]["fields"]["equipment"]["value"][0]["value"]["name"]["value"],
@@ -591,6 +703,21 @@ fn saved_sheet_states_and_owner_isolation_work_without_reference_content() {
             .code,
         AppErrorCode::CharacterNotFound
     );
+    // A missing publication is expected offline. A broken catalog read must
+    // remain observable even when the saved part of the sheet can be loaded.
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute_batch("ALTER TABLE artifact_context RENAME TO unavailable_test_catalog")
+        .unwrap();
+    write.commit().unwrap();
+    let error = service
+        .character_sheet(&manual.character_key)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::QueryFailed);
 }
 
 #[test]

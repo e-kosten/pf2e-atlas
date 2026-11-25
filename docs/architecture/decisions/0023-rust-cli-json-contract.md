@@ -42,9 +42,10 @@ JSON payloads are written to stdout. Routine progress is not part of the JSON co
 
 ### Current search contract
 
-Browse and text search project the shared SearchResultsPage into compact CLI
-rows with an attributable match, selected record navigation and executable
-follow-up arguments. Full detail includes the complete witness set. Similar
+Browse and text search default to record summaries. A preview adds the best
+match and full detail adds all returned witnesses. Exact CLI match addresses
+carry their publication generation for replay; ordinary reads use a record key.
+Executable continuations carry the original selection and paging options. Similar
 returns its seed and up to one representative pair per row by default. Supply
 `--explain` in terminal or JSON mode for full comparison evidence. Search and
 Similar pages report their effective `result_detail`. All use the service's ordering,
@@ -102,7 +103,7 @@ status summarizes item outcomes. A successful transaction can create an empty
 list after all its item references miss.
 
 A completed index check or validation returns `status: "ok"` with `data.valid`.
-Healthy reports include measured statistics and exit 0. Invalid reports carry a
+Healthy reports exit 0. Checks return shallow counts by default and query extended statistics with `--detail full`. Invalid reports carry a
 machine-readable reason and exit 3. Failure to admit or inspect the database
 uses the error envelope and exit 3. Invalid command arguments exit 2.
 

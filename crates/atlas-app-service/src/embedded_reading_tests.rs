@@ -558,6 +558,24 @@ fn ability_groups_filter_before_paging_and_target_the_same_source_identity() {
         activities[99].navigation
     );
     let target = read(None, Some(activity_address(&activities[99].navigation)));
+    let single = f
+        .worker
+        .embedded_reading(request(
+            &detail.artifact_generation,
+            EmbeddedReadingSelection::Activity {
+                address: activity_address(&activities[99].navigation),
+            },
+        ))
+        .unwrap();
+    assert_eq!(single.entries[0].navigation, activities[99].navigation);
+    let metrics = f.worker.last_read_metrics();
+    assert_eq!(
+        (
+            metrics.source_body_decodes,
+            metrics.prepared_content_batches
+        ),
+        (1, 1)
+    );
     assert_eq!(target.start, 32);
     assert_eq!(
         target.entries.last().unwrap().navigation,

@@ -118,8 +118,6 @@ it("edits typed persistent damage while preserving its episode, origin and indep
           multiplier: "double",
           recovery: { kind: "specified", dc: 12 },
         },
-        origin: current.conditions[0].origin,
-        duration: current.conditions[0].duration,
       }),
     ),
   );
@@ -151,11 +149,14 @@ it("edits typed persistent damage while preserving its episode, origin and indep
           multiplier: "double",
           recovery: { kind: "specified", dc: 12 },
         },
-        origin: current.conditions[0].origin,
-        duration: current.conditions[0].duration,
       }),
     ),
   );
+  for (const [, edit] of onUpdate.mock.calls) {
+    expect(edit).not.toHaveProperty("origin");
+    expect(edit).not.toHaveProperty("duration");
+    expect(edit.parameters).not.toHaveProperty("episode_id");
+  }
 });
 
 it("shows linked persistent sources without disclosure and dims the backend-superseded source", async () => {

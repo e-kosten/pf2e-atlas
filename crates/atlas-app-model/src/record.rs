@@ -28,7 +28,9 @@ pub struct RecordSummaryView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub level_label: Option<String>,
     #[cfg_attr(feature = "openapi", schema(required))]
-    pub level_basis: Option<String>,
+    pub level_basis: Option<atlas_domain::SourceLevelBasis>,
+    #[cfg_attr(feature = "openapi", schema(required, value_type = Option<f64>))]
+    pub level: Option<serde_json::Number>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub rarity: Option<crate::ReferenceValueView>,
     pub traits: Vec<RecordBadgeView>,
@@ -137,6 +139,20 @@ pub struct RecordNavigationView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub source_fingerprint: Option<String>,
 }
+impl RecordNavigationView {
+    /// Identity witnesses can carry the synthetic field and passage named "identity".
+    pub fn selects_content(&self) -> bool {
+        self.field
+            .as_deref()
+            .is_some_and(|field| field != "identity")
+            || !matches!(self.passage, None | Some(SourcePassageAddress::Identity {}))
+    }
+
+    pub fn selects_record_part(&self) -> bool {
+        !self.owners.is_empty() || self.spell_rank.is_some() || self.selects_content()
+    }
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

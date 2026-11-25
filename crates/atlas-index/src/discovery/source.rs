@@ -111,6 +111,12 @@ fn compile_eligibility(
     })
 }
 
+pub fn query_field_definition(
+    id: &str,
+) -> Result<&'static atlas_domain::QueryFieldDefinition, IndexError> {
+    Ok(&field(id)?.definition)
+}
+
 fn field(id: &str) -> Result<&'static crate::query::catalog::Descriptor, IndexError> {
     descriptors()?
         .iter()

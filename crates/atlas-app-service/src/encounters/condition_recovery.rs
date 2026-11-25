@@ -252,7 +252,12 @@ impl AtlasAppService {
             .participants
             .iter()
             .find(|p| p.participant_key == participant_key)
-            .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    atlas_app_model::AppErrorCode::EncounterParticipantNotFound,
+                    format!("Encounter participant `{participant_key}` was not found"),
+                )
+            })?;
         let mut participant = participant.clone();
         if let Some(saved) = &boundary {
             retain_outgoing_frightened(&mut participant, saved);

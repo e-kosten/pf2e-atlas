@@ -74,6 +74,7 @@ fn declared_grants_appear_in_explore_and_reference_search_without_duplicate_resu
         .worker
         .search_page(
             SearchResultsRequest {
+                include_summary_definitions: true,
                 result_detail: atlas_app_model::SearchResultDetail::Evidence,
                 connection_scope: None,
                 sort: None,

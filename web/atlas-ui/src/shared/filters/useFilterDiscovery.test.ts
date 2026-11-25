@@ -84,6 +84,7 @@ beforeEach(() => {
   api.discoverFilterValues.mockImplementation((request) =>
     Promise.resolve({
       kind: "vocabulary",
+      artifact_generation: "generation-a",
       scope: request.scope,
       values: {
         field: request.field_id,
@@ -622,6 +623,7 @@ it("keeps scoped discovery unavailability explicit and falls back to independent
           }
         : {
             kind: "vocabulary",
+            artifact_generation: "generation-a",
             scope: request.scope,
             values: {
               field: request.field_id,
@@ -648,6 +650,7 @@ it("keeps scoped discovery unavailability explicit and falls back to independent
   });
   expect(api.discoverFilterValues.mock.calls[1][0]).toEqual({
     kind: "vocabulary",
+    expected_artifact_generation: "generation-a",
     scope: { kind: "artifact" },
     field_id: "traits",
     text: null,
