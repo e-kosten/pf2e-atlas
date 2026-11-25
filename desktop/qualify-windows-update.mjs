@@ -1,3 +1,5 @@
+import { holdNextTabCommand } from "./qualify-windows-tabs.mjs";
+
 // Drive the real Windows confirmation owned by this disposable host. Closing it
 // leaves the tab's live editor available to the next handoff attempt.
 async function answerDiscard(ps, pid, env, answer) {
@@ -61,15 +63,11 @@ export async function qualifyUpdateGuards({ second, channel, install, review, ex
   log("independent-terminal-preserved");
 
   // A listener that never replies must not count as a clean editor.
-  await second.evaluate(() => {
-    function hold(event) {
-      if (event.detail.kind !== "check-exit") return;
-      window.removeEventListener("atlas-windows-tab-command", hold, true);
-      event.stopImmediatePropagation();
-    }
-    window.addEventListener("atlas-windows-tab-command", hold, true);
-  });
+  await holdNextTabCommand(second, "check-exit");
   await install.click();
+  const held = second.locator("html");
+  await expect(held).toHaveAttribute("data-held-tab-command", /^\d+$/, { timeout: 90_000 });
+  log("missing-window-reply-withheld", { request: await held.getAttribute("data-held-tab-command") });
   await refused(/could not check every window/);
   log("missing-window-reply-refused");
 

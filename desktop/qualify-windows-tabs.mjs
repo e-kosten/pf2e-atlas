@@ -1,5 +1,27 @@
 import { join } from "node:path";
 
+// The host dispatches directly on Window. WebView2 can invoke the product's
+// existing listener before a later capture listener on that same target.
+export async function holdNextTabCommand(page, match) {
+  await page.evaluate((match) => {
+    const kinds = match === "check-exit" ? ["check-exit"] : ["open", "select"];
+    const field = match === "check-exit" ? "id" : "delivery";
+    const dispatch = window.dispatchEvent;
+    const previous = Object.getOwnPropertyDescriptor(window, "dispatchEvent");
+    delete document.documentElement.dataset.heldTabCommand;
+    window.dispatchEvent = function (event) {
+      if (event.type === "atlas-windows-tab-command" && kinds.includes(event.detail?.kind)
+        && Number.isSafeInteger(event.detail[field])) {
+        if (previous) Object.defineProperty(window, "dispatchEvent", previous);
+        else delete window.dispatchEvent;
+        document.documentElement.dataset.heldTabCommand = String(event.detail[field]);
+        return true;
+      }
+      return dispatch.call(this, event);
+    };
+  }, match);
+}
+
 // Exercise the installed host and real WebView2 documents after the signed
 // update. The caller owns the disposable service, installer and workspace.
 export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stopWorker, nativePage, evidence }) {
@@ -94,17 +116,9 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
 
   // Hold one real delivery before React acknowledges it, then interrupt its
   // service. A late acknowledgement from this document cannot own the queue.
-  await page.evaluate(() => {
-    const hold = (event) => {
-      if (event.detail.delivery === undefined) return;
-      window.removeEventListener("atlas-windows-tab-command", hold, true);
-      event.stopImmediatePropagation();
-      document.documentElement.dataset.heldDelivery = String(event.detail.delivery);
-    };
-    window.addEventListener("atlas-windows-tab-command", hold, true);
-  });
+  await holdNextTabCommand(page, "delivery");
   openLink(recordLink);
-  await expect(page.locator("html")).toHaveAttribute("data-held-delivery", /\d+/);
+  await expect(page.locator("html")).toHaveAttribute("data-held-tab-command", /^\d+$/);
   stopWorker();
   const recovery = await nativePage((p) => p.getByRole("button", { name: "Reconnect", exact: true }).isVisible());
   openLink(listLink);
