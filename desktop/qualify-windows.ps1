@@ -31,7 +31,11 @@ function Invoke-Checked {
     & $Command @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE." }
 }
-function Escape-Nsis([string]$Value) { return $Value.Replace('$', '$$').Replace('"', '$\"') }
+function Get-NsisRuntimePath([string]$Path) {
+    # NSIS expands $ variables in installer instructions. A preprocessor
+    # !include takes a literal native filename and does not use this escaping.
+    return (Get-Item -LiteralPath $Path).FullName.Replace('$', '$$')
+}
 function Get-NsisHostHash([string]$Path) {
     # Tauri 2.12.4 bundles this marker patch, then restores the unpatched build
     # output. Predict the packaged bytes instead of hashing that restored file.
@@ -126,16 +130,29 @@ try {
   atlas_lock_done:
 !macroend
 !macro NSIS_HOOK_POSTINSTALL
-  ExecWait '"%PWSH%" -NoProfile -File "%HOOK%" -QualificationRoot "%ROOT%" -InstallDirectory "$INSTDIR"' $0
-  StrCmp $0 0 +2
-  Abort "Atlas qualification POSTINSTALL hook failed"
-  Exec '"%PWSH%" -NoProfile -File "%HOOK%" -QualificationRoot "%ROOT%" -InstallDirectory "$INSTDIR" -Restart'
+  ClearErrors
+  ExecWait "$\"%PWSH%$\" -NoProfile -File $\"%HOOK%$\" -QualificationRoot $\"%ROOT%$\" -InstallDirectory $\"$INSTDIR$\"" $0
+  IfErrors atlas_hook_failed
+  StrCmp $0 0 0 atlas_hook_failed
+  Exec "$\"%PWSH%$\" -NoProfile -File $\"%HOOK%$\" -QualificationRoot $\"%ROOT%$\" -InstallDirectory $\"$INSTDIR$\" -Restart"
+  IfErrors atlas_hook_failed
+  SetErrorLevel 0
   Quit
+  atlas_hook_failed:
+    SetErrorLevel 1
+    Abort "Atlas qualification POSTINSTALL hook failed"
 !macroend
 '@
-    $macro = $macro.Replace('%ATLAS_INSTALLER_HOOK%', (Escape-Nsis "$PSScriptRoot/src-tauri/windows-installer.nsh"))
-    $macro = $macro.Replace('%PWSH%', (Escape-Nsis (Get-Command pwsh).Source)).Replace('%HOOK%', (Escape-Nsis "$PSScriptRoot/qualify-windows.hook.ps1")).Replace('%ROOT%', (Escape-Nsis $root))
-    $macro | Set-Content -LiteralPath $hooks -Encoding utf8
+    $installerHook = (Get-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\windows-installer.nsh')).FullName
+    $hookScript = Join-Path $PSScriptRoot 'qualify-windows.hook.ps1'
+    $paths = @{
+        '%ATLAS_INSTALLER_HOOK%' = $installerHook
+        '%PWSH%' = Get-NsisRuntimePath (Get-Command pwsh -CommandType Application).Source
+        '%HOOK%' = Get-NsisRuntimePath $hookScript
+        '%ROOT%' = Get-NsisRuntimePath $root
+    }
+    $macro = [regex]::Replace($macro, '%(ATLAS_INSTALLER_HOOK|PWSH|HOOK|ROOT)%', { param($match) $paths[$match.Value] })
+    $macro | Set-Content -LiteralPath $hooks -Encoding utf8BOM
     $config = Join-Path $root 'target-config.json'
     @{ version = $nightly; bundle = @{ windows = @{ nsis = @{ installerHooks = $hooks } } } } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $config -Encoding utf8
