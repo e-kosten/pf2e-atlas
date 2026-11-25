@@ -9,7 +9,7 @@ import { createRequire } from "node:module";
 import { createServer as createTcpServer } from "node:net";
 import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { qualifyUpdateGuards } from "./qualify-windows-update.mjs";
+import { qualifyUpdateGuards, reviewNightly } from "./qualify-windows-update.mjs";
 import { qualifyWindowsTabs } from "./qualify-windows-tabs.mjs";
 
 if (process.platform !== "win32") throw new Error("This qualification requires native Windows.");
@@ -323,10 +323,8 @@ async function runCase(mode) {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("link", { name: /Release channel/ }).click();
     const channel = page.getByRole("main").filter({ has: page.getByRole("heading", { name: "Release channel", exact: true }) });
-    await channel.getByRole("button", { name: "Switch to Nightly…", exact: true }).click();
-    if (mode === "normal") await channel.getByRole("button", { name: "Use a separate copy", exact: true }).click();
-    await channel.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
-    await expect(channel.getByRole("button", { name: "Install Nightly and restart", exact: true })).toBeEnabled({ timeout: 30_000 });
+    const review = () => reviewNightly(channel, expect, mode === "normal");
+    const install = await review();
     await page.screenshot({ path: join(caseRoot, "review.png") });
     const processes = installedProcesses();
     assert(processes.some((entry) => entry.Name === "atlas-desktop.exe"));
@@ -338,7 +336,7 @@ async function runCase(mode) {
     if (lateLock) writeFileSync(lockRequest, "");
     if (mode === "normal") {
       await qualifyUpdateGuards({
-        second, channel, expect, pid: child.pid, env, log,
+        second, channel, install, review, expect, pid: child.pid, env, log,
         ps: (code, env, timeout) => promisify(execFile)("pwsh", ["-NoProfile", "-Command", code], { env, timeout, windowsHide: true }),
         terminal: async () => {
           const session = spawn(join(installDirectory, "atlas.exe"), ["web"], { cwd: home, env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -358,7 +356,7 @@ async function runCase(mode) {
         },
       });
     } else {
-      await channel.getByRole("button", { name: "Install Nightly and restart", exact: true }).click();
+      await install.click();
     }
     if (lateLock) {
       const started = join(root, "installer-started");

@@ -28,12 +28,21 @@ public static class AtlasDialog {
     throw 'The installed host did not ask to discard changes'`, env, 70_000);
 }
 
-export async function qualifyUpdateGuards({ second, channel, expect, ps, pid, env, terminal, verifyOld, log }) {
+export async function reviewNightly(channel, expect, separateCopy) {
+  // Install progress unmounts the workspace choice. Every retry starts a new review.
+  await channel.getByRole("button", { name: "Switch to Nightly…", exact: true }).click();
+  const choice = channel.getByRole("button", {
+    name: separateCopy ? "Use a separate copy" : "Use my current data", exact: true,
+  });
+  await choice.click();
+  await expect(choice).toHaveAttribute("aria-pressed", "true");
+  await channel.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
   const install = channel.getByRole("button", { name: "Install Nightly and restart", exact: true });
-  const review = async () => {
-    await channel.getByRole("button", { name: "Check Nightly compatibility", exact: true }).click();
-    await expect(install).toBeEnabled({ timeout: 30_000 });
-  };
+  await expect(install).toBeEnabled({ timeout: 30_000 });
+  return install;
+}
+
+export async function qualifyUpdateGuards({ second, channel, install, review, expect, ps, pid, env, terminal, verifyOld, log }) {
   const refused = async (message) => {
     await expect(channel.getByText(message)).toBeVisible({ timeout: 90_000 });
     verifyOld();
