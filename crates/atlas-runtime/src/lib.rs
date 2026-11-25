@@ -3,6 +3,8 @@
 mod desktop_reference;
 mod embedding_seeds;
 mod error;
+mod index_diagnostics;
+pub use index_diagnostics::IndexDiagnosticError;
 mod operations;
 mod paths;
 pub use atlas_ingest::EmbeddingCoverageGap;

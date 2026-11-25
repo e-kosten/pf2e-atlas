@@ -1,6 +1,6 @@
 use crate::cli::args::FilterOptions;
 use atlas_cli_support::CliPathMode;
-use clap::{Args, Subcommand};
+use clap::{ArgGroup, Args, Subcommand, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 pub(crate) struct FiltersArgs {
@@ -14,14 +14,30 @@ pub(crate) enum FiltersCommand {
     #[command(about = "Discover contextual values, record counts and source availability")]
     Values(Box<FiltersValuesOptions>),
 }
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum GroupDetail {
+    Full,
+}
+
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas filters fields\n  atlas filters fields --group movement\n  atlas filters fields --field defenses.hp.maximum --json\n  atlas filters fields --text speed\n\nDefault output groups fields for browsing. Use --all for the flat query catalog. Link conditions use links_to(KEY[, SCOPE]) or linked_from(KEY[, SCOPE]); SCOPE is whole_entry (default) or main_entry."
+    group(ArgGroup::new("selector").args(["detail", "group", "all", "field", "text"])),
+    after_help = "Examples:\n  atlas filters fields\n  atlas filters fields --group movement\n  atlas filters fields --field defenses.hp.maximum --json\n  atlas filters fields --text speed\n\nDefault output lists group IDs and labels. Use --group ID to inspect one group, --detail full --json for all grouped editor metadata, or --all for the flat catalog. Link conditions use links_to(KEY[, SCOPE]) or linked_from(KEY[, SCOPE]); SCOPE is whole_entry (default) or main_entry."
 )]
 pub(crate) struct FiltersFieldsOptions {
-    #[arg(long, conflicts_with_all = ["field", "text"], help = "Browse a product group; run filters fields to list groups")]
+    #[arg(
+        long,
+        value_enum,
+        requires = "json",
+        help = "Return the complete grouped editor metadata in JSON"
+    )]
+    pub(crate) detail: Option<GroupDetail>,
+    #[arg(
+        long,
+        help = "Browse a product group; run filters fields to list groups"
+    )]
     pub(crate) group: Option<String>,
-    #[arg(long, conflicts_with_all = ["field", "group"], help = "List all field descriptors")]
+    #[arg(long, help = "List all field descriptors")]
     pub(crate) all: bool,
     #[arg(
         long,

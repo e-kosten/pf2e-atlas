@@ -69,6 +69,13 @@ pub(crate) fn filter_group_names(catalog: QueryCapability) -> Vec<(&'static str,
         .collect()
 }
 
+pub(crate) fn select_filter_group(catalog: &mut QueryCapability, id: &str) -> bool {
+    catalog
+        .fields
+        .retain(|field| visible_field(field) && product_group(field).metadata().0 == id);
+    !catalog.fields.is_empty()
+}
+
 fn visible_field(field: &QueryFieldDefinition) -> bool {
     // Technical binding; ancestry has a separate slug control.
     field.path != "heritage.ancestry.uuid"

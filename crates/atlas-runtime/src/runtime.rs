@@ -471,39 +471,4 @@ impl AtlasRuntime {
     pub fn clean_setup(&self, options: RuntimeSetupCleanOptions) -> RuntimeSetupCleanReport {
         setup_clean::clean_setup(&self.paths, options)
     }
-
-    pub fn validate_index_report(
-        &self,
-        target: crate::SetupTarget,
-    ) -> Result<atlas_index::ArtifactValidationReport, atlas_index::IndexError> {
-        let index = if target.requires_embeddings() {
-            self.open_search_index()?
-        } else {
-            self.open_index()?
-        };
-        atlas_index::validate_reference_with_token_count_digests(
-            index.workspace_session().connection(),
-        )
-    }
-    pub fn check_index_report(
-        &self,
-        target: crate::SetupTarget,
-    ) -> Result<atlas_index::SourceArtifactStatistics, atlas_index::IndexError> {
-        let index = if target.requires_embeddings() {
-            self.open_search_index()?
-        } else {
-            self.open_index()?
-        };
-        index.statistics()
-    }
-
-    pub(crate) fn open_search_index(
-        &self,
-    ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexError> {
-        let index = self.open_index()?;
-        if let Some(reason) = index.capabilities().vector_unavailable_reason {
-            return Err(atlas_index::IndexError::Unavailable(reason));
-        }
-        Ok(index)
-    }
 }

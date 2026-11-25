@@ -18,59 +18,68 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
         Err(error) => return crate::commands::product::report_app_error(error, o.json),
     };
     if o.field.is_none() && !o.all && o.text.is_none() {
-        if !o.json && o.group.is_none() {
-            let groups = match app_result(s.discover_filter_group_names(), false)? {
+        if o.detail.is_none() && o.group.is_none() {
+            let groups = match app_result(s.discover_filter_group_names(), o.json)? {
                 std::ops::ControlFlow::Continue(groups) => groups,
                 std::ops::ControlFlow::Break(exit) => return Ok(exit),
             };
-            for (id, label) in groups {
-                println!("{id}\t{label}");
+            if o.json {
+                let groups: Vec<_> = groups
+                    .into_iter()
+                    .map(|(id, label)| serde_json::json!({"id": id, "label": label}))
+                    .collect();
+                write_json_data(serde_json::json!({"groups": groups}))?;
+            } else {
+                for (id, label) in groups {
+                    println!("{id}\t{label}");
+                }
+                print_group_help();
             }
-            print_group_help();
             return Ok(ExitCode::SUCCESS);
         }
-        let mut editor = match app_result(
+        let result = if let Some(id) = &o.group {
+            s.discover_cli_filter_group(id.clone(), o.json)
+        } else {
             s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 filter: None,
                 selected_field_ids: vec![],
                 expected_artifact_generation: None,
-            }),
-            o.json,
-        )? {
-            std::ops::ControlFlow::Continue(value) => value,
-            std::ops::ControlFlow::Break(exit) => return Ok(exit),
+            })
+            .map(Some)
         };
-        if let Some(id) = &o.group {
-            if !editor.groups.iter().any(|group| &group.id == id) {
+        let editor = match app_result(result, o.json)? {
+            std::ops::ControlFlow::Continue(Some(editor)) => editor,
+            std::ops::ControlFlow::Continue(None) => {
                 return super::product::command_error(
                     o.json,
                     "invalid_input",
-                    format!("Unknown group `{id}`; use atlas filters fields to list groups"),
+                    format!(
+                        "Unknown group `{}`; use atlas filters fields to list groups",
+                        o.group.as_deref().unwrap_or_default()
+                    ),
                     2,
                 );
             }
-            editor.groups.retain(|group| &group.id == id);
-        }
+            std::ops::ControlFlow::Break(exit) => return Ok(exit),
+        };
         if o.json {
             write_json_data(&editor)?;
         } else {
             for group in editor.groups {
                 println!("{}\t{}", group.id, group.label);
-                if o.group.is_some() {
-                    for field in group
-                        .fields
-                        .iter()
-                        .filter(|field| field.definition.scope.is_none())
-                    {
-                        println!(
-                            "  {}\t{}\t{}",
-                            field.definition.id,
-                            type_label(&field.definition.field_type),
-                            field.label
-                        );
-                    }
-                    // Embedded members are discovered through their collection, not duplicated here.
+                for field in group
+                    .fields
+                    .iter()
+                    .filter(|field| field.definition.scope.is_none())
+                {
+                    println!(
+                        "  {}\t{}\t{}",
+                        field.definition.id,
+                        type_label(&field.definition.field_type),
+                        field.label
+                    );
                 }
+                // Embedded members are discovered through their collection.
             }
             print_group_help();
         }

@@ -52,40 +52,49 @@ impl AtlasAppService {
         self.with_retrieval(
             &crate::ReadExecutionContext::uncancellable(),
             move |retrieval| {
-                check_generation(retrieval,request.expected_artifact_generation.as_deref())?;
-                let generation=retrieval.artifact_generation()?;
-                let presentations=crate::relationship_search::presentations(retrieval,request.filter.as_ref())?;
+                check_generation(retrieval, request.expected_artifact_generation.as_deref())?;
+                let generation = retrieval.artifact_generation()?;
+                let presentations =
+                    crate::relationship_search::presentations(retrieval, request.filter.as_ref())?;
                 let catalog = retrieval.discover_filter_fields()?;
-                let mut editor = crate::discovery::filter_editor_view(catalog, &request.selected_field_ids, generation, presentations)?;
-                // One family inventory answers applicability; never fan out across fields.
-                let filter = request.filter.as_ref().filter(|filter| retrieval.validate_filter(filter).is_ok());
-                let families = editor_values(retrieval, "source.type", filter)?;
-                let kinds = editor_values(retrieval, "kind", None)?;
-                for field in editor.groups.iter_mut().flat_map(|group| &mut group.fields) {
-                    field.applicable = field.definition.scope.is_some()
-                        || families.is_empty()
-                        || field.definition.family_types.is_empty()
-                        || field.definition.family_types.iter().any(|family| families.contains(family));
-                    if field.definition.id == "kind" {
-                        field.choices.retain(|choice| matches!(&choice.value, atlas_domain::QueryLiteral::String(value) if kinds.contains(value)));
-                    }
-                }
-                crate::definition_values::editor(retrieval, &mut editor)?;
-                editor.sense_qualifiers = Some(retrieval.sense_qualifiers()?.into_iter()
-                    .map(|(sense, mut acuity, mut has_range)| {
-                        if let Some((_, fixed, unlimited)) = atlas_foundry_model::generated::reference_definitions::SENSE_RULES
-                            .iter().find(|(kind, _, _)| *kind == sense)
-                        {
-                            if fixed.is_some() { acuity = None; }
-                            has_range &= !unlimited;
-                        }
-                        atlas_app_model::SenseQualifierView { sense, acuity, has_range }
-                    })
-                    .collect());
-                Ok(editor)
+                let editor = crate::discovery::filter_editor_view(
+                    catalog,
+                    &request.selected_field_ids,
+                    generation,
+                    presentations,
+                )?;
+                let filter = request
+                    .filter
+                    .as_ref()
+                    .filter(|filter| retrieval.validate_filter(filter).is_ok());
+                enrich_editor(retrieval, editor, filter)
             },
         )
     }
+    pub fn discover_cli_filter_group(
+        &self,
+        group: String,
+        include_metadata: bool,
+    ) -> AppServiceResult<Option<FilterEditorView>> {
+        self.with_retrieval(&ReadExecutionContext::uncancellable(), move |retrieval| {
+            let mut catalog = retrieval.discover_filter_fields()?;
+            if !crate::discovery::select_filter_group(&mut catalog, &group) {
+                return Ok(None);
+            }
+            let editor = crate::discovery::filter_editor_view(
+                catalog,
+                &[],
+                retrieval.artifact_generation()?,
+                vec![],
+            )?;
+            if include_metadata {
+                enrich_editor(retrieval, editor, None).map(Some)
+            } else {
+                Ok(Some(editor))
+            }
+        })
+    }
+
     pub fn discover_cli_filter_values(
         &self,
         request: CliFilterValuesRequest,
@@ -298,6 +307,53 @@ impl AtlasAppService {
         })
     }
 }
+fn enrich_editor(
+    retrieval: &mut atlas_search::AtlasRetrievalService,
+    mut editor: FilterEditorView,
+    filter: Option<&QueryPredicate>,
+) -> AppServiceResult<FilterEditorView> {
+    let families = editor_values(retrieval, "source.type", filter)?;
+    for field in editor.groups.iter_mut().flat_map(|group| &mut group.fields) {
+        field.applicable = field.definition.scope.is_some()
+            || families.is_empty()
+            || field.definition.family_types.is_empty()
+            || field
+                .definition
+                .family_types
+                .iter()
+                .any(|family| families.contains(family));
+        if field.definition.id == "kind" {
+            let kinds = editor_values(retrieval, "kind", None)?;
+            field.choices.retain(|choice| matches!(&choice.value, atlas_domain::QueryLiteral::String(value) if kinds.contains(value)));
+        }
+    }
+    crate::definition_values::editor(retrieval, &mut editor)?;
+    editor.sense_qualifiers = Some(
+        retrieval
+            .sense_qualifiers()?
+            .into_iter()
+            .map(|(sense, mut acuity, mut has_range)| {
+                if let Some((_, fixed, unlimited)) =
+                    atlas_foundry_model::generated::reference_definitions::SENSE_RULES
+                        .iter()
+                        .find(|(kind, _, _)| *kind == sense)
+                {
+                    if fixed.is_some() {
+                        acuity = None;
+                    }
+                    has_range &= !unlimited;
+                }
+                atlas_app_model::SenseQualifierView {
+                    sense,
+                    acuity,
+                    has_range,
+                }
+            })
+            .collect(),
+    );
+    Ok(editor)
+}
+
 fn editor_values(
     retrieval: &mut atlas_search::AtlasRetrievalService,
     field: &str,

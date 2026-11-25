@@ -135,8 +135,8 @@ pub use read_units::{
 #[cfg(any(test, feature = "test-support"))]
 pub use reader::SourceReadMetrics;
 pub use reader::{
-    SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
-    SqliteIndexReader,
+    SourceArtifactStatistics, SourceCheckCounts, SourceProfileStatistics, SourceReadCapabilities,
+    SourceSummaryBatch, SqliteIndexReader,
 };
 pub use reader::{read_product_source_record, read_product_summaries, record_projection_context};
 #[cfg(any(test, feature = "test-support"))]
