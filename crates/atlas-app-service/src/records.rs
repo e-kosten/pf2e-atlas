@@ -36,8 +36,17 @@ impl RecordReadSection {
 }
 
 #[derive(Clone, Copy)]
+pub enum RecordReadDetail {
+    Summary,
+    Standard { include_grants: bool },
+    Full,
+}
+
+#[derive(Clone, Copy)]
 pub(crate) enum ReadingProjection<'a> {
     Full,
+    Standard { include_grants: bool },
+    Selected,
     Sections(&'a [RecordReadSection]),
     Table,
     TableMatch,
@@ -45,8 +54,8 @@ pub(crate) enum ReadingProjection<'a> {
 impl ReadingProjection<'_> {
     fn includes_content(self, body: &atlas_app_model::RecordBodyView) -> bool {
         match self {
-            Self::Full | Self::TableMatch => true,
-            Self::Table => false,
+            Self::Full | Self::Standard { .. } | Self::TableMatch => true,
+            Self::Selected | Self::Table => false,
             Self::Sections(sections) => {
                 sections.contains(&RecordReadSection::Rules)
                     || matches!(body, atlas_app_model::RecordBodyView::Activity(activity) if sections.iter().any(|section| section.includes_activity(&activity.kind)))
@@ -170,6 +179,7 @@ impl AtlasAppService {
     }
     pub fn record_detail(&self, key: &str) -> AppServiceResult<RecordDetailView> {
         self.record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: key.into(),
@@ -184,8 +194,12 @@ impl AtlasAppService {
         request: RecordDetailRequest,
     ) -> AppServiceResult<RecordDetailView> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            let generation = request.expected_artifact_generation.clone();
-            read_record_detail(r, request.into_selection(), generation.as_deref())
+            crate::definitions::check_generation(
+                request.expected_artifact_generation.as_deref(),
+                &r.artifact_generation()?,
+            )?;
+            let include_section_rendering = request.include_section_rendering;
+            read_record_detail(r, request.into_selection(), include_section_rendering)
                 .map(|(_, view)| view)
         })
     }
@@ -193,6 +207,7 @@ impl AtlasAppService {
     pub fn record_read_at(
         &self,
         request: RecordDetailRequest,
+        detail: RecordReadDetail,
         sections: Vec<RecordReadSection>,
     ) -> AppServiceResult<(RecordDetailView, Option<String>)> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
@@ -202,17 +217,23 @@ impl AtlasAppService {
                 generation.as_deref(),
                 request.source_fingerprint.as_deref(),
             )?;
+            let include_section_rendering = request.include_section_rendering;
             let selection = request.into_selection();
             let loaded = LoadedRecordDetail::load(r, &selection)?;
-            loaded.project_with_excerpt(
-                selection,
-                None,
-                if sections.is_empty() {
-                    ReadingProjection::Full
-                } else {
-                    ReadingProjection::Sections(&sections)
-                },
-            )
+            let projection = if !sections.is_empty() {
+                ReadingProjection::Sections(&sections)
+            } else if !selection.fields.is_empty() || selection.passage.is_some() {
+                ReadingProjection::Selected
+            } else {
+                match detail {
+                    RecordReadDetail::Summary => ReadingProjection::Selected,
+                    RecordReadDetail::Standard { include_grants } => {
+                        ReadingProjection::Standard { include_grants }
+                    }
+                    RecordReadDetail::Full => ReadingProjection::Full,
+                }
+            };
+            loaded.project_with_excerpt(selection, projection, include_section_rendering)
         })
     }
 }
@@ -235,9 +256,10 @@ pub(crate) fn check_retained_location(
 pub(crate) fn read_record_detail(
     r: &atlas_search::AtlasRetrievalService,
     request: RecordSelection,
-    expected_artifact_generation: Option<&str>,
+    include_section_rendering: bool,
 ) -> AppServiceResult<(atlas_search::SourceRecordDetail, RecordDetailView)> {
-    let (loaded, view) = LoadedRecordDetail::read(r, request, expected_artifact_generation)?;
+    let loaded = LoadedRecordDetail::load(r, &request)?;
+    let view = loaded.project(request, include_section_rendering)?;
     Ok((loaded.detail, view))
 }
 
@@ -255,16 +277,6 @@ pub(crate) struct LoadedRecordDetail<'a> {
 }
 
 impl<'a> LoadedRecordDetail<'a> {
-    pub(crate) fn read(
-        r: &'a atlas_search::AtlasRetrievalService,
-        request: RecordSelection,
-        expected_artifact_generation: Option<&str>,
-    ) -> AppServiceResult<(Self, RecordDetailView)> {
-        let loaded = Self::load(r, &request)?;
-        let view = loaded.project(request, expected_artifact_generation)?;
-        Ok((loaded, view))
-    }
-
     pub(crate) fn load(
         r: &'a atlas_search::AtlasRetrievalService,
         request: &RecordSelection,
@@ -394,6 +406,7 @@ impl<'a> LoadedRecordDetail<'a> {
         request: &RecordSelection,
         selected: &[atlas_record::source_record::SourceContentSelection<'_>],
         spell_rank: Option<u8>,
+        include_section_rendering: bool,
     ) -> AppServiceResult<SelectedContent> {
         let r = self.retrieval;
         let mut excerpt = None;
@@ -415,7 +428,8 @@ impl<'a> LoadedRecordDetail<'a> {
             self.source(),
             &request.address.owners,
             spell_rank,
-        );
+        )
+        .with_section_rendering(include_section_rendering);
         if context.formula.item_is_spell {
             context.formula.item_rank = spell_rank;
             context.spell_rank = spell_rank;
@@ -502,12 +516,14 @@ impl<'a> LoadedRecordDetail<'a> {
                         interactions,
                         &context,
                     );
-                    field.section_rendering =
-                        crate::prepared_content::contextual_section_rendering(
-                            &marked,
-                            interactions,
-                            &context.formula,
-                        )?;
+                    if include_section_rendering {
+                        field.section_rendering =
+                            crate::prepared_content::contextual_section_rendering(
+                                &marked,
+                                interactions,
+                                &context.formula,
+                            )?;
+                    }
                     if let Some(rendering) = &mut field.section_rendering {
                         rendering.html = crate::prepared_content::render_field_content(
                             &rendering.html,
@@ -535,28 +551,20 @@ impl<'a> LoadedRecordDetail<'a> {
     pub(crate) fn project(
         &self,
         request: RecordSelection,
-        expected_artifact_generation: Option<&str>,
+        include_section_rendering: bool,
     ) -> AppServiceResult<RecordDetailView> {
-        self.project_with_excerpt(
-            request,
-            expected_artifact_generation,
-            ReadingProjection::Full,
-        )
-        .map(|(view, _)| view)
+        self.project_with_excerpt(request, ReadingProjection::Full, include_section_rendering)
+            .map(|(view, _)| view)
     }
 
     pub(crate) fn project_with_excerpt(
         &self,
         mut request: RecordSelection,
-        expected_artifact_generation: Option<&str>,
         projection: ReadingProjection<'_>,
+        include_section_rendering: bool,
     ) -> AppServiceResult<(RecordDetailView, Option<String>)> {
         let r = self.retrieval;
         let detail = &self.detail;
-        crate::definitions::check_generation(
-            expected_artifact_generation,
-            &r.artifact_generation()?,
-        )?;
         let key = validate_selection(r, &request)?;
         if &key != detail.source.key() {
             return Err(AppServiceError::invalid_request(
@@ -626,14 +634,24 @@ impl<'a> LoadedRecordDetail<'a> {
         )?;
         if matches!(
             projection,
-            ReadingProjection::Full | ReadingProjection::Sections(_)
+            ReadingProjection::Full
+                | ReadingProjection::Sections(_)
+                | ReadingProjection::Standard { .. }
+                | ReadingProjection::Selected
         ) {
             crate::presentation::reference_help::annotate(&mut presentation, r)?;
         }
-        let include_content =
-            request.passage.is_some() || projection.includes_content(&presentation.body);
+        let include_content = !request.fields.is_empty()
+            || request.passage.is_some()
+            || projection.includes_content(&presentation.body);
         let content = if include_content {
-            self.read_fields(&key, &request, &selected, spell_rank)?
+            self.read_fields(
+                &key,
+                &request,
+                &selected,
+                spell_rank,
+                include_section_rendering,
+            )?
         } else {
             SelectedContent::default()
         };
@@ -653,6 +671,7 @@ impl<'a> LoadedRecordDetail<'a> {
             }
         };
         let full = matches!(projection, ReadingProjection::Full);
+        let whole_reference = full || matches!(projection, ReadingProjection::Standard { .. });
         let grants_truncated = relationships.truncated;
         let equipment_family = if full && request.address.owners.is_empty() {
             match r.verified_equipment_family_reference(detail) {
@@ -691,14 +710,15 @@ impl<'a> LoadedRecordDetail<'a> {
                 title: record.title,
             }
         };
-        let canonical_record = if full && whole_document && request.address.owners.is_empty() {
-            r.canonical_creature_copy(&detail.summary)?
-                .as_ref()
-                .map(title_link)
-        } else {
-            None
-        };
-        let named_creature_links = if full && request.address.owners.is_empty() {
+        let canonical_record =
+            if whole_reference && whole_document && request.address.owners.is_empty() {
+                r.canonical_creature_copy(&detail.summary)?
+                    .as_ref()
+                    .map(title_link)
+            } else {
+                None
+            };
+        let named_creature_links = if whole_reference && request.address.owners.is_empty() {
             let links = r.named_creature_links(&detail.summary)?;
             (links.base.is_some() || !links.named.is_empty()).then(|| {
                 atlas_app_model::NamedCreatureLinksView {
@@ -794,7 +814,7 @@ impl<'a> LoadedRecordDetail<'a> {
             .collect(),
             relationships_truncated: relationships.truncated || content.truncated,
         };
-        if full {
+        if whole_reference {
             (view.remaster_relationships, view.source_remaster_context) =
                 crate::remaster::reading_context(&view.selected, r);
             view.has_remaster_versions = crate::related::remaster_versions(
@@ -811,7 +831,15 @@ impl<'a> LoadedRecordDetail<'a> {
                 r,
             )?;
             crate::contextual_references::attach_ranked_effects(&mut view, node, r)?;
-            if full && whole_document {
+            if whole_document
+                && (full
+                    || matches!(
+                        projection,
+                        ReadingProjection::Standard {
+                            include_grants: true
+                        }
+                    ))
+            {
                 crate::record_grants::attach(&detail.source, &mut view, r, grants_truncated)?;
             }
         }

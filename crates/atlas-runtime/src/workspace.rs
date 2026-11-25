@@ -113,13 +113,14 @@ pub(crate) fn begin_reference_repair(
 pub(crate) fn open_workspace_index(
     path: &Path,
 ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexError> {
-    register_extensions().map_err(|e| atlas_index::IndexError::Unavailable(e.to_string()))?;
-    let workspace =
-        Workspace::at(path).map_err(|e| atlas_index::IndexError::Unavailable(e.to_string()))?;
-    let session = workspace
-        .read(WORKSPACE_SCHEMA_VERSION)
+    let session = reference_read_session(path)
         .map_err(|e| atlas_index::IndexError::Unavailable(e.to_string()))?;
     atlas_index::SqliteIndexReader::from_session(session)
+}
+
+pub(crate) fn reference_read_session(path: &Path) -> StorageResult<atlas_storage::ReadSession> {
+    register_extensions()?;
+    Workspace::existing(path)?.read(WORKSPACE_SCHEMA_VERSION)
 }
 
 pub(crate) fn register_extensions() -> StorageResult<()> {

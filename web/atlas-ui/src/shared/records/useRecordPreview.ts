@@ -96,7 +96,10 @@ function sameDocument(current: ReadingFrame, next: ReadingFrame) {
   );
 }
 
-export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
+export function useRecordPreview(
+  encounterContext?: EncounterPreviewContext,
+  originGeneration?: string | null,
+) {
   const queryClient = useQueryClient();
   const [frame, setFrame] = useState<ReadingFrame | null>(null);
   const {
@@ -356,6 +359,16 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     [frame],
   );
 
+  const sourceGeneration =
+    (requestedContext
+      ? contextual.data?.artifact_generation
+      : detail.data?.artifact_generation) ??
+    definition.data?.artifact_generation ??
+    generation ??
+    originGeneration ??
+    encounterContext?.generation ??
+    undefined;
+
   const open = useCallback(
     (
       nextRecordKey: string,
@@ -383,6 +396,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           destination: { kind: "record", navigation: destinationNavigation },
           selection: condition ? destinationNavigation : navigation,
           landing,
+          generation: sourceGeneration,
           context:
             contextual && encounterContext
               ? {
@@ -395,7 +409,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         anchor,
       );
     },
-    [encounterContext, openFrame],
+    [encounterContext, openFrame, sourceGeneration],
   );
 
   const openHelp: ReferenceHelpHandler = useCallback(
@@ -517,6 +531,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
             prior && {
               ...prior,
               selection: { ...current, spell_rank },
+              generation: sourceGeneration,
               fields: detail.data?.selected_fields ?? prior.fields,
             },
         );

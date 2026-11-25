@@ -45,6 +45,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::apply_condition_lifecycle))
         .routes(routes!(crate::handlers::condition_lifecycle_actions))
         .routes(routes!(crate::handlers::pending_condition_recoveries))
+        .routes(routes!(crate::handlers::encounter_settings))
         .routes(routes!(crate::handlers::encounter_revision))
         .routes(routes!(crate::handlers::encounter_addition_context))
         .routes(routes!(crate::handlers::creature_addition_context))

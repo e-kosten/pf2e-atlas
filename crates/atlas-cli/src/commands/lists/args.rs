@@ -189,8 +189,8 @@ pub(crate) struct ListRemoveOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListDeleteOptions {
-    #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
-    pub(crate) slug: String,
+    #[arg(help = "Stable list key (see lists show)", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_keys))]
+    pub(crate) list_key: String,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
     #[arg(long, help = "Emit the standard JSON envelope")]

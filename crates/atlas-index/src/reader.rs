@@ -38,6 +38,29 @@ pub struct SourceReadCapabilities {
     pub semantic: bool,
     pub vector_unavailable_reason: Option<String>,
 }
+#[derive(Debug, serde::Serialize)]
+pub struct SourceCheckCounts {
+    pub records: usize,
+    pub product_records: usize,
+    pub lexical_units: usize,
+    pub semantic_units: usize,
+}
+
+const CHECK_COUNTS: &str = "SELECT (SELECT count(*) FROM records),
+    (SELECT count(*) FROM records WHERE document_kind <> 'Macro'),
+    (SELECT count(*) FROM lexical_units), (SELECT count(*) FROM semantic_units)";
+
+impl SourceCheckCounts {
+    fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            records: row.get(0)?,
+            product_records: row.get(1)?,
+            lexical_units: row.get(2)?,
+            semantic_units: row.get(3)?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SourceArtifactStatistics {
     pub search_profiles: Vec<SourceProfileStatistics>,
@@ -202,10 +225,64 @@ impl SqliteIndexReader {
         }
         Ok(())
     }
+    /// Check that each advertised profile has at least one usable stored vector.
+    /// Deep validation separately audits coverage and the contents of every vector.
+    pub fn has_stored_vectors(&self) -> Result<bool, IndexError> {
+        if self.context.search_profiles.is_empty() {
+            return Ok(false);
+        }
+        self.require_vectors()?;
+        for model in &self.context.search_profiles {
+            let table = crate::schema::native_vector_table(model)?;
+            self.count_statement();
+            let sql = format!(
+                "SELECT 1 FROM {table} v JOIN semantic_units u USING(input_id)
+                               WHERE u.profile_id=? LIMIT 1"
+            );
+            if !self
+                .session
+                .connection()
+                .prepare(&sql)?
+                .exists([model.profile_id.as_str()])?
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    pub fn check_counts(&self) -> Result<SourceCheckCounts, IndexError> {
+        self.count_statement();
+        Ok(self
+            .session
+            .connection()
+            .query_row(CHECK_COUNTS, [], SourceCheckCounts::from_row)?)
+    }
+
     pub fn statistics(&self) -> Result<SourceArtifactStatistics, IndexError> {
         let c = self.native()?;
         self.count_statement();
-        let mut stats=c.query_row("SELECT (SELECT count(*) FROM records),(SELECT count(*) FROM records WHERE document_kind<>'Macro'),(SELECT count(*) FROM packs),(SELECT count(*) FROM prepared_content),(SELECT count(*) FROM relationship_occurrences),(SELECT count(*) FROM lexical_units),(SELECT count(*) FROM semantic_units),(SELECT coalesce(sum(length(snapshot)),0) FROM record_bodies),(SELECT coalesce(sum(length(html_gzip)),0) FROM prepared_content)",[],|r|Ok(SourceArtifactStatistics{search_profiles:vec![],records:r.get(0)?,product_records:r.get(1)?,packs:r.get(2)?,prepared_fields:r.get(3)?,relationships:r.get(4)?,lexical_units:r.get(5)?,semantic_units:r.get(6)?,snapshot_bytes:r.get(7)?,prepared_html_bytes:r.get(8)?,artifact_bytes:0}))?;
+        let query = format!("SELECT counts.*, (SELECT count(*) FROM packs),
+            (SELECT count(*) FROM prepared_content), (SELECT count(*) FROM relationship_occurrences),
+            (SELECT coalesce(sum(length(snapshot)),0) FROM record_bodies),
+            (SELECT coalesce(sum(length(html_gzip)),0) FROM prepared_content)
+            FROM ({CHECK_COUNTS}) AS counts");
+        let mut stats = c.query_row(&query, [], |row| {
+            let counts = SourceCheckCounts::from_row(row)?;
+            Ok(SourceArtifactStatistics {
+                records: counts.records,
+                product_records: counts.product_records,
+                lexical_units: counts.lexical_units,
+                semantic_units: counts.semantic_units,
+                packs: row.get(4)?,
+                prepared_fields: row.get(5)?,
+                relationships: row.get(6)?,
+                snapshot_bytes: row.get(7)?,
+                prepared_html_bytes: row.get(8)?,
+                artifact_bytes: 0,
+                search_profiles: vec![],
+            })
+        })?;
         for profile in &self.context.search_profiles {
             self.count_statement();
             let count: usize = c.query_row(

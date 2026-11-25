@@ -31,6 +31,19 @@ fn fixture(host: &str, target: &str) -> FixtureWorker {
         }
     }))
 }
+fn annotated_host(fixture: &FixtureWorker) -> RecordDetailView {
+    fixture
+        .worker
+        .record_detail_at(
+            serde_json::from_value(json!({
+                "record_key": "spells:hostSpell1000000",
+                "include_section_rendering": true
+            }))
+            .unwrap(),
+        )
+        .unwrap()
+}
+
 fn body(detail: &RecordDetailView) -> (&str, &[PreparedInclusionView]) {
     let field = detail
         .presentation
@@ -50,10 +63,18 @@ fn body(detail: &RecordDetailView) -> (&str, &[PreparedInclusionView]) {
 fn section_sidecar_preserves_original_body_without_inclusions() {
     let html = "<div><h2>First</h2><p>Text</p><h2>Second</h2><ul><li>Tail</li></ul></div>";
     let fixture = fixture(html, "<p>Unused target</p>");
-    let detail = fixture
+    let ordinary = fixture
         .worker
         .record_detail("spells:hostSpell1000000")
         .unwrap();
+    assert!(
+        ordinary
+            .presentation
+            .content
+            .iter()
+            .all(|field| field.section_rendering.is_none())
+    );
+    let detail = annotated_host(&fixture);
     let field = detail
         .presentation
         .content
@@ -121,6 +142,7 @@ fn inline_content_preserves_checked_embed_landing_in_body_and_section_sidecar() 
         },
     };
     let mut request = RecordDetailRequest {
+        include_section_rendering: true,
         expected_artifact_generation: None,
         spell_rank: None,
         record_key: "spells:hostSpell1000000".into(),
@@ -129,7 +151,7 @@ fn inline_content_preserves_checked_embed_landing_in_body_and_section_sidecar() 
         passage: Some(address),
         source_fingerprint: None,
     };
-    let original = f.worker.record_detail("spells:hostSpell1000000").unwrap();
+    let original = annotated_host(&f);
     let selected = f.worker.record_detail_at(request.clone()).unwrap();
     let field = selected
         .presentation
@@ -169,7 +191,7 @@ fn inline_content_composes_nested_occurrences_with_exact_binding_sources() {
         "<h2>Host rules</h2><p>@UUID[Compendium.pf2e.features.Item.featTarget100000]</p><p>@Embed[Compendium.pf2e.features.Item.featTarget100000 inline header traits publication journalLink=false]</p><p>@Embed[Compendium.pf2e.features.Item.featTarget100000 inline hr=false]</p><p>Host ends.</p>",
         "<p data-atlas-source-section=\"999\">Feature introduction.</p><p>@Embed[Compendium.pf2e.actions.Item.actionTarget1000 inline]</p><p>@UUID[Compendium.pf2e.actions.Item.actionTarget1000]</p>",
     );
-    let detail = f.worker.record_detail("spells:hostSpell1000000").unwrap();
+    let detail = annotated_host(&f);
     let (html, bindings) = body(&detail);
     let rendering = detail
         .presentation

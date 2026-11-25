@@ -54,6 +54,7 @@ ureq = { workspace = true, optional = true }
 tempfile = "3.23.0"
 
 [dev-dependencies]
+atlas-search = { workspace = true, features = ["test-support"] }
 rusqlite.workspace = true
 
 [target.'cfg(windows)'.dependencies]

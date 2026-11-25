@@ -521,7 +521,10 @@
             "type": "integer"
           },
           "note": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "request_id": {
             "type": "string"
@@ -699,7 +702,14 @@
         "additionalProperties": false,
         "properties": {
           "creature_scenario": {
-            "$ref": "#/components/schemas/CreatureScenarioContext"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CreatureScenarioContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "initiative": {
             "format": "int64",
@@ -721,7 +731,8 @@
           },
           "quantity": {
             "format": "int32",
-            "minimum": 0,
+            "maximum": 50,
+            "minimum": 1,
             "type": "integer"
           },
           "record_ref": {
@@ -1469,7 +1480,8 @@
         },
         "required": [
           "character_key",
-          "expected_character_revision"
+          "expected_character_revision",
+          "level"
         ],
         "type": "object"
       },
@@ -4178,10 +4190,20 @@
             "type": "string"
           },
           "expected": {
-            "$ref": "#/components/schemas/PreparedCreatureChoice"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PreparedCreatureChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "use_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -4230,6 +4252,11 @@
               "string",
               "null"
             ]
+          },
+          "include_section_rendering": {
+            "default": false,
+            "description": "Include section-annotated HTML for selecting Similar source passages.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4803,6 +4830,11 @@
         "properties": {
           "artifact_generation": {
             "type": "string"
+          },
+          "include_section_rendering": {
+            "default": false,
+            "description": "Include section-annotated HTML for selecting Similar source passages.",
+            "type": "boolean"
           },
           "parent": {
             "$ref": "#/components/schemas/EmbeddedReadingParent"
@@ -5409,8 +5441,7 @@
           "target",
           "name",
           "amount",
-          "modifier_type",
-          "timing"
+          "modifier_type"
         ],
         "type": "object"
       },
@@ -5481,7 +5512,10 @@
           "expected_reference_revision": {
             "format": "int64",
             "minimum": 0,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "request_id": {
             "type": "string"
@@ -5519,7 +5553,10 @@
           "remaining": {
             "description": "Set remaining rounds or seconds explicitly. Omit to preserve progress on edits.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -6024,7 +6061,14 @@
       "EncounterDifficultyAddition": {
         "properties": {
           "creature_scenario": {
-            "$ref": "#/components/schemas/CreatureScenarioContext"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CreatureScenarioContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "participant_variant": {
             "oneOf": [
@@ -6038,7 +6082,8 @@
           },
           "quantity": {
             "format": "int32",
-            "minimum": 0,
+            "maximum": 50,
+            "minimum": 1,
             "type": "integer"
           },
           "record_ref": {
@@ -7118,6 +7163,23 @@
         ],
         "type": "object"
       },
+      "EncounterReferenceReadRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EncounterReferenceRequest"
+          },
+          {
+            "properties": {
+              "include_section_rendering": {
+                "default": false,
+                "description": "Include section-annotated HTML for selecting Similar source passages.",
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
       "EncounterReferenceRequest": {
         "description": "A complete selected reference in one current participant's runtime context.",
         "properties": {
@@ -7198,6 +7260,64 @@
           "available",
           "perception",
           "reason"
+        ],
+        "type": "object"
+      },
+      "EncounterSettingsMetadataView": {
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "encounter_key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "round_duration_seconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "encounter_key",
+          "slug",
+          "name",
+          "archived",
+          "round_duration_seconds",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "EncounterSettingsView": {
+        "properties": {
+          "encounter": {
+            "$ref": "#/components/schemas/EncounterSettingsMetadataView"
+          },
+          "note": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "encounter"
         ],
         "type": "object"
       },
@@ -15436,6 +15556,11 @@
             },
             "type": "array"
           },
+          "include_section_rendering": {
+            "default": false,
+            "description": "Include section-annotated HTML for selecting Similar source passages.",
+            "type": "boolean"
+          },
           "passage": {
             "oneOf": [
               {
@@ -20805,6 +20930,11 @@
               "null"
             ]
           },
+          "include_section_rendering": {
+            "default": false,
+            "description": "Include section-annotated HTML for selecting Similar source passages.",
+            "type": "boolean"
+          },
           "trait_key": {
             "type": "string"
           }
@@ -22649,7 +22779,7 @@
         "operationId": "deleteEncounter",
         "parameters": [
           {
-            "description": "Stable key or current slug.",
+            "description": "Stable encounter key. Look up the current key before deleting.",
             "in": "path",
             "name": "encounter_ref",
             "required": true,
@@ -25090,7 +25220,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EncounterReferenceRequest"
+                "$ref": "#/components/schemas/EncounterReferenceReadRequest"
               }
             }
           },
@@ -25628,6 +25758,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EncounterRevisionView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/encounters/{encounter_ref}/settings": {
+      "get": {
+        "operationId": "encounterSettings",
+        "parameters": [
+          {
+            "description": "Stable key or current slug.",
+            "in": "path",
+            "name": "encounter_ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncounterSettingsView"
                 }
               }
             },
@@ -26318,7 +26496,7 @@
         "operationId": "deleteSavedList",
         "parameters": [
           {
-            "description": "Stable key or current slug.",
+            "description": "Stable list key. Look up the current key before deleting.",
             "in": "path",
             "name": "list_ref",
             "required": true,

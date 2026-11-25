@@ -209,6 +209,7 @@ mod tests {
             let view = fixture
                 .worker
                 .record_detail_at(atlas_app_model::RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     record_key: "equipment:wwwwwwwwwwwwwwww".into(),
                     owners: vec![],

@@ -19,15 +19,15 @@ test("selection clear preserves criteria and full-page navigation never flashes 
   const pending = new Promise<void>((resolve) => {
     requested = resolve;
   });
-  await page.route(
-    (url) => decodeURIComponent(url.pathname) === `/api/records/${recordKey}`,
-    async (route) => {
-      const response = await route.fetch();
-      requested();
-      await gate;
-      await route.fulfill({ response });
-    },
-  );
+  await page.route("**/api/records/detail", async (route) => {
+    const data = route.request().postDataJSON();
+    if (data?.record_key !== recordKey) return route.continue();
+    expect(data.expected_artifact_generation).toBeTruthy();
+    const response = await route.fetch();
+    requested();
+    await gate;
+    await route.fulfill({ response });
+  });
   const toolbar = page.locator(".reference-browser__toolbar");
   await toolbar.evaluate((host) => {
     const observer = new MutationObserver(() => {

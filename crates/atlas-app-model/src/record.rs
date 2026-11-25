@@ -162,6 +162,10 @@ pub struct RecordSelection {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RecordDetailRequest {
+    /// Include section-annotated HTML for selecting Similar source passages.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[cfg_attr(feature = "openapi", schema(default = false))]
+    pub include_section_rendering: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_artifact_generation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

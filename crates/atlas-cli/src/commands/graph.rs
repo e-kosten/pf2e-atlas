@@ -75,7 +75,14 @@ pub(crate) fn run_graph_links(o: GraphLinksOptions) -> Result<ExitCode, String> 
     };
     if o.json {
         let mut data = if o.detail == EvidenceDetail::Full {
-            json!(graph)
+            let mut full = json!(graph);
+            for direction in ["outgoing", "backlinks"] {
+                crate::commands::record::navigation::bind_nested(
+                    &mut full[direction]["occurrences"],
+                    &generation,
+                );
+            }
+            full
         } else {
             json!({"seed":evidence::identity(&graph.seed),
                 "outgoing":section(&graph.outgoing,o.outgoing>0,&graph.seed,&generation),

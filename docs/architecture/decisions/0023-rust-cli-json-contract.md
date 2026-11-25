@@ -101,7 +101,16 @@ ordered item results even when every requested item fails. Their top-level
 status summarizes item outcomes. A successful transaction can create an empty
 list after all its item references miss.
 
-Readiness and validation commands are successful command executions when checks run, even when the artifact is invalid. `atlas index check --json` and `atlas index validate --json` return `status: "ok"` with `data.valid: false` for invalid artifacts and exit with code `3`. These diagnostic reports describe successful check execution; record batch statuses instead summarize their per-input outcomes.
+A completed index check or validation returns `status: "ok"` with `data.valid`.
+Healthy reports include measured statistics and exit 0. Invalid reports carry a
+machine-readable reason and exit 3. Failure to admit or inspect the database
+uses the error envelope and exit 3. Invalid command arguments exit 2.
+
+Graph navigation carries the observed artifact generation at every detail level.
+Filter discovery defaults to group IDs and labels. Group detail and full-catalog
+output are explicit requests. Character show and import preview use the same
+compact section shape, with full detail available wherever tagged source facts
+are needed.
 
 Setup reports separate read-only diagnostics from mutating or planned repair work. `data.checks` contains read-only work such as source analysis and artifact readiness checks. `data.actions` contains mutating operations and repair decisions such as source fetch, embedding model preparation, and index build. `atlas setup --check` may still perform entries in `checks`, but it must not perform mutating `actions`.
 

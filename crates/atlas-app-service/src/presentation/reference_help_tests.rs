@@ -307,6 +307,7 @@ fn selected_activity_detail(
     fixture
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             record_key: navigation.record_key,
             owners: navigation.owners,
             expected_artifact_generation: None,
@@ -447,6 +448,7 @@ fn bodyless_entries_keep_typed_filters_and_record_backed_help_retains_associatio
             .worker
             .definition_detail(
                 DefinitionDetailRequest {
+                    include_section_rendering: false,
                     definition_key: key.into(),
                     expected_artifact_generation: None,
                 },
@@ -497,6 +499,7 @@ fn retained_empty_traits_have_membership_without_reading_pages() {
             .worker
             .trait_definition(
                 TraitDetailRequest {
+                    include_section_rendering: false,
                     trait_key: "trait:empty-fixture".into(),
                     expected_artifact_generation: None,
                 },
@@ -536,6 +539,7 @@ fn empty_approved_definition_has_no_reading_body() {
         .worker
         .definition_detail(
             DefinitionDetailRequest {
+                include_section_rendering: false,
                 definition_key: "domain:air".into(),
                 expected_artifact_generation: None,
             },

@@ -267,7 +267,8 @@ impl AtlasAppService {
                             &detail.source,
                             &navigation.owners,
                             None,
-                        ),
+                        )
+                        .with_section_rendering(request.include_section_rendering),
                     )?,
                     relationships: relationship_views(
                         content

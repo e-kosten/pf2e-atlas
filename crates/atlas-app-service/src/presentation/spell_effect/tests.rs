@@ -35,6 +35,7 @@ fn worker(effect: Value) -> crate::test_support::FixtureWorker {
 }
 fn request(key: &str, rank: Option<u8>) -> RecordDetailRequest {
     RecordDetailRequest {
+        include_section_rendering: false,
         expected_artifact_generation: None,
         record_key: key.into(),
         spell_rank: rank,

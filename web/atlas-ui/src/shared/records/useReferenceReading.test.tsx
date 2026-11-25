@@ -2,7 +2,7 @@ import { recordDetailQueryOptions, recordDetailRequest } from "./recordDetailQue
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { Activity, type ReactNode } from "react";
-import { getRecordDetail } from "../../api/atlasApi";
+import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
 import {
   detailFixture,
   activityFixture,
@@ -96,6 +96,76 @@ it("reopens a returned multi-field projection in its generation without loading 
   );
 });
 
+it("requests the specified generation for retained roots, and selector markup only for the seed", async () => {
+  const detail = detailFixture("actors:ghoul");
+  api.mockResolvedValue(detail);
+  const { result } = renderHook(
+    () =>
+      useReferenceReading(
+        { navigation: rootNavigation("actors:ghoul") },
+        true,
+        0,
+        detail.artifact_generation,
+        "actors:ghoul",
+      ),
+    { wrapper },
+  );
+  await waitFor(() =>
+    expect(api).toHaveBeenLastCalledWith(
+      "actors:ghoul",
+      {
+        ...recordDetailRequest(
+          rootNavigation("actors:ghoul"),
+          undefined,
+          detail.artifact_generation,
+        ),
+        include_section_rendering: true,
+      },
+      expect.any(AbortSignal),
+    ),
+  );
+  act(() => result.current.inspect({ navigation: rootNavigation("items:linked") }));
+  await waitFor(() =>
+    expect(api).toHaveBeenLastCalledWith(
+      "items:linked",
+      recordDetailRequest(
+        rootNavigation("items:linked"),
+        undefined,
+        detail.artifact_generation,
+      ),
+      expect.any(AbortSignal),
+    ),
+  );
+});
+
+it.each([null, "/system/description/value"])(
+  "drops retained data and exposes reload after republishing a root or field (%s)",
+  async (field) => {
+    const detail = detailFixture("actors:ghoul");
+    const navigation = { ...detail.selected, field };
+    const published = { ...detail, selected: navigation };
+    const changed = new AtlasApiError(409, "Reference changed", {
+      code: "artifact_generation_changed",
+      message: "Reference changed",
+      recoverable_action: "reload_record",
+    });
+    api.mockResolvedValueOnce(published).mockRejectedValueOnce(changed);
+    const { result } = renderHook(
+      () => useReferenceReading({ navigation }, true, 0, published.artifact_generation),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.detail).toEqual(published));
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.error).toBe(changed));
+    expect(result.current.detail).toBeUndefined();
+    expect(api).toHaveBeenLastCalledWith(
+      navigation.record_key,
+      recordDetailRequest(navigation, undefined, published.artifact_generation),
+      expect.any(AbortSignal),
+    );
+  },
+);
+
 it("lands a typed inline activity in its parent without reading a separate document", async () => {
   const activity = activityFixture("Jaws", "actors:ghoul");
   const parent = detailFixture("actors:ghoul");
@@ -132,7 +202,7 @@ it("reads an exact field address even when its owner is a parent activity", asyn
   await waitFor(() => expect(result.current.detail?.selected).toEqual(match));
   expect(api).toHaveBeenLastCalledWith(
     "actors:ghoul",
-    recordDetailRequest(match),
+    recordDetailRequest(match, undefined, "test-generation"),
     expect.any(AbortSignal),
   );
   expect(result.current.landing).toBeUndefined();
@@ -215,11 +285,53 @@ it("changes a matched spell's rank without re-reading its old match or adding hi
   expect(result.current.canGoBack).toBe(false);
   expect(api).toHaveBeenLastCalledWith(
     "actors:caster",
-    recordDetailRequest(ranked),
+    recordDetailRequest(ranked, undefined, selected.artifact_generation),
     expect.any(AbortSignal),
   );
   await act(async () => finish({ ...selected, selected: ranked }));
   await waitFor(() => expect(result.current.detail?.selected.spell_rank).toBe(5));
+  expect(api).toHaveBeenCalledTimes(3);
+});
+
+it("reloads a ranked document against the current collection after its own guard conflicts", async () => {
+  const key = "spells:ward";
+  const initial = detailFixture(key);
+  const ranked = { ...rootNavigation(key), spell_rank: 4 };
+  const replacement = {
+    ...initial,
+    selected: ranked,
+    artifact_generation: "replacement",
+  };
+  api
+    .mockResolvedValueOnce(initial)
+    .mockRejectedValueOnce(
+      new AtlasApiError(409, "Collection changed", {
+        code: "artifact_generation_changed",
+        message: "Collection changed",
+        recoverable_action: "reload_record",
+      }),
+    )
+    .mockResolvedValueOnce(replacement);
+  const { result } = renderHook(
+    () => useReferenceReading({ navigation: rootNavigation(key) }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.detail).toEqual(initial));
+  act(() => result.current.changeRank(ranked));
+  await waitFor(() => expect(result.current.error).toBeInstanceOf(AtlasApiError));
+  expect(result.current.detail).toBeUndefined();
+  expect(api).toHaveBeenLastCalledWith(
+    key,
+    recordDetailRequest(ranked, undefined, initial.artifact_generation),
+    expect.any(AbortSignal),
+  );
+  act(() => result.current.retry());
+  await waitFor(() => expect(result.current.detail).toEqual(replacement));
+  expect(api).toHaveBeenLastCalledWith(
+    key,
+    recordDetailRequest(ranked),
+    expect.any(AbortSignal),
+  );
   expect(api).toHaveBeenCalledTimes(3);
 });
 

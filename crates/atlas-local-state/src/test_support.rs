@@ -91,7 +91,7 @@ impl TestSavedLists<'_> {
             &transaction,
             crate::store::local_owner(&transaction)?,
         );
-        let result = domain.delete(list_ref)?;
+        let result = domain.delete(list_ref)?.is_some();
         transaction.commit()?;
         Ok(result)
     }
@@ -287,7 +287,7 @@ impl TestEncounters<'_> {
             &transaction,
             crate::store::local_owner(&transaction)?,
         );
-        let result = domain.delete(encounter_ref)?;
+        let result = domain.delete(encounter_ref)?.is_some();
         transaction.commit()?;
         Ok(result)
     }

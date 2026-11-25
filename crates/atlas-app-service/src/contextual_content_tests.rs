@@ -31,6 +31,7 @@ fn roll(view: &RecordDetailView) -> ContentRollOffer {
 }
 fn selection(key: &str) -> RecordDetailRequest {
     RecordDetailRequest {
+        include_section_rendering: false,
         expected_artifact_generation: None,
         record_key: key.into(),
         owners: vec![],
@@ -234,7 +235,13 @@ fn check_details_follow_item_ownership_overrides_and_foreign_inclusions() {
     let decoded: RecordDetailView = serde_json::from_value(serialized).unwrap();
     assert_eq!(decoded, view);
 
-    let hazard = f.worker.record_detail("actors:traitHazard00001").unwrap();
+    let hazard = f
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            include_section_rendering: true,
+            ..selection("actors:traitHazard00001")
+        })
+        .unwrap();
     let routine = hazard
         .presentation
         .content

@@ -17,7 +17,7 @@ use atlas_record::{
 };
 #[cfg(any(test, feature = "test-support"))]
 use rusqlite::OpenFlags;
-use rusqlite::{Connection, params_from_iter};
+use rusqlite::{Connection, OptionalExtension, params_from_iter};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path};
 
@@ -188,11 +188,19 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             relationships: vec![],
             diagnostics: vec![],
         };
-        let (seed, end): (i64, i64) = c.query_row(
-            "SELECT seed,end_id FROM projection_allocations WHERE record_id=?",
-            [id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
+        let (seed, end): (i64, i64) = c
+            .query_row(
+                "SELECT seed,end_id FROM projection_allocations WHERE record_id=?",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                bad(format!(
+                    "missing projection allocation for {}",
+                    input.record.key()
+                ))
+            })?;
         let mut ids = ProjectionIds::seeded(seed);
         for expected in root_rows(&input, &label, id, &mut ids)? {
             let sql = format!(

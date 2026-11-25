@@ -1,8 +1,8 @@
 import { Button } from "antd";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EditEncounterModal } from "./EncounterModals";
-import type { useEncounterMutations } from "./useEncounterMutations";
-import type { EncounterDetailView } from "../../generated/atlas";
+import type { useEncounterSettingsMutations } from "./useEncounterMutations";
+import type { EncounterSettingsView } from "../../generated/atlas";
 
 export function EncounterSettingsEditor({
   encounter,
@@ -16,11 +16,11 @@ export function EncounterSettingsEditor({
   onDeleted,
   afterClose,
 }: {
-  encounter: EncounterDetailView;
+  encounter: EncounterSettingsView;
   readError: Error | null;
   retryRead: () => void;
   refreshing: boolean;
-  mutations: ReturnType<typeof useEncounterMutations>;
+  mutations: ReturnType<typeof useEncounterSettingsMutations>;
   open: boolean;
   disabled?: boolean;
   onClose: (slug?: string) => void;

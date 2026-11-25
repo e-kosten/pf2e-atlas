@@ -73,7 +73,7 @@ fn list_note_save_merges_with_reorder_and_unrelated_edits() {
         .update_saved_list_item_note(&key, FIRST, draft)
         .unwrap();
     assert_eq!(saved.slug, "renamed");
-    let current = worker.saved_list_snapshot(&key).unwrap();
+    let current = worker.saved_list_snapshot(&key, None).unwrap();
     assert_eq!(
         current
             .items
@@ -92,7 +92,7 @@ fn list_note_save_merges_with_reorder_and_unrelated_edits() {
             },
         )
         .unwrap();
-    let reordered = worker.saved_list_snapshot(&key).unwrap();
+    let reordered = worker.saved_list_snapshot(&key, None).unwrap();
     assert_eq!(reordered.items[0].note.as_deref(), Some("First draft"));
 }
 
@@ -136,7 +136,13 @@ fn list_note_conflict_and_missing_entry_do_not_mutate_saved_state() {
             AppErrorCode::SavedListItemNotFound
         );
     }
-    assert!(worker.saved_list_snapshot(&key).unwrap().items.is_empty());
+    assert!(
+        worker
+            .saved_list_snapshot(&key, None)
+            .unwrap()
+            .items
+            .is_empty()
+    );
     add_note(&worker, &key, FIRST, Some("Re-added note"));
     assert_eq!(
         worker

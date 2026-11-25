@@ -92,34 +92,65 @@ fn key_ability(
     Ok(Some(row))
 }
 
-enum Layout {
-    Sheet,
-    Context,
+pub(super) fn identity_groups(
+    sheet: &PathbuilderSheet,
+    retrieval: Option<&AtlasRetrievalService>,
+) -> AppServiceResult<Vec<SheetGroupView>> {
+    let mut details = identity(sheet, retrieval)?;
+    details.rows.extend(key_ability(sheet, retrieval)?);
+    let mut background = group("Background & details", Vec::new());
+    add_biography(&mut background, sheet, resistances(sheet));
+    Ok(vec![details, background])
+}
+
+fn resistances(sheet: &PathbuilderSheet) -> Option<String> {
+    text_list(&sheet.resistances).filter(|value| !value.is_empty())
+}
+
+struct Statistics {
+    defenses: SheetGroupView,
+    saves: SheetGroupView,
+    scores: SheetGroupView,
+    skills: SheetGroupView,
+    bonuses: SheetGroupView,
 }
 
 pub(super) fn groups(
     sheet: &PathbuilderSheet,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<Vec<SheetGroupView>> {
-    Ok(project(sheet, retrieval, Layout::Sheet)?
-        .into_iter()
-        .map(|(_, group)| group)
-        .collect())
+    let mut stats = statistics(sheet);
+    let mut details = identity(sheet, retrieval)?;
+    stats.scores.rows.extend(key_ability(sheet, retrieval)?);
+    if let Some(value) = resistances(sheet) {
+        stats
+            .defenses
+            .rows
+            .push(compact_row("Resistances", Some(value), Vec::new()));
+    }
+    add_biography(&mut details, sheet, None);
+    Ok(vec![
+        stats.defenses,
+        stats.saves,
+        details,
+        stats.scores,
+        stats.skills,
+        stats.bonuses,
+    ])
 }
 
-pub(super) fn categorized(
-    sheet: &PathbuilderSheet,
-    retrieval: Option<&AtlasRetrievalService>,
-) -> AppServiceResult<Vec<(atlas_app_model::CharacterSection, SheetGroupView)>> {
-    project(sheet, retrieval, Layout::Context)
+pub(super) fn statistics_groups(sheet: &PathbuilderSheet) -> Vec<SheetGroupView> {
+    let stats = statistics(sheet);
+    vec![
+        stats.defenses,
+        stats.saves,
+        stats.scores,
+        stats.skills,
+        stats.bonuses,
+    ]
 }
 
-fn project(
-    sheet: &PathbuilderSheet,
-    retrieval: Option<&AtlasRetrievalService>,
-    layout: Layout,
-) -> AppServiceResult<Vec<(atlas_app_model::CharacterSection, SheetGroupView)>> {
-    use atlas_app_model::CharacterSection::{Identity, Statistics};
+fn statistics(sheet: &PathbuilderSheet) -> Statistics {
     let mut scores = Vec::new();
     let mut modifiers = [None; 6];
     if let Some(abilities) = value(&sheet.abilities) {
@@ -260,32 +291,13 @@ fn project(
     skills.sort_by_cached_key(|row| normalize_record_name(&row.label));
     let mut skills = group("Skills", skills);
     skills.kind = Some(SheetGroupKind::Skills);
-    let mut details = identity(sheet, retrieval)?;
-    let key_ability = key_ability(sheet, retrieval)?;
-    let resistances = text_list(&sheet.resistances).filter(|value| !value.is_empty());
-    let mut background = group("Background & details", Vec::new());
-    match layout {
-        Layout::Sheet => {
-            scores.extend(key_ability);
-            if let Some(value) = resistances {
-                vitals.push(compact_row("Resistances", Some(value), Vec::new()));
-            }
-            add_biography(&mut details, sheet, None);
-        }
-        Layout::Context => {
-            details.rows.extend(key_ability);
-            add_biography(&mut background, sheet, resistances);
-        }
+    Statistics {
+        defenses: group("Defenses & movement", vitals),
+        saves: group("Perception & saves", saves),
+        scores: group("Ability scores", scores),
+        skills,
+        bonuses: group("Other exported bonuses", other_bonuses),
     }
-    Ok(vec![
-        (Statistics, group("Defenses & movement", vitals)),
-        (Statistics, group("Perception & saves", saves)),
-        (Identity, details),
-        (Statistics, group("Ability scores", scores)),
-        (Identity, background),
-        (Statistics, skills),
-        (Statistics, group("Other exported bonuses", other_bonuses)),
-    ])
 }
 
 fn add_biography(

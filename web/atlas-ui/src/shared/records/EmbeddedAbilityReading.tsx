@@ -1,3 +1,4 @@
+import { useSourceSectionRendering } from "./SourceSectionSelectionContext";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { Alert, Button, Collapse, Space } from "antd";
@@ -104,10 +105,12 @@ function OwnedAbilityBatch({
     () => (landing ? immediateActivityAddress(landing) : null),
     [landing],
   );
+  const includeSectionRendering = useSourceSectionRendering(context.parent.record_key);
   const identity = JSON.stringify([
     context?.generation,
     context?.parent,
     "abilities",
+    includeSectionRendering,
     group,
     target,
   ]);
@@ -128,6 +131,7 @@ function OwnedAbilityBatch({
           parent: { record_key: context!.parent.record_key },
           artifact_generation: context!.generation,
           selection: pageParam,
+          ...(includeSectionRendering ? { include_section_rendering: true } : {}),
         },
         signal,
       ),

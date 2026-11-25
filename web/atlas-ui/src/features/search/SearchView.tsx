@@ -177,10 +177,9 @@ export function SearchView({
           onRefreshResults={workspace.refreshResults}
           loading={loading}
           selectedRecordKey={workspace.selectedRecordKey}
-          onSelect={(row, request) => {
-            workspace.selectRecord(row.record.record_key);
-            workspace.reading.select(request);
-          }}
+          onSelect={(row, request) =>
+            workspace.selectRecord(row.record.record_key, request)
+          }
           onClearSelection={() => workspace.selectRecord(null)}
           reading={workspace.reading}
           positions={workspace.positions}

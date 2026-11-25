@@ -660,6 +660,15 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         <Comparison
           source={detail.record.record_key}
           target={comparison.target}
+          generation={detail.artifact_generation}
+          reloadLabel={reloadLabel}
+          onReload={
+            onReload &&
+            (() => {
+              setComparison(null);
+              onReload();
+            })
+          }
           open={comparison.open}
           onClose={() => setComparison({ ...comparison, open: false })}
           onAfterClose={() => setComparison(null)}
@@ -824,19 +833,25 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
 function Comparison({
   source,
   target,
+  generation,
+  onReload,
+  reloadLabel = "Reload record",
   open,
   onClose,
   onAfterClose,
 }: {
   source: string;
   target: string;
+  generation: string;
+  onReload?: () => void;
+  reloadLabel?: string;
   open: boolean;
   onClose: () => void;
   onAfterClose: () => void;
 }) {
   const reference = useContextualReference();
-  const left = useRecordDetail(source);
-  const right = useRecordDetail(target);
+  const left = useRecordDetail(source, undefined, generation);
+  const right = useRecordDetail(target, undefined, generation);
   const navigate: RecordReferenceHandler = (recordKey, anchor, selection, landing) => {
     if (reference) {
       reference(recordKey, anchor, selection, landing);
@@ -865,9 +880,13 @@ function Comparison({
           detail={left.data}
           loading={left.isLoading || left.isFetching}
           error={left.error}
-          onRetry={() => {
-            void left.refetch();
-          }}
+          onRetry={
+            isArtifactGenerationChanged(left.error)
+              ? onReload
+              : () => void left.refetch()
+          }
+          retryLabel={isArtifactGenerationChanged(left.error) ? reloadLabel : "Retry"}
+          onReload={onReload}
           onReference={navigate}
           showRelated={false}
           showRemasterNotice={false}
@@ -876,9 +895,13 @@ function Comparison({
           detail={right.data}
           loading={right.isLoading || right.isFetching}
           error={right.error}
-          onRetry={() => {
-            void right.refetch();
-          }}
+          onRetry={
+            isArtifactGenerationChanged(right.error)
+              ? onReload
+              : () => void right.refetch()
+          }
+          retryLabel={isArtifactGenerationChanged(right.error) ? reloadLabel : "Retry"}
+          onReload={onReload}
           onReference={navigate}
           showRelated={false}
           showRemasterNotice={false}

@@ -133,7 +133,11 @@ it("uses one mixed Drawer session through nested hosts while preserving the draf
   fireEvent.click(opener);
   const drawer = await screen.findByRole("dialog", { name: "Darkvision" });
   expect(screen.getAllByRole("dialog")).toHaveLength(1);
-  expect(vi.mocked(getRecordDetail).mock.calls[0]?.[1]).toBeUndefined();
+  expect(vi.mocked(getRecordDetail).mock.calls[0]?.[1]).toMatchObject({
+    record_key: record.selected.record_key,
+    expected_artifact_generation: "generation-a",
+    fields: [],
+  });
   expect(
     within(drawer).queryByRole("link", { name: "Creatures with this sense" }),
   ).toBeNull();

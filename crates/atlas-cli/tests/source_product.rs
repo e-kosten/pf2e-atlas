@@ -207,15 +207,37 @@ fn rules_sections_retain_ranked_effect_and_embedded_consumable_spell_links() {
 fn collection_discovery_lists_members_and_suggests_the_collection_path() {
     let f = Fixture::new();
     let groups = f.data(&["filters", "fields", "--json"]);
-    assert!(
-        groups["groups"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|group| group["id"] == "movement")
-    );
+    let full = f.data(&["filters", "fields", "--detail", "full", "--json"]);
+    let full_groups = full["groups"].as_array().unwrap();
+    let directory: Vec<_> = full_groups
+        .iter()
+        .map(|group| {
+            serde_json::json!({
+                "id": group["id"], "label": group["label"]
+            })
+        })
+        .collect();
+    assert_eq!(groups, serde_json::json!({"groups": directory}));
+    let mut expected = full.clone();
+    expected["groups"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|group| group["id"] == "movement");
     let group = f.data(&["filters", "fields", "--group", "movement", "--json"]);
-    assert_eq!(group["groups"].as_array().unwrap().len(), 1);
+    assert_eq!(group, expected);
+    for args in [
+        vec!["--all", "--detail", "full"],
+        vec!["--detail", "full", "--group", "movement"],
+        vec!["--field", "kind", "--text", "traits"],
+        vec!["--all", "--text", "movement"],
+    ] {
+        let mut command = vec!["filters", "fields", "--json"];
+        command.extend(args);
+        let invalid = f.command(&command, false);
+        assert_eq!(invalid.status.code(), Some(2));
+        let error: Value = serde_json::from_slice(&invalid.stdout).unwrap();
+        assert_eq!(error["error"]["code"], "invalid_input");
+    }
     assert!(
         group["groups"][0]["fields"]
             .as_array()
@@ -247,6 +269,24 @@ fn collection_discovery_lists_members_and_suggests_the_collection_path() {
         String::from_utf8(unknown.stderr)
             .unwrap()
             .contains("Unknown field")
+    );
+    // Group browsing and unknown-group diagnostics don't require rich sense metadata.
+    let db = rusqlite::Connection::open(&f.index).unwrap();
+    db.execute("DROP TABLE actor_senses", []).unwrap();
+    drop(db);
+    assert_eq!(f.data(&["filters", "fields", "--json"]), groups);
+    let unknown = f.command(
+        &["filters", "fields", "--group", "no-such-group", "--json"],
+        false,
+    );
+    assert_eq!(unknown.status.code(), Some(2));
+    let error: Value = serde_json::from_slice(&unknown.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "invalid_input");
+    assert!(
+        error["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("no-such-group")
     );
 }
 
@@ -285,11 +325,165 @@ fn filter_value_pages_distinguish_pagination_from_count_coverage() {
 }
 
 #[test]
+fn index_diagnostics_detect_missing_stored_vectors_in_a_declared_profile() {
+    let f = Fixture::new();
+    let workspace = atlas_runtime::initialize_workspace(&f.index).unwrap();
+    let record = atlas_search::test_support::record(
+        "items",
+        "Item",
+        serde_json::json!({
+            "_id":"aaaaaaaaaaaaaaaa","name":"One","type":"effect"
+        }),
+    );
+    let input = atlas_search::test_support::input_with_both_profiles(vec![record]);
+    atlas_index::test_support::publish_input_in(
+        &workspace,
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        &input,
+    )
+    .unwrap();
+    for sub in ["check", "validate"] {
+        assert_eq!(f.data(&["index", sub, "--json"])["valid"], true);
+    }
+    let db = rusqlite::Connection::open(&f.index).unwrap();
+    let table: String = db.query_row(
+        "SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING vec0%' ORDER BY name LIMIT 1",
+        [], |row| row.get(0)
+    ).unwrap();
+    db.execute(&format!("DELETE FROM {table}"), []).unwrap();
+    drop(db);
+    for sub in ["check", "validate"] {
+        let output = f.command(&["index", sub, "--json"], false);
+        assert_eq!(output.status.code(), Some(3));
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["status"], "ok");
+        assert_eq!(response["data"]["valid"], false);
+        assert_eq!(response["data"]["reason"]["code"], "vectors_unavailable");
+    }
+}
+#[test]
+fn index_diagnostics_distinguish_invalid_artifacts_from_checks_that_cannot_run() {
+    let f = Fixture::new();
+    let checked = |output: Output, exit: i32| -> Value {
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(output.status.code(), Some(exit), "{response}");
+        response
+    };
+    let failure = |response: Value, code: &str| {
+        assert_eq!(response["status"], "error");
+        assert_eq!(response["error"]["code"], code);
+        assert!(!response["error"]["message"].as_str().unwrap().is_empty());
+        assert!(response.get("data").is_none());
+    };
+    let invalid = |response: Value, code: &str| {
+        assert_eq!(response["status"], "ok");
+        assert_eq!(response["data"]["valid"], false);
+        assert_eq!(response["data"]["reason"]["code"], code);
+        assert!(
+            !response["data"]["reason"]["message"]
+                .as_str()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(response["data"].as_object().unwrap().len(), 2);
+    };
+    let unreadable = f.root.join("directory-not-a-database");
+    fs::create_dir(&unreadable).unwrap();
+    for sub in ["check", "validate"] {
+        invalid(
+            checked(f.command(&["index", sub, "--json"], false), 3),
+            "vectors_unavailable",
+        );
+        failure(
+            checked(f.command(&["index", sub, "--bogus", "--json"], false), 2),
+            "invalid_input",
+        );
+        for path in [
+            f.root.join("never-created/index.sqlite"),
+            unreadable.clone(),
+        ] {
+            let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+                .args(["index", sub, "--json", "--index"])
+                .arg(path)
+                .output()
+                .unwrap();
+            failure(checked(output, 3), "index_unavailable");
+        }
+    }
+    assert!(!f.root.join("never-created").exists());
+    let db = rusqlite::Connection::open(&f.index).unwrap();
+    let (id, seed, end): (i64,i64,i64) = db.query_row(
+        "DELETE FROM projection_allocations WHERE record_id=(SELECT min(record_id) FROM records) RETURNING record_id,seed,end_id", [],
+        |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
+    ).unwrap();
+    invalid(
+        checked(
+            f.command(&["index", "validate", "--json", "--no-embeddings"], false),
+            3,
+        ),
+        "artifact_invalid",
+    );
+    db.execute(
+        "INSERT INTO projection_allocations(record_id,seed,end_id) VALUES(?1,?2,?3)",
+        (id, seed, end),
+    )
+    .unwrap();
+    db.execute("UPDATE records SET source_path='/bad/path'", [])
+        .unwrap();
+    drop(db);
+    assert_eq!(
+        f.data(&["index", "check", "--json", "--no-embeddings"])["valid"],
+        true
+    );
+    invalid(
+        checked(
+            f.command(&["index", "validate", "--json", "--no-embeddings"], false),
+            3,
+        ),
+        "artifact_invalid",
+    );
+
+    let lock = fs::File::open(f.index.with_added_extension("access.lock")).unwrap();
+    lock.lock().unwrap();
+    for sub in ["check", "validate"] {
+        failure(
+            checked(
+                f.command(&["index", sub, "--json", "--no-embeddings"], false),
+                3,
+            ),
+            "service_busy",
+        );
+    }
+    drop(lock);
+    let db = rusqlite::Connection::open(&f.index).unwrap();
+    db.execute("DROP TABLE workspace", []).unwrap();
+    drop(db);
+    for sub in ["check", "validate"] {
+        failure(
+            checked(
+                f.command(&["index", sub, "--json", "--no-embeddings"], false),
+                3,
+            ),
+            "artifact_invalid",
+        );
+    }
+    let absent = f.root.join("absent.sqlite");
+    let rebuild = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "rebuild", "--json", "--index"])
+        .arg(absent)
+        .output()
+        .unwrap();
+    failure(checked(rebuild, 3), "index_rebuild_failed");
+}
+
+#[test]
 fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     let f = Fixture::new();
     let check = f.data(&["index", "check", "--no-embeddings", "--json"]);
+    assert_eq!(check["valid"], true);
     assert_eq!(check["product_records"], 1);
     let validation = f.data(&["index", "validate", "--no-embeddings", "--json"]);
+    assert_eq!(validation["valid"], true);
     assert_eq!(validation["checked_snapshots"], 2);
     let fields = f.data(&["filters", "fields", "--all", "--json"]);
     assert!(
@@ -1198,7 +1392,9 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
     db.pragma_update(None, "user_version", 0).unwrap();
     drop(db);
     let o = f.command(&["index", "check", "--no-embeddings", "--json"], false);
-    assert!(!o.status.success());
+    assert_eq!(o.status.code(), Some(3));
+    let response: Value = serde_json::from_slice(&o.stdout).unwrap();
+    assert_eq!(response["error"]["code"], "artifact_incompatible");
     let output = format!(
         "{} {}",
         String::from_utf8_lossy(&o.stderr),
@@ -1894,6 +2090,40 @@ fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
         "--json",
     ]);
     assert_eq!(saved["note"], "Useful for recovery");
+    let sorted_snapshot = || {
+        f.data(&[
+            "lists",
+            "show",
+            "research",
+            "--sort",
+            "random",
+            "--seed",
+            "4",
+            "--no-records",
+            "--json",
+        ])
+    };
+    let keys = f.data(&[
+        "lists",
+        "show",
+        "research",
+        "--sort",
+        "random",
+        "--seed",
+        "4",
+        "--keys-only",
+        "--json",
+    ]);
+    let active = sorted_snapshot();
+    assert_eq!(
+        keys["record_keys"],
+        serde_json::json!(["actions:aaaaaaaaaaaaaaaa"])
+    );
+    assert_eq!(keys["sort"], active["sort"]);
+    assert_eq!(active["items"][0]["status"], "active");
+    assert!(active["items"][0].get("record").is_none());
+    let saved_order = f.data(&["lists", "show", "research", "--no-records", "--json"]);
+    assert_eq!(saved_order["items"][0]["status"], "unchecked");
     let before = f.data(&["lists", "show", "research", "--json"]);
     fs::remove_file(f.root.join("packs/actions/heal.json")).unwrap();
     assert!(
@@ -1917,6 +2147,7 @@ fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
     );
     assert_eq!(after["items"][0]["status"], "unresolved");
     assert_eq!(after["items"][0]["note"], "Still useful context");
+    assert_eq!(sorted_snapshot()["items"], after["items"]);
     let exported = f.command(&["lists", "export", "research"], false);
     let document: Value = serde_json::from_slice(&exported.stdout).unwrap();
     assert_eq!(document["items"][0]["note"], "Still useful context");
@@ -2016,9 +2247,10 @@ fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
         )
         .unwrap();
     write.commit().unwrap();
-    f.data(&[
+    let list = f.data(&[
         "lists", "create", "Research", "--slug", "research", "--json",
     ]);
+    let encounter = f.data(&["encounters", "create", "Test patrol", "--json"]);
     let complete = |words: &[&str], index: &str| {
         let out = Command::new(env!("CARGO_BIN_EXE_atlas"))
             .env("ATLAS_COMPLETE", "zsh")
@@ -2035,6 +2267,17 @@ fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
         String::from_utf8(out.stdout).unwrap()
     };
     let path = f.index.to_str().unwrap();
+    for (domain, key) in [
+        ("lists", list["list_key"].as_str().unwrap()),
+        (
+            "encounters",
+            encounter["encounter"]["encounter_key"].as_str().unwrap(),
+        ),
+    ] {
+        let values = complete(&[domain, "delete", "--index", path, &key[..6]], "5");
+        assert!(values.contains(key), "{values}");
+        assert!(complete(&[domain, "delete", "--index", path, "foreign"], "5").is_empty());
+    }
     assert!(complete(&["lists", "show", "--index", path, "res"], "5").contains("research"));
     assert!(!complete(&["lists", "show", "--index", path, "res"], "5").contains("restricted"));
     let keys = complete(
@@ -2597,6 +2840,50 @@ fn definition_lookup_uses_the_exact_key_exposed_by_filter_discovery() {
     assert!(unavailable["content"].is_null());
     let invalid = f.command(&["record", "definition", "healing", "--json"], false);
     assert_eq!(invalid.status.code(), Some(2));
+}
+
+#[test]
+fn saved_deletes_require_the_original_key_across_slug_reuse() {
+    let f = Fixture::new();
+    for (collection, kind, field, miss) in [
+        ("lists", "list", "list_key", "saved_list_not_found"),
+        (
+            "encounters",
+            "encounter",
+            "encounter_key",
+            "encounter_not_found",
+        ),
+    ] {
+        let create = || {
+            let created = f.data(&[collection, "create", "Reusable", "--json"]);
+            created[field]
+                .as_str()
+                .or_else(|| created[kind][field].as_str())
+                .unwrap()
+                .to_owned()
+        };
+        let reject = |reference: &str| {
+            let output = f.command(&[collection, "delete", reference, "--json"], false);
+            assert!(!output.status.success());
+            let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(envelope["error"]["code"], miss);
+        };
+        let first = create();
+        reject("reusable");
+        reject("never-created");
+        assert_eq!(
+            f.data(&[collection, "delete", &first, "--json"])[field],
+            first
+        );
+        let replacement = create();
+        assert_ne!(replacement, first);
+        reject("reusable");
+        reject(&first);
+        assert_eq!(
+            f.data(&[collection, "show", "reusable", "--json"])[kind][field],
+            replacement
+        );
+    }
 }
 
 #[test]

@@ -17,6 +17,7 @@ pub(crate) struct RuntimeContentContext {
 
 /// One field namespace's values and the identities needed to recheck its dice.
 pub(crate) struct PreparedContentContext<'a> {
+    pub include_section_rendering: bool,
     pub fingerprint: &'a str,
     pub retrieval: &'a atlas_search::AtlasRetrievalService,
     pub item_traits: Vec<String>,
@@ -83,6 +84,7 @@ impl<'a> PreparedContentContext<'a> {
                 .to_vec();
         }
         Self {
+            include_section_rendering: false,
             fingerprint: retrieval.source_fingerprint(),
             retrieval,
             item_traits,
@@ -91,6 +93,11 @@ impl<'a> PreparedContentContext<'a> {
             encounter: None,
         }
     }
+    pub(crate) fn with_section_rendering(mut self, include: bool) -> Self {
+        self.include_section_rendering = include;
+        self
+    }
+
     pub(crate) fn apply_runtime(
         &mut self,
         runtime: &RuntimeContentContext,
@@ -200,15 +207,19 @@ pub(crate) fn prepared_fields(
         // Section ordinals bind canonical prepared content, before contextual
         // substitutions change the displayed text. Render both copies with the
         // same field context after deriving those annotations.
-        let section_rendering = match cache
-            .iter()
-            .find(|cached| cached.locator == locator)
-            .and_then(|cached| cached.html.as_ref().map(|html| (cached, html)))
-        {
-            Some((cached, html)) if matches!(body, PreparedFieldBodyView::Html { .. }) => {
-                contextual_section_rendering(html, &cached.interactions, &context.formula)?
+        let section_rendering = if context.include_section_rendering {
+            match cache
+                .iter()
+                .find(|cached| cached.locator == locator)
+                .and_then(|cached| cached.html.as_ref().map(|html| (cached, html)))
+            {
+                Some((cached, html)) if matches!(body, PreparedFieldBodyView::Html { .. }) => {
+                    contextual_section_rendering(html, &cached.interactions, &context.formula)?
+                }
+                _ => section_rendering(&body)?,
             }
-            _ => section_rendering(&body)?,
+        } else {
+            None
         };
         fields.push(PreparedContentFieldView {
             routine_header: None,
@@ -220,12 +231,11 @@ pub(crate) fn prepared_fields(
         });
     }
     for field in &mut fields {
-        if let (Some(rendering), Some(cached)) = (
-            &mut field.section_rendering,
-            cache.iter().find(|cached| {
+        if let Some(rendering) = &mut field.section_rendering
+            && let Some(cached) = cache.iter().find(|cached| {
                 cached.locator.field == field.locator.field && cached.locator.owners == owners
-            }),
-        ) {
+            })
+        {
             rendering.html = render_field_content(&rendering.html, &cached.interactions, context);
         }
         project_routine_header(field, context.retrieval)?;
@@ -490,8 +500,10 @@ pub(crate) fn resolve_runtime_content(
                 authored
             };
             *html = render_field_content(authored, &cached.interactions, &context);
-            field.section_rendering =
-                contextual_section_rendering(authored, &cached.interactions, &context.formula)?;
+            if field.section_rendering.is_some() {
+                field.section_rendering =
+                    contextual_section_rendering(authored, &cached.interactions, &context.formula)?;
+            }
             *controls =
                 content_controls(&cached.interactions, Some((&cached.locator, &context)), r)?;
             inclusions.clear();
@@ -623,9 +635,10 @@ pub(crate) fn reference_body(
     content: atlas_record::source_content::PreparedReferenceDefinition,
     retrieval: &atlas_search::AtlasRetrievalService,
     selection_version: &str,
+    include_section_rendering: bool,
 ) -> AppServiceResult<ReferenceContentView> {
     Ok(ReferenceContentView {
-        section_rendering: Some(PreparedSectionRenderingView {
+        section_rendering: include_section_rendering.then(|| PreparedSectionRenderingView {
             html: atlas_record::source_record::single_section_annotated_prepared_html(
                 &content.html,
             ),

@@ -732,7 +732,7 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
                 record(
                     "actors",
                     "Actor",
-                    json!({"_id":"actor00000000000","name":"Guard","type":"npc","items":[{"_id":"owned00000000000","name":"Guard's armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.target0000000000"},"system":{"description":{"value":"<p>@UUID[Compendium.pf2e.items.Item.target0000000000]</p>"}}}]}),
+                    json!({"_id":"actor00000000000","name":"Guard","type":"npc","items":[{"_id":"owned00000000000","name":"Guard's armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.target0000000000"},"system":{"description":{"value":"<p>Wears @UUID[Compendium.pf2e.items.Item.target0000000000].</p>"}}}]}),
                 ),
             ],
             false,
@@ -779,6 +779,7 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
         let opened = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: navigation.spell_rank,
                 record_key: navigation.record_key.clone(),
@@ -792,6 +793,65 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
         assert_eq!(opened.selected.owners, navigation.owners);
         assert_eq!(opened.selected.field, navigation.field);
         assert_eq!(opened.selected.passage, navigation.passage);
+    }
+    let parts = f
+        .worker
+        .similarity_parts(
+            atlas_app_model::SimilarityPartsRequest {
+                seed: atlas_domain::SimilaritySeed::Record {
+                    record_key: "actors:actor00000000000".parse().unwrap(),
+                },
+                search_profile: None,
+                expected_artifact_generation: Some(result.artifact_generation.clone()),
+            },
+            &execution,
+        )
+        .unwrap();
+    let passage = parts
+        .parts
+        .iter()
+        .filter_map(|p| p.part())
+        .filter_map(|p| p.navigation.as_ref())
+        .find(|n| !n.owners.is_empty() && n.field.as_deref() == Some("/system/description/value"))
+        .unwrap();
+    let mut embedded = passage.clone();
+    embedded.passage = None;
+    embedded.field = None;
+    let mut root = embedded.clone();
+    root.owners.clear();
+    for (address, expected_decodes) in [(&root, 0), (&embedded, 1), (passage, 1)] {
+        let filter = relationship_predicate(atlas_domain::QueryRelationship {
+            direction: atlas_domain::QueryRelationshipDirection::Outgoing,
+            selection: crate::relationship_search::query_selection(address).unwrap(),
+            include_contents: true,
+        });
+        let mut page = request(
+            SearchCriteria::TextSearch {
+                query: "Leather Armor".into(),
+                mode: RetrievalModeView::Lexical,
+                filter: Some(filter),
+                lexical: None,
+                search_content: None,
+            },
+            1,
+        );
+        page.result_detail = atlas_app_model::SearchResultDetail::Records;
+        let matched = f.worker.search_page(page, &execution).unwrap();
+        assert_eq!(matched.page.total, 1, "{address:?}");
+        assert_eq!(matched.rows[0].record.record_key, "items:target0000000000");
+        assert_eq!(
+            matched.relationship_clauses[0].title,
+            if address.owners.is_empty() {
+                "Guard"
+            } else {
+                "Guard's armor"
+            }
+        );
+        assert_eq!(
+            f.worker.last_read_metrics().source_body_decodes,
+            expected_decodes,
+            "{address:?}"
+        );
     }
 }
 
@@ -1022,6 +1082,7 @@ fn core_source_acknowledges_identity_and_prose_and_identity_navigation_opens_the
     let detail = fixture
         .worker
         .record_detail_at(atlas_app_model::RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: navigation.record_key.clone(),
@@ -1250,6 +1311,7 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
             let detail = fixture
                 .worker
                 .record_detail_at(atlas_app_model::RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: navigation.record_key.clone(),

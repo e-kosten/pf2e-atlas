@@ -132,7 +132,7 @@ fn encounters_bind_creation_and_child_access_to_the_selected_owner() -> crate::L
             .get_with_participants(&foreign.encounter_key)?
             .is_none()
     );
-    assert!(!local.delete(&foreign.encounter_key)?);
+    assert!(local.delete(&foreign.encounter_key)?.is_none());
     assert!(
         local
             .update_participant(edit(&foreign_participant))?
@@ -436,7 +436,7 @@ fn encounters_order_set_initiative_before_unset_and_preserve_tie_order()
 fn deleting_encounter_cascades_participants() -> Result<(), Box<dyn std::error::Error>> {
     let store = TestStore::open(temp_path("encounter-delete"))?;
     let encounters = store.encounters();
-    encounters.create(NewEncounter {
+    let encounter = encounters.create(NewEncounter {
         slug: "delete-me".to_string(),
         name: "Delete Me".to_string(),
         description: None,
@@ -444,7 +444,8 @@ fn deleting_encounter_cascades_participants() -> Result<(), Box<dyn std::error::
     })?;
     encounters.add_participant("delete-me", creature("Goblin", Some(12), 6))?;
 
-    assert!(encounters.delete("delete-me")?);
+    assert!(!encounters.delete("delete-me")?);
+    assert!(encounters.delete(&encounter.encounter_key)?);
     assert!(encounters.get_with_participants("delete-me")?.is_none());
     assert_eq!(
         store.connection()?.query_row(
@@ -504,7 +505,7 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = TestStore::open(temp_path("encounter-conditions"))?;
     let encounters = store.encounters();
-    encounters.create(NewEncounter {
+    let encounter = encounters.create(NewEncounter {
         slug: "conditions".to_string(),
         name: "Conditions".to_string(),
         description: None,
@@ -600,7 +601,8 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         note: None,
     })?;
     assert!(condition.condition_id > 0);
-    assert!(encounters.delete("conditions")?);
+    assert!(!encounters.delete("conditions")?);
+    assert!(encounters.delete(&encounter.encounter_key)?);
     assert_eq!(
         store.connection()?.query_row(
             "SELECT count(*) FROM encounter_participant_conditions",

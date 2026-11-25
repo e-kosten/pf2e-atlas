@@ -48,9 +48,33 @@ pub fn complete_saved_list_slugs(
         .list(true)?
         .into_iter()
         .map(|list| list.slug)
-        .filter(|slug| slug.starts_with(prefix))
+        .filter(|value| value.starts_with(prefix))
         .take(100)
         .collect())
+}
+
+pub fn complete_encounter_keys(
+    options: &AtlasAppServiceOptions,
+    prefix: &str,
+) -> AppServiceResult<Vec<(String, String)>> {
+    let runtime = AtlasRuntime::resolve(crate::service::runtime_options(options))?;
+    Ok(runtime
+        .read_state()?
+        .local_state()?
+        .encounters()
+        .complete_keys(prefix)?)
+}
+
+pub fn complete_saved_list_keys(
+    options: &AtlasAppServiceOptions,
+    prefix: &str,
+) -> AppServiceResult<Vec<(String, String)>> {
+    let runtime = AtlasRuntime::resolve(crate::service::runtime_options(options))?;
+    Ok(runtime
+        .read_state()?
+        .local_state()?
+        .saved_lists()
+        .complete_keys(prefix)?)
 }
 
 pub fn complete_record_keys(

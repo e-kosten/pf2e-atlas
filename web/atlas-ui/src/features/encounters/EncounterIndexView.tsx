@@ -12,8 +12,15 @@ import { Button, Tabs } from "antd";
 import type { ColumnType, ColumnsType } from "antd/es/table";
 import { Edit2, Plus } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { deleteEncounter, getEncounters } from "../../api/atlasApi";
-import type { EncounterDetailView, EncounterSummaryView } from "../../generated/atlas";
+import {
+  deleteEncounter,
+  getEncounters,
+  getEncounterSettings,
+} from "../../api/atlasApi";
+import type {
+  EncounterSettingsView,
+  EncounterSummaryView,
+} from "../../generated/atlas";
 import { formatDate } from "../../shared/ui/formatDate";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
@@ -31,10 +38,9 @@ import {
 } from "./encounterSummary";
 import { CreateEncounterModal } from "./EncounterModals";
 import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
-import { useCanonicalEncounter } from "./useEncounterQuery";
 import { useEncounterSettingsOpening } from "./useEncounterSettingsOpening";
 import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
-import { useEncounterMutations } from "./useEncounterMutations";
+import { useEncounterSettingsMutations } from "./useEncounterMutations";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 type EncounterIndexViewProps = {
   route: Record<string, never>;
@@ -45,7 +51,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   const paused = useSavedWritesPaused();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
-  const editing = useEncounterSettingsOpening();
+  const editing = useEncounterSettingsOpening("directory");
   const newEncounter = useRef<HTMLButtonElement>(null);
   const search = useRouterState({
     router: atlasRouter,
@@ -88,6 +94,10 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["encounters"] }),
         queryClient.invalidateQueries({
+          queryKey: ["encounter-settings", encounter.encounter_key],
+          exact: true,
+        }),
+        queryClient.invalidateQueries({
           queryKey: ["encounter", encounter.encounter_key],
           exact: true,
         }),
@@ -125,6 +135,10 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     mutationFn: (encounter: EncounterSummaryView) =>
       deleteEncounter(encounter.encounter_key),
     onSuccess: async (receipt, encounter) => {
+      queryClient.removeQueries({
+        queryKey: ["encounter-settings", receipt.encounter_key],
+        exact: true,
+      });
       for (const ref of [receipt.encounter_key, receipt.slug, encounter.slug]) {
         queryClient.removeQueries({ queryKey: ["encounter", ref], exact: true });
       }
@@ -296,14 +310,18 @@ function EncounterIndexEditor({
   onClose,
   afterClose,
 }: {
-  initialDetail: EncounterDetailView;
+  initialDetail: EncounterSettingsView;
   open: boolean;
   onClose: () => void;
   afterClose: () => void;
 }) {
   const encounterKey = initialDetail.encounter.encounter_key;
-  const encounter = useCanonicalEncounter(encounterKey);
-  const mutations = useEncounterMutations(encounterKey, encounterKey);
+  const encounter = useQuery({
+    queryKey: ["encounter-settings", encounterKey],
+    queryFn: () => getEncounterSettings(encounterKey),
+    staleTime: 20_000,
+  });
+  const mutations = useEncounterSettingsMutations(encounterKey);
   return (
     <EncounterSettingsEditor
       encounter={encounter.data ?? initialDetail}

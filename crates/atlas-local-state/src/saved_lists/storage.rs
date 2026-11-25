@@ -85,8 +85,28 @@ pub(crate) fn list(
          ORDER BY list.updated_at DESC, list.slug ASC",
     )?;
     let rows = statement.query_map(params![owner_id, include_archived], raw_saved_list_from_row)?;
-    rows.map(|row| saved_list_with_tags(connection, row?))
-        .collect::<LocalStateResult<Vec<_>>>()
+    let lists = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+    if lists.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut tags = std::collections::BTreeMap::<i64, Vec<String>>::new();
+    let mut statement = connection.prepare(
+        "SELECT t.list_id, t.tag FROM saved_list_tags t
+         JOIN saved_lists l ON l.id = t.list_id
+         WHERE l.owner_id = ?1 AND (?2 OR l.archived = 0)
+         ORDER BY t.list_id, t.tag COLLATE NOCASE, t.tag",
+    )?;
+    let mut rows = statement.query(params![owner_id, include_archived])?;
+    while let Some(row) = rows.next()? {
+        tags.entry(row.get(0)?).or_default().push(row.get(1)?);
+    }
+    Ok(lists
+        .into_iter()
+        .map(|list| {
+            let tags = tags.remove(&list.id).unwrap_or_default();
+            saved_list_with_tags(list, tags)
+        })
+        .collect())
 }
 
 pub(crate) fn get(
@@ -106,8 +126,11 @@ pub(crate) fn get(
             raw_saved_list_from_row,
         )
         .optional()?;
-    raw.map(|row| saved_list_with_tags(connection, row))
-        .transpose()
+    raw.map(|row| {
+        let tags = tags_for_list_id(connection, row.id)?;
+        Ok(saved_list_with_tags(row, tags))
+    })
+    .transpose()
 }
 
 pub(super) fn item_note(
@@ -151,13 +174,15 @@ pub(crate) fn get_with_items(
 pub(crate) fn delete(
     connection: &Connection,
     owner_id: i64,
-    list_ref: &str,
-) -> LocalStateResult<bool> {
-    let removed = connection.execute(
-        "DELETE FROM saved_lists WHERE owner_id = ?2 AND (list_key = ?1 OR slug = ?1)",
-        params![list_ref, owner_id],
-    )?;
-    Ok(removed > 0)
+    list_key: &str,
+) -> LocalStateResult<Option<String>> {
+    Ok(connection
+        .query_row(
+            "DELETE FROM saved_lists WHERE owner_id = ?2 AND list_key = ?1 RETURNING slug",
+            params![list_key, owner_id],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 pub(crate) fn replace_items(
@@ -446,19 +471,19 @@ fn raw_saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSaved
     })
 }
 
-fn saved_list_with_tags(connection: &Connection, raw: RawSavedList) -> LocalStateResult<SavedList> {
-    Ok(SavedList {
+fn saved_list_with_tags(raw: RawSavedList, tags: Vec<String>) -> SavedList {
+    SavedList {
         revision: raw.revision,
         archived: raw.archived,
         list_key: raw.list_key,
         slug: raw.slug,
         name: raw.name,
         description: raw.description,
-        tags: tags_for_list_id(connection, raw.id)?,
+        tags,
         item_count: raw.item_count,
         created_at: raw.created_at,
         updated_at: raw.updated_at,
-    })
+    }
 }
 
 fn saved_list_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedListItem> {

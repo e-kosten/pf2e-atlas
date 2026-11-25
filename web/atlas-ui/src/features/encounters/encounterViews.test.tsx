@@ -78,6 +78,7 @@ const apiMocks = vi.hoisted(() => ({
   createEncounter: vi.fn(),
   deleteEncounter: vi.fn(),
   getEncounter: vi.fn(),
+  getEncounterSettings: vi.fn(),
   getEncounterConditionDefinitions: vi.fn(),
   previewEncounterCondition: vi.fn(),
   getEncounterConditionConsequences: vi.fn(),
@@ -118,6 +119,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   createEncounter: apiMocks.createEncounter,
   deleteEncounter: apiMocks.deleteEncounter,
   getEncounter: apiMocks.getEncounter,
+  getEncounterSettings: apiMocks.getEncounterSettings,
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   previewEncounterConditionAdd: apiMocks.previewEncounterCondition,
   previewEncounterConditionUpdate: apiMocks.previewEncounterCondition,
@@ -143,6 +145,10 @@ const testQueryClients = new Set<QueryClient>();
 function setEncounterDetail(view: EncounterDetailViewDto) {
   serverEncounter = view;
   apiMocks.getEncounter.mockImplementation(() => Promise.resolve(serverEncounter));
+  apiMocks.getEncounterSettings.mockImplementation(async () => {
+    const { encounter, revision, note } = serverEncounter;
+    return { encounter, revision, note };
+  });
 }
 
 function setupPersistentReview(damageApplied = false) {
@@ -603,6 +609,39 @@ describe("encounter views", () => {
     );
     expect(window.location.href).toBe(locationBeforeEdit);
     await waitFor(() => expect(opener).toHaveFocus());
+  });
+
+  it("keeps a directory edit draft through a conflict using only settings reads", async () => {
+    render(<EncounterIndexView route={{}} />, { wrapper: queryClientWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Ambush" }));
+    const editor = within(await screen.findByRole("dialog", { name: "Settings" }));
+    expect(apiMocks.getEncounterSettings).toHaveBeenCalledExactlyOnceWith(
+      "encounter_ambush",
+    );
+    const name = editor.getByLabelText("Name");
+    fireEvent.change(name, { target: { value: "My name" } });
+    apiMocks.updateEncounter.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        revision: serverEncounter.revision + 1,
+        encounter: { ...serverEncounter.encounter, name: "Changed elsewhere" },
+      };
+      throw new AtlasApiError(409, "Conflicting settings", {
+        code: "saved_edit_conflict",
+        message: "Conflicting settings",
+        details: { fields: ["name"] },
+      });
+    });
+    fireEvent.click(editor.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(apiMocks.getEncounterSettings).toHaveBeenCalledTimes(2));
+    expect(name).toHaveValue("My name");
+    fireEvent.click(await editor.findByRole("button", { name: "Keep mine for Name" }));
+    fireEvent.click(editor.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull(),
+    );
+    expect(apiMocks.getEncounterSettings).toHaveBeenCalledTimes(3);
+    expect(apiMocks.getEncounter).not.toHaveBeenCalled();
   });
 
   it("recovers an index archive with a lost write response using only a fresh read", async () => {
@@ -1995,7 +2034,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "rules:linked",
-        undefined,
+        expect.objectContaining({ expected_artifact_generation: "generation-a" }),
         expect.any(AbortSignal),
       ),
     );
@@ -2029,7 +2068,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "rules:linked",
-        undefined,
+        expect.objectContaining({ expected_artifact_generation: "generation-a" }),
         expect.any(AbortSignal),
       ),
     );
@@ -3232,11 +3271,13 @@ describe("encounter views", () => {
     const opener = await screen.findByRole("button", { name: "Encounter actions" });
     await waitFor(() => expect(opener).toBeEnabled());
     const reading = deferred<EncounterDetailViewDto>();
-    apiMocks.getEncounter.mockReturnValueOnce(reading.promise);
+    apiMocks.getEncounterSettings.mockReturnValueOnce(reading.promise);
     fireEvent.click(opener);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     await waitFor(() =>
-      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush"),
+      expect(apiMocks.getEncounterSettings).toHaveBeenLastCalledWith(
+        "encounter_ambush",
+      ),
     );
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
     await act(async () => reading.reject(new Error("Read unavailable")));
@@ -3244,6 +3285,7 @@ describe("encounter views", () => {
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
     setEncounterDetail({
       ...serverEncounter,
+      revision: serverEncounter.revision + 1,
       encounter: { ...serverEncounter.encounter, name: "Fresh encounter name" },
     });
     fireEvent.click(retry);
@@ -3262,11 +3304,13 @@ describe("encounter views", () => {
     await waitFor(() => expect(opener).toBeEnabled());
     const original = serverEncounter;
     const reading = deferred<EncounterDetailViewDto>();
-    apiMocks.getEncounter.mockReturnValueOnce(reading.promise);
+    apiMocks.getEncounterSettings.mockReturnValueOnce(reading.promise);
     fireEvent.click(opener);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     await waitFor(() =>
-      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush"),
+      expect(apiMocks.getEncounterSettings).toHaveBeenLastCalledWith(
+        "encounter_ambush",
+      ),
     );
     const newer = {
       ...original,
@@ -3958,7 +4002,7 @@ function encounterDetailFixture(
       opposition: [],
     },
     revision: 0,
-    artifact_generation: "test-generation",
+    artifact_generation: "generation-a",
     encounter: encounterIndexFixture().encounters[0],
     note: "Encounter note",
     current_turn_participant_key: currentTurnParticipantKey,

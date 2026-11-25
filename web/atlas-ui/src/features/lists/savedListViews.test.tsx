@@ -894,7 +894,7 @@ describe("list views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "rules:nested",
-        undefined,
+        expect.objectContaining({ expected_artifact_generation: "generation-a" }),
         expect.any(AbortSignal),
       ),
     );

@@ -938,6 +938,41 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
     assert_eq!(validate_artifact(&path).unwrap(), original);
 }
 #[test]
+fn shallow_check_counts_skip_body_sizes_and_profile_statistics() {
+    let (_directory, path) = build(&fixture(true));
+    let rich = crate::test_support::open_reader(&path)
+        .unwrap()
+        .statistics()
+        .unwrap();
+    assert!(!rich.search_profiles.is_empty());
+    let db = Connection::open(&path).unwrap();
+    db.execute_batch(
+        "ALTER TABLE record_bodies RENAME COLUMN snapshot TO unavailable_snapshot;
+                      ALTER TABLE prepared_content RENAME COLUMN html_gzip TO unavailable_html;",
+    )
+    .unwrap();
+    drop(db);
+    let reader = crate::test_support::open_reader(&path).unwrap();
+    reader.reset_read_metrics();
+    let counts = reader.check_counts().unwrap();
+    assert_eq!(reader.read_metrics().sql_statements, 1);
+    assert_eq!(
+        (
+            counts.records,
+            counts.product_records,
+            counts.lexical_units,
+            counts.semantic_units
+        ),
+        (
+            rich.records,
+            rich.product_records,
+            rich.lexical_units,
+            rich.semantic_units
+        )
+    );
+}
+
+#[test]
 fn shape_and_numeric_sql_constraints_reject_text_and_incoherent_states() {
     let input = fixture(false);
     let (_directory, path) = build(&input);

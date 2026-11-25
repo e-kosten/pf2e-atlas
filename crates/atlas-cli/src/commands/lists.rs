@@ -193,11 +193,9 @@ pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    let mut view = match app_result(
-        if (o.keys_only || o.no_records)
-            && matches!(sort, None | Some(atlas_domain::ResultSort::SavedOrder {}))
-        {
-            s.saved_list_snapshot(&o.slug)
+    let view = match app_result(
+        if o.keys_only || o.no_records {
+            s.saved_list_snapshot(&o.slug, sort)
         } else if sort.is_some() {
             s.filter_saved_list(
                 &o.slug,
@@ -228,17 +226,10 @@ pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
                 println!("{}", i.record_key);
             }
         }
+    } else if o.json {
+        write_json_data(&view)?;
     } else {
-        if o.no_records {
-            for i in &mut view.items {
-                i.record = None;
-            }
-        }
-        if o.json {
-            write_json_data(&view)?;
-        } else {
-            print_list(&view);
-        }
+        print_list(&view);
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -364,7 +355,7 @@ pub(crate) fn run_lists_delete(o: ListDeleteOptions) -> Result<ExitCode, String>
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    respond(s.delete_saved_list(&o.slug), o.json, |view| {
+    respond(s.delete_saved_list(&o.list_key), o.json, |view| {
         format!("Deleted {} ({})\n", view.slug, view.list_key)
     })
 }

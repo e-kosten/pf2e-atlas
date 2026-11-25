@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { recordNavigationIdentity } from "../../shared/records/recordNavigationIdentity";
 import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
@@ -28,9 +30,40 @@ type RecordViewProps = {
   route: RecordPageInput;
 };
 export function RecordView({ route }: RecordViewProps) {
-  const detail = useRecordDetail(route.recordKey, route.selection);
+  const [rankGuard, setRankGuard] = useState<{
+    address: string;
+    generation: string;
+  } | null>(null);
+  const address = recordNavigationIdentity(route.recordKey, route.selection);
+  const generation = rankGuard?.address === address ? rankGuard.generation : undefined;
+  const detail = useRecordDetail(route.recordKey, route.selection, generation);
+  const client = useQueryClient();
+  const reload = async () => {
+    await retireReferenceQueries(client);
+    if (generation) setRankGuard(null);
+    else await detail.refetch();
+  };
+  const atlasRouter = useAtlasRouter();
+  const changeRank = (spell_rank: number | undefined) => {
+    if (!detail.data) return;
+    const selection = { ...detail.data.selected, spell_rank };
+    setRankGuard({
+      address: recordNavigationIdentity(route.recordKey, selection),
+      generation: detail.data.artifact_generation,
+    });
+    void atlasRouter.navigate({
+      ...recordDestination({
+        ...route,
+        selection,
+      }),
+      replace: true,
+      resetScroll: false,
+      state: true,
+    });
+  };
   return (
     <ReferenceHelpHost
+      generation={detail.data?.artifact_generation}
       visibleOwnerRecordKey={
         detail.data?.selected.embedded_path.length === 0
           ? detail.data.record.record_key
@@ -40,7 +73,12 @@ export function RecordView({ route }: RecordViewProps) {
         <AddToRecordButton recordKey={record.record_key} record={record} />
       )}
     >
-      <RecordViewContent route={route} detail={detail} />
+      <RecordViewContent
+        route={route}
+        detail={detail}
+        reload={reload}
+        changeRank={changeRank}
+      />
     </ReferenceHelpHost>
   );
 }
@@ -48,11 +86,15 @@ export function RecordView({ route }: RecordViewProps) {
 function RecordViewContent({
   route,
   detail,
-}: RecordViewProps & { detail: ReturnType<typeof useRecordDetail> }) {
-  const atlasRouter = useAtlasRouter();
+  reload,
+  changeRank,
+}: RecordViewProps & {
+  detail: ReturnType<typeof useRecordDetail>;
+  reload: () => Promise<void>;
+  changeRank: (rank: number | undefined) => void;
+}) {
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const onReference = useReferenceRecordNavigation()!;
-  const client = useQueryClient();
   const generation = detail.data?.artifact_generation;
   const property = useDefinitionDetail(
     generation === undefined ? null : (route.definitionKey ?? null),
@@ -68,22 +110,6 @@ function RecordViewContent({
       : undefined;
   const relatedError = property.error;
   const relatedChanged = isArtifactGenerationChanged(relatedError);
-  const reload = async () => {
-    await retireReferenceQueries(client);
-    await detail.refetch();
-  };
-  const changeRank = (spell_rank: number | undefined) => {
-    if (detail.data)
-      void atlasRouter.navigate({
-        ...recordDestination({
-          ...route,
-          selection: { ...detail.data.selected, spell_rank },
-        }),
-        replace: true,
-        resetScroll: false,
-        state: true,
-      });
-  };
   return (
     <>
       <main className="record-view">
@@ -155,7 +181,15 @@ function RecordViewContent({
             }
             detail={detail.data}
             error={detail.error}
-            onRetry={() => void detail.refetch()}
+            onRetry={
+              isArtifactGenerationChanged(detail.error)
+                ? reload
+                : () => void detail.refetch()
+            }
+            retryLabel={
+              isArtifactGenerationChanged(detail.error) ? "Reload record" : "Retry"
+            }
+            onReload={reload}
             loading={detail.isLoading || detail.isFetching}
             onReference={onReference}
             onRankChange={changeRank}

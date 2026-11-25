@@ -409,7 +409,7 @@ pub(super) fn resolve_strike(
         ));
     }
     let (source, selected) =
-        crate::records::read_record_detail(retrieval, request.reference.selection, None)?;
+        crate::records::read_record_detail(retrieval, request.reference.selection, false)?;
     let baseline = super::hydration::source_baseline(&source.source, retrieval, None)?
         .ok_or_else(|| AppServiceError::invalid_request("Actor statistics are unavailable."))?;
     let adjustment_applicable = super::hydration::adjustment_applicable(&source.source);

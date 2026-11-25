@@ -721,6 +721,7 @@ function EncounterParticipantSurface({
               {participant.record_key && (
                 <EncounterOriginalRecord
                   recordKey={participant.record_key}
+                  generation={artifactGeneration}
                   label={
                     participant.participant_kind === "hazard"
                       ? "View hazard reference"

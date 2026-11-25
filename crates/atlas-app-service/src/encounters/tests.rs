@@ -47,7 +47,19 @@ fn encounter_index_counts_saved_participants_without_reference_reads() {
         })
         .unwrap()
         .encounter;
+    atlas_search::test_support::invalidate_reference(
+        f.worker.workspace_path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
     executor.fail_after_submissions(0);
+    let settings = f
+        .worker
+        .encounter_settings(&encounter.encounter_key)
+        .unwrap();
+    assert_eq!(settings.encounter.name, encounter.name);
+    assert_eq!(settings.encounter.encounter_key, encounter.encounter_key);
+    assert!(settings.revision > 0);
     let index = f.worker.encounters().unwrap();
     assert_eq!(index.encounters.len(), 2);
     assert_eq!(
@@ -696,6 +708,16 @@ fn empty_list_import_remains_available_without_reference() {
     );
     assert!(
         f.worker
+            .saved_list_snapshot(
+                "empty-import",
+                Some(atlas_domain::ResultSort::Random { seed: 4 })
+            )
+            .unwrap()
+            .items
+            .is_empty()
+    );
+    assert!(
+        f.worker
             .saved_list("empty-import")
             .unwrap()
             .items
@@ -1065,6 +1087,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         Some(8.into())
     );
     let source_request = RecordDetailRequest {
+        include_section_rendering: false,
         expected_artifact_generation: None,
         spell_rank: None,
         record_key: detail.participants[0].record_key.clone().unwrap(),
@@ -1082,7 +1105,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
                 let (_, source) = crate::records::read_record_detail(
                     workspace.retrieval_mut(),
                     source_request.into_selection(),
-                    None,
+                    false,
                 )?;
                 Ok((source, workspace.retrieval().read_metrics()))
             },
@@ -2856,6 +2879,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
             condition_id: None,
             artifact_generation: current.artifact_generation.clone().unwrap(),
             selection: RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),

@@ -39,6 +39,33 @@ pub struct EncounterSummaryView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub struct EncounterSettingsView {
+    pub revision: i64,
+    pub encounter: EncounterSettingsMetadataView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub note: Option<String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EncounterSettingsMetadataView {
+    pub encounter_key: String,
+    pub slug: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub description: Option<String>,
+    pub archived: bool,
+    pub round_duration_seconds: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct EncounterIndexView {
     pub encounters: Vec<EncounterSummaryView>,
 }
@@ -691,9 +718,9 @@ pub struct AddEncounterRecordParticipantRequest {
     #[cfg_attr(feature = "openapi", schema(min_length = 1, max_length = 128))]
     pub request_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub creature_scenario: Option<CreatureScenarioContext>,
     pub record_ref: String,
+    #[cfg_attr(feature = "openapi", schema(minimum = 1, maximum = 50))]
     pub quantity: u32,
     /// Omitted inherits the source adjustment; a supplied choice replaces it.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -707,11 +734,9 @@ pub struct AddEncounterRecordParticipantRequest {
 #[serde(deny_unknown_fields)]
 pub struct CreatureScenarioContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub use_id: Option<String>,
     pub artifact_generation: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub expected: Option<PreparedCreatureChoice>,
 }
 
@@ -744,7 +769,6 @@ pub struct AddEncounterInitiativeEntryRequest {
     pub display_name: String,
     pub initiative: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub note: Option<String>,
 }
 

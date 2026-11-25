@@ -444,9 +444,10 @@ it("restores participant-bound facts after visiting an immutable reference and r
       value: { ...actorFixture(), activities: knownFact([currentActivity]) },
     },
   };
-  api.getRecordDetail.mockResolvedValue(
-    detailFixture("rules:linked", "Immutable linked record"),
-  );
+  api.getRecordDetail.mockResolvedValue({
+    ...detailFixture("rules:linked", "Immutable linked record"),
+    artifact_generation: "generation-a",
+  });
   const { result, rerender } = renderHook(
     ({ identity }) =>
       useRecordPreview({
@@ -478,6 +479,11 @@ it("restores participant-bound facts after visiting an immutable reference and r
     expect(result.current.detail?.presentation.identity.title).toBe(
       "Immutable linked record",
     ),
+  );
+  expect(api.getRecordDetail).toHaveBeenCalledWith(
+    "rules:linked",
+    expect.objectContaining({ expected_artifact_generation: "generation-a" }),
+    expect.any(AbortSignal),
   );
   act(() => result.current.readingHistory.onBack());
   await waitFor(() =>

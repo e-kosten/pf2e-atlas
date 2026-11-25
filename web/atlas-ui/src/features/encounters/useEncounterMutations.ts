@@ -29,6 +29,7 @@ import {
   AtlasApiError,
   deleteEncounter,
   getEncounter,
+  getEncounterSettings,
   removeEncounterParticipant,
   removeEncounterParticipantCondition,
   reorderEncounterParticipant,
@@ -46,7 +47,7 @@ import {
 } from "../../api/atlasApi";
 import type {
   ApplyEncounterHpActionRequest,
-  EncounterDetailView,
+  EncounterSettingsView,
   AddEncounterInitiativeEntryRequest,
   AddEncounterManualParticipantRequest,
   AddEncounterParticipantConditionRequest,
@@ -208,6 +209,26 @@ export function isEncounterConflict(error: unknown): boolean {
 }
 
 export function useEncounterMutations(encounterRef: string, encounterKey?: string) {
+  return useEncounterMutationState(
+    encounterKey ?? encounterRef,
+    "encounter",
+    getEncounter,
+  );
+}
+
+export function useEncounterSettingsMutations(encounterKey: string) {
+  return useEncounterMutationState(
+    encounterKey,
+    "encounter-settings",
+    getEncounterSettings,
+  );
+}
+
+function useEncounterMutationState<View extends EncounterSettingsView>(
+  currentRef: string,
+  cache: "encounter" | "encounter-settings",
+  read: (key: string) => Promise<View>,
+) {
   const queryClient = useQueryClient();
   const inFlight = useRef(false);
   const eventRequests = useRef(new Map<string, { identity: string; id: string }>());
@@ -266,14 +287,15 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   >("saved");
   const [refreshing, setRefreshing] = useState(false);
   const refreshKey = useRef<string | undefined>(undefined);
-  const refreshedView = useRef<EncounterDetailView | undefined>(undefined);
-  const currentRef = encounterKey ?? encounterRef;
+  const refreshedView = useRef<View | undefined>(undefined);
   const refresh = async (key = refreshKey.current ?? currentRef) => {
     await queryClient.invalidateQueries({ queryKey: ["encounters"] });
-    await queryClient.cancelQueries({ queryKey: ["encounter", key], exact: true });
+    const siblingCache = cache === "encounter" ? "encounter-settings" : "encounter";
+    await queryClient.invalidateQueries({ queryKey: [siblingCache, key], exact: true });
+    await queryClient.cancelQueries({ queryKey: [cache, key], exact: true });
     const view = await queryClient.fetchQuery({
-      queryKey: ["encounter", key],
-      queryFn: () => getEncounter(key),
+      queryKey: [cache, key],
+      queryFn: () => read(key),
       staleTime: 0,
       retry: false,
     });
@@ -448,6 +470,10 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       setRefreshOrigin("saved");
       refreshSucceeded.current = true;
       if (command.kind === "delete") {
+        queryClient.removeQueries({
+          queryKey: ["encounter-settings", receipt.encounter_key],
+          exact: true,
+        });
         queryClient.removeQueries({
           queryKey: ["encounter", receipt.encounter_key],
           exact: true,

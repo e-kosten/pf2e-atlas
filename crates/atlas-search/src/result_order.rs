@@ -14,12 +14,20 @@ impl AtlasRetrievalService {
         }
         Ok(())
     }
+    /// Return only keys that are currently eligible product records, in indexed order.
+    pub fn order_available_record_keys(
+        &self,
+        keys: &[RecordKey],
+        sort: ResultSort,
+    ) -> Result<Vec<RecordKey>, SearchError> {
+        Ok(self.index.order_record_keys(keys, sort)?)
+    }
     pub fn order_record_keys(
         &self,
         keys: &[RecordKey],
         sort: ResultSort,
     ) -> Result<Vec<RecordKey>, SearchError> {
-        let ordered = self.index.order_record_keys(keys, sort)?;
+        let ordered = self.order_available_record_keys(keys, sort)?;
         if ordered.len() != keys.len() {
             return Err(SearchError::artifact_contract_violation(
                 "ordered candidates have missing or unexpected record keys",

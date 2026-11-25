@@ -266,6 +266,7 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
             condition_id: None,
             artifact_generation: detail.artifact_generation.unwrap(),
             selection: RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),

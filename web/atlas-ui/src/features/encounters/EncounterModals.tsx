@@ -22,8 +22,8 @@ import { formatDate } from "../../shared/ui/formatDate";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { createEncounter } from "../../api/atlasApi";
 import type {
-  EncounterDetailView,
-  EncounterSummaryView,
+  EncounterSettingsView,
+  EncounterSettingsMetadataView,
   UpdateEncounterRequest,
 } from "../../generated/atlas";
 
@@ -112,13 +112,13 @@ export function EditEncounterModal({
   feedback,
   afterClose,
 }: {
-  encounter: EncounterSummaryView;
+  encounter: EncounterSettingsMetadataView;
   encounterNote: string | undefined;
   open: boolean;
   onCancel: () => void;
   onDelete?: () => Promise<unknown>;
   onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
-  onRefreshConflict: () => Promise<EncounterDetailView | undefined>;
+  onRefreshConflict: () => Promise<EncounterSettingsView | undefined>;
   disabled?: boolean;
   pending?: boolean;
   error?: string;
@@ -200,12 +200,12 @@ export function EditEncounterForm({
   hideActions = false,
   draftCheck,
 }: {
-  encounter: EncounterSummaryView;
+  encounter: EncounterSettingsMetadataView;
   encounterNote: string | undefined;
   onCancel?: () => void;
   onDelete?: () => Promise<unknown>;
   onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
-  onRefreshConflict: () => Promise<EncounterDetailView | undefined>;
+  onRefreshConflict: () => Promise<EncounterSettingsView | undefined>;
   disabled?: boolean;
   pending?: boolean;
   error?: string;

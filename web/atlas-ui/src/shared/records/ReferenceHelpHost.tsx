@@ -48,7 +48,7 @@ function LocalReferenceHelpHost({
   visibleOwnerRecordKey,
 }: HelpHostProps) {
   const atlasRouter = useAtlasRouter();
-  const preview = useRecordPreview();
+  const preview = useRecordPreview(undefined, generation);
   const { destination, closeForNavigation } = preview;
   useEffect(() => {
     if (!destination) return;

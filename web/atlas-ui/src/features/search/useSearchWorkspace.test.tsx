@@ -103,9 +103,10 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
       searchResultsPage(["spell:fireball"], { pageNumber: request.page.number }),
     );
-    apiMocks.getRecordDetail.mockImplementation(async (key: string) =>
-      detailFixture(key),
-    );
+    apiMocks.getRecordDetail.mockImplementation(async (key: string) => ({
+      ...detailFixture(key),
+      artifact_generation: "generation-a",
+    }));
     const first = renderHook(() => useSearchWorkspace({ searchProfile: "bge-base" }), {
       wrapper: queryClientWrapper(),
     });
@@ -1233,6 +1234,7 @@ describe("useSearchWorkspace", () => {
         fields: [match.field],
         passage: match.passage,
         source_fingerprint: "source-a",
+        expected_artifact_generation: "test-generation",
       },
       expect.any(AbortSignal),
     );
@@ -1332,7 +1334,10 @@ describe("useSearchWorkspace", () => {
     const newPage = deferred<SearchResultsPage>();
     apiMocks.getRecordDetail.mockImplementation(
       (_key: string, selection?: RecordDetailRequest) => {
-        const detail = detailFixture("spell:heal", "Heal");
+        const detail = {
+          ...detailFixture("spell:heal", "Heal"),
+          artifact_generation: "generation-a",
+        };
         if (!selection) return Promise.resolve(detail);
         const { fields, ...address } = selection;
         return Promise.resolve({
@@ -2002,7 +2007,10 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockResolvedValue(
       searchResultsPage(["spell:dirge-of-doom", "spell:heal"]),
     );
-    apiMocks.getRecordDetail.mockResolvedValue(detailFixture("spell:heal"));
+    apiMocks.getRecordDetail.mockResolvedValue({
+      ...detailFixture("spell:heal"),
+      artifact_generation: "generation-a",
+    });
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
       {
@@ -2186,11 +2194,66 @@ describe("useSearchWorkspace", () => {
     );
     expect(result.current.pageNumber).toBe(2);
   });
+  it.each([null, "/system/description/value"])(
+    "recovers the cached results and selected document when only the %s reading reports a publication",
+    async (field) => {
+      const key = "spell:heal";
+      const selection = { ...rootNavigation(key), field };
+      seedSearchUrl();
+      apiMocks.searchPage
+        .mockResolvedValueOnce(searchResultsPage([key]))
+        .mockResolvedValue(searchResultsPage([key], { generation: "generation-b" }));
+      apiMocks.getRecordDetail
+        .mockRejectedValueOnce(
+          new AtlasApiError(409, "Collection changed", {
+            code: "artifact_generation_changed",
+            message: "Collection changed",
+            recoverable_action: "reload_record",
+          }),
+        )
+        .mockResolvedValue({
+          ...detailFixture(key),
+          selected: selection,
+          artifact_generation: "generation-b",
+        });
+      const { result } = renderHook(
+        () => useSearchWorkspace({ searchProfile: "bge-base" }),
+        {
+          wrapper: queryClientWrapper(),
+        },
+      );
+      await waitFor(() =>
+        expect(result.current.resultPage?.artifact_generation).toBe("generation-a"),
+      );
+      act(() => result.current.selectRecord(key, { navigation: selection }));
+      await waitFor(() => expect(result.current.resultsPaused).toBe(true));
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        key,
+        expect.objectContaining({
+          expected_artifact_generation: "generation-a",
+          fields: field ? [field] : [],
+        }),
+        expect.any(AbortSignal),
+      );
+      expect(result.current.reading.detail).toBeUndefined();
+      await act(async () => result.current.refreshResults());
+      await waitFor(() => {
+        expect(result.current.resultsPaused).toBe(false);
+        expect(result.current.resultPage?.artifact_generation).toBe("generation-b");
+        expect(result.current.reading.detail?.artifact_generation).toBe("generation-b");
+        expect(result.current.reading.detail?.selected).toEqual(selection);
+      });
+    },
+  );
   it("keeps selected-detail failures pane-local and retries without changing search/results", async () => {
     seedSearchUrl();
     apiMocks.getRecordDetail
       .mockRejectedValueOnce(new Error("Selected record unavailable"))
-      .mockResolvedValueOnce(detailFixture("spell:heal"));
+      .mockResolvedValueOnce({
+        ...detailFixture("spell:heal"),
+        artifact_generation: "generation-a",
+      });
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
       {

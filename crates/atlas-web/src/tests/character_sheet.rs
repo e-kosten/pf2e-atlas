@@ -72,6 +72,77 @@ async fn party_directory_roster_and_list_header_match_their_readers() {
 }
 
 #[tokio::test]
+async fn bulk_party_levels_require_an_explicit_value_and_reject_partial_writes() {
+    let fixture = Fixture::new();
+    let mut members = Vec::new();
+    for name in ["Sage", "Rook"] {
+        let (status, pc) = fixture
+            .json(
+                Method::POST,
+                "/api/characters",
+                Some(json!({"request_id": name, "name": name, "level": 5})),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{pc}");
+        members.push(json!({"character_key":pc["character_key"], "expected_character_revision":0}));
+    }
+    let (ok, party) = fixture
+        .json(
+            Method::POST,
+            "/api/parties",
+            Some(json!({"name":"Team", "members":members})),
+        )
+        .await;
+    assert_eq!(ok, StatusCode::OK, "{party}");
+    let path = format!("/api/parties/{}", party["party_key"].as_str().unwrap());
+    let mut request =
+        json!({"name":"Team","members":members,"expected_revision":party["revision"]});
+    let (ok, unchanged) = fixture
+        .json(Method::PATCH, &path, Some(request.clone()))
+        .await;
+    assert_eq!(ok, StatusCode::OK, "{unchanged}");
+    assert_eq!(unchanged["members"], party["members"]);
+
+    request["expected_revision"] = unchanged["revision"].clone();
+    let first_key = &members[0]["character_key"];
+    let second_key = &members[1]["character_key"];
+    let edit = |key: &Value, revision, level: Value| json!({"character_key":key, "expected_character_revision":revision,"level":level});
+    for (invalid, expected) in [
+        (members[1].clone(), StatusCode::BAD_REQUEST),
+        (edit(second_key, 1, json!(null)), StatusCode::CONFLICT),
+    ] {
+        request["level_updates"] = json!([edit(first_key, 0, json!(9)), invalid]);
+        assert_eq!(
+            fixture
+                .json(Method::PATCH, &path, Some(request.clone()))
+                .await
+                .0,
+            expected
+        );
+        let (_, roster) = fixture.json(Method::GET, &path, None).await;
+        assert_eq!(roster, unchanged);
+        for member in &members {
+            let pc_path = format!(
+                "/api/characters/{}",
+                member["character_key"].as_str().unwrap()
+            );
+            let (ok, pc) = fixture.json(Method::GET, &pc_path, None).await;
+            assert_eq!(ok, StatusCode::OK, "{pc}");
+            assert_eq!(pc["level"], 5);
+            assert_eq!(pc["character_revision"], 0);
+        }
+    }
+    request["level_updates"] = json!([
+        edit(first_key, 0, json!(9)),
+        edit(second_key, 0, json!(null))
+    ]);
+    let (ok, saved) = fixture.json(Method::PATCH, &path, Some(request)).await;
+    assert_eq!(ok, StatusCode::OK, "{saved}");
+    assert_eq!(saved["members"][0]["level"], 9);
+    assert!(saved["members"][1].get("level").is_none());
+}
+
+#[tokio::test]
 async fn sheet_wire_preserves_layout_roles_and_omits_absent_optional_fields() {
     let fixture = Fixture::new();
     let raw = json!({"success":true,"build":{

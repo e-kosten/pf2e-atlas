@@ -91,6 +91,7 @@ impl AtlasAppService {
                     content,
                     r,
                     "reference-definition/v1",
+                    request.include_section_rendering,
                 )?);
             }
             Ok(detail)

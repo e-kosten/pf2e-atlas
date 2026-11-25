@@ -9,10 +9,17 @@ use atlas_record::{
     source_record::{SourceContentFormat, SourceFieldView, recover_source_passage},
 };
 
+#[derive(Clone)]
 pub struct CheckedRelationshipSelection {
     pub record: SourceRecordSummary,
     pub selected_name: Option<String>,
 }
+/// Reused only inside this admitted index reader. Each filter has at most 16 link conditions.
+pub(crate) struct PreparedFilter {
+    pub(crate) query: atlas_index::ValidatedQuery,
+    selections: Vec<(QueryRecordSelection, CheckedRelationshipSelection)>,
+}
+
 impl AtlasRetrievalService {
     pub fn connected_record_keys(
         &self,
@@ -28,10 +35,34 @@ impl AtlasRetrievalService {
             include_contents,
         )?)
     }
+    /// Admit the page predicate before connection-scope resolution and retain its selections
+    /// for clause titles, retrieval, and evidence in the same snapshot.
+    pub fn prepare_page_filter(&mut self, predicate: &QueryPredicate) -> Result<(), SearchError> {
+        let query = atlas_index::validate_query(predicate)?;
+        let mut selections = Vec::new();
+        visit_selections(predicate, &mut |selection| {
+            if !selections.iter().any(|(key, _)| key == selection) {
+                selections.push((
+                    selection.clone(),
+                    self.checked_relationship_selection(selection)?,
+                ));
+            }
+            Ok(())
+        })?;
+        self.prepared_filter = Some(PreparedFilter { query, selections });
+        Ok(())
+    }
     pub fn checked_relationship_selection(
         &self,
         s: &QueryRecordSelection,
     ) -> Result<CheckedRelationshipSelection, SearchError> {
+        if let Some((_, checked)) = self
+            .prepared_filter
+            .as_ref()
+            .and_then(|filter| filter.selections.iter().find(|(key, _)| key == s))
+        {
+            return Ok(checked.clone());
+        }
         let invalid = |message: &str| SearchError::invalid_search_options(message);
         if s.owners
             .iter()
@@ -112,23 +143,6 @@ impl AtlasRetrievalService {
             selected_name,
         })
     }
-    pub(crate) fn check_relationship_leaves(&self, p: &QueryPredicate) -> Result<(), SearchError> {
-        match &p.expression {
-            QueryExpression::Relationship { relationship } => {
-                self.checked_relationship_selection(&relationship.selection)?;
-            }
-            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
-                for child in children {
-                    self.check_relationship_leaves(child)?;
-                }
-            }
-            QueryExpression::Not { predicate } | QueryExpression::Exists { predicate, .. } => {
-                self.check_relationship_leaves(predicate)?
-            }
-            _ => {}
-        }
-        Ok(())
-    }
     pub fn relationship_proofs(
         &self,
         p: &QueryPredicate,
@@ -137,4 +151,25 @@ impl AtlasRetrievalService {
         let query = self.validate_filter(p)?;
         Ok(self.index.relationship_proofs(&query, keys)?)
     }
+}
+
+pub(crate) fn visit_selections(
+    p: &QueryPredicate,
+    visit: &mut impl FnMut(&QueryRecordSelection) -> Result<(), SearchError>,
+) -> Result<(), SearchError> {
+    match &p.expression {
+        QueryExpression::Relationship { relationship } => {
+            visit(&relationship.selection)?;
+        }
+        QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
+            for child in children {
+                visit_selections(child, visit)?;
+            }
+        }
+        QueryExpression::Not { predicate } | QueryExpression::Exists { predicate, .. } => {
+            visit_selections(predicate, visit)?
+        }
+        _ => {}
+    }
+    Ok(())
 }

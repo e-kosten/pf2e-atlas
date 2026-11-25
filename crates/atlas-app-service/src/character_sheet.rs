@@ -31,43 +31,20 @@ pub(crate) fn context_groups(
 > {
     use atlas_app_model::CharacterSection as S;
     let mut result: std::collections::BTreeMap<_, Vec<_>> = std::collections::BTreeMap::new();
-    let keys: AbilityKeys = reference
-        .into_iter()
-        .flat_map(|r| &r.abilities)
-        .map(|a| {
-            (
-                ability_identity(a.kind, &a.label, a.choice.as_deref()),
-                a.key.as_str(),
-            )
-        })
-        .collect();
-    if selected
-        .iter()
-        .any(|s| matches!(s, S::Identity | S::Statistics))
-    {
-        for (section, group) in stats::categorized(sheet, retrieval)? {
-            if selected.contains(&section) {
-                result.entry(section).or_default().push(group);
-            }
-        }
-    }
-    if selected
-        .iter()
-        .any(|s| matches!(s, S::Equipment | S::Money | S::Crafting))
-    {
-        for (section, group) in inventory::categorized(sheet, retrieval)? {
-            if selected.contains(&section) {
-                result.entry(section).or_default().push(group);
-            }
-        }
-    }
+    let keys = std::cell::LazyCell::new(|| ability_keys(reference));
+    let mut item_links = inventory::ItemLinks::new(retrieval);
     for section in selected {
         let groups = match section {
+            S::Identity => stats::identity_groups(sheet, retrieval)?,
+            S::Statistics => stats::statistics_groups(sheet),
+            S::Equipment => inventory::equipment(sheet, &mut item_links)?,
+            S::Money => inventory::coins(sheet).into_iter().collect(),
+            S::Crafting => inventory::formulas(sheet, &mut item_links)?,
             S::Proficiencies => stats::proficiencies(sheet),
             S::CharacterOptions => progression::groups(sheet, &keys),
             S::Spellcasting => magic::groups(sheet, &keys),
             S::Companions => companions(sheet),
-            _ => continue,
+            S::Abilities | S::Source => continue,
         };
         result.insert(*section, groups);
     }
@@ -113,16 +90,7 @@ pub(super) fn project_sheet(
     reference: Option<&PcReference>,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<CharacterSheetView> {
-    let abilities: AbilityKeys = reference
-        .into_iter()
-        .flat_map(|reference| &reference.abilities)
-        .map(|ability| {
-            (
-                ability_identity(ability.kind, &ability.label, ability.choice.as_deref()),
-                ability.key.as_str(),
-            )
-        })
-        .collect();
+    let abilities = ability_keys(reference);
     Ok(CharacterSheetView {
         name: sheet.name.trim().to_owned(),
         level: sheet.level,
@@ -163,6 +131,19 @@ fn unique_pf2e_record(
 }
 
 type AbilityKeys<'a> = HashMap<(PcAbilityKind, String, String), &'a str>;
+
+fn ability_keys(reference: Option<&PcReference>) -> AbilityKeys<'_> {
+    reference
+        .into_iter()
+        .flat_map(|reference| &reference.abilities)
+        .map(|ability| {
+            (
+                ability_identity(ability.kind, &ability.label, ability.choice.as_deref()),
+                ability.key.as_str(),
+            )
+        })
+        .collect()
+}
 
 fn ability_identity(
     kind: PcAbilityKind,

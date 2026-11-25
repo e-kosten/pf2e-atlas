@@ -91,7 +91,7 @@ fn build_index(
 }
 
 pub(crate) fn run_index_rebuild(options: RebuildIndexOptions) -> Result<ExitCode, String> {
-    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+    let result = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: None,
         path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
@@ -100,11 +100,19 @@ pub(crate) fn run_index_rebuild(options: RebuildIndexOptions) -> Result<ExitCode
             index_path: options.index,
         },
     })
-    .map_err(|e| e.to_string())?;
-    let report =
-        runtime.rebuild_reference(options.source.as_deref(), options.manifest.as_deref())?;
-    tracing::info!(target:"atlas_progress",complete=true,"Reference rebuild finished");
-    write_build_report(report, options.json)
+    .map_err(|e| e.to_string())
+    .and_then(|runtime| {
+        runtime.rebuild_reference(options.source.as_deref(), options.manifest.as_deref())
+    });
+    match result {
+        Ok(report) => {
+            tracing::info!(target:"atlas_progress",complete=true,"Reference rebuild finished");
+            write_build_report(report, options.json)
+        }
+        Err(message) => {
+            super::product::command_error(options.json, "index_rebuild_failed", message, 3)
+        }
+    }
 }
 
 fn write_build_report(
@@ -162,45 +170,56 @@ pub(crate) fn run_index_check(options: CheckIndexOptions) -> Result<ExitCode, St
     let runtime = index_runtime(
         crate::cli::runtime_path_mode(options.path_mode),
         options.index,
-    )?;
-    let report = runtime
-        .check_index_report(if options.no_embeddings {
-            SetupTarget::Records
-        } else {
-            SetupTarget::Full
-        })
-        .map_err(|e| e.to_string())?;
-    tracing::info!(target:"atlas_progress",complete=true,"Index check finished");
+    );
+    let target = diagnostic_target(options.no_embeddings);
     if options.json {
-        write_json_data(&report)?;
+        let report = runtime.and_then(|runtime| runtime.check_index_report(target));
+        crate::output::index_diagnostic(report, true, |_| {})
     } else {
-        println!(
-            "ok: {} records ({} available in Atlas, {} developer-only macros), {} lexical units, {} semantic units",
-            report.records,
-            report.product_records,
-            report.records.saturating_sub(report.product_records),
-            report.lexical_units,
-            report.semantic_units
-        );
+        let counts = runtime.and_then(|runtime| runtime.check_index_counts(target));
+        crate::output::index_diagnostic(counts, false, |report| {
+            println!(
+                "ok: {} records ({} available in Atlas, {} developer-only macros), {} lexical units, {} semantic units",
+                report.records,
+                report.product_records,
+                report.records.saturating_sub(report.product_records),
+                report.lexical_units,
+                report.semantic_units,
+            )
+        })
     }
-    Ok(ExitCode::SUCCESS)
 }
+
 pub(crate) fn run_index_validate(options: ValidateIndexOptions) -> Result<ExitCode, String> {
-    let runtime = index_runtime(
+    let report = index_runtime(
         crate::cli::runtime_path_mode(options.path_mode),
         options.index,
-    )?;
-    let report = runtime
-        .validate_index_report(if options.no_embeddings {
-            SetupTarget::Records
-        } else {
-            SetupTarget::Full
-        })
-        .map_err(|e| e.to_string())?;
-    tracing::info!(target:"atlas_progress",complete=true,"Index validation finished");
-    crate::output::write_validation_report(report, options.json)
+    )
+    .and_then(|runtime| runtime.validate_index_report(diagnostic_target(options.no_embeddings)));
+    crate::output::index_diagnostic(report, options.json, |report| {
+        println!(
+            "ok: checked {} source snapshots, {} prepared fields, {} projections, {} lexical units, {} semantic units",
+            report.checked_snapshots,
+            report.prepared_fields,
+            report.projection_rows,
+            report.lexical_units,
+            report.semantic_units,
+        )
+    })
 }
-fn index_runtime(path_mode: AtlasPathMode, index: Option<PathBuf>) -> Result<AtlasRuntime, String> {
+
+fn diagnostic_target(no_embeddings: bool) -> SetupTarget {
+    if no_embeddings {
+        SetupTarget::Records
+    } else {
+        SetupTarget::Full
+    }
+}
+
+fn index_runtime(
+    path_mode: AtlasPathMode,
+    index: Option<PathBuf>,
+) -> Result<AtlasRuntime, atlas_runtime::IndexDiagnosticError> {
     AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode,
@@ -210,5 +229,9 @@ fn index_runtime(path_mode: AtlasPathMode, index: Option<PathBuf>) -> Result<Atl
             index_path: index,
         },
     })
-    .map_err(|e| e.to_string())
+    .map_err(|error| {
+        atlas_runtime::IndexDiagnosticError::CouldNotRun(Box::new(
+            atlas_index::IndexError::Unavailable(error.to_string()),
+        ))
+    })
 }

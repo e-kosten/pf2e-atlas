@@ -12,9 +12,14 @@ test("narrow preview restores focus after reopening and keeps checks as plain te
   await page.getByRole("button", { name: "New encounter", exact: true }).click();
   const create = page.getByRole("dialog");
   await create.getByLabel("Name", { exact: true }).fill(name);
+  const created = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/encounters" &&
+      response.request().method() === "POST",
+  );
   await create.getByRole("button", { name: "Create encounter", exact: true }).click();
   await expect(page).toHaveURL(/\/encounters\/preview-lifecycle-/);
-  const slug = new URL(page.url()).pathname.split("/")[2];
+  const { encounter } = await (await created).json();
   try {
     await page.getByRole("button", { name: "Add participants", exact: true }).click();
     await page
@@ -135,7 +140,7 @@ test("narrow preview restores focus after reopening and keeps checks as plain te
     await expect(seize).toBeFocused();
   } finally {
     const deleted = await page.request.delete(
-      `/api/encounters/${encodeURIComponent(slug)}`,
+      `/api/encounters/${encounter.encounter_key}`,
     );
     expect(deleted.ok()).toBeTruthy();
   }
@@ -534,7 +539,13 @@ test("saved list creation and adding an exact source survive reload", async ({
   await page.getByRole("button", { name: "New list", exact: true }).click();
   const listDialog = page.getByRole("dialog");
   await listDialog.getByLabel("Name", { exact: true }).fill("Browser List " + suffix);
+  const created = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/lists" &&
+      response.request().method() === "POST",
+  );
   await listDialog.getByRole("button", { name: "Create list", exact: true }).click();
+  const { list } = await (await created).json();
   await expect(page).toHaveURL(/\/lists\/browser-list-/);
   const listUrl = page.url();
   await expect(
@@ -575,8 +586,7 @@ test("saved list creation and adding an exact source survive reload", async ({
     await page.reload();
     await expect(page.getByText("Ghoul", { exact: true }).first()).toBeVisible();
   } finally {
-    const slug = new URL(listUrl).pathname.split("/")[2];
-    expect((await page.request.delete(`/api/lists/${slug}`)).ok()).toBe(true);
+    expect((await page.request.delete(`/api/lists/${list.list_key}`)).ok()).toBe(true);
   }
 });
 test("Ghoul condition-adjusted facts and damaged elite HP survive reload", async ({

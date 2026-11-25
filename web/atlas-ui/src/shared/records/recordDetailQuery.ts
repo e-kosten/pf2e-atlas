@@ -12,20 +12,30 @@ export function recordDetailQueryOptions(
   selection?: RecordNavigationView,
   generation?: string | null,
   fields?: string[],
+  includeSectionRendering = false,
 ) {
   const request =
-    selection &&
     recordKey !== null &&
-    (fields?.length ||
-      selection.embedded_path.length ||
-      selection.field ||
-      selection.passage ||
-      selection.spell_rank !== undefined ||
-      selection.source_fingerprint)
+    (includeSectionRendering ||
+      generation != null ||
+      fields?.length ||
+      selection?.embedded_path.length ||
+      selection?.field ||
+      selection?.passage ||
+      selection?.spell_rank !== undefined ||
+      selection?.source_fingerprint)
       ? recordDetailRequest(
-          { ...selection, record_key: recordKey },
+          {
+            embedded_path: [],
+            field: null,
+            passage: null,
+            source_fingerprint: null,
+            ...selection,
+            record_key: recordKey,
+          },
           fields,
-          fields?.length ? generation : undefined,
+          generation,
+          includeSectionRendering,
         )
       : undefined;
   return queryOptions({
@@ -55,10 +65,12 @@ export function recordDetailRequest(
   selection: RecordNavigationView,
   fields?: string[],
   generation?: string | null,
+  includeSectionRendering = false,
 ): RecordDetailRequest {
   const { field, ...address } = selection;
   return {
     ...address,
+    ...(includeSectionRendering ? { include_section_rendering: true } : {}),
     fields: fields ?? (field ? [field] : []),
     ...(generation ? { expected_artifact_generation: generation } : {}),
   };

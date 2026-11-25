@@ -6,7 +6,6 @@ use atlas_app_model::*;
 use atlas_local_state::{Character, PathbuilderSource};
 use atlas_runtime::StateRead;
 use atlas_search::AtlasRetrievalService;
-use facts::FactSource;
 use std::collections::BTreeMap;
 
 struct SavedCharacter {
@@ -232,10 +231,7 @@ fn needs_catalog(selected: &[CharacterSection]) -> bool {
     selected.iter().any(|s| {
         matches!(
             s,
-            CharacterSection::Identity
-                | CharacterSection::Equipment
-                | CharacterSection::Crafting
-                | CharacterSection::Statistics
+            CharacterSection::Identity | CharacterSection::Equipment | CharacterSection::Crafting
         )
     })
 }
@@ -368,11 +364,6 @@ pub(crate) fn source_sections(
     selected: &[CharacterSection],
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<BTreeMap<CharacterSection, CharacterSectionView>> {
-    let all = parsed.map(FactSource::fact_value);
-    let all = match &all {
-        Some(ImportedFactValue::Object(fields)) => Some(fields),
-        _ => None,
-    };
     let mut presentation = parsed
         .map(|s| crate::character_sheet::context_groups(s, reference, retrieval, selected))
         .transpose()?
@@ -383,9 +374,8 @@ pub(crate) fn source_sections(
             let fields = section_fields(*kind)
                 .iter()
                 .map(|name| {
-                    let value = all
-                        .and_then(|a| a.get(*name))
-                        .cloned()
+                    let value = parsed
+                        .and_then(|sheet| sheet.fact(name))
                         .unwrap_or(ImportedFactView::Missing);
                     ((*name).to_owned(), value)
                 })

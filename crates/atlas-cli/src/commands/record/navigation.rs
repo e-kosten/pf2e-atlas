@@ -52,6 +52,7 @@ impl Locator {
 
     pub(super) fn request(&self) -> RecordDetailRequest {
         RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: Some(self.artifact_generation.clone()),
             spell_rank: self.address.spell_rank,
             record_key: self.address.record_key.clone(),
@@ -77,7 +78,7 @@ pub(crate) fn root(key: &str) -> RecordNavigationView {
 /// Full reference projections retain nested app-model DTOs such as casting entries,
 /// table rows and relationship destinations. Bind their shared RecordNavigationView
 /// wire shape to the same read snapshot as the enclosing CLI response.
-pub(super) fn bind_nested(value: &mut serde_json::Value, generation: &str) {
+pub(crate) fn bind_nested(value: &mut serde_json::Value, generation: &str) {
     use serde_json::Value;
     if let Some(fields) = value.as_object()
         && fields.contains_key("field")

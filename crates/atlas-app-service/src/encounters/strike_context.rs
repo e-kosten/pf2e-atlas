@@ -230,6 +230,7 @@ mod tests {
                 condition_id: None,
                 artifact_generation: current.artifact_generation.clone().unwrap(),
                 selection: RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     record_key: strike.navigation.record_key.clone(),
                     owners: strike.navigation.owners.clone(),

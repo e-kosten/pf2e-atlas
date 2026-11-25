@@ -9,14 +9,16 @@ export function EncounterOriginalRecord({
   recordKey,
   label,
   navigation,
+  generation,
   text,
 }: {
   recordKey: string;
   label: string;
   navigation?: import("../../generated/atlas").RecordNavigationView;
   text?: string;
+  generation?: string | null;
 }) {
-  const preview = useRecordPreview();
+  const preview = useRecordPreview(undefined, generation);
   return (
     <>
       {text ? (

@@ -806,7 +806,10 @@ fn failed_rebuild_preserves_prior_artifact_and_product_reads_need_no_source() {
         ))
         .unwrap();
     assert_eq!(result.total, 1);
-    assert!(runtime.open_search_index().is_err());
+    assert!(matches!(
+        runtime.check_index_report(SetupTarget::Full),
+        Err(crate::IndexDiagnosticError::MissingVectors)
+    ));
     assert!(runtime.prepare_query(None, "test query").is_err());
 }
 #[test]

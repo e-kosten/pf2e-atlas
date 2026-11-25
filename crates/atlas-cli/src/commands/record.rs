@@ -44,9 +44,10 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         None => o.keys,
     };
     let batch = batch::Batch::run(keys, |key| {
-        let request = match &o.navigation {
+        let mut request = match &o.navigation {
             Some(locator) => locator.request(),
             None => RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: o.rank,
                 record_key: key.into(),
@@ -94,9 +95,21 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
                 &navigation::root(&key.to_string()),
             ));
         }
+        let detail = match o.detail {
+            TerminalDetail::Summary => atlas_app_service::RecordReadDetail::Summary,
+            TerminalDetail::Standard => atlas_app_service::RecordReadDetail::Standard {
+                include_grants: !o.json,
+            },
+            TerminalDetail::Full => atlas_app_service::RecordReadDetail::Full,
+        };
+        request.include_section_rendering = o.json
+            && o.detail == TerminalDetail::Full
+            && request.passage.is_none()
+            && (o.section.is_empty() || o.section.contains(&args::RecordSection::Rules));
         let (record, excerpt) = s
             .record_read_at(
                 request,
+                detail,
                 o.section
                     .iter()
                     .copied()
@@ -409,6 +422,7 @@ fn render_selected_record(
             }
             let child = service
                 .record_detail_at(RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: Some(record.artifact_generation.clone()),
                     spell_rank: navigation.spell_rank,
                     record_key: navigation.record_key.clone(),
@@ -471,6 +485,7 @@ fn ability_reading(
         loop {
             let batch = service
                 .embedded_reading(EmbeddedReadingRequest {
+                    include_section_rendering: false,
                     parent: EmbeddedReadingParent {
                         record_key: record.selected.record_key.clone(),
                     },

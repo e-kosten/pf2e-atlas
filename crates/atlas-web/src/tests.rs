@@ -1063,6 +1063,32 @@ async fn family_header_identifies_root_field_but_not_owned_item() {
 }
 
 #[tokio::test]
+async fn retained_record_generation_precedes_source_lookup_and_fingerprint_checks() {
+    let fixture = Fixture::new();
+    let (_, current) = fixture
+        .json(Method::GET, &format!("/api/records/{ACTION}"), None)
+        .await;
+    for mut request in [
+        json!({"record_key":ACTION}),
+        json!({"record_key":"actions:missing000000000"}),
+        json!({"record_key":ACTOR,"embedded_path":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"source_fingerprint":"retired"}),
+    ] {
+        request["expected_artifact_generation"] = json!("retired-generation");
+        let (status, body) = fixture
+            .json(Method::POST, "/api/records/detail", Some(request))
+            .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{body}");
+        assert_eq!(body["code"], "artifact_generation_changed");
+        assert_eq!(body["recoverable_action"], "reload_record");
+    }
+    let (status, body) = fixture.json(Method::POST, "/api/records/detail", Some(json!({
+        "record_key":"actions:missing000000000", "expected_artifact_generation":current["artifact_generation"],
+    }))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert_eq!(body["code"], "record_not_found");
+}
+
+#[tokio::test]
 async fn record_and_filter_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture
@@ -1142,6 +1168,97 @@ async fn generated_list_urls_use_the_owned_allocator_and_keep_explicit_urls_stri
             .json(Method::POST, "/api/lists", Some(request))
             .await;
         assert!(status.is_client_error());
+    }
+}
+
+#[test]
+fn encounter_and_party_input_schemas_match_nullable_fields_and_quantity_bounds() {
+    let doc = crate::openapi().unwrap();
+    let schemas = &doc["components"]["schemas"];
+    for name in [
+        "EncounterDifficultyAddition",
+        "AddEncounterRecordParticipantRequest",
+    ] {
+        let q = &schemas[name]["properties"]["quantity"];
+        assert_eq!(q["minimum"], 1);
+        assert_eq!(q["maximum"], 50);
+    }
+    for (name, field, required) in [
+        ("CharacterLevelUpdate", "level", true),
+        ("EncounterDifficultyAddition", "creature_scenario", false),
+        (
+            "AddEncounterRecordParticipantRequest",
+            "creature_scenario",
+            false,
+        ),
+        ("CreatureScenarioContext", "use_id", false),
+        ("CreatureScenarioContext", "expected", false),
+        ("AddEncounterInitiativeEntryRequest", "note", false),
+        (
+            "EncounterAdjustmentRequest",
+            "expected_reference_revision",
+            false,
+        ),
+        ("EncounterAdjustmentTimingInput", "remaining", false),
+        ("EncounterAdjustmentInput", "timing", false),
+    ] {
+        let component = &schemas[name];
+        let property = &component["properties"][field];
+        let nullable = property["type"]
+            .as_array()
+            .is_some_and(|types| types.contains(&json!("null")))
+            || ["oneOf", "anyOf"].iter().any(|kind| {
+                property[kind]
+                    .as_array()
+                    .is_some_and(|variants| variants.iter().any(|v| v["type"] == "null"))
+            });
+        assert!(nullable, "{name}.{field}: {property}");
+        assert_eq!(
+            component["required"]
+                .as_array()
+                .is_some_and(|fields| fields.contains(&json!(field))),
+            required,
+            "{name}.{field}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn draft_quantity_and_scenario_inputs_match_the_commit_contract() {
+    let fixture = Fixture::new();
+    let generation = fixture.service.readiness().artifact_generation.unwrap();
+    for (quantity, scenario, status) in [
+        (json!(0), json!(null), StatusCode::BAD_REQUEST),
+        (json!(1), json!(null), StatusCode::OK),
+        (
+            json!(50),
+            json!({"artifact_generation":generation,"use_id":null,"expected":null}),
+            StatusCode::OK,
+        ),
+        (json!(51), json!(null), StatusCode::BAD_REQUEST),
+        (json!("1"), json!(null), StatusCode::BAD_REQUEST),
+        (
+            json!(1),
+            json!({"artifact_generation":generation,"use_id":2}),
+            StatusCode::BAD_REQUEST,
+        ),
+    ] {
+        let mut addition =
+            json!({"record_ref":ACTOR, "quantity":quantity, "creature_scenario":scenario});
+        let (preview, body) = fixture
+            .json(
+                Method::POST,
+                "/api/encounter-drafts/preview",
+                Some(addition.clone()),
+            )
+            .await;
+        assert_eq!(preview, status, "{body}");
+        addition["request_id"] = json!(format!("quantity-{quantity}"));
+        let request = json!({"name": format!("Quantity {quantity}"), "expected_artifact_generation":generation, "addition":addition});
+        let (saved, body) = fixture
+            .json(Method::POST, "/api/encounter-drafts/create", Some(request))
+            .await;
+        assert_eq!(saved, status, "{body}");
     }
 }
 
@@ -1584,6 +1701,39 @@ async fn saved_list_reorder_route_uses_path_identity_and_strict_placement() {
 }
 
 #[tokio::test]
+async fn encounter_settings_returns_only_editor_fields_without_reference_data() {
+    let fixture = Fixture::new();
+    let path = format!("/api/encounters/{}", fixture.encounter_key);
+    let (_, detail) = fixture.json(Method::GET, &path, None).await;
+    assert!(!detail["participants"].as_array().unwrap().is_empty());
+    atlas_search::test_support::invalidate_reference(
+        fixture.service.workspace_path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
+    let mut expected = detail["encounter"].clone();
+    for field in [
+        "round_number",
+        "current_turn_participant_name",
+        "participant_count",
+    ] {
+        expected.as_object_mut().unwrap().remove(field);
+    }
+    let mut settings = json!({"encounter":expected, "revision": detail["revision"]});
+    if let Some(note) = detail.get("note") {
+        settings["note"] = note.clone()
+    }
+    for read in [
+        &format!("{path}/settings"),
+        "/api/encounters/ambush/settings",
+    ] {
+        let (ok, body) = fixture.json(Method::GET, read, None).await;
+        assert_eq!(ok, StatusCode::OK, "{body}");
+        assert_eq!(body, settings);
+    }
+}
+
+#[tokio::test]
 async fn saved_metadata_edits_follow_keys_across_slug_reuse() {
     let fixture = Fixture::new();
     for (collection, domain, original, key_name, key) in [
@@ -1602,6 +1752,12 @@ async fn saved_metadata_edits_follow_keys_across_slug_reuse() {
         let (ok, read) = fixture.json(Method::GET, &by_slug, None).await;
         assert_eq!(ok, StatusCode::OK);
         assert_eq!(read[domain][key_name], key.as_str());
+        for invalid in [&by_slug, &format!("{base}/never-created")] {
+            assert_eq!(
+                fixture.json(Method::DELETE, invalid, None).await.0,
+                StatusCode::NOT_FOUND
+            );
+        }
         let edit = json!({"slug": {"expected": original, "value": "renamed"}, "name": {"expected": read[domain]["name"], "value":"Renamed resource"}});
         let (miss, _) = fixture
             .json(Method::PATCH, &by_slug, Some(edit.clone()))
@@ -1620,12 +1776,20 @@ async fn saved_metadata_edits_follow_keys_across_slug_reuse() {
         assert_eq!(ok, StatusCode::OK, "{new}");
         let replacement_key = new[domain][key_name].as_str().unwrap();
         assert_ne!(replacement_key, key);
-        let (ok, deleted) = fixture.json(Method::DELETE, &by_slug, None).await;
-        assert_eq!(ok, StatusCode::OK, "{deleted}");
-        assert_eq!(deleted[key_name], replacement_key);
+        assert_eq!(
+            fixture.json(Method::DELETE, &by_slug, None).await.0,
+            StatusCode::NOT_FOUND
+        );
         let (ok, deleted) = fixture.json(Method::DELETE, &by_key, None).await;
         assert_eq!(ok, StatusCode::OK, "{deleted}");
         assert_eq!(deleted[key_name], key.as_str());
+        assert_eq!(
+            fixture.json(Method::DELETE, &by_key, None).await.0,
+            StatusCode::NOT_FOUND
+        );
+        let (ok, still_present) = fixture.json(Method::GET, &by_slug, None).await;
+        assert_eq!(ok, StatusCode::OK);
+        assert_eq!(still_present[domain][key_name], replacement_key);
     }
 }
 
