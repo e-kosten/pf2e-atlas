@@ -52,8 +52,16 @@ pub(crate) fn annotate_many<'a>(
     let mut presentations = presentations.collect::<Vec<_>>();
     let mut keys = BTreeSet::new();
     let mut selected_targets = Vec::with_capacity(presentations.len());
+    let mut immunity_targets = super::immunity_reading::ImmunityTargets::default();
     for presentation in &mut presentations {
+        let pf2e_immunities = retrieval.reference_coverage()
+            == atlas_search::ReferenceCoverage::Complete
+            && RecordKey::parse(&presentation.identity.record_key)
+                .is_ok_and(|key| retrieval.is_pf2e_record(&key));
         visit_values(presentation, &mut |namespace, value| {
+            if pf2e_immunities && namespace == N::ImmunityType {
+                immunity_targets.collect(&value.value);
+            }
             if let Ok(key) = DefinitionKey::new(namespace, value.value.clone()) {
                 keys.insert(key);
             }
@@ -67,12 +75,21 @@ pub(crate) fn annotate_many<'a>(
         if let Some(OwnedAbilityTarget::Definition(key)) = &target {
             keys.insert(key.clone());
         }
-        selected_targets.push(target);
+        selected_targets.push((target, pf2e_immunities));
     }
+    keys.extend(immunity_targets.definition_keys());
     let context = crate::definitions::HelpContext::load(retrieval, keys)?;
-    for (presentation, target) in presentations.into_iter().zip(selected_targets) {
+    let immunity_links = immunity_targets.resolve(retrieval, &context)?;
+    for (presentation, (target, pf2e_immunities)) in presentations.into_iter().zip(selected_targets)
+    {
         visit_values(presentation, &mut |namespace, value| {
             context.value(namespace, value);
+            if pf2e_immunities
+                && namespace == N::ImmunityType
+                && let Some(help) = immunity_links.get(&value.value)
+            {
+                value.help = Some(help.clone());
+            }
         });
         visit_keyed(presentation, &mut |namespace, value, label, help| {
             context.keyed(namespace, value, label, help);
