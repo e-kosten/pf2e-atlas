@@ -2587,8 +2587,11 @@ test("landing-only reader navigation reuses its raw parent document", async ({
 }, info) => {
   let parentReads = 0;
   page.on("request", (request) => {
+    const path = decodeURIComponent(new URL(request.url()).pathname);
     if (
-      new URL(request.url()).pathname === `/api/records/${encodeURIComponent(sentinel)}`
+      path === `/api/records/${sentinel}` ||
+      (path === "/api/records/detail" &&
+        request.postDataJSON()?.record_key === sentinel)
     )
       parentReads++;
   });

@@ -285,11 +285,53 @@ it("changes a matched spell's rank without re-reading its old match or adding hi
   expect(result.current.canGoBack).toBe(false);
   expect(api).toHaveBeenLastCalledWith(
     "actors:caster",
-    recordDetailRequest(ranked),
+    recordDetailRequest(ranked, undefined, selected.artifact_generation),
     expect.any(AbortSignal),
   );
   await act(async () => finish({ ...selected, selected: ranked }));
   await waitFor(() => expect(result.current.detail?.selected.spell_rank).toBe(5));
+  expect(api).toHaveBeenCalledTimes(3);
+});
+
+it("reloads a ranked document against the current collection after its own guard conflicts", async () => {
+  const key = "spells:ward";
+  const initial = detailFixture(key);
+  const ranked = { ...rootNavigation(key), spell_rank: 4 };
+  const replacement = {
+    ...initial,
+    selected: ranked,
+    artifact_generation: "replacement",
+  };
+  api
+    .mockResolvedValueOnce(initial)
+    .mockRejectedValueOnce(
+      new AtlasApiError(409, "Collection changed", {
+        code: "artifact_generation_changed",
+        message: "Collection changed",
+        recoverable_action: "reload_record",
+      }),
+    )
+    .mockResolvedValueOnce(replacement);
+  const { result } = renderHook(
+    () => useReferenceReading({ navigation: rootNavigation(key) }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.detail).toEqual(initial));
+  act(() => result.current.changeRank(ranked));
+  await waitFor(() => expect(result.current.error).toBeInstanceOf(AtlasApiError));
+  expect(result.current.detail).toBeUndefined();
+  expect(api).toHaveBeenLastCalledWith(
+    key,
+    recordDetailRequest(ranked, undefined, initial.artifact_generation),
+    expect.any(AbortSignal),
+  );
+  act(() => result.current.retry());
+  await waitFor(() => expect(result.current.detail).toEqual(replacement));
+  expect(api).toHaveBeenLastCalledWith(
+    key,
+    recordDetailRequest(ranked),
+    expect.any(AbortSignal),
+  );
   expect(api).toHaveBeenCalledTimes(3);
 });
 

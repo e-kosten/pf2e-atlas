@@ -91,7 +91,8 @@ export function ReferenceReader({
     router: atlasRouter,
     select: ({ matches }) => matches[matches.length - 1]?.routeId,
   });
-  const preview = useRecordPreview();
+  const detail = reading.detail;
+  const preview = useRecordPreview(undefined, detail?.artifact_generation);
   const owner = useRef(selectedRecordKey);
   const closePreview = preview.closeForNavigation;
   const previewOpen = preview.destination !== null;
@@ -203,9 +204,18 @@ export function ReferenceReader({
         return;
       }
       matchOpener.current = anchor;
-      inspect({ navigation: rootNavigation(navigation.record_key), match: navigation });
+      inspect(
+        { navigation: rootNavigation(navigation.record_key), match: navigation },
+        detail?.artifact_generation,
+      );
     },
-    [rememberPosition, inspect, selectedRecordKey, openReference],
+    [
+      rememberPosition,
+      inspect,
+      selectedRecordKey,
+      openReference,
+      detail?.artifact_generation,
+    ],
   );
   useLayoutEffect(() => {
     if (
@@ -425,7 +435,6 @@ export function ReferenceReader({
     reading.restoringHistory,
     focusMatchTarget,
   ]);
-  const detail = reading.detail;
   const fullNavigation = detail
     ? readingNavigationForUrl(detail.selected, reading.request)
     : undefined;
@@ -521,7 +530,10 @@ export function ReferenceReader({
           <Button
             onClick={() => {
               rememberPosition();
-              reading.select({ navigation: rootNavigation(selectedRecordKey) });
+              reading.select(
+                { navigation: rootNavigation(selectedRecordKey) },
+                detail?.artifact_generation,
+              );
             }}
           >
             {returnToSelectionLabel}
@@ -569,7 +581,10 @@ export function ReferenceReader({
             }}
             onOwnerReturn={(recordKey, landing, anchor) => {
               rememberPosition(anchor);
-              reading.inspect({ navigation: rootNavigation(recordKey), landing });
+              reading.inspect(
+                { navigation: rootNavigation(recordKey), landing },
+                detail?.artifact_generation,
+              );
             }}
           />
         </ReaderMatchNavigation.Provider>

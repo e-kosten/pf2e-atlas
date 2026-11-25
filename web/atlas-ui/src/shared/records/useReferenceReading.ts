@@ -1,7 +1,8 @@
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { useReferenceQueryRetirement } from "../queries/useReferenceQueryRetirement";
 import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useReducer, useState } from "react";
 import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { activityAnchor } from "./embeddedNavigation";
@@ -62,7 +63,7 @@ export function useReferenceReading(
   initial: ReadingRequest | null = null,
   enabled = true,
   epoch = 0,
-  generation?: string | null,
+  ownerGeneration?: string | null,
   sectionRenderingRecord?: string,
 ) {
   const [session, dispatch] = useReducer(
@@ -70,16 +71,24 @@ export function useReferenceReading(
       state: {
         request: ReadingRequest | null;
         history: ReadingRequest[];
+        basis?: { generation: string; epoch: number };
         restoringHistory: boolean;
       },
       action:
-        | { kind: "select" | "inspect" | "rank"; request: ReadingRequest | null }
-        | { kind: "back" },
+        | {
+            kind: "select" | "inspect" | "rank";
+            request: ReadingRequest | null;
+            basis?: { generation: string; epoch: number };
+          }
+        | { kind: "back" }
+        | { kind: "reload" },
     ) => {
+      if (action.kind === "reload") return { ...state, basis: undefined };
       if (action.kind === "back")
         return state.history.length
           ? {
               request: state.history[state.history.length - 1]!,
+              basis: state.basis,
               history: state.history.slice(0, -1),
               restoringHistory: true,
             }
@@ -87,6 +96,7 @@ export function useReferenceReading(
       const same = JSON.stringify(state.request) === JSON.stringify(action.request);
       return {
         request: action.request,
+        basis: action.kind === "select" ? action.basis : (action.basis ?? state.basis),
         restoringHistory: false,
         history:
           action.kind === "select" || !action.request
@@ -101,24 +111,63 @@ export function useReferenceReading(
     { request: initial, history: [], restoringHistory: false },
   );
   const request = session.request;
+  const generation =
+    ownerGeneration ??
+    (session.basis?.epoch === epoch ? session.basis.generation : undefined);
   const inspect = useCallback(
-    (request: ReadingRequest | null) => dispatch({ kind: "inspect", request }),
-    [],
+    (request: ReadingRequest | null, generation?: string | null) =>
+      dispatch({
+        kind: "inspect",
+        request,
+        basis: generation ? { generation, epoch } : undefined,
+      }),
+    [epoch],
   );
   const select = useCallback(
-    (request: ReadingRequest | null) => dispatch({ kind: "select", request }),
-    [],
+    (request: ReadingRequest | null, generation?: string | null) =>
+      dispatch({
+        kind: "select",
+        request,
+        basis: generation ? { generation, epoch } : undefined,
+      }),
+    [epoch],
   );
+  const renderSections =
+    sectionRenderingRecord !== undefined &&
+    sectionRenderingRecord === request?.navigation.record_key;
   const parentOptions = recordDetailQueryOptions(
     request?.navigation.record_key ?? null,
     request?.navigation,
     generation,
     request?.fields,
-    sectionRenderingRecord !== undefined &&
-      sectionRenderingRecord === request?.navigation.record_key,
+    renderSections,
   );
+  const client = useQueryClient();
+  // A cold link may already have opened this exact document. Preserve its
+  // original freshness when a result from the same collection selects it.
+  const currentOptions =
+    generation && request
+      ? recordDetailQueryOptions(
+          request.navigation.record_key,
+          request.navigation,
+          undefined,
+          request.fields,
+          renderSections,
+        )
+      : undefined;
+  const latest = currentOptions
+    ? client.getQueryState<RecordDetailView>(currentOptions.queryKey)
+    : undefined;
+  const matching =
+    latest?.status === "success" &&
+    !latest.isInvalidated &&
+    latest.data?.artifact_generation === generation
+      ? latest
+      : undefined;
   const parentQuery = useQuery({
     ...parentOptions,
+    initialData: matching?.data,
+    initialDataUpdatedAt: matching?.dataUpdatedAt,
     enabled: enabled && request !== null,
   });
   const fallback = referenceReadingFallback(request, parentQuery.data);
@@ -171,6 +220,7 @@ export function useReferenceReading(
     changeRank: (navigation: RecordNavigationView) =>
       dispatch({
         kind: "rank",
+        basis: detail ? { generation: detail.artifact_generation, epoch } : undefined,
         request: {
           navigation,
           landing: request?.landing,
@@ -190,7 +240,16 @@ export function useReferenceReading(
       parentQuery.isFetching || (fallback !== undefined && exactQuery.isFetching),
     error,
     retry: () => {
-      if (fallback && !parentQuery.error) void exactQuery.refetch();
+      if (!ownerGeneration && request && isArtifactGenerationChanged(error)) {
+        // The document itself supplied the generation. Reopen its current
+        // parent before resolving any exact field, passage, or rank again.
+        client.removeQueries({ queryKey: parentOptions.queryKey, exact: true });
+        if (currentOptions)
+          client.removeQueries({ queryKey: currentOptions.queryKey, exact: true });
+        if (fallback)
+          client.removeQueries({ queryKey: exactOptions.queryKey, exact: true });
+        dispatch({ kind: "reload" });
+      } else if (fallback && !parentQuery.error) void exactQuery.refetch();
       else void parentQuery.refetch();
     },
   };

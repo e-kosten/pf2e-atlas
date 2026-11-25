@@ -117,7 +117,7 @@ export type SearchWorkspaceState = {
   applySettings?: (next: SearchFormState, profile: string | null) => void;
   recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
-  selectRecord: (recordKey: string | null) => void;
+  selectRecord: (recordKey: string | null, request?: ReadingRequest) => void;
   pageNumber: number;
   setPageNumber: (page: number) => void;
   resultPage: SearchResultsPage | undefined;
@@ -374,7 +374,7 @@ export function useSearchWorkspace({
         incoming: readingRequestIdentity(request),
         previous: readingRequestIdentity(reading.request),
       };
-      inspectReading(request);
+      inspectReading(request, retrieval.generation);
     } else if (readingChanged) {
       pendingUrlReading.current = null;
     }
@@ -567,13 +567,9 @@ export function useSearchWorkspace({
     urlProfile,
     atlasRouter,
   ]);
-  if (
-    !pausedError &&
-    resultsQuery.error &&
-    isArtifactGenerationChanged(resultsQuery.error)
-  ) {
-    setGenerationFailure({ epoch: retrieval.epoch, error: resultsQuery.error });
-  }
+  const changed = [resultsQuery.error, reading.error].find(isArtifactGenerationChanged);
+  if (!pausedError && changed)
+    setGenerationFailure({ epoch: retrieval.epoch, error: changed });
   const resultsError = pausedError ?? resultsQuery.error;
   const resultsPaused = isArtifactGenerationChanged(resultsError);
   function refreshResults() {
@@ -705,7 +701,7 @@ export function useSearchWorkspace({
     // A submitted canonical address is navigation, independent of search eligibility.
     const recordKey = next.query.trim();
     if (next.query !== search.query && /^[^:\s]+:[^:\s]+$/u.test(recordKey)) {
-      selectRecord(recordKey, submission);
+      selectRecord(recordKey, undefined, submission);
       return;
     }
     // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
@@ -788,7 +784,11 @@ export function useSearchWorkspace({
       void commit(urlProfile);
     }
   }
-  function selectRecord(recordKey: string | null, submission?: SearchSubmission) {
+  function selectRecord(
+    recordKey: string | null,
+    request?: ReadingRequest,
+    submission?: SearchSubmission,
+  ) {
     dispatch({ type: "record.selected", recordKey, submission });
     const searchQuery = searchStateQueryString(search, urlProfile);
     void atlasRouter.navigate({
@@ -801,7 +801,10 @@ export function useSearchWorkspace({
       resetScroll: false,
       state: true,
     });
-    reading.select(recordKey ? { navigation: rootNavigation(recordKey) } : null);
+    reading.select(
+      recordKey ? (request ?? { navigation: rootNavigation(recordKey) }) : null,
+      result?.page.artifact_generation ?? retrieval.generation,
+    );
   }
   const canDisplayResult =
     canRunResultSearch ||
@@ -870,7 +873,9 @@ export function useSearchWorkspace({
       reading.select(null);
     },
 
-    reading,
+    reading: isArtifactGenerationChanged(reading.error)
+      ? { ...reading, retry: () => void refreshResults() }
+      : reading,
     positions,
     selectedRecordKey,
     selectRecord,
