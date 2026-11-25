@@ -1384,7 +1384,9 @@ fn keyword_only_cli_defaults_to_fts_and_rejects_explicit_semantic_requests() {
             .args(["--", blank])
             .output()
             .unwrap();
-        failure(checked(output, 2), "invalid_input");
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(output.status.code(), Some(2), "{response}");
+        assert_eq!(response["error"]["code"], "invalid_input");
     }
     for options in [["--retrieval", "hybrid"], ["--search-profile", "bge-base"]] {
         let result = fixture.command(
