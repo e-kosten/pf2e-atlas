@@ -16,6 +16,13 @@ The macOS 27.2.1 arm64 capture used implementation `a8cdacdd7` and Playwright
 1.65.0. All 12 scenarios passed during capture. Review covered all 40 frames
 across the four browser profiles, including the scrolled phone WebKit view.
 
+The Ubuntu 24.04 x64 capture used the same Playwright version and the verified
+fixture from PR merge candidate `649bfc81e` (head `86e2ce10b`). All 12 capture
+scenarios passed. Review covered the 40 Linux frames. In desktop Chromium,
+the precedence source view also had a 4 × 2 px color difference in the roster,
+with a maximum channel difference of 10/255 and the same text and layout.
+[Ubuntu visual capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45523967050).
+
 ## Compact encounter panels and condition HP choices
 
 These references show compact participants without section links above HP and Turn.
