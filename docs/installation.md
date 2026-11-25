@@ -96,6 +96,10 @@ Run the installer, open **PF2e Atlas** from the Start menu, and choose **Set up
 Atlas** for a new workspace. To update, close Atlas and run the installer from
 the newer release. When Atlas reopens, choose **Update workspace** if prompted.
 
+Choose a dedicated folder for the desktop app. If the installer identifies a
+conflicting file, select another folder to keep that file intact. Install the
+standalone CLI in its own folder.
+
 ## Standalone CLI
 
 On macOS or Linux, download and run the official installer:
