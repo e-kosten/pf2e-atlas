@@ -1,3 +1,4 @@
+import { MarkdownEditor } from "../../shared/documents/MarkdownEditor";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { SavedEditConflictReview } from "../../shared/feedback/SavedEditConflictReview";
@@ -252,7 +253,7 @@ export function EditEncounterForm({
           <Input />
         </Form.Item>
         <Form.Item name="note" label="Note">
-          <Input.TextArea />
+          <MarkdownEditor label="Note" expandedTitle="Encounter note" />
         </Form.Item>
         <Form.Item
           name="round_duration_seconds"

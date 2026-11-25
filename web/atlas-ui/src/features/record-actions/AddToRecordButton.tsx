@@ -3,7 +3,6 @@ import {
   MarkdownEditor,
   type MarkdownEditorHandle,
 } from "../../shared/documents/MarkdownEditor";
-import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoices";
@@ -155,17 +154,6 @@ function AddToRecordModal({
   const [directoryChecked, setDirectoryChecked] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const expandButton = useRef<HTMLButtonElement>(null);
-  const backButton = useRef<HTMLSpanElement>(null);
-  const restoreExpandFocus = useRef(false);
-  useLayoutEffect(() => {
-    if (expanded) backButton.current?.closest("button")?.focus({ preventScroll: true });
-    else if (restoreExpandFocus.current) {
-      restoreExpandFocus.current = false;
-      expandButton.current?.focus({ preventScroll: true });
-    }
-  }, [expanded]);
   const noteEditor = useRef<MarkdownEditorHandle>(null);
   const focusNote = useRef(false);
   useLayoutEffect(() => {
@@ -208,7 +196,6 @@ function AddToRecordModal({
       noteDraft.trim() ||
       (kind === "list" && creating && form.getFieldValue("name")?.trim()),
     );
-  useTabCloseGuard(() => (expanded && hasUnsavedDraft() ? "dirty" : undefined));
   const createdDestination = useRef<Destination | null>(null);
   const lists = useSavedLists({ enabled: open && kind === "list" });
   const encounters = useQuery({
@@ -469,7 +456,7 @@ function AddToRecordModal({
   const nameConflict =
     creating && kind === "list" ? listNameConflictHelp(submit.error) : undefined;
   const run = (name?: string) => {
-    if (expanded || inFlight.current) return;
+    if (inFlight.current) return;
     inFlight.current = true;
     submit.mutate({ name, note: noteDraft.trim() ? noteDraft : undefined });
   };
@@ -488,8 +475,6 @@ function AddToRecordModal({
   return (
     <Modal
       open={open}
-      layout={expanded ? "document" : "form"}
-      width={expanded ? "100%" : undefined}
       afterClose={() => {
         // Reopening an unconfirmed add must retain its original destination and ID.
         if (frozen) return;
@@ -500,20 +485,13 @@ function AddToRecordModal({
         setCreatedList(false);
         setListCreateUncertain(false);
         setDirectoryChecked(false);
-        setExpanded(false);
         setNoteOpen(false);
         setNoteDraft("");
         form.resetFields();
         submit.reset();
       }}
       title={
-        expanded
-          ? "List entry note"
-          : encounterOnly
-            ? "Add to encounter"
-            : canAddEncounter
-              ? "Add to…"
-              : "Add to list"
+        encounterOnly ? "Add to encounter" : canAddEncounter ? "Add to…" : "Add to list"
       }
       transitionName=""
       maskTransitionName=""
@@ -529,21 +507,9 @@ function AddToRecordModal({
               waitingForCreaturePreview ||
               (!creating && !selected))),
       }}
-      closable={
-        expanded
-          ? {
-              closeIcon: <span ref={backButton}>Collapse editor</span>,
-              "aria-label": "Collapse editor",
-            }
-          : { disabled: submit.isPending }
-      }
-      styles={
-        expanded
-          ? { close: { width: "auto", paddingInline: "var(--space-control)" } }
-          : undefined
-      }
+      closable={{ disabled: submit.isPending }}
       keyboard={!submit.isPending}
-      mask={{ closable: !expanded && !submit.isPending }}
+      mask={{ closable: !submit.isPending }}
       okText={
         frozen
           ? "Retry to confirm"
@@ -554,43 +520,36 @@ function AddToRecordModal({
             : "Add"
       }
       confirmDiscard={{
-        when: () => !expanded && hasUnsavedDraft(),
+        when: hasUnsavedDraft,
         onDiscard: cancel,
       }}
-      onCancel={() => {
-        if (expanded) setExpanded(false);
-        else cancel();
-      }}
+      onCancel={cancel}
       onOk={() => {
-        if (expanded || paused) return;
+        if (paused) return;
         if (frozen) run();
         else if (creating || kind === "encounter") form.submit();
         else if (selected) run();
       }}
-      footer={
-        expanded
-          ? null
-          : (_, { OkBtn, CancelBtn }) => (
-              <div className="record-destination-picker__footer">
-                {creating && !frozen && (
-                  <Button disabled={submit.isPending} onClick={() => changeMode(false)}>
-                    Choose existing {kind}
-                  </Button>
-                )}
-                <div className="record-destination-picker__footer-actions">
-                  <CancelBtn />
-                  <OkBtn />
-                </div>
-              </div>
-            )
-      }
+      footer={(_, { OkBtn, CancelBtn }) => (
+        <div className="record-destination-picker__footer">
+          {creating && !frozen && (
+            <Button disabled={submit.isPending} onClick={() => changeMode(false)}>
+              Choose existing {kind}
+            </Button>
+          )}
+          <div className="record-destination-picker__footer-actions">
+            <CancelBtn />
+            <OkBtn />
+          </div>
+        </div>
+      )}
     >
-      {!expanded && record && (
+      {record && (
         <Typography.Text className="record-destination-picker__record">
           {record.title}
         </Typography.Text>
       )}
-      {!expanded && canAddEncounter && !encounterOnly && (
+      {canAddEncounter && !encounterOnly && (
         <Tabs
           activeKey={kind}
           animated={false}
@@ -620,7 +579,7 @@ function AddToRecordModal({
           ]}
         />
       )}
-      <div className="record-destination-picker" data-document={expanded || undefined}>
+      <div className="record-destination-picker">
         <Form
           className="record-destination-picker__form"
           form={form}
@@ -628,7 +587,6 @@ function AddToRecordModal({
           disabled={paused || submit.isPending || frozen}
           onFinish={({ name }) => {
             if (
-              expanded ||
               frozen ||
               listBlocked ||
               waitingForDraft ||
@@ -660,7 +618,7 @@ function AddToRecordModal({
                 }}
               />
             </Form.Item>
-          ) : !expanded ? (
+          ) : (
             <>
               <div className="record-destination-picker__choices">
                 <Select
@@ -707,7 +665,7 @@ function AddToRecordModal({
                   </Typography.Text>
                 )}
             </>
-          ) : null}
+          )}
           {kind === "encounter" && (
             <div className="record-destination-picker__encounter-fields">
               {creature && (
@@ -737,10 +695,7 @@ function AddToRecordModal({
           )}
           {kind === "list" && (
             <div className="record-destination-picker__note">
-              <div
-                className="record-destination-picker__note-controls"
-                hidden={expanded}
-              >
+              <div className="record-destination-picker__note-controls">
                 <Button
                   type="link"
                   size="small"
@@ -756,25 +711,12 @@ function AddToRecordModal({
                       ? "Edit note (included)"
                       : "Add a note"}
                 </Button>
-                {noteOpen && (
-                  <Button
-                    ref={expandButton}
-                    size="small"
-                    type="text"
-                    onClick={() => {
-                      restoreExpandFocus.current = true;
-                      setExpanded(true);
-                    }}
-                  >
-                    Expand editor
-                  </Button>
-                )}
               </div>
               {noteOpen && (
                 <MarkdownEditor
                   id="note"
                   label="Note"
-                  sizing={expanded ? "fill" : "compact"}
+                  expandedTitle="List entry note"
                   editorRef={noteEditor}
                   value={noteDraft}
                   onChange={setNoteDraft}

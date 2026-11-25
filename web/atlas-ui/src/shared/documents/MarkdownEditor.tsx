@@ -23,11 +23,15 @@ import {
   Link2,
   List,
   ListOrdered,
+  Maximize2,
+  Minimize2,
   Redo2,
   Undo2,
 } from "lucide-react";
 import {
+  useContext,
   useEffectEvent,
+  useId,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
@@ -37,6 +41,7 @@ import {
   type RefObject,
 } from "react";
 import { useDesktopTab } from "../../app/DesktopTabContext";
+import { ModalEditorExpansion } from "../ui/overlays/EditorExpansion";
 import { SearchPickerModal } from "../ui/pickers/SearchPickerModal";
 import {
   InlineRecordPicker,
@@ -153,7 +158,8 @@ export function MarkdownEditor({
   disabled,
   readOnly,
   editorRef,
-  sizing = "compact",
+  expandedTitle = label,
+  pane,
   "aria-describedby": describedBy,
   "aria-invalid": invalid,
   "aria-required": required,
@@ -164,9 +170,17 @@ export function MarkdownEditor({
   label: string;
   disabled?: boolean;
   readOnly?: boolean;
-  sizing?: "compact" | "roomy" | "fill";
+  expandedTitle?: string;
+  pane?: { expanded: boolean; toggle?: () => void };
   editorRef?: RefObject<MarkdownEditorHandle | null>;
 }) {
+  const expansion = useContext(ModalEditorExpansion);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const fieldId = useId();
+  const inDocument = expansion?.field?.id === fieldId;
+  const sizing = pane?.expanded ? "roomy" : inDocument ? "fill" : "compact";
+  const release = expansion?.release;
+  useLayoutEffect(() => () => release?.(fieldId), [release, fieldId]);
   const [mode, setMode] = useState<"Write" | "Preview">("Write");
   const tabActive = useDesktopTab()?.active ?? true;
   const [headingOpen, setHeadingOpen] = useState(false);
@@ -387,8 +401,24 @@ export function MarkdownEditor({
   }
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape bubbles from the focused editor control after nested controls handle it.
     <div
       className="markdown-editor"
+      role="group"
+      data-expanded-field={inDocument || undefined}
+      onKeyDown={(event) => {
+        if (
+          pane?.expanded &&
+          pane.toggle &&
+          event.key === "Escape" &&
+          !event.defaultPrevented &&
+          event.currentTarget.contains(event.target as Node)
+        ) {
+          event.stopPropagation();
+          pane.toggle();
+          trigger.current?.focus({ preventScroll: true });
+        }
+      }}
       data-sizing={sizing}
       data-invalid={invalid || undefined}
     >
@@ -511,6 +541,31 @@ export function MarkdownEditor({
               />
             </div>
           </div>
+          {(pane ? pane.toggle : expansion) && (
+            <Button
+              ref={trigger}
+              hidden={inDocument}
+              className="markdown-editor__expand"
+              size="small"
+              type="text"
+              title={pane?.expanded ? "Collapse editor" : "Expand editor"}
+              aria-label={pane?.expanded ? "Collapse editor" : "Expand editor"}
+              aria-expanded={pane?.expanded ?? inDocument}
+              icon={pane?.expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              disabled={pane?.expanded ? false : inactive}
+              onClick={(event) => {
+                if (pane) {
+                  pane.toggle?.();
+                  event.currentTarget.focus({ preventScroll: true });
+                } else if (trigger.current)
+                  expansion?.expand({
+                    id: fieldId,
+                    title: expandedTitle,
+                    trigger: trigger.current,
+                  });
+              }}
+            />
+          )}
         </div>
       </ConfigProvider>
       <div className="markdown-editor__body">

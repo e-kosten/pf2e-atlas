@@ -2448,10 +2448,14 @@ view. Key presentation and draft state by canonical list identity and entry key.
 Inspecting another record hides the note while retaining its draft. Note mutations
 update their cache from the committed receipt before invalidating list reads.
 
-Add and Edit custom turn use the same expand and collapse labels for Notes.
-The expanded view reserves the app window for the editor. Keep the same draft
-mounted and return to the compact form to submit Name, Initiative and Notes
-together. Escape closes nested controls first, then collapses the editor.
+Use a bound `MarkdownEditor` for prose fields in Atlas form dialogs. For example,
+`<Form.Item name="note" label="Notes"><MarkdownEditor label="Notes" /></Form.Item>`
+gets the standard **Expand editor** action. The dialog gives the field the
+available window and keeps **Collapse editor** reachable while the text scrolls.
+Both sizes edit the same draft. Escape dismisses an open picker or formatting
+menu first, then returns to the compact form. Submit related fields together
+from that form. The encounter GM Note uses the same Write and Preview modes and
+record links as list descriptions. Condition Note is a short plain-text field.
 
 Lightweight entry removal uses the shared danger button's controlled popover.
 Pending writes block dismissal; failures retain the confirmation and local error

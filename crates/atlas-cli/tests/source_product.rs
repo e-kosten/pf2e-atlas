@@ -2762,7 +2762,15 @@ fn reviewed_encounter_commands_run_in_the_original_workspace_and_recover_from_co
 #[test]
 fn encounter_exchange_handles_collisions_without_overwriting() {
     let source = Fixture::new();
-    let created = source.data(&["encounters", "create", "Traveling encounter", "--json"]);
+    let note = "# Route\n\n[Lost shrine](record:locations:lostshrine)";
+    let created = source.data(&[
+        "encounters",
+        "create",
+        "Traveling encounter",
+        "--note",
+        note,
+        "--json",
+    ]);
     let original = created["encounter"]["encounter_key"].as_str().unwrap();
     install_encounter_guard(&source);
     source.data(&[
@@ -2823,9 +2831,10 @@ fn encounter_exchange_handles_collisions_without_overwriting() {
     let imported = destination.data(&["encounters", "import", file.to_str().unwrap(), "--json"]);
     assert_eq!(
         imported["missing_records"],
-        serde_json::json!(["creatures:dddddddddddddddd"])
+        serde_json::json!(["creatures:dddddddddddddddd", "locations:lostshrine"])
     );
     let restored = destination.data(&["encounters", "show", "traveling-encounter", "--json"]);
+    assert_eq!(restored["note"], note);
     assert_eq!(restored["participants"][0]["display_name"], "Local Guard");
     assert_eq!(restored["participants"][0]["current_hp"], 20);
 
