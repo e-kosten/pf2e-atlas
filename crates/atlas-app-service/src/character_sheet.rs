@@ -95,7 +95,7 @@ pub(super) fn project_groups(
                 C::CharacterOptions => progression::groups(sheet, &keys),
                 C::Spellcasting => magic::groups(sheet, &keys),
                 C::Companions => companions(sheet),
-                _ => unreachable!("only shared presentation groups listed above"),
+                C::Identity | C::Statistics | C::Abilities | C::Source => continue,
             };
             if layout.includes_sheet() {
                 if selected {
