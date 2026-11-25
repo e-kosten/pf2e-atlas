@@ -22,6 +22,11 @@ if ($PathOnly) {
     $env:Path = (($env:Path -split ';') | Where-Object { $_ -and $_ -ne $PSHOME }) -join ';'
 }
 if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') { throw 'Expected Windows x64' }
+foreach ($dll in 'dxgi.dll', 'd3d12.dll', 'DirectML.dll') {
+    if (!(Test-Path -LiteralPath (Join-Path ([Environment]::SystemDirectory) $dll) -PathType Leaf)) {
+        throw "Clean Windows image is missing the desktop system component $dll required by the shipped CLI."
+    }
+}
 if (Get-Command cl.exe, msbuild.exe, cargo.exe -ErrorAction SilentlyContinue) { throw 'Build tools found on PATH' }
 if (Test-Path -LiteralPath "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") { throw 'Visual Studio installer found' }
 foreach ($view in 'HKLM:\SOFTWARE', 'HKLM:\SOFTWARE\Wow6432Node') {
@@ -35,7 +40,12 @@ foreach ($dir in @("$env:SystemRoot\System32") + @($env:Path -split ';' | Where-
 }
 
 function Test-Cli([string]$Binary, [string]$Variant) {
-    if ((& $Binary --version) -cne "atlas $version" -or $LASTEXITCODE -ne 0) { throw 'Wrong executable version' }
+    $reported = (& $Binary --version) -join [Environment]::NewLine
+    $exitCode = $LASTEXITCODE
+    if ($reported -cne "atlas $version" -or $exitCode -ne 0) {
+        $status = '{0} (0x{0:X8})' -f $exitCode
+        throw "$Binary --version exited $status. Expected 'atlas $version', received '$reported'."
+    }
     $info = (& $Binary build-info --json) | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0 -or $info.status -ne 'ok' -or $info.data.variant -cne $Variant -or $info.data.version -cne $version) {
         throw "Unexpected $Variant build metadata"

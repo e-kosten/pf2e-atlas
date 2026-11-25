@@ -615,9 +615,11 @@ jobs:
       - name: Rehearse both install routes and user PATH in disposable accounts
         shell: pwsh
         run: |
-          $image = 'mcr.microsoft.com/windows/servercore:ltsc2022'
+          # The shipped ONNX runtime imports the inbox DirectML.dll at startup.
+          # The full Windows Server image provides the Windows desktop API set.
+          $image = 'mcr.microsoft.com/windows/server:ltsc2022'
           docker pull $image
-          if ($LASTEXITCODE) { throw 'Could not pull Windows Server Core' }
+          if ($LASTEXITCODE) { throw "Could not pull $image" }
           docker image inspect --format '{{.Os}} {{.OsVersion}} {{.Architecture}} {{.Id}}' $image
           $mount = "type=bind,source=$((Resolve-Path target/clean-windows).Path),target=C:\qualification,readonly"
           $options = @('--rm', '--network', 'none', '--user', 'ContainerUser', '--env', 'ATLAS_CLEAN_WINDOWS_CONTAINER=1', '--mount', $mount)

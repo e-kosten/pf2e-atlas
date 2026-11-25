@@ -189,8 +189,10 @@ tests cover pointer resolution and pinning, invalid pointers, checksum failures,
 version preparation, scheduled skipping, and preserving the channel on failures.
 
 Direct release-build-check rehearsals also run the assembled Windows ZIPs in a
-fresh Windows Server Core 2022 container as `ContainerUser`. The job checks that
-the image lacks the x64 Visual C++ redistributable and build tools before testing
+fresh Windows Server 2022 container as `ContainerUser`. The full Server image
+includes the Windows desktop DirectML and Direct3D libraries that the packaged
+ONNX runtime imports at startup. The job checks for those system libraries and
+verifies the image lacks the x64 Visual C++ redistributable and build tools before testing
 manual extraction, scripted installation, variant switching, offline fixture
 search and the full build's web page. The copied PATH hint runs twice against
 the disposable user registry under Windows PowerShell 5.1 and PowerShell 7.
