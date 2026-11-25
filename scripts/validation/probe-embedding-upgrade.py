@@ -88,12 +88,16 @@ def witness_options(executable):
 
 
 def witness_address(match, record_key, generation):
-    """Compare the selected location across publication generations and CLI versions."""
-    location = {key: value for key, value in match.get("navigation", {}).items()
-                if value is not None}
+    """Verify a live witness belongs to this search before comparing publications."""
+    location = dict(match.get("navigation", {"record_key": record_key}))
     if "artifact_generation" in location and location.pop("artifact_generation") != generation:
         raise ValueError("Witness navigation belongs to another search generation")
-    location.setdefault("record_key", record_key)
+    return location
+
+
+def passage_identity(address):
+    """Resolve legacy and compact address defaults for both frozen and live witnesses."""
+    location = {key: value for key, value in address.items() if value is not None}
     location.setdefault("embedded_path", [])
     if location.get("field") == "identity":
         location.pop("field")
@@ -121,10 +125,13 @@ def search(executable, index, cache, profile, query, evidence):
 def compare(expected, actual, name):
     if [key for key, _ in actual] != [key for key, _ in expected]:
         raise RuntimeError(f"Ranked records changed for {name}")
-    for (_, before), (_, after) in zip(expected, actual, strict=True):
-        if [location for location, _ in after] != [location for location, _ in before]:
-            raise RuntimeError(f"Matching passages changed for {name}")
-        for (_, old), (_, new) in zip(before, after, strict=True):
+    for (record, before), (_, after) in zip(expected, actual, strict=True):
+        if len(before) != len(after):
+            raise RuntimeError(f"Matching passage count changed for {name}: {record}")
+        for (old_location, old), (new_location, new) in zip(before, after, strict=True):
+            if passage_identity(old_location) != passage_identity(new_location):
+                raise RuntimeError(f"Matching passages changed for {name}: {record}: "
+                                   f"{old_location} -> {new_location}")
             if not math.isclose(old, new, rel_tol=0, abs_tol=SCORE_TOLERANCE):
                 raise RuntimeError(f"Semantic score changed for {name}: {old} -> {new}")
 
@@ -746,7 +753,8 @@ def compare_predecessor_hit(expected, actual, profile):
     passage, score = expected[0][1][0]
     if actual and actual[0][0] == record and actual[0][1]:
         location, value = actual[0][1][0]
-        if location == passage and math.isclose(value, score, abs_tol=SCORE_TOLERANCE, rel_tol=0):
+        if (passage_identity(location) == passage_identity(passage)
+                and math.isclose(value, score, abs_tol=SCORE_TOLERANCE, rel_tol=0)):
             return
     raise RuntimeError(f"{profile} predecessor search witness changed: {record}")
 
