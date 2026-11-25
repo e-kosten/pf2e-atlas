@@ -193,6 +193,10 @@ export async function qualifyWindowsTabs({ page, expect, openLink, listKey, stop
   await answer("Close Atlas window", 6);
   await expect.poll(() => secondary.isClosed()).toBe(true);
   await expect(fresh.getByRole("heading", { name: "Connected party" })).toBeVisible();
+  // Closing one workspace must leave the surviving window's native menu usable.
+  const survivor = windows().find((w) => w.id === freshWindow);
+  log("menu-after-sibling-close", { survivor });
+  expect(survivor?.menuItemCount).toBeGreaterThan(0);
   // The original disconnected workspace also survives reconnection.
   exit(freshWindow);
   await answer("Exit Atlas", 6);

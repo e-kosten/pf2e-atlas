@@ -1597,7 +1597,7 @@ fn recover(app: &AppHandle, old_base: Url, old_instance: &str) {
                         let replacement = crate::open_product_on_worker(app, &route, &instance);
                         match replacement {
                             Ok(_) => {
-                                let _ = window.destroy();
+                                let _ = crate::destroy_window(&window);
                             }
                             #[cfg(windows)]
                             Err(error) => {

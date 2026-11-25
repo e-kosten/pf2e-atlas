@@ -69,6 +69,7 @@ public static class AtlasHostWindows {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
   [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern bool IsMenu(IntPtr menu);
   [DllImport("user32.dll")] public static extern IntPtr GetSubMenu(IntPtr menu, int index);
   [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr menu);
   [DllImport("user32.dll")] public static extern uint GetMenuItemID(IntPtr menu, int index);
@@ -122,7 +123,9 @@ function hostWindows(pid, env, close) {
       }
       $title = [Text.StringBuilder]::new(256)
       [void][AtlasHostWindows]::GetWindowTextW($window, $title, $title.Capacity)
-      [pscustomobject]@{ id = $window.ToInt64(); title = $title.ToString(); menu = [AtlasHostWindows]::GetMenu($window) -ne [IntPtr]::Zero
+      $menu = [AtlasHostWindows]::GetMenu($window)
+      [pscustomobject]@{ id = $window.ToInt64(); title = $title.ToString(); menu = [AtlasHostWindows]::IsMenu($menu)
+        menuHandle = $menu.ToInt64(); menuItemCount = [AtlasHostWindows]::GetMenuItemCount($menu)
         enabled = [AtlasHostWindows]::IsWindowEnabled($window); foreground = $window -eq [AtlasHostWindows]::GetForegroundWindow() }
     }
     ConvertTo-Json -InputObject @($views) -Compress`, env));

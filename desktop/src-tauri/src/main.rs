@@ -881,11 +881,26 @@ fn build_product(
         }
     });
     if let Err(error) = placement {
-        let _ = window.destroy();
+        let _ = destroy_window(&window);
         desktop.staged_setup.detach_window(&label);
         return Err(error);
     }
     Ok(window)
+}
+
+fn destroy_window(window: &WebviewWindow) -> tauri::Result<()> {
+    // Tauri attaches the same native menu to every Windows window. Detach
+    // it before DestroyWindow takes ownership and destroys the shared menu.
+    #[cfg(windows)]
+    let menu = window.remove_menu()?;
+    let result = window.destroy();
+    #[cfg(windows)]
+    if result.is_err()
+        && let Some(menu) = menu
+    {
+        let _ = window.set_menu(menu);
+    }
+    result
 }
 
 fn new_search(app: &AppHandle, as_tab: bool) -> Result<(), String> {

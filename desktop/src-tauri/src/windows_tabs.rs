@@ -369,7 +369,7 @@ pub async fn desktop_tabs_close(window: WebviewWindow, token: String) -> Result<
     run_on_main(&app, move |app| {
         if !window_handoff_active(app)
             && validate(&window, &token).is_ok()
-            && let Err(error) = window.destroy()
+            && let Err(error) = crate::destroy_window(&window)
         {
             window_host::report("Could not close Atlas window", &display(error));
         }
@@ -410,10 +410,13 @@ fn workspace_window(window: &WebviewWindow) -> bool {
 }
 
 pub fn handle_close(window: &WebviewWindow, api: &tauri::CloseRequestApi) {
+    api.prevent_close();
     if !workspace_window(window) {
+        if let Err(error) = crate::destroy_window(window) {
+            window_host::report("Could not close Atlas window", &display(error));
+        }
         return;
     }
-    api.prevent_close();
     if window_handoff_active(window.app_handle()) {
         return;
     }
@@ -424,7 +427,7 @@ pub fn handle_close(window: &WebviewWindow, api: &tauri::CloseRequestApi) {
         && !ready(window)
         && !window_handoff_active(window.app_handle())
     {
-        window.destroy().map_err(display)
+        crate::destroy_window(window).map_err(display)
     } else {
         Ok(())
     };
