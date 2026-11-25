@@ -258,6 +258,14 @@ impl<'a> SavedListsRead<'a> {
 
         Ok(result)
     }
+    pub fn item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> LocalStateResult<Option<crate::SavedListItemNote>> {
+        storage::validate_list_ref(list_ref)?;
+        storage::item_note(self.connection, self.owner_id, list_ref, record_key)
+    }
     pub fn bind_record_membership(
         &self,
         list_key: &str,

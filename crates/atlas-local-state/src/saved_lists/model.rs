@@ -27,6 +27,15 @@ pub struct SavedListItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SavedListItemNote {
+    pub list_key: String,
+    pub slug: String,
+    pub record_key: String,
+    pub title: String,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SavedListWithItems {
     pub list: SavedList,
     pub items: Vec<SavedListItem>,

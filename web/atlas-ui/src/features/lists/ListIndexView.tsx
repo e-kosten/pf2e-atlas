@@ -224,7 +224,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
           {editing.data && editing.ref && (
             <EditListModal
               listRef={editing.ref}
-              initialDetail={editing.data}
+              initialList={editing.data}
               open={editing.open}
               onClose={editing.close}
               onDeleted={editing.close}

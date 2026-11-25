@@ -4,7 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Checkbox, Form, Input, Select, Space } from "antd";
 import { Trash2 } from "lucide-react";
 import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
+import {
+  deleteSavedList,
+  getSavedListHeader,
+  updateSavedList,
+} from "../../api/atlasApi";
 import type {
   SavedListDetailView,
   SavedListSummaryView,
@@ -26,7 +30,7 @@ import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 
 type EditListModalProps = {
   listRef: string;
-  initialDetail: SavedListDetailView;
+  initialList: SavedListSummaryView;
   open: boolean;
   onClose: (slug?: string) => void;
   onDeleted: () => void;
@@ -58,8 +62,8 @@ type Review = {
 
 function listQuery(listRef: string) {
   return {
-    queryKey: ["saved-list", listRef],
-    queryFn: () => getSavedList(listRef),
+    queryKey: ["saved-list-header", listRef],
+    queryFn: () => getSavedListHeader(listRef),
   };
 }
 
@@ -76,19 +80,19 @@ export function EditListModal(props: EditListModalProps) {
 
 function ListEditor({
   listRef,
-  initialDetail,
+  initialList,
   open,
   onClose,
   onDeleted,
   afterClose,
 }: EditListModalProps) {
-  const listKey = initialDetail.list.list_key;
+  const listKey = initialList.list_key;
   const list = useQuery({
     ...listQuery(listKey),
-    initialData: initialDetail,
+    initialData: initialList,
     staleTime: 20_000,
   });
-  const saved = list.data.list;
+  const saved = list.data;
   const readError = list.error;
   const retry = () => void list.refetch();
   const formId = useId();
@@ -137,7 +141,7 @@ function ListEditor({
       const detail = await client.fetchQuery({ ...query, staleTime: 0, retry: false });
       setReview((current) =>
         current === loading
-          ? { fields: conflicts, status: "ready", saved: detail.list }
+          ? { fields: conflicts, status: "ready", saved: detail }
           : current,
       );
     } catch {
@@ -157,6 +161,7 @@ function ListEditor({
       // Keep confirmed settings visible even if the following refresh fails.
       await Promise.all([
         client.cancelQueries({ queryKey: ["saved-lists"] }),
+        client.cancelQueries({ queryKey: listQuery(listKey).queryKey, exact: true }),
         client.cancelQueries({
           queryKey: ["saved-list"],
           predicate: ({ state }) =>
@@ -164,6 +169,7 @@ function ListEditor({
             view.list.list_key,
         }),
       ]);
+      client.setQueryData(listQuery(listKey).queryKey, view.list);
       updateSavedListIndexes(client, view.list);
       client.setQueriesData<SavedListDetailView>(
         { queryKey: ["saved-list"] },

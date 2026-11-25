@@ -1,5 +1,6 @@
 import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { readUrl } from "../readingUrl";
+import type { TableRollView } from "../../src/generated/http";
 import { decodeFilterUrl, encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 import { encodeReadingAddress } from "../../src/app/readingUrl";
 import { expect, test } from "./fixtures";
@@ -1739,11 +1740,9 @@ test("named parties add everyone directly and archive views stay separate", asyn
   } finally {
     await page.request.delete(path);
     if (partyKey) {
-      const index = await (await page.request.get("/api/parties")).json();
-      const party = index.parties.find(
-        (p: { party_key: string }) => p.party_key === partyKey,
-      );
-      if (party) {
+      const response = await page.request.get(`/api/parties/${partyKey}`);
+      if (response.ok()) {
+        const party = await response.json();
         for (const member of party.members) {
           await page.request.delete(`/api/characters/${member.character_key}`, {
             data: { expected_revision: member.character_revision },
@@ -2715,16 +2714,11 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
     await activate(page.getByRole("button", { name: label, exact: true }), info);
     const rolledResponse = await response;
     expect(rolledResponse.ok()).toBe(true);
-    const rolled = await rolledResponse.json();
+    const rolled: TableRollView = await rolledResponse.json();
     expect(rolled.outcome.total).toBeGreaterThanOrEqual(1);
     expect(rolled.outcome.total).toBeLessThanOrEqual(4);
     expect(rolled.invalid_ranges).toEqual([]);
-    expect(
-      rolled.matches.map(
-        (match: { selected: { record_key: string; embedded_path: unknown[] } }) =>
-          match.selected,
-      ),
-    ).toMatchObject([
+    expect(rolled.matches.map((match) => match.navigation)).toMatchObject([
       {
         record_key: key,
         embedded_path: [

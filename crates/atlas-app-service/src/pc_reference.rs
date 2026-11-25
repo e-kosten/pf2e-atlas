@@ -8,7 +8,7 @@ use atlas_app_model::{
     SavePcAbilityLinkRequest, SetEncounterPcReferenceRequest,
 };
 use atlas_domain::{RecordKey, SourceRecordSummary};
-use atlas_local_state::{Character, CharacterCreationIntent, PcAbilityKind, PcReference};
+use atlas_local_state::{Character, CharacterSaveIntent, PcAbilityKind, PcReference};
 use atlas_runtime::{ExactRecordRead, RuntimeError, WorkspaceRead};
 use atlas_search::{AtlasRetrievalService, GetRecordsRequest, ResolveRecordRequest};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -44,28 +44,28 @@ impl AtlasAppService {
             &request.rule_links,
         )?;
         let full = full_import_digest(&legacy, &request.json)?;
-        let intent = CharacterCreationIntent::Pathbuilder {
+        let intent = CharacterSaveIntent::Pathbuilder {
             legacy: &legacy,
             full: &full,
         };
-        if request.character_key.is_none() {
-            let recovered = self.with_state(|session| {
+        let recover = || {
+            self.with_state(|session| {
                 let characters = session.local_state()?.characters();
                 characters
-                    .creation_receipt(&request.request_id, intent)?
-                    .map(|key| crate::characters::creation_view(&characters, &key))
+                    .save_receipt(&request.request_id, intent)?
+                    .map(|key| crate::characters::character_acknowledgment(&characters, &key))
                     .transpose()
-            })?;
-            if let Some(view) = recovered {
-                return Ok(view);
-            }
+            })
+        };
+        if let Some(view) = recover()? {
+            return Ok(view);
         }
         let source = pathbuilder::source(request.json)?;
         let expected_generation = request.expected_artifact_generation.clone();
         let refresh_key = request.character_key.clone();
         let refresh_revision = request.expected_character_revision;
         let rule_links = request.rule_links;
-        let (imported, reference_revision) =
+        let prepared =
             self.with_workspace(&ReadExecutionContext::uncancellable(), move |session| {
                 require_generation(session, &expected_generation)?;
                 if let Some(key) = &refresh_key {
@@ -82,14 +82,18 @@ impl AtlasAppService {
                 }
                 resolve_import(session.retrieval(), &mut imported.reference, rule_links)?;
                 Ok((imported, session.reference_revision()?))
-            })?;
+            });
+        let (imported, reference_revision) = match prepared {
+            Ok(result) => result,
+            // Another caller may have committed this request before preparation
+            // checked its saved revision. Look again after releasing the snapshot.
+            Err(error) => return recover()?.ok_or(error),
+        };
         self.with_write(|session| {
             let state = session.local_state()?;
             let characters = state.characters();
-            if request.character_key.is_none()
-                && let Some(key) = characters.creation_receipt(&request.request_id, intent)?
-            {
-                return crate::characters::creation_view(&characters, &key);
+            if let Some(key) = characters.save_receipt(&request.request_id, intent)? {
+                return crate::characters::character_acknowledgment(&characters, &key);
             }
             session.require_reference_revision(reference_revision)?;
             let saved = if let Some(key) = &request.character_key {
@@ -124,10 +128,10 @@ impl AtlasAppService {
                     &source,
                 )?;
                 crate::characters::join_party(&state, request.party.as_ref(), &saved)?;
-                characters.record_creation(&request.request_id, intent, &saved.character_key)?;
                 saved
             };
-            crate::characters::creation_view(&characters, &saved.character_key)
+            characters.record_save(&request.request_id, intent, &saved.character_key)?;
+            crate::characters::character_acknowledgment(&characters, &saved.character_key)
         })
     }
     pub fn character(&self, key: &str) -> AppServiceResult<PcReferenceView> {

@@ -217,6 +217,11 @@ pub struct CreatureLinkPlacementView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordDetailView {
+    /// Explicit multi-field projection in declared order. Reapply it when reopening the anchor.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub selected_fields: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub has_remaster_versions: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub canonical_record: Option<RecordTitleLinkView>,

@@ -1,3 +1,4 @@
+use crate::error::Path;
 use crate::{
     error::WebError,
     service::{AtlasWebState, call_service},
@@ -6,7 +7,7 @@ use atlas_app_model::*;
 use axum::{
     Json,
     extract::{
-        Path, Query, State,
+        Query, State,
         rejection::{JsonRejection, QueryRejection},
     },
     response::IntoResponse,

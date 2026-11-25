@@ -87,11 +87,13 @@ export function usePreparedReferenceSelection(
     async function prepareDocument(
       navigation: RecordNavigationView,
       documentGeneration = selection.generation,
+      fields?: string[],
     ) {
       const options = recordDetailQueryOptions(
         navigation.record_key,
         navigation,
         documentGeneration,
+        fields,
       );
       const promise = client.fetchQuery({ ...options, retry: false });
       const sourceQuery = client
@@ -108,7 +110,11 @@ export function usePreparedReferenceSelection(
       return detail;
     }
     try {
-      const parent = await prepareDocument(selection.request.navigation);
+      const parent = await prepareDocument(
+        selection.request.navigation,
+        selection.generation,
+        selection.request.fields,
+      );
       const fallback = referenceReadingFallback(selection.request, parent);
       if (fallback) await prepareDocument(fallback, parent.artifact_generation);
       if (!isCurrent()) throw new CancelledError();

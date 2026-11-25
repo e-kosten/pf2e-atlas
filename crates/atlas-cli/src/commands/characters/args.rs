@@ -60,6 +60,9 @@ pub(crate) enum CharacterCommand {
         input: PathBuf,
         #[arg(long)]
         expected_revision: i64,
+        /// Reuse this ID when retrying the same reviewed import.
+        #[arg(long)]
+        request_id: Option<String>,
         #[command(flatten)]
         review: ImportReviewOptions,
     },

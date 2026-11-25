@@ -452,17 +452,13 @@ fn section_fields(section: CharacterSection) -> &'static [&'static str] {
 }
 
 fn resolve_character(state: &StateRead, reference: &str) -> AppServiceResult<String> {
-    let rows = state.local_state()?.characters().list()?;
-    if let Some(row) = rows.iter().find(|r| r.character_key == reference) {
-        return Ok(row.character_key.clone());
-    }
-    let candidates: Vec<_> = rows.iter().filter(|r| r.name == reference.trim()).collect();
+    let candidates = state.local_state()?.characters().candidates(reference)?;
     match candidates.as_slice() {
-        [row] => Ok(row.character_key.clone()),
+        [(key, _)] => Ok(key.clone()),
         [] => Err(atlas_local_state::LocalStateError::CharacterNotFound(reference.into()).into()),
         _ => Err(ambiguous(
             "character",
-            candidates.iter().map(|r| (&r.character_key, &r.name)),
+            candidates.iter().map(|(key, name)| (key, name)),
         )),
     }
 }

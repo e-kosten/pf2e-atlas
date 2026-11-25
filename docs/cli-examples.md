@@ -209,6 +209,10 @@ atlas lists export undead-research --output undead-research.json
 atlas lists import undead-research.json --index /path/to/destination/workspace.sqlite --json
 ```
 
+`lists create --json` returns the created key at `data.list_key` and slug at
+`data.slug`, including when the list starts empty. The receipt includes ordered
+item outcomes and counts. Use `atlas lists show KEY --json` for saved metadata.
+
 The v2 export preserves saved item order, keys, notes, and snapshots. It can be
 written to a new file without loading reference records. An existing output file is preserved. Import accepts v2 files. A new list
 imported from one of these files starts active. Use a full workspace backup to
@@ -345,8 +349,9 @@ atlas characters refresh CHARACTER_KEY character.json --expected-revision REVISI
 
 A changed file or stale revision/generation requires another review. `-` reads
 UTF-8 export text from stdin, up to 512 KiB. `--rule-link ABILITY_KEY=PACK:ID` on
-import/refresh applies reviewed ability choices. Refresh is revision guarded;
-creation replay receipts do not make refresh automatically retryable.
+import/refresh applies reviewed ability choices. To recover from a lost response
+across CLI invocations, supply `--request-id REFRESH_ID` on the first refresh
+and retry with that same ID, export, choices, revision and generation.
 
 Read or export the original text explicitly, including custom fields:
 
@@ -717,7 +722,8 @@ Browse and text search return rows, pagination, distinct-root coverage, ordering
 profile and artifact generation. The default shows the best available match per
 row. Use `--detail full` for every returned witness. Each row has an executable
 `open_args` array. Page and relationship `next_args` retain the original filter,
-workspace, seed and generation. Similar keeps its comparison evidence. Semantic
+workspace, seed and generation. Similar returns at most one match pair by default.
+Use `atlas similar ... --explain --json` for additional pairs and contributions. Semantic
 counts describe the bounded candidate window.
 
 Positive link conditions have clause IDs, limited occurrence previews and separate

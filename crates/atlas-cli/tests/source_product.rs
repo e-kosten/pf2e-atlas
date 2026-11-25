@@ -103,6 +103,107 @@ impl Drop for Fixture {
     }
 }
 #[test]
+fn rules_sections_retain_ranked_effect_and_embedded_consumable_spell_links() {
+    let f = Fixture::new();
+    let heal = "Compendium.pf2e.actions.Item.heal000000000001";
+    let effect_id = "gQnDKDeBTtjwOWAk";
+    let mut effect: Value = serde_json::from_str(include_str!(
+        "../../atlas-app-service/tests/fixtures/spell-effect-animal-form-bear.json"
+    ))
+    .unwrap();
+    effect["system"]["description"]["value"] = format!("<p>Granted by @UUID[{heal}].</p>").into();
+    let wand = serde_json::json!({"_id":"customwand000001","name":"Custom Healing Wand","type":"consumable","system":{"category":"wand",
+        "spell":{"_id":"localheal0000001","type":"spell","name":"Local Heal","flags":{"core":{"sourceId":heal}},
+            "system":{"level":{"value":1},"location":{"heightenedLevel":2},"description":{"value":"Customized healing"}}},
+        "description":{"value":format!("<p>Cast @UUID[{heal}].</p>")}}});
+    let spell = serde_json::json!({"_id":"heal000000000001","type":"spell","name":"Heal","system":{"level":{"value":1},
+        "description":{"value":format!("<p>Applies @UUID[Compendium.pf2e.actions.Item.{effect_id}].</p>")}}});
+    for (name, source) in [("wand", wand), ("spell", spell), ("effect", effect)] {
+        fs::write(
+            f.root.join(format!("packs/actions/{name}.json")),
+            source.to_string(),
+        )
+        .unwrap();
+    }
+    let built = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(built.status.success(), "{built:?}");
+    for (key, rank, target, target_rank, depth) in [
+        (
+            "actions:customwand000001",
+            None,
+            "actions:customwand000001",
+            2,
+            1,
+        ),
+        (
+            "actions:gQnDKDeBTtjwOWAk",
+            Some("4"),
+            "actions:heal000000000001",
+            4,
+            0,
+        ),
+        (
+            "actions:heal000000000001",
+            Some("4"),
+            "actions:gQnDKDeBTtjwOWAk",
+            4,
+            0,
+        ),
+    ] {
+        let mut args = vec!["record", "get", key, "--json"];
+        if let Some(rank) = rank {
+            args.extend(["--rank", rank]);
+        }
+        let read = |args: &[&str]| f.data(args)["results"][0]["value"].clone();
+        let ordinary = read(&args);
+        let contextual = &ordinary["rules"][0]["links"][0]["contextual_target"];
+        assert_eq!(contextual["record_key"], target, "{key}: {ordinary}");
+        assert_eq!(contextual["spell_rank"], target_rank);
+        assert_eq!(contextual["embedded_path"].as_array().unwrap().len(), depth);
+        if rank.is_some() {
+            assert_eq!(ordinary["identity"]["level_label"], "Rank 4");
+        }
+        if key == "actions:gQnDKDeBTtjwOWAk" {
+            for section in ["abilities", "defenses"] {
+                let mut focused = args.clone();
+                focused.extend(["--section", section]);
+                let focused = read(&focused);
+                assert_eq!(focused["identity"], ordinary["identity"]);
+                if section == "abilities" {
+                    assert_eq!(focused["sections"][section]["rules"], ordinary["rules"]);
+                }
+            }
+        }
+        for other in [
+            None,
+            Some("defenses"),
+            Some("abilities"),
+            Some("strikes"),
+            Some("spellcasting"),
+        ] {
+            let mut scoped = args.clone();
+            scoped.extend(["--section", "rules"]);
+            if let Some(other) = other {
+                scoped.extend(["--section", other]);
+            }
+            let selected = read(&scoped);
+            assert_eq!(
+                selected["identity"], ordinary["identity"],
+                "{key} {other:?}"
+            );
+            assert_eq!(
+                selected["selected"], ordinary["selected"],
+                "{key} {other:?}"
+            );
+            assert_eq!(
+                selected["sections"]["rules"], ordinary["rules"],
+                "{key} {other:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn collection_discovery_lists_members_and_suggests_the_collection_path() {
     let f = Fixture::new();
     let groups = f.data(&["filters", "fields", "--json"]);
@@ -1005,7 +1106,26 @@ fn keyword_only_cli_defaults_to_fts_and_rejects_explicit_semantic_requests() {
     let fixture = Fixture::new();
     let search = fixture.data(&["search", "Treat Wounds", "--json"]);
     assert_eq!(search["mode"]["mode"], "lexical");
-    assert!(!search["rows"].as_array().unwrap().is_empty());
+    assert_eq!(search["result_detail"], "compact");
+    let full = fixture.data(&["search", "Treat Wounds", "--detail", "full", "--json"]);
+    assert_eq!(full["result_detail"], "evidence");
+    assert_eq!(search["page"], full["page"]);
+    let compact_rows = search["rows"].as_array().unwrap();
+    let full_rows = full["rows"].as_array().unwrap();
+    assert!(!compact_rows.is_empty());
+    assert_eq!(compact_rows.len(), full_rows.len());
+    for (compact, full) in compact_rows.iter().zip(full_rows) {
+        assert_eq!(compact["navigation"], full["navigation"]);
+        let witnesses = full["matches"].as_array().unwrap();
+        let best = witnesses
+            .iter()
+            .find(|witness| !witness["preview"].is_null())
+            .or_else(|| witnesses.first())
+            .unwrap();
+        for field in ["label", "preview", "lane"] {
+            assert_eq!(compact["best_match"][field], best[field]);
+        }
+    }
     for options in [["--retrieval", "hybrid"], ["--search-profile", "bge-base"]] {
         let result = fixture.command(
             &["search", "Treat Wounds", "--json", options[0], options[1]],
@@ -1532,6 +1652,36 @@ fn record_source_errors_keep_the_same_class_in_json_and_terminal_modes() {
 }
 
 #[test]
+fn index_build_classifies_configuration_and_workspace_errors() {
+    let fixture = Fixture::new();
+    let invalid = fixture.command(
+        &[
+            "index",
+            "build",
+            "--locale",
+            " ",
+            "--no-embeddings",
+            "--json",
+        ],
+        true,
+    );
+    assert_eq!(invalid.status.code(), Some(2));
+    let error: Value = serde_json::from_slice(&invalid.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "invalid_input");
+
+    let unusable = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--no-embeddings", "--json", "--output"])
+        .arg(fixture.index.join("nested.sqlite"))
+        .arg("--source")
+        .arg(&fixture.root)
+        .output()
+        .unwrap();
+    assert_eq!(unusable.status.code(), Some(3));
+    let error: Value = serde_json::from_slice(&unusable.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "index_build_failed");
+}
+
+#[test]
 fn lists_create_batch_preserves_input_outcomes_and_rejects_existing_slug() {
     let f = Fixture::new();
     let out = f.command(
@@ -1687,8 +1837,7 @@ fn list_edit_flags_preserve_omitted_metadata_and_support_explicit_clears() {
         "Planning",
         "--json",
     ]);
-    let list = &original["list"];
-    let key = list["list_key"].as_str().unwrap();
+    let key = original["list_key"].as_str().unwrap();
     let renamed = f.data(&[
         "lists",
         "edit",
@@ -2454,7 +2603,12 @@ fn definition_lookup_uses_the_exact_key_exposed_by_filter_discovery() {
 fn create_with_records_rejects_duplicate_names_and_suffixes_distinct_names_with_the_same_slug() {
     let f = Fixture::new();
     let original = f.data(&["lists", "create", "Garden Sentries", "--json"]);
-    assert_eq!(original["list"]["slug"], "garden-sentries");
+    assert_eq!(original["slug"], "garden-sentries");
+    assert_eq!(original["created"], true);
+    assert_eq!(original["items"], serde_json::json!([]));
+    assert_eq!(original["requested_count"], 0);
+    assert!(original["list_key"].is_string());
+    assert!(original.get("retry_inputs").is_none());
     let conflict = f.command(
         &[
             "lists",
@@ -2469,10 +2623,7 @@ fn create_with_records_rejects_duplicate_names_and_suffixes_distinct_names_with_
     assert_eq!(conflict.status.code(), Some(2));
     let body: Value = serde_json::from_slice(&conflict.stdout).unwrap();
     assert_eq!(body["error"]["code"], "saved_list_name_conflict");
-    assert_eq!(
-        body["error"]["details"]["list_key"],
-        original["list"]["list_key"]
-    );
+    assert_eq!(body["error"]["details"]["list_key"], original["list_key"]);
     let distinct = f.data(&[
         "lists",
         "create",

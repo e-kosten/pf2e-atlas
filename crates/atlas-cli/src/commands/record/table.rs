@@ -26,9 +26,8 @@ pub(crate) fn run(o: RollTableOptions) -> Result<ExitCode, String> {
         Err(error) => return report_app_error(error, o.json),
     };
     let result = (|| {
-        let (identity, locator) =
-            select(&service, o.record_ref.as_deref(), o.navigation.as_deref())?;
-        let rolled = match service.roll_table(RollTableRequest {
+        let locator = select(&service, o.record_ref.as_deref(), o.navigation.as_deref())?;
+        let rolled = match service.roll_table_full(RollTableRequest {
             selection: locator.request().into_selection(),
             artifact_generation: locator.artifact_generation.clone(),
         }) {
@@ -60,7 +59,11 @@ pub(crate) fn run(o: RollTableOptions) -> Result<ExitCode, String> {
                 .iter()
                 .map(|a| Locator::new(&locator.artifact_generation, a))
                 .collect();
-            let table = json::header(&identity, &locator.artifact_generation, &locator.address);
+            let table = json::header(
+                &rolled.table,
+                &locator.artifact_generation,
+                &locator.address,
+            );
             atlas_cli_support::write_json_data(serde_json::json!({
                 "table": table,
                 "outcome": rolled.outcome,
@@ -69,7 +72,7 @@ pub(crate) fn run(o: RollTableOptions) -> Result<ExitCode, String> {
             }))
             .map_err(render_error)?;
         } else {
-            super::print_header(&identity);
+            super::print_header(&rolled.table);
             println!("{}", crate::commands::roll::render_roll(&rolled.outcome));
             if rolled.matches.is_empty() {
                 println!("No range matched the roll.");
@@ -103,7 +106,7 @@ fn select(
     service: &AtlasAppService,
     reference: Option<&str>,
     navigation: Option<&Locator>,
-) -> Result<(atlas_app_model::RecordSummaryView, Locator), AppError> {
+) -> Result<Locator, AppError> {
     if let Some(locator) = navigation {
         if locator.address.field.is_some()
             || locator.address.passage.is_some()
@@ -114,10 +117,7 @@ fn select(
                 "Choose a table document to roll.",
             ));
         }
-        let (record, _) = service
-            .record_read_at(locator.request())
-            .map_err(|e| e.into_app_error())?;
-        return Ok((record.presentation.identity, locator.clone()));
+        return Ok(locator.clone());
     }
     let reference =
         reference.ok_or_else(|| AppError::new(AppErrorCode::InvalidRequest, "Choose a table."))?;
@@ -141,5 +141,5 @@ fn select(
         (generation, unique_match(rows, 5)?.record)
     };
     let navigation = Locator::new(&generation, &navigation::root(&record.record_key));
-    Ok((record, navigation))
+    Ok(navigation)
 }

@@ -11,8 +11,9 @@ import { PathbuilderImport } from "./PathbuilderImport";
 const api = vi.hoisted(() => ({
   createCharacter: vi.fn(),
   getParties: vi.fn(),
+  getParty: vi.fn(),
   getCharacters: vi.fn(),
-  getEncounter: vi.fn(),
+  getEncounterRevision: vi.fn(),
   addEncounterCharacter: vi.fn(),
   previewPathbuilderPc: vi.fn(),
   savePathbuilderPc: vi.fn(),
@@ -49,8 +50,11 @@ it("reviews the latest party revision without discarding an inline character dra
   api.createCharacter
     .mockRejectedValueOnce(new AtlasApiError(409, "Party changed"))
     .mockResolvedValue({ character_key: "pc-new", available: true });
-  api.getParties.mockResolvedValue({
-    parties: [{ party_key: "party", name: "Current group", revision: 5, members: [] }],
+  api.getParty.mockResolvedValue({
+    party_key: "party",
+    name: "Current group",
+    revision: 5,
+    members: [],
   });
   const saved = vi.fn();
   render(
@@ -167,7 +171,7 @@ it("retries only the roster read after a confirmed add, then starts a new reques
     participant_key: "p",
     available: true,
   });
-  api.getEncounter
+  api.getEncounterRevision
     .mockRejectedValueOnce(new Error("Roster read interrupted"))
     .mockResolvedValue({ revision: 6 });
   const closed = vi.fn();
@@ -216,7 +220,7 @@ it("keeps the party picker open and reviews a lost membership response without r
     members: [{ ...aster, character_revision: aster.revision }],
   };
   api.getCharacters.mockResolvedValue({ characters: [aster, bram] });
-  api.getParties.mockResolvedValue({ parties: [revised] });
+  api.getParty.mockResolvedValue(revised);
   api.updateParty.mockRejectedValueOnce(new Error("Response lost")).mockResolvedValue({
     ...revised,
     revision: 6,
@@ -303,6 +307,9 @@ it("reviews retained rule corrections and refreshes a stale revision without los
   fireEvent.click(screen.getByRole("button", { name: "Update character" }));
   await waitFor(() => expect(saved).toHaveBeenCalledWith("c"));
   expect(api.savePathbuilderPc.mock.calls[0][0].expected_character_revision).toBe(2);
+  expect(api.savePathbuilderPc.mock.calls[1][0].request_id).not.toBe(
+    api.savePathbuilderPc.mock.calls[0][0].request_id,
+  );
   expect(api.savePathbuilderPc.mock.calls[1][0]).toEqual(
     expect.objectContaining({
       json: "{}",

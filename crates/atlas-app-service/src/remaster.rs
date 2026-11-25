@@ -233,7 +233,7 @@ fn source_context(
             retrieval.read_non_content_relationships(&atlas_search::SourceRelationshipRequest {
                 record: key,
                 owners: Some(selection.owners.clone()),
-                field: None,
+                fields: vec![],
                 direction: atlas_search::SourceRelationshipDirection::Outgoing,
                 limit: 1024,
             })?;

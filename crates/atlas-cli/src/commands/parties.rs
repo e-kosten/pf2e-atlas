@@ -122,7 +122,8 @@ pub(crate) fn run(args: PartiesArgs) -> Result<ExitCode, String> {
         Err(e) => return super::product::report_app_error(e, json),
     };
     match args.command {
-        PartyCommand::List => respond(service.parties(), json, |view| {
+        PartyCommand::List if json => super::saved_workspace::respond_json(service.parties()),
+        PartyCommand::List => respond(service.party_directory(), false, |view| {
             if view.parties.is_empty() {
                 return "No saved parties.\n".into();
             }
@@ -131,10 +132,7 @@ pub(crate) fn run(args: PartiesArgs) -> Result<ExitCode, String> {
                 .map(|p| {
                     format!(
                         "{} · {} characters\n  {}  revision {}\n",
-                        p.name,
-                        p.members.len(),
-                        p.party_key,
-                        p.revision
+                        p.name, p.member_count, p.party_key, p.revision
                     )
                 })
                 .collect()

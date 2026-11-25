@@ -128,6 +128,7 @@ pub(super) fn project<'a>(
         })
         .collect::<Vec<_>>();
     let mut view = EncounterDifficultyView {
+        addition_generation: None,
         prepared_creature_choice: None,
         rules: rule_references(),
         reference: EncounterDifficultyReferenceView {

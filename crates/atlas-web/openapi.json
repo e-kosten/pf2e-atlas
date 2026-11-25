@@ -3994,6 +3994,29 @@
         ],
         "type": "object"
       },
+      "CreatureAdditionContextView": {
+        "properties": {
+          "adjustment": {
+            "$ref": "#/components/schemas/EncounterParticipantVariantView"
+          },
+          "artifact_generation": {
+            "type": "string"
+          },
+          "has_scenario_uses": {
+            "type": "boolean"
+          },
+          "record_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_key",
+          "artifact_generation",
+          "has_scenario_uses",
+          "adjustment"
+        ],
+        "type": "object"
+      },
       "CreatureDisplayView": {
         "properties": {
           "qualifiers": {
@@ -5267,6 +5290,29 @@
         ],
         "type": "object"
       },
+      "EncounterAdditionContextView": {
+        "properties": {
+          "artifact_generation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/EncounterDifficultyView"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "artifact_generation",
+          "difficulty"
+        ],
+        "type": "object"
+      },
       "EncounterAdjustmentAction": {
         "oneOf": [
           {
@@ -6134,6 +6180,10 @@
       },
       "EncounterDifficultyView": {
         "properties": {
+          "addition_generation": {
+            "description": "Reference generation used to preview a record addition to a saved encounter.",
+            "type": "string"
+          },
           "award_note": {
             "type": [
               "string",
@@ -7088,6 +7138,18 @@
         "required": [
           "artifact_generation",
           "selection"
+        ],
+        "type": "object"
+      },
+      "EncounterRevisionView": {
+        "properties": {
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
         ],
         "type": "object"
       },
@@ -11081,34 +11143,6 @@
           }
         ]
       },
-      "GraphSectionView": {
-        "properties": {
-          "filter": {
-            "$ref": "#/components/schemas/QueryPredicate"
-          },
-          "occurrences": {
-            "items": {
-              "$ref": "#/components/schemas/RecordRelationshipView"
-            },
-            "type": "array"
-          },
-          "records": {
-            "items": {
-              "$ref": "#/components/schemas/RecordSummaryView"
-            },
-            "type": "array"
-          },
-          "truncated": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "records",
-          "occurrences",
-          "truncated"
-        ],
-        "type": "object"
-      },
       "HazardPresentationView": {
         "properties": {
           "actor": {
@@ -11735,10 +11769,12 @@
         "description": "Select the FTS columns and the interpretation of the final token independently.",
         "properties": {
           "fields": {
-            "$ref": "#/components/schemas/LexicalFields"
+            "$ref": "#/components/schemas/LexicalFields",
+            "default": "all"
           },
           "match": {
-            "$ref": "#/components/schemas/LexicalMatch"
+            "$ref": "#/components/schemas/LexicalMatch",
+            "default": "complete_terms"
           }
         },
         "type": "object"
@@ -12119,6 +12155,20 @@
         ],
         "type": "object"
       },
+      "PartyDirectoryView": {
+        "properties": {
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/PartySummaryView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "parties"
+        ],
+        "type": "object"
+      },
       "PartyIndexView": {
         "properties": {
           "parties": {
@@ -12185,6 +12235,32 @@
         },
         "required": [
           "party_key"
+        ],
+        "type": "object"
+      },
+      "PartySummaryView": {
+        "properties": {
+          "member_count": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "party_key": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "party_key",
+          "name",
+          "revision",
+          "member_count"
         ],
         "type": "object"
       },
@@ -15421,6 +15497,9 @@
           "equipment_family": {
             "$ref": "#/components/schemas/EquipmentFamilyReferenceView"
           },
+          "has_remaster_versions": {
+            "type": "boolean"
+          },
           "named_creature_links": {
             "$ref": "#/components/schemas/NamedCreatureLinksView"
           },
@@ -15445,6 +15524,13 @@
           },
           "selected": {
             "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "selected_fields": {
+            "description": "Explicit multi-field projection in declared order. Reapply it when reopening the anchor.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "source_remaster_context": {
             "$ref": "#/components/schemas/RelatedCategoryView_RemasterSourceContextView"
@@ -16163,27 +16249,30 @@
         ],
         "type": "object"
       },
-      "RelatedCategoryView_GraphContextView": {
+      "RelatedCategoryView_RelatedReferencesView": {
         "description": "Loading belongs to the client request lifecycle; errors and unavailable evidence are not empty.",
         "oneOf": [
           {
             "properties": {
               "content": {
                 "properties": {
-                  "backlinks": {
-                    "$ref": "#/components/schemas/GraphSectionView"
+                  "additional_outgoing": {
+                    "items": {
+                      "$ref": "#/components/schemas/RecordRelationshipView"
+                    },
+                    "type": "array"
+                  },
+                  "incoming": {
+                    "type": "boolean"
                   },
                   "outgoing": {
-                    "$ref": "#/components/schemas/GraphSectionView"
-                  },
-                  "seed": {
-                    "$ref": "#/components/schemas/RecordSummaryView"
+                    "type": "boolean"
                   }
                 },
                 "required": [
-                  "seed",
+                  "incoming",
                   "outgoing",
-                  "backlinks"
+                  "additional_outgoing"
                 ],
                 "type": "object"
               },
@@ -16563,22 +16652,13 @@
             "$ref": "#/components/schemas/VariantFamilyView"
           },
           "references": {
-            "$ref": "#/components/schemas/RelatedCategoryView_GraphContextView"
-          },
-          "remaster_relationships": {
-            "$ref": "#/components/schemas/RelatedCategoryView_RemasterRelationshipsView"
-          },
-          "seed": {
-            "$ref": "#/components/schemas/RecordSummaryView"
+            "$ref": "#/components/schemas/RelatedCategoryView_RelatedReferencesView"
           },
           "selection": {
             "$ref": "#/components/schemas/RecordNavigationView"
           },
           "show_versions": {
             "type": "boolean"
-          },
-          "source_remaster_context": {
-            "$ref": "#/components/schemas/RelatedCategoryView_RemasterSourceContextView"
           },
           "variants": {
             "$ref": "#/components/schemas/RelatedCategoryView_VariantGroupView"
@@ -16588,9 +16668,7 @@
           "show_versions",
           "selection",
           "artifact_generation",
-          "seed",
           "references",
-          "remaster_relationships",
           "variants"
         ],
         "type": "object"
@@ -16879,6 +16957,22 @@
         },
         "required": [
           "record_ref"
+        ],
+        "type": "object"
+      },
+      "RenamePartyRequest": {
+        "properties": {
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "name"
         ],
         "type": "object"
       },
@@ -17962,7 +18056,8 @@
               "similarity": {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/SimilarityOptionsInputSchema"
+                    "$ref": "#/components/schemas/SimilarityOptionsInputSchema",
+                    "description": "Omission or null uses passage similarity, decay 0.5, and any candidate part."
                   },
                   {
                     "type": "null"
@@ -18031,7 +18126,15 @@
                 "type": "string"
               },
               "lexical": {
-                "$ref": "#/components/schemas/LexicalOptions"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/LexicalOptions",
+                    "description": "Omission and null both use all lexical fields and complete terms."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "mode": {
                 "$ref": "#/components/schemas/RetrievalModeView"
@@ -18154,12 +18257,13 @@
         "properties": {
           "number": {
             "format": "int32",
-            "minimum": 0,
+            "minimum": 1,
             "type": "integer"
           },
           "size": {
             "format": "int32",
-            "minimum": 0,
+            "maximum": 100,
+            "minimum": 1,
             "type": "integer"
           }
         },
@@ -18250,8 +18354,10 @@
         "type": "string"
       },
       "SearchResultDetail": {
+        "description": "Amount of evidence to materialize after ranking a result page.",
         "enum": [
           "records",
+          "compact",
           "evidence"
         ],
         "type": "string"
@@ -18319,13 +18425,18 @@
             "$ref": "#/components/schemas/SearchPageView"
           },
           "ranking": {
-            "$ref": "#/components/schemas/SearchRanking"
+            "$ref": "#/components/schemas/SearchRanking",
+            "description": "Fusion method used by hybrid text retrieval. Other retrieval modes do not apply it."
           },
           "relationship_clauses": {
             "items": {
               "$ref": "#/components/schemas/RelationshipClauseSummaryView"
             },
             "type": "array"
+          },
+          "result_detail": {
+            "$ref": "#/components/schemas/SearchResultDetail",
+            "description": "Effective post-ranking projection for this page."
           },
           "rows": {
             "items": {
@@ -18347,6 +18458,7 @@
           }
         },
         "required": [
+          "result_detail",
           "search_content",
           "sort",
           "relationship_clauses",
@@ -18397,12 +18509,14 @@
           },
           "result_detail": {
             "$ref": "#/components/schemas/SearchResultDetail",
+            "default": "records",
             "description": "Selects the post-ranking evidence supplied with each record."
           },
           "search_profile": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/SearchProfileId"
+                "$ref": "#/components/schemas/SearchProfileId",
+                "description": "Omission uses the configured profile, otherwise the sole stored profile or bge-base when both are stored."
               },
               {
                 "type": "null"
@@ -18412,7 +18526,8 @@
           "sort": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/ResultSort"
+                "$ref": "#/components/schemas/ResultSort",
+                "description": "Omission orders browsing by name ascending, and text or Similar results by relevance."
               },
               {
                 "type": "null"
@@ -19098,10 +19213,14 @@
             "additionalProperties": false,
             "properties": {
               "candidate_parts": {
-                "$ref": "#/components/schemas/SimilarityCandidateParts"
+                "$ref": "#/components/schemas/SimilarityCandidateParts",
+                "default": "any"
               },
               "decay": {
+                "default": 0.5,
                 "format": "double",
+                "maximum": 1,
+                "minimum": 0,
                 "type": "number"
               },
               "method": {
@@ -19132,7 +19251,8 @@
             "additionalProperties": false,
             "properties": {
               "candidate_parts": {
-                "$ref": "#/components/schemas/SimilarityCandidateParts"
+                "$ref": "#/components/schemas/SimilarityCandidateParts",
+                "default": "any"
               },
               "method": {
                 "enum": [
@@ -19180,10 +19300,14 @@
             "additionalProperties": false,
             "properties": {
               "candidate_parts": {
-                "$ref": "#/components/schemas/SimilarityCandidateParts"
+                "$ref": "#/components/schemas/SimilarityCandidateParts",
+                "default": "any"
               },
               "decay": {
+                "default": 0.5,
                 "format": "double",
+                "maximum": 1,
+                "minimum": 0,
                 "type": "number"
               },
               "method": {
@@ -19211,7 +19335,8 @@
             "additionalProperties": false,
             "properties": {
               "candidate_parts": {
-                "$ref": "#/components/schemas/SimilarityCandidateParts"
+                "$ref": "#/components/schemas/SimilarityCandidateParts",
+                "default": "any"
               },
               "method": {
                 "enum": [
@@ -20617,6 +20742,35 @@
         ],
         "type": "object"
       },
+      "TableRollMatchView": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/PreparedContentFieldView"
+            },
+            "type": "array"
+          },
+          "navigation": {
+            "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/RecordRelationshipView"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "navigation",
+          "content",
+          "relationships"
+        ],
+        "type": "object"
+      },
       "TableRollView": {
         "properties": {
           "invalid_ranges": {
@@ -20627,7 +20781,7 @@
           },
           "matches": {
             "items": {
-              "$ref": "#/components/schemas/RecordDetailView"
+              "$ref": "#/components/schemas/TableRollMatchView"
             },
             "type": "array"
           },
@@ -21073,6 +21227,7 @@
             "type": "integer"
           },
           "level": {
+            "description": "Omit to keep the current level, or send null to clear it.",
             "format": "int64",
             "type": [
               "integer",
@@ -22494,6 +22649,7 @@
         "operationId": "deleteEncounter",
         "parameters": [
           {
+            "description": "Stable key or current slug.",
             "in": "path",
             "name": "encounter_ref",
             "required": true,
@@ -22539,6 +22695,7 @@
         "operationId": "encounter",
         "parameters": [
           {
+            "description": "Stable key or current slug.",
             "in": "path",
             "name": "encounter_ref",
             "required": true,
@@ -22584,6 +22741,7 @@
         "operationId": "updateEncounter",
         "parameters": [
           {
+            "description": "Stable key returned by GET. Fetch by slug first if needed.",
             "in": "path",
             "name": "encounter_ref",
             "required": true,
@@ -22608,6 +22766,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EncounterMutationView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/encounters/{encounter_ref}/addition-context": {
+      "get": {
+        "operationId": "encounterAdditionContext",
+        "parameters": [
+          {
+            "description": "Stable key or current slug.",
+            "in": "path",
+            "name": "encounter_ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncounterAdditionContextView"
                 }
               }
             },
@@ -23703,6 +23909,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Encounter revision used for the reviewed addition.",
+            "in": "query",
+            "name": "expected_revision",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Reference generation returned by the addition preview.",
+            "in": "query",
+            "name": "expected_artifact_generation",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -24325,11 +24550,12 @@
             }
           },
           {
+            "description": "Decimal signed 64-bit integer (-9223372036854775808 through 9223372036854775807).",
             "in": "path",
             "name": "condition_id",
             "required": true,
             "schema": {
-              "pattern": "^-?[0-9]+$",
+              "pattern": "^[+-]?[0-9]+$",
               "type": "string"
             }
           }
@@ -24397,11 +24623,12 @@
             }
           },
           {
+            "description": "Decimal signed 64-bit integer (-9223372036854775808 through 9223372036854775807).",
             "in": "path",
             "name": "condition_id",
             "required": true,
             "schema": {
-              "pattern": "^-?[0-9]+$",
+              "pattern": "^[+-]?[0-9]+$",
               "type": "string"
             }
           }
@@ -24471,11 +24698,12 @@
             }
           },
           {
+            "description": "Decimal signed 64-bit integer (-9223372036854775808 through 9223372036854775807).",
             "in": "path",
             "name": "condition_id",
             "required": true,
             "schema": {
-              "pattern": "^-?[0-9]+$",
+              "pattern": "^[+-]?[0-9]+$",
               "type": "string"
             }
           }
@@ -25380,6 +25608,54 @@
         }
       }
     },
+    "/api/encounters/{encounter_ref}/revision": {
+      "get": {
+        "operationId": "encounterRevision",
+        "parameters": [
+          {
+            "description": "Stable key or current slug.",
+            "in": "path",
+            "name": "encounter_ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncounterRevisionView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
     "/api/encounters/{encounter_ref}/strike-context": {
       "post": {
         "operationId": "previewEncounterStrikeContext",
@@ -26042,6 +26318,7 @@
         "operationId": "deleteSavedList",
         "parameters": [
           {
+            "description": "Stable key or current slug.",
             "in": "path",
             "name": "list_ref",
             "required": true,
@@ -26087,6 +26364,7 @@
         "operationId": "savedList",
         "parameters": [
           {
+            "description": "Stable key or current slug.",
             "in": "path",
             "name": "list_ref",
             "required": true,
@@ -26132,6 +26410,7 @@
         "operationId": "updateSavedList",
         "parameters": [
           {
+            "description": "Stable key returned by GET. Fetch by slug first if needed.",
             "in": "path",
             "name": "list_ref",
             "required": true,
@@ -26213,6 +26492,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SavedListDetailView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/lists/{list_ref}/header": {
+      "get": {
+        "operationId": "savedListHeader",
+        "parameters": [
+          {
+            "description": "Saved list key or slug",
+            "in": "path",
+            "name": "list_ref",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedListSummaryView"
                 }
               }
             },
@@ -26536,7 +26863,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PartyIndexView"
+                  "$ref": "#/components/schemas/PartyDirectoryView"
                 }
               }
             },
@@ -26582,6 +26909,43 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PartyView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/parties/rosters": {
+      "get": {
+        "operationId": "partyRosters",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyIndexView"
                 }
               }
             },
@@ -26666,6 +27030,52 @@
           }
         }
       },
+      "get": {
+        "operationId": "partyRoster",
+        "parameters": [
+          {
+            "description": "Stable party key",
+            "in": "path",
+            "name": "party_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      },
       "patch": {
         "operationId": "updateParty",
         "parameters": [
@@ -26683,6 +27093,64 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdatePartyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartyView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/parties/{party_key}/name": {
+      "patch": {
+        "operationId": "renameParty",
+        "parameters": [
+          {
+            "description": "Stable party key",
+            "in": "path",
+            "name": "party_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenamePartyRequest"
               }
             }
           },
@@ -26876,6 +27344,54 @@
               }
             },
             "description": "Record detail"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/records/{record_key}/creature-addition": {
+      "get": {
+        "operationId": "creatureAdditionContext",
+        "parameters": [
+          {
+            "description": "Stable record key.",
+            "in": "path",
+            "name": "record_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatureAdditionContextView"
+                }
+              }
+            },
+            "description": "Successful response"
           },
           "409": {
             "content": {

@@ -4,7 +4,7 @@ use atlas_app_model::{
     CharacterSummaryView, CreateCharacterRequest, DeleteCharacterRequest, UpdateCharacterRequest,
 };
 use atlas_local_state::{
-    Character, CharacterCreationIntent, CharactersRead, LocalStateError, LocalStateWrite,
+    Character, CharacterSaveIntent, CharactersRead, LocalStateError, LocalStateWrite,
     PartyMemberInput,
 };
 use serde::Serialize;
@@ -29,12 +29,12 @@ impl AtlasAppService {
         request: CreateCharacterRequest,
     ) -> AppServiceResult<CharacterMutationView> {
         let digest = intent_digest(&(request.name.trim(), request.level, &request.party))?;
-        let intent = CharacterCreationIntent::Legacy(&digest);
+        let intent = CharacterSaveIntent::Legacy(&digest);
         self.with_write(|session| {
             let state = session.local_state()?;
             let characters = state.characters();
-            if let Some(key) = characters.creation_receipt(&request.request_id, intent)? {
-                return creation_view(&characters, &key);
+            if let Some(key) = characters.save_receipt(&request.request_id, intent)? {
+                return character_acknowledgment(&characters, &key);
             }
             if let Some(party) = &request.party {
                 state
@@ -43,8 +43,8 @@ impl AtlasAppService {
             }
             let character = characters.create(&request.name, request.level, None)?;
             join_party(&state, request.party.as_ref(), &character)?;
-            characters.record_creation(&request.request_id, intent, &character.character_key)?;
-            creation_view(&characters, &character.character_key)
+            characters.record_save(&request.request_id, intent, &character.character_key)?;
+            character_acknowledgment(&characters, &character.character_key)
         })
     }
     pub fn update_character(
@@ -56,7 +56,7 @@ impl AtlasAppService {
             key,
             request.expected_revision,
             Some(request.name),
-            Some(request.level),
+            request.level,
         )
     }
     pub fn delete_character(
@@ -95,7 +95,7 @@ pub(super) fn character_summary(
             .collect(),
     }
 }
-pub(super) fn creation_view(
+pub(super) fn character_acknowledgment(
     characters: &CharactersRead<'_>,
     key: &str,
 ) -> AppServiceResult<CharacterMutationView> {

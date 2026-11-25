@@ -167,6 +167,16 @@ pub(crate) enum RecordSection {
 }
 
 impl RecordSection {
+    pub(super) fn read_section(self) -> atlas_app_service::RecordReadSection {
+        use atlas_app_service::RecordReadSection as Read;
+        match self {
+            Self::Rules => Read::Rules,
+            Self::Defenses => Read::Defenses,
+            Self::Strikes => Read::Strikes,
+            Self::Abilities => Read::Abilities,
+            Self::Spellcasting => Read::Spellcasting,
+        }
+    }
     pub(super) fn name(self) -> &'static str {
         match self {
             Self::Rules => "rules",

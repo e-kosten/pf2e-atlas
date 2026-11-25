@@ -68,7 +68,7 @@ export function RollTableReading({
   useEffect(() => () => window.clearTimeout(highlightTimer.current), []);
   const receiveResult = useCallback((next: TableRollView | undefined) => {
     setResult(next);
-    setHighlight(next?.matches.map((match) => address(match.selected)) ?? []);
+    setHighlight(next?.matches.map((match) => address(match.navigation)) ?? []);
     window.clearTimeout(highlightTimer.current);
     if (next) highlightTimer.current = window.setTimeout(() => setHighlight([]), 2400);
   }, []);
@@ -96,16 +96,9 @@ export function RollTableReading({
         onResult={receiveResult}
       />
       {matches.map((match) => (
-        <section key={address(match.selected)} className="roll-table-result-summary">
-          <strong>{match.presentation.identity.title}</strong>
-          <TableResultContent
-            entry={{
-              navigation: match.selected,
-              content: match.presentation.content,
-              relationships: match.relationships,
-            }}
-            onReference={onReference}
-          />
+        <section key={address(match.navigation)} className="roll-table-result-summary">
+          <strong>{match.title}</strong>
+          <TableResultContent entry={match} onReference={onReference} />
         </section>
       ))}
       <Table

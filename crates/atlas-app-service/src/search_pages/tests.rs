@@ -125,6 +125,47 @@ fn selected_profile_is_request_local_and_stored_similar_and_lexical_need_no_mode
 }
 
 #[test]
+fn lexical_page_uses_one_snapshot_and_checks_its_generation_before_connection_scope() {
+    let (fixture, executor) = fixture(false);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let mut lexical = request(
+        SearchCriteria::TextSearch {
+            query: "Rec".into(),
+            mode: RetrievalModeView::Lexical,
+            filter: None,
+            search_content: None,
+            lexical: Some(atlas_domain::LexicalOptions {
+                fields: atlas_domain::LexicalFields::RecordNames,
+                matching: atlas_domain::LexicalMatch::LastTokenPrefix,
+            }),
+        },
+        1,
+    );
+    executor.fail_after_submissions(1);
+    let page = fixture
+        .worker
+        .search_page(lexical.clone(), &execution)
+        .unwrap();
+    assert_eq!(page.page.total, 4);
+    assert_eq!(executor.remaining_submission_budget(), Some(0));
+    let mut parent = static_parent(lexical.clone());
+    parent.exclude_clause_id = Some("missing".into());
+    lexical.connection_scope = Some(atlas_app_model::SearchConnectionScope {
+        parent,
+        direction: atlas_domain::QueryRelationshipDirection::Incoming,
+        include_contents: true,
+    });
+    lexical.expected_artifact_generation = Some("stale".into());
+    executor.fail_after_submissions(1);
+    let error = fixture
+        .worker
+        .search_page(lexical, &execution)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
+}
+
+#[test]
 fn selected_contextual_facets_reject_stale_generation_before_query_inference() {
     let (worker, _) = fixture(true);
     let error = worker
@@ -561,6 +602,22 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
         )
         .unwrap();
     let records_reads = f.worker.last_read_metrics();
+    let compact = f
+        .worker
+        .search_page(
+            SearchResultsRequest {
+                result_detail: atlas_domain::SearchResultDetail::Compact,
+                ..criteria.clone()
+            },
+            &execution,
+        )
+        .unwrap();
+    assert_eq!(compact.rows, result.rows);
+    assert_eq!(compact.page, result.page);
+    assert_eq!(
+        compact.result_detail,
+        atlas_domain::SearchResultDetail::Compact
+    );
     assert_eq!(records.page, result.page);
     assert_eq!(records.relationship_clauses, result.relationship_clauses);
     assert_eq!(records.rows[0].record, result.rows[0].record);

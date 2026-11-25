@@ -43,7 +43,19 @@ pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String>
             std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
         if o.json {
-            write_json_data(&view)?;
+            return emit_batch(
+                Ok(BatchSavedListItemMutationView {
+                    list_key: view.list.list_key,
+                    slug: view.list.slug,
+                    requested_count: 0,
+                    added_count: 0,
+                    already_present_count: 0,
+                    failed_count: 0,
+                    items: Vec::new(),
+                }),
+                true,
+                true,
+            );
         } else {
             println!("Created {} ({})", view.list.name, view.list.slug);
         }

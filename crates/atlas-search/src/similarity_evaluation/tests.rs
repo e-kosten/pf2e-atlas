@@ -116,7 +116,7 @@ fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
         for (variant, run) in variants.iter().zip(&exact.runs) {
             let product = service
                 .configurable_similar(ConfigurableSimilarRequest {
-                    include_evidence: true,
+                    result_detail: atlas_domain::SearchResultDetail::Evidence,
                     source_sections: None,
                     content_scope: atlas_domain::SearchContentScope::All,
                     seed: &seed,
@@ -298,7 +298,7 @@ fn direct_oracle_finds_a_winner_absent_from_every_bounded_knn_lane() {
         .collect::<Vec<_>>();
     let bounded = service
         .configurable_similar(ConfigurableSimilarRequest {
-            include_evidence: true,
+            result_detail: atlas_domain::SearchResultDetail::Evidence,
             source_sections: None,
             content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
@@ -516,7 +516,7 @@ fn exact_custom_identity_is_scored_and_versioned_instead_of_silently_dropped() {
         assert!(exact.runs[0].rows[0].parts[0].part.is_identity());
         let product = service
             .configurable_similar(ConfigurableSimilarRequest {
-                include_evidence: true,
+                result_detail: atlas_domain::SearchResultDetail::Evidence,
                 seed: &seed,
                 options: &variants[0].options,
                 source_sections: None,

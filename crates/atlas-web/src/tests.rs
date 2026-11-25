@@ -810,7 +810,14 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
             )
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+        assert_eq!(
+            response.status(),
+            if cfg!(feature = "embedded-ui") {
+                StatusCode::METHOD_NOT_ALLOWED
+            } else {
+                StatusCode::NOT_FOUND
+            }
+        );
     }
 }
 
@@ -831,10 +838,37 @@ async fn omitted_and_explicit_records_return_the_same_page_without_match_evidenc
         .json(Method::POST, "/api/search/page", Some(request.clone()))
         .await;
     assert_eq!(implicit, explicit);
+    assert_eq!(implicit["result_detail"], "records");
+    request["result_detail"] = json!("compact");
+    let (status, compact) = fixture
+        .json(Method::POST, "/api/search/page", Some(request.clone()))
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(compact["result_detail"], "compact");
+    assert_eq!(compact["page"], explicit["page"]);
     request["result_detail"] = json!("evidence");
     let (_, evidence) = fixture
         .json(Method::POST, "/api/search/page", Some(request.clone()))
         .await;
+    assert_eq!(evidence["result_detail"], "evidence");
+    for (compact, full) in compact["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(evidence["rows"].as_array().unwrap())
+    {
+        assert_eq!(compact["record"], full["record"]);
+        let witnesses = full["matches"].as_array().unwrap();
+        let best = witnesses
+            .iter()
+            .find(|w| !w["preview"].is_null())
+            .or_else(|| witnesses.first());
+        assert_eq!(
+            compact["matches"].as_array().unwrap(),
+            &best.into_iter().cloned().collect::<Vec<_>>()
+        );
+        assert!(compact.get("matching_sections").is_none());
+    }
     assert_eq!(explicit["page"], evidence["page"]);
     assert_eq!(explicit["coverage"], evidence["coverage"]);
     assert_eq!(
@@ -1546,6 +1580,111 @@ async fn saved_list_reorder_route_uses_path_identity_and_strict_placement() {
         let (status, body) = fixture.json(Method::POST, &path, Some(invalid)).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
         assert_eq!(body["code"], "invalid_request");
+    }
+}
+
+#[tokio::test]
+async fn saved_metadata_edits_follow_keys_across_slug_reuse() {
+    let fixture = Fixture::new();
+    for (collection, domain, original, key_name, key) in [
+        ("lists", "list", "research", "list_key", &fixture.list_key),
+        (
+            "encounters",
+            "encounter",
+            "ambush",
+            "encounter_key",
+            &fixture.encounter_key,
+        ),
+    ] {
+        let base = format!("/api/{collection}");
+        let by_slug = format!("{base}/{original}");
+        let by_key = format!("{base}/{key}");
+        let (ok, read) = fixture.json(Method::GET, &by_slug, None).await;
+        assert_eq!(ok, StatusCode::OK);
+        assert_eq!(read[domain][key_name], key.as_str());
+        let edit = json!({"slug": {"expected": original, "value": "renamed"}, "name": {"expected": read[domain]["name"], "value":"Renamed resource"}});
+        let (miss, _) = fixture
+            .json(Method::PATCH, &by_slug, Some(edit.clone()))
+            .await;
+        assert_eq!(miss, StatusCode::NOT_FOUND);
+        assert_eq!(
+            fixture.json(Method::PATCH, &by_key, Some(edit)).await.0,
+            StatusCode::OK
+        );
+        let create = if collection == "lists" {
+            json!({"name":"New list", "slug":original})
+        } else {
+            json!({"name": "Ambush"})
+        };
+        let (ok, new) = fixture.json(Method::POST, &base, Some(create)).await;
+        assert_eq!(ok, StatusCode::OK, "{new}");
+        let replacement_key = new[domain][key_name].as_str().unwrap();
+        assert_ne!(replacement_key, key);
+        let (ok, deleted) = fixture.json(Method::DELETE, &by_slug, None).await;
+        assert_eq!(ok, StatusCode::OK, "{deleted}");
+        assert_eq!(deleted[key_name], replacement_key);
+        let (ok, deleted) = fixture.json(Method::DELETE, &by_key, None).await;
+        assert_eq!(ok, StatusCode::OK, "{deleted}");
+        assert_eq!(deleted[key_name], key.as_str());
+    }
+}
+
+#[tokio::test]
+async fn search_page_bounds_and_lexical_defaults_match_the_request_contract() {
+    let fixture = Fixture::new();
+    let text = json!({"kind":"text_search", "query":"Record", "mode":"lexical"});
+    let mut baseline = None;
+    for lexical in [
+        None,
+        Some(json!(null)),
+        Some(json!({"fields":"all","match":"complete_terms"})),
+    ] {
+        let mut criteria = text.clone();
+        if let Some(value) = lexical {
+            criteria["lexical"] = value;
+        }
+        let (status, page) = fixture
+            .json(
+                Method::POST,
+                "/api/search/page",
+                Some(json!({"criteria":criteria,"page":{"number":1,"size":100}})),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{page}");
+        assert_eq!(page["result_detail"], "records");
+        assert_eq!(baseline.get_or_insert_with(|| page.clone()), &page);
+    }
+    for (number, size, expected) in [
+        (1, 1, StatusCode::OK),
+        (0, 1, StatusCode::BAD_REQUEST),
+        (1, 0, StatusCode::BAD_REQUEST),
+        (1, 101, StatusCode::BAD_REQUEST),
+    ] {
+        let (status, page) = fixture
+            .json(
+                Method::POST,
+                "/api/search/page",
+                Some(json!({"criteria":text,"page":{"number":number,"size":size}})),
+            )
+            .await;
+        assert_eq!(status, expected, "{page}");
+    }
+}
+
+#[tokio::test]
+async fn malformed_url_parameters_return_app_errors() {
+    let fixture = Fixture::without_reference();
+    for (method, path) in [
+        (
+            Method::PATCH,
+            "/api/encounters/example/participants/example/conditions/9223372036854775808",
+        ),
+        (Method::GET, "/api/lists?include_archived=maybe"),
+        (Method::GET, "/api/lists/%FF"),
+    ] {
+        let (status, body) = fixture.json(method, path, None).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request", "{body}");
     }
 }
 
@@ -2636,11 +2775,8 @@ async fn compact_remaster_context_crosses_record_and_related_http_with_exact_jou
     let (status,related)=fixture.json(Method::POST,"/api/related",Some(json!({"selection":detail.selected,"artifact_generation":detail.artifact_generation}))).await;
     assert_eq!(status, StatusCode::OK, "{related}");
     let decoded: atlas_app_model::RelatedRecordsView = serde_json::from_value(related).unwrap();
-    assert!(decoded.show_versions);
-    assert_eq!(
-        decoded.remaster_relationships,
-        detail.remaster_relationships
-    );
+    assert!(detail.has_remaster_versions);
+    assert_eq!(decoded.selection, detail.selected);
     let (status,journal)=fixture.json(Method::POST,"/api/records/detail",Some(json!({"record_key":navigation["record_key"],"embedded_path":navigation["embedded_path"],"fields":[navigation["field"]]}))).await;
     assert_eq!(status, StatusCode::OK, "{journal}");
 }

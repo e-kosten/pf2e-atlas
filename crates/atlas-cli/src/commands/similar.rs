@@ -152,7 +152,11 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         service
             .search_page(
                 SearchResultsRequest {
-                    result_detail: atlas_app_model::SearchResultDetail::Evidence,
+                    result_detail: if o.explain {
+                        atlas_app_model::SearchResultDetail::Evidence
+                    } else {
+                        atlas_app_model::SearchResultDetail::Compact
+                    },
                     connection_scope: None,
                     sort,
                     ranking: None,
@@ -368,11 +372,7 @@ fn print_evidence(evidence: &SimilarityEvidenceView, explain: bool) {
     if evidence.truncated && explain {
         println!("  Explanation is limited; ranking used all selected parts");
     }
-    for pair in evidence
-        .pairs
-        .iter()
-        .take(if explain { usize::MAX } else { 1 })
-    {
+    for pair in &evidence.pairs {
         let seed_label = pair
             .seed
             .as_ref()

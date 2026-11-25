@@ -42,6 +42,10 @@ pub struct EncounterDifficultyAddition {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterDifficultyView {
+    /// Reference generation used to preview a record addition to a saved encounter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub addition_generation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub prepared_creature_choice: Option<crate::PreparedCreatureChoice>,

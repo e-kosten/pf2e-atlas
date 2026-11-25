@@ -3,7 +3,7 @@ import { Button, Input, Space, Typography } from "antd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo, useRef, useState } from "react";
 import {
-  getParties,
+  getParty,
   getPreviewImportDetails,
   previewPathbuilderPc,
   savePathbuilderPc,
@@ -39,7 +39,6 @@ export function PathbuilderImport({
   onSaved?: (key?: string) => void;
 }) {
   const textareaId = useId();
-  const [requestId] = useState(() => crypto.randomUUID());
   const [text, setText] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [review, setReview] = useState<{ data?: ImportReview; error?: Error }>({});
@@ -68,13 +67,7 @@ export function PathbuilderImport({
   const preview = useMutation({
     mutationFn: async (json: string): Promise<ImportReview> => {
       const view = await previewPathbuilderPc(json, character?.character_key);
-      const target = party
-        ? (await getParties()).parties.find(
-            (item) => item.party_key === party.party_key,
-          )
-        : undefined;
-      if (party && !target)
-        throw new Error("This party is no longer available. Your export is retained.");
+      const target = party ? await getParty(party.party_key) : undefined;
       return {
         view,
         json,
@@ -128,7 +121,7 @@ export function PathbuilderImport({
     };
     save.mutate({
       ...fields,
-      request_id: requestId,
+      request_id: crypto.randomUUID(),
       character_key: character?.character_key,
       expected_character_revision: reviewed.view.character_revision,
       party: reviewed.party && {

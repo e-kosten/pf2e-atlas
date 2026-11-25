@@ -51,6 +51,51 @@ it("sends an explicit zero rank to the detail service", async () => {
   );
 });
 
+it("reopens a returned multi-field projection in its generation without loading the whole record", async () => {
+  const detail = detailFixture("actors:ghoul");
+  detail.selected_fields = [
+    "/system/details/publicNotes",
+    "/system/details/privateNotes",
+  ];
+  api.mockResolvedValue(detail);
+  const { result } = renderHook(
+    () => useReferenceReading(null, true, 0, detail.artifact_generation),
+    { wrapper },
+  );
+  act(() =>
+    result.current.inspect({
+      navigation: detail.selected,
+      fields: detail.selected_fields,
+    }),
+  );
+  await waitFor(() =>
+    expect(result.current.detail?.selected_fields).toEqual(detail.selected_fields),
+  );
+  expect(api).toHaveBeenCalledWith(
+    detail.record.record_key,
+    {
+      ...recordDetailRequest(detail.selected),
+      fields: detail.selected_fields,
+      expected_artifact_generation: detail.artifact_generation,
+    },
+    expect.any(AbortSignal),
+  );
+  expect(
+    recordDetailQueryOptions(
+      detail.record.record_key,
+      detail.selected,
+      detail.artifact_generation,
+      detail.selected_fields,
+    ).queryKey,
+  ).not.toEqual(
+    recordDetailQueryOptions(
+      detail.record.record_key,
+      detail.selected,
+      detail.artifact_generation,
+    ).queryKey,
+  );
+});
+
 it("lands a typed inline activity in its parent without reading a separate document", async () => {
   const activity = activityFixture("Jaws", "actors:ghoul");
   const parent = detailFixture("actors:ghoul");

@@ -2,6 +2,76 @@ use super::*;
 use atlas_app_model::{CharacterSheetResponse, SavePathbuilderPcRequest};
 
 #[tokio::test]
+async fn party_directory_roster_and_list_header_match_their_readers() {
+    let fixture = Fixture::new();
+    let (status, created) = fixture
+        .json(
+            Method::POST,
+            "/api/characters",
+            Some(json!({"request_id":"directory-pc","name":"Sage","level":7})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let pc = &created["character_key"];
+    let (status, party) = fixture.json(
+        Method::POST, "/api/parties",
+        Some(json!({"name":"Team","members":[{"character_key":pc,"expected_character_revision":0}]})),
+    ).await;
+    assert_eq!(status, StatusCode::OK);
+    let key = party["party_key"].as_str().unwrap();
+    let (status, directory) = fixture.json(Method::GET, "/api/parties", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        directory["parties"],
+        json!([{"party_key":key,"name":"Team","revision":party["revision"],"member_count":1}])
+    );
+    let path = format!("/api/characters/{}", pc.as_str().unwrap());
+    let (status, _) = fixture
+        .json(
+            Method::PATCH,
+            &path,
+            Some(json!({"expected_revision":0,"name":"Seer"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, renamed) = fixture
+        .json(
+            Method::PATCH,
+            &format!("/api/parties/{key}/name"),
+            Some(json!({"expected_revision":party["revision"],"name":"New team"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(renamed["members"][0]["level"], 7);
+    assert_eq!(renamed["members"][0]["name"], "Seer");
+    let (status, _) = fixture
+        .json(
+            Method::PATCH,
+            &path,
+            Some(json!({"expected_revision":1,"name":"Seer","level":null})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, roster) = fixture
+        .json(Method::GET, &format!("/api/parties/{key}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(roster["members"][0].get("level").is_none());
+    let (status, bulk) = fixture
+        .json(Method::GET, "/api/parties/rosters", None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(bulk["parties"], json!([roster]));
+    let (status, header) = fixture
+        .json(Method::GET, "/api/lists/research/header", None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(header["list_key"], fixture.list_key);
+    assert_eq!(header["item_count"], 1);
+    assert!(header.get("items").is_none());
+}
+
+#[tokio::test]
 async fn sheet_wire_preserves_layout_roles_and_omits_absent_optional_fields() {
     let fixture = Fixture::new();
     let raw = json!({"success":true,"build":{

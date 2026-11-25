@@ -11,16 +11,22 @@ export function recordDetailQueryOptions(
   recordKey: string | null,
   selection?: RecordNavigationView,
   generation?: string | null,
+  fields?: string[],
 ) {
   const request =
     selection &&
     recordKey !== null &&
-    (selection.embedded_path.length ||
+    (fields?.length ||
+      selection.embedded_path.length ||
       selection.field ||
       selection.passage ||
       selection.spell_rank !== undefined ||
       selection.source_fingerprint)
-      ? recordDetailRequest({ ...selection, record_key: recordKey })
+      ? recordDetailRequest(
+          { ...selection, record_key: recordKey },
+          fields,
+          fields?.length ? generation : undefined,
+        )
       : undefined;
   return queryOptions({
     queryKey: [
@@ -47,9 +53,15 @@ export function recordDetailQueryOptions(
 
 export function recordDetailRequest(
   selection: RecordNavigationView,
+  fields?: string[],
+  generation?: string | null,
 ): RecordDetailRequest {
   const { field, ...address } = selection;
-  return { ...address, fields: field ? [field] : [] };
+  return {
+    ...address,
+    fields: fields ?? (field ? [field] : []),
+    ...(generation ? { expected_artifact_generation: generation } : {}),
+  };
 }
 
 export function recordSelection(navigation: RecordNavigationView): RecordSelection {

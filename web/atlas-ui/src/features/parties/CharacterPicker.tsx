@@ -5,8 +5,8 @@ import { useRef, useState, type ComponentRef } from "react";
 import {
   addEncounterCharacter,
   getCharacters,
-  getEncounter,
-  getParties,
+  getEncounterRevision,
+  getParty,
   updateParty,
 } from "../../api/atlasApi";
 import type {
@@ -77,30 +77,26 @@ export function CharacterPicker({
     retry: false,
     mutationFn: async (reason: "write-confirmed" | "review") => {
       if (reason === "write-confirmed" && encounter) {
-        const queryKey = ["encounter", encounter.encounterKey];
+        const queryKey = ["encounter", encounter.encounterKey, "revision"];
         await client.cancelQueries({ queryKey, exact: true });
         const current = await client.fetchQuery({
           queryKey,
-          queryFn: () => getEncounter(encounter.encounterKey),
+          queryFn: () => getEncounterRevision(encounter.encounterKey),
           retry: false,
           staleTime: 0,
         });
         return { revision: current.revision };
       }
-      const [index, partyIndex, current] = await Promise.all([
+      const [index, currentParty, current] = await Promise.all([
         getCharacters(),
-        party ? getParties() : undefined,
-        encounter ? getEncounter(encounter.encounterKey) : undefined,
+        party ? getParty(party.party_key) : undefined,
+        encounter ? getEncounterRevision(encounter.encounterKey) : undefined,
       ]);
       client.setQueryData(["characters"], index);
-      if (partyIndex) client.setQueryData(["parties"], partyIndex);
+      if (currentParty) await cacheParty(client, currentParty);
       if (current && encounter) {
-        client.setQueryData(["encounter", encounter.encounterKey], current);
+        client.setQueryData(["encounter", encounter.encounterKey, "revision"], current);
       }
-      const currentParty = partyIndex?.parties.find(
-        (item) => item.party_key === party?.party_key,
-      );
-      if (party && !currentParty) throw new Error("This party is no longer available.");
       return { party: currentParty, revision: current?.revision };
     },
     onSuccess: (latest, reason) => {
@@ -155,6 +151,10 @@ export function CharacterPicker({
         setStatus("The participant from this request was removed.");
       }
       void client.invalidateQueries({ queryKey: ["encounters"] });
+      void client.invalidateQueries({
+        queryKey: ["encounter", saved.encounter_key],
+        exact: true,
+      });
       review.mutate("write-confirmed");
     },
   });
