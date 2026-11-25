@@ -291,6 +291,8 @@ pub(crate) fn broadcast_to_documents(
 pub fn page_load(window: WebviewWindow, payload: tauri::webview::PageLoadPayload<'_>) {
     if payload.event() == PageLoadEvent::Finished {
         crate::zoom::apply(&window);
+        #[cfg(target_os = "macos")]
+        crate::find_macos::document_loaded(&window);
     }
     let desktop = window.state::<Desktop>();
     let instance = lock(&desktop.launcher)

@@ -228,11 +228,13 @@ version = "0.1.0"
 dependencies = [
  "atlas-desktop-protocol",
  "base64 0.23.1",
+ "block2",
  "getrandom 0.4.3",
  "minisign-verify",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
+ "objc2-web-kit",
  "plist",
  "reqwest",
  "rustix",

@@ -35,9 +35,11 @@ custom-protocol = ["tauri/custom-protocol"]
 [target.'cfg(target_os = "macos")'.dependencies]
 plist = "1"
 rustix = { version = "1", features = ["fs", "process"] }
+block2 = "0.6"
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSAppearance", "NSApplication", "NSButton", "NSColor", "NSGraphics", "NSMenu", "NSMenuItem", "NSOpenPanel", "NSPanel", "NSSavePanel", "NSEvent", "NSResponder", "NSWindow", "NSWindowTab", "NSWindowTabGroup"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSAppearance", "NSApplication", "NSButton", "NSColor", "NSGraphics", "NSMenu", "NSMenuItem", "NSOpenPanel", "NSPanel", "NSSavePanel", "NSEvent", "NSResponder", "NSTitlebarAccessoryViewController", "NSViewController", "NSControl", "NSSearchField", "NSTextField", "NSTextFinder", "NSView", "NSWindow", "NSWindowTab", "NSWindowTabGroup"] }
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "WKWebView", "objc2-app-kit", "block2"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSNotification", "NSOperation", "block2"] }
 
 [target.'cfg(windows)'.dependencies]
 tauri-plugin-single-instance = { version = "2.5", features = ["deep-link"] }

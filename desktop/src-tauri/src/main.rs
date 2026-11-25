@@ -3,6 +3,8 @@
 
 mod appearance;
 mod bootstrap_jobs;
+#[cfg(target_os = "macos")]
+mod find_macos;
 mod opening;
 mod process;
 mod settings;
@@ -872,6 +874,12 @@ fn display(error: impl std::fmt::Display) -> String {
     error.to_string()
 }
 
+fn focused_window(app: &AppHandle) -> Option<WebviewWindow> {
+    app.webview_windows()
+        .into_values()
+        .find(|window| window.is_focused().unwrap_or(false))
+}
+
 fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     #[cfg(target_os = "macos")]
     let settings = MenuItem::with_id(app, "setup", "Settings…", true, Some("CmdOrCtrl+,"))?;
@@ -934,8 +942,16 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         .paste()
         .select_all()
         .separator()
-        .item(&copy)
-        .build()?;
+        .item(&copy);
+    #[cfg(target_os = "macos")]
+    let edit = edit.separator().item(&MenuItem::with_id(
+        app,
+        "find",
+        "Find…",
+        true,
+        Some("Cmd+F"),
+    )?);
+    let edit = edit.build()?;
     let zoom_in = MenuItem::with_id(app, "zoom-in", "Zoom In", true, Some("CmdOrCtrl+Equal"))?;
     #[cfg(target_os = "macos")]
     let zoom_plus = MenuItem::with_id(app, "zoom-plus", "Zoom In (+)", true, None::<&str>)?;
@@ -1033,6 +1049,8 @@ fn main() {
             }
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 copy_link::invalidate(app, window.label(), true);
+                #[cfg(target_os = "macos")]
+                find_macos::forget(window.label());
                 #[cfg(windows)]
                 let interrupted_delivery = windows_tabs::forget(app, window.label());
                 let desktop = app.state::<Desktop>();
@@ -1111,6 +1129,15 @@ fn main() {
                 action @ ("zoom-in" | "zoom-plus" | "zoom-out" | "zoom-reset") => {
                     if let Err(error) = app.state::<Desktop>().zoom.change(app, action) {
                         window_host::report("Could not update Atlas zoom", &error);
+                    }
+                    Ok(())
+                }
+                #[cfg(target_os = "macos")]
+                "find" => {
+                    if let Some(window) = focused_window(app)
+                        && let Err(error) = find_macos::show(&window)
+                    {
+                        window_host::report("Could not open Find", &error.to_string());
                     }
                     Ok(())
                 }
