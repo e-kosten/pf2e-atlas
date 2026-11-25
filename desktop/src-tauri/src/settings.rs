@@ -116,28 +116,10 @@ pub fn open(
         }
         #[cfg(windows)]
         {
-            // The focused WebView can still be loading its first product document.
-            let desktop = app.state::<Desktop>();
-            let focused = || {
-                app.webview_windows().into_values().find(|window| {
-                    window.is_focused().unwrap_or(false)
-                        && desktop.staged_setup.attached_to(window.label(), &instance)
-                })
-            };
-            let window = match source.cloned().or_else(focused).or_else(|| {
-                crate::recent_product_views(app, &base, &instance)
-                    .into_iter()
-                    .next()
-            }) {
-                Some(window) => window,
-                None => crate::open_product(app, "/search", None)?,
-            };
-            app.state::<Desktop>().staged_setup.request_settings(
-                &window,
-                &instance,
-                destination,
-            )?;
-            return window_host::select(&window);
+            if let Some(window) = source {
+                return present_windows(window, &instance, destination);
+            }
+            return open_windows_menu(app, &base, instance, destination);
         }
     }
     if destination == Destination::Terminal {
@@ -211,6 +193,88 @@ pub fn desktop_settings_pane(
     let mut file = tempfile::NamedTempFile::new_in(directory).map_err(display)?;
     serde_json::to_writer(&mut file, &pane).map_err(display)?;
     file.persist(path).map_err(display)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn windows_recipient(app: &AppHandle, base: &Url, instance: &str) -> Option<WebviewWindow> {
+    let desktop = app.state::<Desktop>();
+    // A product window can still be loading its first authenticated document.
+    let attached = || {
+        app.webview_windows().into_values().filter(|window| {
+            window.label() != WINDOW && desktop.staged_setup.attached_to(window.label(), instance)
+        })
+    };
+    attached()
+        .find(|window| window.is_focused().unwrap_or(false))
+        .or_else(|| {
+            crate::recent_product_views(app, base, instance)
+                .into_iter()
+                .next()
+        })
+        .or_else(|| attached().next())
+}
+
+#[cfg(windows)]
+fn present_windows(
+    window: &WebviewWindow,
+    instance: &str,
+    destination: Destination,
+) -> Result<(), String> {
+    window
+        .state::<Desktop>()
+        .staged_setup
+        .request_settings(window, instance, destination)?;
+    window_host::select(window)
+}
+
+#[cfg(windows)]
+fn open_windows_menu(
+    app: &AppHandle,
+    base: &Url,
+    instance: String,
+    destination: Destination,
+) -> Result<(), String> {
+    let desktop = app.state::<Desktop>();
+    if let Some((opening, latest)) = lock(&desktop.pending_settings_window).as_mut()
+        && opening == &instance
+    {
+        *latest = destination;
+        return Ok(());
+    }
+    if let Some(window) = windows_recipient(app, base, &instance) {
+        return present_windows(&window, &instance, destination);
+    }
+    *lock(&desktop.pending_settings_window) = Some((instance.clone(), destination));
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        // Another opening flow can attach a window before this worker starts.
+        let window = current_product(&app).and_then(|(base, current)| {
+            if current != instance {
+                return Err("The Settings destination is no longer available.".into());
+            }
+            windows_recipient(&app, &base, &instance).map_or_else(
+                || crate::open_product_on_worker(&app, "/search", &instance),
+                Ok,
+            )
+        });
+        let opening = instance.clone();
+        if let Err(error) = crate::run_on_main(&app, move |app| {
+            let desktop = app.state::<Desktop>();
+            let request =
+                lock(&desktop.pending_settings_window).take_if(|(current, _)| current == &opening);
+            if let Some((instance, latest)) = request
+                && let Err(error) =
+                    window.and_then(|window| present_windows(&window, &instance, latest))
+            {
+                window_host::report("Could not open Settings", &error);
+            }
+        }) {
+            lock(&app.state::<Desktop>().pending_settings_window)
+                .take_if(|(current, _)| current == &instance);
+            eprintln!("Could not open Settings: {error}");
+        }
+    });
     Ok(())
 }
 

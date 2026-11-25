@@ -3,7 +3,11 @@ use crate::bootstrap_jobs::{Attempt, BootstrapJob, Update as BootstrapUpdate};
 
 use std::{
     collections::HashMap,
-    sync::{Mutex, atomic::Ordering, mpsc},
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
 };
 
 use atlas_desktop_protocol::{
@@ -22,6 +26,7 @@ pub struct StagedSetup {
     state: Mutex<SetupState>,
     documents: Mutex<HashMap<String, Document>>,
     menu_requests: std::sync::atomic::AtomicUsize,
+    broadcast_pending: AtomicBool,
 }
 
 #[derive(Clone)]
@@ -77,6 +82,17 @@ enum Status {
 }
 
 impl StagedSetup {
+    fn queue_broadcast(&self, enqueue: impl FnOnce() -> Result<(), String>) {
+        if !self.broadcast_pending.swap(true, Ordering::AcqRel) && enqueue().is_err() {
+            self.broadcast_pending.store(false, Ordering::Release);
+        }
+    }
+
+    fn begin_broadcast(&self) {
+        // Requests arriving while we read and deliver the snapshot need a trailing broadcast.
+        self.broadcast_pending.store(false, Ordering::Release);
+    }
+
     pub fn active(&self) -> bool {
         matches!(
             lock(&self.state).status,
@@ -259,8 +275,11 @@ fn deliver(
 }
 
 pub(crate) fn broadcast(app: &AppHandle) {
-    let _ = run_on_main(app, |app| {
-        broadcast_to_documents(app, process::workspace_selection_snapshot)
+    app.state::<Desktop>().staged_setup.queue_broadcast(|| {
+        run_on_main(app, |app| {
+            app.state::<Desktop>().staged_setup.begin_broadcast();
+            broadcast_to_documents(app, process::workspace_selection_snapshot);
+        })
     });
 }
 
@@ -1118,6 +1137,25 @@ pub(crate) fn owns_document(window: &WebviewWindow, instance: &str, token: &str)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn progress_bursts_share_a_snapshot_and_changes_during_delivery_get_another() {
+        let setup = StagedSetup::default();
+        let queued = std::cell::Cell::new(0);
+        let enqueue = || {
+            queued.set(queued.get() + 1);
+            Ok(())
+        };
+        setup.queue_broadcast(|| Err("event loop unavailable".into()));
+        for _ in 0..101 {
+            setup.queue_broadcast(enqueue);
+        }
+        assert_eq!(queued.get(), 1);
+        setup.begin_broadcast();
+        setup.queue_broadcast(enqueue);
+        setup.queue_broadcast(enqueue);
+        assert_eq!(queued.get(), 2);
+    }
 
     #[test]
     fn settings_ack_applies_only_to_the_current_request_and_document() {

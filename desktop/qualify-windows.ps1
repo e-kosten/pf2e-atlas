@@ -31,7 +31,11 @@ function Invoke-Checked {
     & $Command @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE." }
 }
-function Escape-Nsis([string]$Value) { return $Value.Replace('$', '$$').Replace('"', '$\"') }
+function Get-NsisRuntimePath([string]$Path) {
+    # NSIS expands $ variables in installer instructions. A preprocessor
+    # !include takes a literal native filename and does not use this escaping.
+    return (Get-Item -LiteralPath $Path).FullName.Replace('$', '$$')
+}
 function Get-NsisHostHash([string]$Path) {
     # Tauri 2.12.4 bundles this marker patch, then restores the unpatched build
     # output. Predict the packaged bytes instead of hashing that restored file.
@@ -49,6 +53,7 @@ foreach ($name in @('ATLAS_UPDATER_PUBLIC_KEY', 'ATLAS_UPDATER_REHEARSAL_KEY', '
     'CARGO_TARGET_DIR', 'CARGO_ENCODED_RUSTFLAGS')) { $original[$name] = [Environment]::GetEnvironmentVariable($name) }
 Push-Location $repo
 try {
+    Invoke-Checked powershell.exe @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "$PSScriptRoot/test-windows-payload.ps1")
     $commit = (& git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw 'Missing candidate identity.' }
     $stable = '99.0.0'
@@ -88,20 +93,66 @@ try {
     & "$PSScriptRoot/bundle-windows.ps1" -PackagedCli $cli -Version $nightly -OutputInstaller $targetInstaller -HostTargetDirectory "$PSScriptRoot/src-tauri/target"
     if ($LASTEXITCODE -ne 0) { throw 'Could not build the target rehearsal installer.' }
 
+    # Keep the ordinary candidate for the direct upgrade from a published
+    # predecessor. That host predates the draft guard and uses its original CLI.
+    $directInstaller = Join-Path $root 'direct-target.exe'
+    Copy-Item -LiteralPath $targetInstaller -Destination $directInstaller
+    $directHostHash = Get-NsisHostHash "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/atlas-desktop.exe"
+    $priorTag = 'nightly/20261123213244.g4e2fbbf86d52'
+    $priorHash = '342d207c9bfcba0766e0660fc0aaf870e42470e28beb1b7223bd9710da49d3a1'
+    $priorInstaller = Join-Path $root 'published-predecessor.exe'
+    Invoke-WebRequest "https://github.com/e-kosten/pf2e-atlas/releases/download/$priorTag/atlas-desktop-x86_64-pc-windows-msvc-setup.exe" -OutFile $priorInstaller
+    if ((Get-FileHash -LiteralPath $priorInstaller).Hash -ne $priorHash) { throw 'Published predecessor checksum mismatch.' }
+
     # Add an installer-only fixture hook after the ordinary packaging path has
     # prepared CRTs, sidecar, notices and compatibility metadata.
     $hooks = Join-Path $root 'postinstall.nsh'
     $macro = @'
+!include "%ATLAS_INSTALLER_HOOK%"
+!macro NSIS_HOOK_PREINSTALL
+  IfFileExists "%ROOT%\request-late-lock" 0 atlas_lock_done
+  ; Synchronize with the runner only after the old host handed off. Make this
+  ; expected installer refusal silent so the job can resume the previous build.
+  SetSilent silent
+  System::Call 'kernel32::GetCurrentProcessId() i.r0'
+  FileOpen $1 "%ROOT%\installer-started" w
+  FileWrite $1 "$0"
+  FileClose $1
+  StrCpy $0 300
+  atlas_wait_lock:
+    IfFileExists "%ROOT%\lock-ready" atlas_lock_done
+    Sleep 100
+    IntOp $0 $0 - 1
+    IntCmp $0 0 atlas_lock_timeout atlas_lock_timeout atlas_wait_lock
+  atlas_lock_timeout:
+    SetErrorLevel 2
+    Quit
+  atlas_lock_done:
+!macroend
 !macro NSIS_HOOK_POSTINSTALL
-  ExecWait '"%PWSH%" -NoProfile -File "%HOOK%" -QualificationRoot "%ROOT%" -InstallDirectory "$INSTDIR"' $0
-  StrCmp $0 0 +2
-  Abort "Atlas qualification POSTINSTALL hook failed"
-  Exec '"%PWSH%" -NoProfile -File "%HOOK%" -QualificationRoot "%ROOT%" -InstallDirectory "$INSTDIR" -Restart'
+  ClearErrors
+  ExecWait "$\"%PWSH%$\" -NoProfile -File $\"%HOOK%$\" -QualificationRoot $\"%ROOT%$\" -InstallDirectory $\"$INSTDIR$\"" $0
+  IfErrors atlas_hook_failed
+  StrCmp $0 0 0 atlas_hook_failed
+  Exec "$\"%PWSH%$\" -NoProfile -File $\"%HOOK%$\" -QualificationRoot $\"%ROOT%$\" -InstallDirectory $\"$INSTDIR$\" -Restart"
+  IfErrors atlas_hook_failed
+  SetErrorLevel 0
   Quit
+  atlas_hook_failed:
+    SetErrorLevel 1
+    Abort "Atlas qualification POSTINSTALL hook failed"
 !macroend
 '@
-    $macro = $macro.Replace('%PWSH%', (Escape-Nsis (Get-Command pwsh).Source)).Replace('%HOOK%', (Escape-Nsis "$PSScriptRoot/qualify-windows.hook.ps1")).Replace('%ROOT%', (Escape-Nsis $root))
-    $macro | Set-Content -LiteralPath $hooks -Encoding utf8
+    $installerHook = (Get-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\windows-installer.nsh')).FullName
+    $hookScript = Join-Path $PSScriptRoot 'qualify-windows.hook.ps1'
+    $paths = @{
+        '%ATLAS_INSTALLER_HOOK%' = $installerHook
+        '%PWSH%' = Get-NsisRuntimePath (Get-Command pwsh -CommandType Application).Source
+        '%HOOK%' = Get-NsisRuntimePath $hookScript
+        '%ROOT%' = Get-NsisRuntimePath $root
+    }
+    $macro = [regex]::Replace($macro, '%(ATLAS_INSTALLER_HOOK|PWSH|HOOK|ROOT)%', { param($match) $paths[$match.Value] })
+    $macro | Set-Content -LiteralPath $hooks -Encoding utf8BOM
     $config = Join-Path $root 'target-config.json'
     @{ version = $nightly; bundle = @{ windows = @{ nsis = @{ installerHooks = $hooks } } } } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $config -Encoding utf8
@@ -120,6 +171,8 @@ try {
     @{
         root = $root; oldInstaller = $oldInstaller; installer = $targetInstaller; stable = $stable; nightly = $nightly
         commit = $commit; port = $port; tlsKey = $tlsKey; tlsCert = $tlsCert
+        priorInstaller = $priorInstaller; priorTag = $priorTag; priorHash = $priorHash
+        directInstaller = $directInstaller; directHostHash = $directHostHash
         oldHostSha256 = $oldHostHash; oldCliSha256 = (Get-FileHash $oldCli).Hash.ToLowerInvariant()
         targetHostSha256 = $targetHostHash; targetCliSha256 = (Get-FileHash $cli).Hash.ToLowerInvariant()
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $root 'qualification.json') -Encoding utf8

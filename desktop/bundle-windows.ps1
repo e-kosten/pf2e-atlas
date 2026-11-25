@@ -32,26 +32,6 @@ function Invoke-BuildStep {
     }
 }
 
-function Get-DesktopCrt {
-    if ($env:VCToolsRedistDir) {
-        return (Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC143.CRT')
-    }
-    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-    if (Test-Path -LiteralPath $vswhere) {
-        $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-        if ($installation) {
-            $redist = Get-ChildItem (Join-Path $installation 'VC/Redist/MSVC') -Directory |
-                Where-Object { Test-Path (Join-Path $_.FullName 'x64/Microsoft.VC143.CRT') } |
-                Sort-Object { [version]$_.Name } -Descending |
-                Select-Object -First 1
-            if ($redist) {
-                return (Join-Path $redist.FullName 'x64/Microsoft.VC143.CRT')
-            }
-        }
-    }
-    throw 'Locate the Visual C++ v143 x64 redistributable and set VCToolsRedistDir to its version folder.'
-}
-
 $previousDesktopRelease = $env:ATLAS_DESKTOP_RELEASE
 $previousDesktopSourceCommit = $env:ATLAS_DESKTOP_SOURCE_COMMIT
 $previousWorkspaceSchema = $env:ATLAS_WORKSPACE_SCHEMA
@@ -60,12 +40,8 @@ $previousRustFlags = $env:CARGO_ENCODED_RUSTFLAGS
 Push-Location $root
 try {
     $env:CARGO_TARGET_DIR = Join-Path $root 'target'
-    $crt = Get-DesktopCrt
     $runtime = Join-Path $PSScriptRoot '.generated/windows-crt'
-    New-Item -ItemType Directory -Force $runtime | Out-Null
-    foreach ($file in 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
-        Copy-Item -LiteralPath (Join-Path $crt $file) -Destination $runtime
-    }
+    & "$root/scripts/release/stage-windows-crt.ps1" -Destination $runtime | Out-Null
     if (!$release) {
         Invoke-BuildStep npm.cmd @('--prefix', 'web/atlas-ui', 'run', 'build')
     }

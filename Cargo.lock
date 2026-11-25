@@ -196,7 +196,6 @@ dependencies = [
  "unicode-width",
  "ureq",
  "uuid",
- "winapi-util",
 ]
 
 [[package]]
@@ -399,6 +398,7 @@ dependencies = [
  "tempfile",
  "tracing",
  "ureq",
+ "winapi-util",
 ]
 
 [[package]]

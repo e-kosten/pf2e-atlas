@@ -23,7 +23,10 @@ helper without changing the deployment target or embedding policy.
 The [Windows desktop build](../../desktop/README.md#windows-x64) produces
 an unsigned per-user NSIS installer. The Windows desktop workflow uploads a
 test build as a CI artifact. Release packaging builds the published installer
-from the full Windows CLI archive for that exact release.
+from the full Windows CLI archive for that exact release. Both Windows CLI ZIPs
+ship the app-local x64 Visual C++ runtime. The Windows build stages the DLLs and
+their ownership receipt before cargo-dist computes the archive checksums. Both
+Windows build jobs inspect the packaged executable and runtime DLL imports.
 
 Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
 archive (`atlas-cli-only-<target>.*`). Both contain `atlas`; full is the default.
@@ -184,6 +187,18 @@ runs `scripts/release/test-installer.ps1`; the CLI-only job retains its own
 packaged-binary smoke test. Fixture
 tests cover pointer resolution and pinning, invalid pointers, checksum failures,
 version preparation, scheduled skipping, and preserving the channel on failures.
+
+Direct release-build-check rehearsals also run the assembled Windows ZIPs in a
+fresh Windows Server 2022 container as `ContainerUser`. The full Server image
+includes the Windows desktop DirectML and Direct3D libraries that the packaged
+ONNX runtime imports at startup. The job checks for those system libraries and
+verifies the image lacks the x64 Visual C++ redistributable and build tools before testing
+manual extraction, scripted installation, variant switching, offline fixture
+search and the full build's web page. The copied PATH hint runs twice against
+the disposable user registry under Windows PowerShell 5.1 and PowerShell 7.
+The 7 check uses a separate container with the runner's PowerShell mounted
+read-only. Look for the **Verify assembled CLI on clean Windows x64** job on
+the release candidate's rehearsal run.
 
 ### Stable releases and release candidates
 

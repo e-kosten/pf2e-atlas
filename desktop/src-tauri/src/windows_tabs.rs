@@ -1,6 +1,10 @@
 //! Windows document-tab commands and acknowledged protocol-link delivery.
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Mutex, mpsc},
+    time::Duration,
+};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, WebviewWindow};
@@ -20,6 +24,41 @@ struct State {
     next_delivery: u64,
     delivery: Option<Delivery>,
     exit: Option<ExitCheck>,
+    update_handoff: bool,
+    opening_windows: usize,
+}
+
+pub(crate) struct OpeningWindow<'a>(&'a Mutex<State>);
+
+impl WindowsTabs {
+    pub(crate) fn reserve_opening(&self) -> Result<OpeningWindow<'_>, String> {
+        let mut state = lock(&self.0);
+        if state.update_handoff {
+            return Err("Wait for the Atlas update to finish.".into());
+        }
+        state.opening_windows += 1;
+        Ok(OpeningWindow(&self.0))
+    }
+
+    fn begin_update(&self) -> Result<(), String> {
+        let mut state = lock(&self.0);
+        if state.opening_windows != 0 {
+            return Err(
+                "A workspace window is still opening. Retry the update once it opens.".into(),
+            );
+        }
+        if state.update_handoff || state.exit.is_some() {
+            return Err("Atlas is already checking its windows.".into());
+        }
+        state.update_handoff = true;
+        Ok(())
+    }
+}
+
+impl Drop for OpeningWindow<'_> {
+    fn drop(&mut self) {
+        lock(self.0).opening_windows -= 1;
+    }
 }
 
 struct ExitCheck {
@@ -27,6 +66,7 @@ struct ExitCheck {
     waiting: HashMap<String, String>,
     dirty: bool,
     pending: bool,
+    update_reply: Option<mpsc::Sender<(bool, bool)>>,
 }
 
 struct AttachedTabs {
@@ -194,15 +234,26 @@ pub async fn desktop_tabs_state(
 }
 
 pub fn deliver(app: &AppHandle, route: &str) -> Result<(), String> {
+    if update_handoff_active(app) {
+        return Ok(());
+    }
     let (base, instance) = current_product(app)?;
     let destination = base.join(route).map_err(display)?;
     let desktop = app.state::<Desktop>();
     let windows = recent_product_views(app, &base, &instance);
     let (window, selected, delivery) = {
         let mut state = lock(&desktop.windows_tabs.0);
-        if state.delivery.is_some() {
+        if state.delivery.as_ref().is_some_and(|delivery| {
+            windows.iter().any(|window| {
+                window.label() == delivery.label
+                    && staged_setup::owns_document(window, &instance, &delivery.token)
+            })
+        }) {
             return Ok(());
         }
+        // A detached or replaced document cannot acknowledge this link. Leave
+        // it at the head of the queue for the current service.
+        state.delivery = None;
         let candidates = windows.iter().filter_map(|window| {
             let attached = state.windows.get(window.label())?;
             if attached.snapshot.tabs.is_empty() {
@@ -236,6 +287,17 @@ pub fn deliver(app: &AppHandle, route: &str) -> Result<(), String> {
                 .next()
                 .map(|(window, attached)| (window, attached.token.clone(), None))
         }) else {
+            drop(state);
+            // The native window can exist before its URL and first React
+            // snapshot are ready. Its authenticated snapshot will retry this
+            // delivery and select the tab that opened at the requested route.
+            let attaching = app.webview_windows().keys().any(|label| {
+                label != crate::settings::WINDOW
+                    && desktop.staged_setup.attached_to(label, &instance)
+            });
+            if !attaching && crate::setup_window_label(app) != crate::opening::PRIMARY {
+                crate::open_missing_product(app, route)?;
+            }
             return Ok(());
         };
         state.next_delivery += 1;
@@ -297,6 +359,8 @@ pub async fn desktop_tabs_ack(
     run_on_main(window.app_handle(), |app| {
         if let Err(error) = crate::drain_links(app) {
             crate::report_link_error(app, &error);
+        } else {
+            crate::hide_bootstrap_after_delivery(app);
         }
     })
 }
@@ -340,6 +404,9 @@ pub fn menu(app: &AppHandle, command: Command<'_>) -> Result<(), String> {
 }
 
 pub fn exit(app: &AppHandle) -> Result<(), String> {
+    if update_handoff_active(app) {
+        return Ok(());
+    }
     let Ok((base, instance)) = current_product(app) else {
         app.exit(0);
         return Ok(());
@@ -352,33 +419,45 @@ pub fn exit(app: &AppHandle) -> Result<(), String> {
         app.exit(0);
         return Ok(());
     }
+    check_windows(app, &windows, None).map(|_| ())
+}
+
+fn check_windows(
+    app: &AppHandle,
+    windows: &[WebviewWindow],
+    update_reply: Option<mpsc::Sender<(bool, bool)>>,
+) -> Result<HashMap<String, String>, String> {
     let desktop = app.state::<Desktop>();
-    let id = {
+    let (id, tokens) = {
         let mut state = lock(&desktop.windows_tabs.0);
-        let waiting = windows
+        let tokens = windows
             .iter()
-            .filter_map(|window| {
-                let token = &state.windows.get(window.label())?.token;
-                Some((window.label().to_string(), token.clone()))
+            .map(|window| {
+                let entry = state
+                    .windows
+                    .get(window.label())
+                    .ok_or("A workspace window changed. Retry after it finishes opening.")?;
+                Ok((window.label().to_string(), entry.token.clone()))
             })
-            .collect();
+            .collect::<Result<HashMap<_, _>, &'static str>>()?;
         state.next_delivery += 1;
         let id = state.next_delivery;
         state.exit = Some(ExitCheck {
             id,
-            waiting,
+            waiting: tokens.clone(),
             dirty: false,
             pending: false,
+            update_reply,
         });
-        id
+        (id, tokens)
     };
     for window in windows {
-        if let Err(error) = send(&window, Command::CheckExit { id }) {
+        if let Err(error) = send(window, Command::CheckExit { id }) {
             lock(&desktop.windows_tabs.0).exit = None;
             return Err(error);
         }
     }
-    Ok(())
+    Ok(tokens)
 }
 
 #[tauri::command]
@@ -411,6 +490,10 @@ pub async fn desktop_tabs_exit_status(
     let Some(exit) = ready else {
         return Ok(());
     };
+    if let Some(reply) = exit.update_reply {
+        let _ = reply.send((exit.dirty, exit.pending));
+        return Ok(());
+    }
     run_on_main(window.app_handle(), move |app| {
         if exit.pending {
             window_host::report(
@@ -421,4 +504,130 @@ pub async fn desktop_tabs_exit_status(
             app.exit(0);
         }
     })
+}
+
+pub fn update_handoff_active(app: &AppHandle) -> bool {
+    lock(&app.state::<Desktop>().windows_tabs.0).update_handoff
+}
+
+/// Hold native input stopped from the final draft report through installer handoff.
+/// Old service documents can still contain edits, so an unreportable window
+/// postpones installation until its user has dealt with it.
+pub struct UpdateHandoff {
+    app: AppHandle,
+    disabled: Vec<WebviewWindow>,
+    tokens: HashMap<String, String>,
+}
+
+impl UpdateHandoff {
+    pub fn acquire(app: &AppHandle) -> Result<Self, String> {
+        let (prepared, prepared_rx) = mpsc::sync_channel(1);
+        let (reply, replies) = mpsc::channel();
+        run_on_main(app, move |app| {
+            let _ = prepared.send(Self::freeze(app, reply));
+        })?;
+        let guard = prepared_rx
+            .recv_timeout(Duration::from_secs(5))
+            .map_err(|_| "Atlas could not pause its windows. Retry the update.")??;
+        let (dirty, pending) = replies.recv_timeout(Duration::from_secs(5)).map_err(|_| {
+            "Atlas could not check every window. Finish or close the unresponsive window and retry."
+        })?;
+        if pending {
+            return Err(
+                "Wait for Atlas to finish saving in all windows, then retry the update.".into(),
+            );
+        }
+        if dirty && !window_host::confirm_update() {
+            return Err("Update cancelled. Your unsaved changes are still open.".into());
+        }
+        guard.validate()?;
+        Ok(guard)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        let windows = self.app.webview_windows();
+        let mut product = windows
+            .values()
+            .filter(|window| window.label() != "bootstrap");
+        if product.clone().count() != self.tokens.len()
+            || !product.all(|window| {
+                self.tokens
+                    .get(window.label())
+                    .is_some_and(|token| validate(window, token).is_ok())
+            })
+        {
+            return Err("A workspace window changed while Atlas was preparing the update. Review it and retry.".into());
+        }
+        Ok(())
+    }
+
+    fn freeze(app: &AppHandle, reply: mpsc::Sender<(bool, bool)>) -> Result<Self, String> {
+        let desktop = app.state::<Desktop>();
+        desktop.windows_tabs.begin_update()?;
+        let mut guard = Self {
+            app: app.clone(),
+            disabled: Vec::new(),
+            tokens: HashMap::new(),
+        };
+        let windows: Vec<_> = app
+            .webview_windows()
+            .into_values()
+            .filter(|window| window.label() != "bootstrap")
+            .collect();
+        if windows.is_empty() || windows.iter().any(|window| !ready(window)) {
+            return Err("A workspace window is disconnected or still opening. Review or close it before updating.".into());
+        }
+        for window in &windows {
+            if window.is_enabled().map_err(display)? {
+                window.set_enabled(false).map_err(display)?;
+                guard.disabled.push(window.clone());
+            }
+        }
+        guard.tokens = check_windows(app, &windows, Some(reply))?;
+        Ok(guard)
+    }
+}
+
+impl Drop for UpdateHandoff {
+    fn drop(&mut self) {
+        let disabled = std::mem::take(&mut self.disabled);
+        let _ = run_on_main(&self.app, move |app| {
+            let desktop = app.state::<Desktop>();
+            {
+                let mut state = lock(&desktop.windows_tabs.0);
+                state.update_handoff = false;
+                if state
+                    .exit
+                    .as_ref()
+                    .is_some_and(|check| check.update_reply.is_some())
+                {
+                    state.exit = None;
+                }
+            }
+            for window in disabled {
+                let _ = window.set_enabled(true);
+            }
+            if let Err(error) = crate::drain_links(app) {
+                crate::report_link_error(app, &error);
+            }
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_waits_for_every_window_and_blocks_new_opens() {
+        let tabs = WindowsTabs::default();
+        let first = tabs.reserve_opening().unwrap();
+        let second = tabs.reserve_opening().unwrap();
+        assert!(tabs.begin_update().is_err());
+        drop(first);
+        assert!(tabs.begin_update().is_err());
+        drop(second);
+        tabs.begin_update().unwrap();
+        assert!(tabs.reserve_opening().is_err());
+    }
 }

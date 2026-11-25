@@ -94,9 +94,15 @@ pub(crate) fn product_link(base: &Url, destination: &Url) -> bool {
         .collect::<Vec<_>>();
     matches!(
         parts.as_slice(),
-        [""] | ["search" | "lists" | "encounters"]
+        [""] | ["search" | "lists" | "encounters" | "characters" | "parties"]
             | [
-                "records" | "definitions" | "traits" | "lists" | "encounters",
+                "records"
+                    | "definitions"
+                    | "traits"
+                    | "lists"
+                    | "encounters"
+                    | "characters"
+                    | "parties",
                 _
             ]
             | ["search", "records", _]
@@ -114,10 +120,25 @@ mod tests {
     fn only_current_product_routes_can_open_in_tabs() {
         let base = Url::parse("http://127.0.0.1:9988").unwrap();
         for path in [
+            "/",
             "/search",
+            "/search/records/items%3Aid",
             "/records/items%3Aid?rank=2#details",
+            "/traits/light",
+            "/definitions/definition-one",
+            "/families/equipment/item-one",
+            "/families/creatures/creature-one",
+            "/lists",
+            "/lists/loot",
             "/lists/loot/records/items%3Aid",
             "/lists/loot/edit",
+            "/encounters",
+            "/encounters/example",
+            "/encounters/example/edit",
+            "/characters",
+            "/characters/ada",
+            "/parties/",
+            "/parties/party-one",
         ] {
             assert!(product_link(&base, &base.join(path).unwrap()), "{path}");
         }
@@ -125,7 +146,11 @@ mod tests {
             "/api/records/items%3Aid",
             "/assets/index.js",
             "/unknown",
+            "/settings",
+            "/settings/updates",
+            "/characters/ada/export",
             "http://127.0.0.1:9989/search",
+            "http://guest@127.0.0.1:9988/characters",
         ] {
             assert!(!product_link(&base, &base.join(path).unwrap()), "{path}");
         }

@@ -1,5 +1,6 @@
 import { useDismissOnReadingNavigation } from "../ui/overlays/useDismissOnReadingNavigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { Activity, useEffect, useId, useRef, useState } from "react";
+import { useDesktopTab } from "../../app/DesktopTabContext";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -83,6 +84,7 @@ export function SearchSettings({
   onApply: (search: SearchFormState, model: string | null) => void;
   disabled?: boolean;
 }) {
+  const tab = useDesktopTab();
   const profile = useSearchProfile();
   const { message } = App.useApp();
   const id = useId();
@@ -463,21 +465,24 @@ export function SearchSettings({
   );
   return (
     <>
-      <Tooltip
-        title={draft === null ? summary : undefined}
-        trigger={["hover", "focus"]}
-      >
-        <Button
-          icon={<SlidersHorizontal size={18} aria-hidden="true" />}
-          aria-label="Search settings"
-          aria-description={summary}
-          disabled={disabled}
-          onClick={(event) => {
-            event.currentTarget.focus({ preventScroll: true });
-            openSettings();
-          }}
-        />
-      </Tooltip>
+      {/* Suspend the tooltip's Escape listener while preserving the dialog opener. */}
+      <Activity mode={tab?.active === false ? "hidden" : "visible"}>
+        <Tooltip
+          title={draft === null ? summary : undefined}
+          trigger={["hover", "focus"]}
+        >
+          <Button
+            icon={<SlidersHorizontal size={18} aria-hidden="true" />}
+            aria-label="Search settings"
+            aria-description={summary}
+            disabled={disabled}
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              openSettings();
+            }}
+          />
+        </Tooltip>
+      </Activity>
       <Modal
         title={showingSource ? "Choose sections" : "Search settings"}
         open={draft !== null}

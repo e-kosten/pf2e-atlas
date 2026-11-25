@@ -194,6 +194,14 @@ and serves them over local HTTPS on a fresh Windows runner. It drives the instal
 app through WebView2, verifies that NSIS replaces both the host and CLI after
 the old processes exit, and checks separate-copy startup and refusal after
 database identity or migration-history changes during installation.
+The direct upgrade starts from the published November 23, 2026 nightly. With
+its CLI locked, the candidate installer must preserve the previous package.
+The in-app handoff exercises a shared terminal lease, an unanswered window, a
+pending save, cancellation with the draft retained, and confirmed discard.
+A second handoff locks the bundled command at installer startup, resumes the
+previous build with its pending selection, and retries from Settings.
+The separate-copy case exercises tab shortcuts, draft navigation, selected-text
+search, protocol links and delivery across a managed service restart in WebView2.
 
 The test installer uses a guarded restart worker to preserve its isolated data
 and browser-profile paths. It exercises target startup admission; it does not
@@ -202,6 +210,23 @@ workflow and published packages use their normal restart path.
 
 Inspect the run's `windows-updater-qualification-*` artifact for screenshots,
 process/digest checks and refusal evidence. A passing run includes `result.json`
-with all three cases completed. The artifact excludes signing keys and test
+with all five cases completed. The artifact excludes signing keys and test
 databases. The scripts require a disposable GitHub Actions runner and refuse a
 runner with existing Atlas data or a running Atlas app.
+
+### Updating the Windows installer template
+
+The Windows NSIS template follows the Tauri CLI version in `package-lock.json`.
+The Atlas changes keep previous files during an upgrade and stage the full
+payload before committing it. Compare the template against its pinned upstream
+source when updating Tauri. From the repository root in PowerShell, run
+
+```powershell
+$upstream = Join-Path $env:TEMP 'tauri-2.12.4-installer.nsi'
+Invoke-WebRequest https://raw.githubusercontent.com/tauri-apps/tauri/tauri-cli-v2.12.4/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi -OutFile $upstream
+Get-FileHash -LiteralPath $upstream
+git diff --no-index -- $upstream desktop/src-tauri/installer.nsi
+```
+
+The pinned source has SHA-256
+`d00089d3b1a2c4a30d7b6e098079100cb8f25e980f84d4515aca4597b95e967d`.

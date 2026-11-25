@@ -11,7 +11,10 @@ description = "Local Pathfinder 2e search and reference CLI"
 
 [package.metadata.dist]
 dist = true
-include = ["../../target/atlas-release/THIRD-PARTY-NOTICES.md"]
+include = [
+    "../../target/atlas-release/THIRD-PARTY-NOTICES.md",
+    # Windows release build inserts the app-local runtime here.
+]
 
 [[bin]]
 name = "atlas"
@@ -56,6 +59,3 @@ tempfile = "3.23.0"
 [dev-dependencies]
 atlas-search = { workspace = true, features = ["test-support"] }
 rusqlite.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-winapi-util = "0.1"

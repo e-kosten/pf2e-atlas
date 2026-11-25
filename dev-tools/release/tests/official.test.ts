@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
@@ -22,7 +22,6 @@ function fixture(t: TestContext, tag: string, options: {
   draft?: boolean;
   source?: string;
   wrongId?: boolean;
-  link?: string;
   body?: string;
   omit?: string;
   corrupt?: string;
@@ -35,12 +34,6 @@ function fixture(t: TestContext, tag: string, options: {
     writeFileSync(path.join(dist, name), contents);
     return { id: index + 1, name, digest: 'sha256:' + createHash('sha256').update(contents).digest('hex') };
   });
-  if (options.link) {
-    const target = path.join(dist, 'target');
-    writeFileSync(target, readFileSync(path.join(dist, options.link)));
-    rmSync(path.join(dist, options.link));
-    symlinkSync(target, path.join(dist, options.link));
-  }
   const draft = options.draft ?? true;
   const release = {
     id, tag_name: tag, draft, prerelease: tag.startsWith('rc/'), body: options.body ?? 'Release notes',
@@ -48,7 +41,7 @@ function fixture(t: TestContext, tag: string, options: {
   };
   const remote = draft ? [assets[0]] : [...assets];
   const mutations: string[][] = [];
-  return { mutations, publish: () => publishOfficial(tag, sha, dist, (program, args) => {
+  return { dist, mutations, publish: () => publishOfficial(tag, sha, dist, (program, args) => {
     if (program === 'git') return `${'b'.repeat(40)}\trefs/tags/${tag}\n${options.source ?? sha}\trefs/tags/${tag}^{}`;
     if (args[0] === 'api' && args[1] === '--paginate') {
       return JSON.stringify([[mutations.length ? { ...release, id: id + 1 } : release]]);
@@ -116,7 +109,19 @@ test('rejects the wrong release ID or source before any mutation', async (t) => 
 });
 
 test('refuses a symbolic link instead of silently omitting the required asset', async (t) => {
-  const release = fixture(t, 'release/v1.2.3', { link: archive });
+  const release = fixture(t, 'release/v1.2.3');
+  const asset = path.join(release.dist, archive);
+  const target = path.join(release.dist, 'target');
+  renameSync(asset, target);
+  try {
+    symlinkSync(target, asset, 'file');
+  } catch (error) {
+    if (process.platform !== 'win32' || process.env.GITHUB_ACTIONS === 'true' || (error as NodeJS.ErrnoException).code !== 'EPERM') {
+      throw error;
+    }
+    t.skip('This Windows account lacks the file-symlink privilege.');
+    return;
+  }
   await assert.rejects(release.publish, { message: `Release asset must be a regular file: ${archive}` });
   assert.equal(release.mutations.length, 0);
 });

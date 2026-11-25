@@ -1,10 +1,7 @@
 import { ConfigProvider } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { arrayMove } from "@dnd-kit/sortable";
-import {
-  createMemoryHistory,
-  RouterProvider,
-  type ParsedLocation,
-} from "@tanstack/react-router";
+import { RouterProvider, type ParsedLocation } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -14,6 +11,7 @@ import {
   useState,
 } from "react";
 import { createAtlasRouter } from "./router";
+import { createDesktopTabHistory } from "./desktopTabHistory";
 import { antDesignTheme, type ResolvedColorScheme } from "../shared/theme/atlasTheme";
 import {
   isSettingsPath,
@@ -61,10 +59,7 @@ function reportCommandFailure(error: unknown) {
 
 function createTab(href: string) {
   let active = false;
-  const router = createAtlasRouter(
-    createMemoryHistory({ initialEntries: [href] }),
-    () => active,
-  );
+  const router = createAtlasRouter(createDesktopTabHistory(href), () => active);
   const scrollByEntry = new Map<string, { x: number; y: number }>();
   const scrollKey = (location: ParsedLocation) =>
     location.state.__TSR_key ?? location.href;
@@ -100,6 +95,7 @@ function closeStatus(tab: Tab) {
 }
 
 export function DesktopTabs({ initialHref }: { initialHref: string }) {
+  const client = useQueryClient();
   const [first] = useState(() => createTab(initialHref));
   const [tabs, setTabs] = useState([first]);
   const showStrip = tabs.length > 1;
@@ -304,6 +300,7 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
   }, [tabs]);
 
   useLayoutEffect(() => {
+    const focusAtSelection = document.activeElement;
     const frame = requestAnimationFrame(() => {
       const position = positions.current.get(active.id);
       const { x, y } = position ?? { x: 0, y: 0 };
@@ -320,7 +317,15 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
         (restoreContent ? (content ?? selected) : (selected ?? content))?.focus({
           preventScroll: true,
         });
-      } else if (!strip.current?.contains(document.activeElement)) {
+      } else if (strip.current?.contains(document.activeElement)) {
+        selected?.focus({ preventScroll: true });
+      } else if (
+        focusAtSelection === document.activeElement ||
+        !document
+          .getElementById(desktopTabPanelId(active.id))
+          ?.contains(document.activeElement)
+      ) {
+        // A resumed editor or its user can focus a control before this frame.
         const focus = canFocusTabElement(position?.focus) ? position.focus : selected;
         focus?.focus({ preventScroll: true });
       }
@@ -356,7 +361,7 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
           void invoke("desktop_tabs_exit_status", {
             id: command.id,
             dirty: statuses.includes("dirty"),
-            pending: statuses.includes("pending"),
+            pending: statuses.includes("pending") || client.isMutating() > 0,
           }).catch(reportCommandFailure);
           break;
         }
@@ -384,7 +389,13 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
         event.preventDefault();
         const index = tabs.indexOf(active);
         const offset = event.shiftKey ? -1 : 1;
-        select(tabs[(index + offset + tabs.length) % tabs.length].id);
+        const next = tabs[(index + offset + tabs.length) % tabs.length].id;
+        select(next);
+        if (strip.current?.contains(document.activeElement)) {
+          document
+            .getElementById(desktopTabButtonId(next))
+            ?.focus({ preventScroll: true });
+        }
       } else if (!event.shiftKey) {
         const key = event.key.toLowerCase();
         if (key !== "t" && key !== "w" && key !== "n" && key !== ",") return;
@@ -409,7 +420,7 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
       window.removeEventListener(commandEvent, receive);
       window.removeEventListener("keydown", keydown, true);
     };
-  }, [active, close, closeWindow, open, openSettings, select, tabs]);
+  }, [active, client, close, closeWindow, open, openSettings, select, tabs]);
 
   const title = useCallback((id: string, name: string) => {
     setTitles((previous) =>

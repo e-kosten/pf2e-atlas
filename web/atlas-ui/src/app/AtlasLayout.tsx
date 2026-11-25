@@ -270,7 +270,7 @@ function AtlasWorkspace({
                   </Suspense>
                 </Activity>
                 {routeError ?? <Outlet />}
-                <SelectionSearch key={location.href} />
+                {active && <SelectionSearch key={location.href} />}
               </SemanticReadyNotice>
             </AppShell>
           </LinkPickerContext>

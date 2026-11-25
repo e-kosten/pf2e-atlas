@@ -20,7 +20,7 @@ function Fail($Message) {
   Write-Host "Manual install fallback:"
   Write-Host "  1. Open https://github.com/$Repo/releases"
   Write-Host "  2. Download the Windows archive and SHA256SUMS"
-  Write-Host "  3. Verify the checksum, extract atlas.exe, and place it on PATH"
+  Write-Host "  3. Verify the checksum and extract the entire ZIP to its own folder on PATH"
   Write-Host "  4. Run atlas setup"
   Write-Host ""
   Write-Host "Source fallback for contributors with Rust 1.95+:"
@@ -84,16 +84,129 @@ $archive = "(from manifest)"
 $installPath = Join-Path $InstallDir "atlas.exe"
 
 function Get-InstallEntry {
-  if (!(Test-Path -LiteralPath $InstallDir -PathType Container)) { return }
   # Enumerate the entry itself so a dangling link is visible without following it.
-  $entry = Get-ChildItem -LiteralPath $InstallDir -Filter "atlas.exe" -Force |
-    Where-Object { $_.Name -eq "atlas.exe" }
+  $entry = Find-Entry $InstallDir 'atlas.exe'
   if ($entry.PSIsContainer -or ($entry.Attributes -band [IO.FileAttributes]::Directory)) {
     Fail "install destination is a directory: $installPath"
   }
   return $entry
 }
 
+# Only these names may be changed by a Windows CLI install. The receipt binds
+# each redistributable to its installed bytes, including manual ZIP installs.
+$runtimeNames = @('msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
+$receiptName = 'atlas-windows-runtime.json'
+$payloadNames = @($runtimeNames) + @($receiptName, 'atlas.exe')
+$pendingDir = Join-Path $InstallDir '.atlas-cli-installing'
+
+function Find-Entry([string]$Directory, [string]$Name) {
+  if ([IO.Directory]::Exists($Directory)) {
+    Get-ChildItem -Force -LiteralPath $Directory -Filter $Name | Where-Object { $_.Name -eq $Name }
+  }
+}
+
+function Read-RuntimeReceipt([string]$Directory) {
+  $entry = Find-Entry $Directory $receiptName
+  if (!$entry) { return }
+  if ($entry.PSIsContainer -or ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw "Expected a regular Atlas runtime receipt at $($entry.FullName)"
+  }
+  $receipt = Get-Content -Raw -LiteralPath $entry.FullName | ConvertFrom-Json
+  $names = @($receipt.files.PSObject.Properties.Name)
+  if ($receipt.format -cne 'atlas-windows-runtime-v1' -or $names.Count -ne $runtimeNames.Count) {
+    throw "Unrecognized Atlas runtime receipt at $($entry.FullName)"
+  }
+  foreach ($name in $runtimeNames) {
+    if ($names -cnotcontains $name -or $receipt.files.$name -notmatch '^[0-9a-f]{64}$') {
+      throw "Invalid Atlas runtime receipt for $name at $($entry.FullName)"
+    }
+  }
+  return $receipt.files
+}
+
+function Assert-RegularPayload([object]$Entry, [string]$Expected) {
+  if (!$Entry -or $Entry.PSIsContainer -or ($Entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+      !$Expected -or (Get-FileHash -LiteralPath $Entry.FullName).Hash -ne $Expected) {
+    throw "Missing, modified or unowned runtime file: $($Entry.FullName). Use a separate Atlas install folder."
+  }
+}
+
+function Get-TransactionNames($Journal) {
+  $names = @($Journal.files.PSObject.Properties.Name)
+  if ($Journal.format -cne 'atlas-cli-install-v1' -or $names -cnotcontains 'atlas.exe' -or
+      @($names | Where-Object { $payloadNames -cnotcontains $_ -or $Journal.files.$_ -notmatch '^[0-9a-f]{64}$' }).Count) {
+    throw "Unrecognized Atlas install transaction at $pendingDir"
+  }
+  return $payloadNames | Where-Object { $names -ccontains $_ }
+}
+
+function Complete-Transaction([string]$Directory, [string[]]$Names) {
+  # Renaming this owned transaction frees the fixed recovery location atomically.
+  $garbage = Join-Path $InstallDir ('.atlas-finished-' + [Guid]::NewGuid())
+  [IO.Directory]::Move($Directory, $garbage)
+  try {
+    foreach ($name in $Names) {
+      [IO.File]::Delete((Join-Path $garbage "old.$name"))
+      [IO.File]::Delete((Join-Path $garbage "new.$name"))
+    }
+    [IO.File]::Delete((Join-Path $garbage 'transaction.json'))
+    [IO.Directory]::Delete($garbage)
+  } catch {
+    Write-Warning "The transaction finished. Its temporary files remain at $garbage ($($_.Exception.Message))"
+  }
+}
+
+function Restore-Transaction {
+  $entry = Find-Entry $InstallDir '.atlas-cli-installing'
+  if (!$entry) { return }
+  if (!$entry.PSIsContainer -or ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw "Unexpected installation recovery path: $pendingDir"
+  }
+  $journal = Get-Content -LiteralPath (Join-Path $pendingDir 'transaction.json') -Raw | ConvertFrom-Json
+  $names = @(Get-TransactionNames $journal)
+  # Withdraw a newly placed executable first. Keep new.* as an idempotent
+  # record of what is already withdrawn if recovery itself is interrupted.
+  foreach ($name in @('atlas.exe') + @($names | Where-Object { $_ -ne 'atlas.exe' })) {
+    if (!(Find-Entry $pendingDir "new.$name")) {
+      $installed = Find-Entry $InstallDir $name
+      if ($installed) {
+        try { Assert-RegularPayload $installed $journal.files.$name }
+        catch { throw "Cannot undo $($installed.FullName) because it changed." }
+        [IO.File]::Move($installed.FullName, (Join-Path $pendingDir "new.$name"))
+      } else {
+        # A removed candidate needs the same withdrawal marker so a later
+        # recovery will recognize an already restored original.
+        [IO.File]::WriteAllBytes((Join-Path $pendingDir "new.$name"), [byte[]]@())
+      }
+    }
+  }
+  # Restore the original executable last, after all its runtime files.
+  foreach ($name in $names) {
+    $backup = Find-Entry $pendingDir "old.$name"
+    if ($backup) { [IO.File]::Move($backup.FullName, (Join-Path $InstallDir $name)) }
+  }
+  Complete-Transaction $pendingDir $names
+}
+
+# A file in the destination serializes all sessions and directory aliases.
+# CreateNew refuses any existing file or link. DeleteOnClose releases only
+# our newly created file, including when the installer process terminates.
+$lockName = '.atlas-cli-install.lock'
+$lockPath = Join-Path $InstallDir $lockName
+$lease = $null
+try {
+if (Find-Entry $InstallDir $lockName) { Fail "Another installer or an existing entry occupies $lockPath. Use a separate Atlas install folder if the entry is unrelated." }
+if (!$DryRun) {
+  [IO.Directory]::CreateDirectory($InstallDir) | Out-Null
+  try {
+    $lease = [IO.FileStream]::new($lockPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite,
+      [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose)
+  } catch [IO.IOException] { Fail "Could not acquire the Atlas installation lock at $lockPath. Retry after the other installer exits, or choose another directory." }
+  try { Restore-Transaction } catch {
+    Write-Host "Recovery files: $pendingDir"
+    Fail "Could not recover the interrupted installation: $($_.Exception.Message)"
+  }
+}
 $existingEntry = Get-InstallEntry
 $pathEntries = ($env:PATH -split ';') | Where-Object { $_ -ne "" }
 $pathStatus = if ($pathEntries -contains $InstallDir) { "on-path" } else { "not-on-path" }
@@ -145,7 +258,6 @@ if ($DryRun) {
   exit 0
 }
 
-New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("atlas-install-" + [System.Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 function Resolve-LatestTag {
@@ -232,8 +344,25 @@ try {
 
   $extract = Join-Path $tmp "extract"
   Expand-Archive -Path $zip -DestinationPath $extract
-  $newBinary = Get-ChildItem -Path $extract -Filter atlas.exe -Recurse | Select-Object -First 1
-  if (-not $newBinary) { Fail "archive did not contain atlas.exe" }
+  $binaries = @(Get-ChildItem -LiteralPath $extract -Filter atlas.exe -Recurse -File)
+  if ($binaries.Count -ne 1) { Fail "expected one atlas.exe in the archive" }
+  $newBinary = $binaries[0]
+  $newRuntime = Read-RuntimeReceipt $newBinary.DirectoryName
+  $oldRuntime = Read-RuntimeReceipt $InstallDir
+  if ($oldRuntime) { $oldReceiptHash = (Get-FileHash -LiteralPath (Join-Path $InstallDir $receiptName)).Hash }
+  foreach ($name in $runtimeNames) {
+    $packaged = Find-Entry $newBinary.DirectoryName $name
+    $installed = Find-Entry $InstallDir $name
+    if ($packaged -or $newRuntime) { Assert-RegularPayload $packaged $newRuntime.$name }
+    if ($installed -and ($newRuntime -or $oldRuntime)) {
+      Assert-RegularPayload $installed $oldRuntime.$name
+      if (!$newRuntime) {
+        # Older archives require the same runtime but do not ship it. Retain
+        # our installed runtime and use it for the downloaded version probe.
+        Copy-Item -LiteralPath $installed.FullName -Destination $newBinary.DirectoryName
+      }
+    }
+  }
   $newVersion = (& $newBinary.FullName --version) -join "`n"
   if ($LASTEXITCODE -ne 0 -or $newVersion -cne $expectedVersion) {
     Fail "downloaded atlas version mismatch: expected $expectedVersion, got $newVersion"
@@ -276,55 +405,100 @@ try {
     }
   }
 
-  $transaction = [Guid]::NewGuid().ToString('N')
-  $tmpDest = Join-Path $InstallDir ".atlas.install.$transaction.exe"
-  $backup = Join-Path $InstallDir ".atlas.backup.$transaction.exe"
-  $movedOld = $false
-  $placed = $false
+  # Stage the complete verified payload on the destination volume before retiring
+  # the old executable. Once active, the journal survives an interrupted shell.
+  $stage = Join-Path $InstallDir ('.atlas-staging-' + [Guid]::NewGuid())
+  [IO.Directory]::CreateDirectory($stage) | Out-Null
+  $names = @('atlas.exe')
+  if ($newRuntime) { $names = $payloadNames }
+  $ownsPending = $false
   try {
-    Copy-Item -LiteralPath $newBinary.FullName -Destination $tmpDest
-    $currentEntry = Get-InstallEntry
-    if ($currentEntry) {
-      if (!$Yes -and !$confirmedEntry) { throw "atlas.exe appeared during install; retry to confirm replacement" }
-      [IO.File]::Move($installPath, $backup)
-      $movedOld = $true
+    $hashes = [ordered]@{}
+    foreach ($name in $names) {
+      $source = Join-Path $newBinary.DirectoryName $name
+      $expectedHash = if ($runtimeNames -contains $name) { $newRuntime.$name } else { (Get-FileHash -LiteralPath $source).Hash }
+      $staged = Join-Path $stage "new.$name"
+      Copy-Item -LiteralPath $source -Destination $staged
+      $hashes[$name] = (Get-FileHash -LiteralPath $staged).Hash
+      if ($hashes[$name] -ne $expectedHash) { throw "Staged $name did not match the verified archive" }
     }
-    [IO.File]::Move($tmpDest, $installPath)
-    $placed = $true
+    @{ format = 'atlas-cli-install-v1'; files = $hashes } | ConvertTo-Json |
+      Set-Content -LiteralPath (Join-Path $stage 'transaction.json') -Encoding ascii
+
+    # An executable can be a symlink, including a dangling one. Move the entry
+    # itself as before. Runtime files require a matching ownership receipt.
+    $currentEntry = Get-InstallEntry
+    if ($currentEntry -and !$Yes -and !$confirmedEntry) { throw "atlas.exe appeared during install; retry to confirm replacement" }
+    [IO.Directory]::Move($stage, $pendingDir)
+    $ownsPending = $true
+    if ($currentEntry) { [IO.File]::Move($installPath, (Join-Path $pendingDir 'old.atlas.exe')) }
+    foreach ($name in $names) {
+      $targetPath = Join-Path $InstallDir $name
+      $current = Find-Entry $InstallDir $name
+      if ($current) {
+        if ($name -eq 'atlas.exe') { throw "atlas.exe appeared during replacement" }
+        $expected = if ($name -eq $receiptName) { $oldReceiptHash } else { $oldRuntime.$name }
+        Assert-RegularPayload $current $expected
+        [IO.File]::Move($targetPath, (Join-Path $pendingDir "old.$name"))
+      }
+      [IO.File]::Move((Join-Path $pendingDir "new.$name"), $targetPath)
+    }
     $installedVersion = (& $installPath --version) -join "`n"
     if ($LASTEXITCODE -ne 0 -or $installedVersion -cne $expectedVersion) {
       throw "installed atlas.exe failed its version check (expected $expectedVersion, got $installedVersion)"
     }
+    Complete-Transaction $pendingDir $names
   } catch {
     $failure = $_
-    try {
-      if ($placed) {
-        $installedEntry = Get-InstallEntry
-        if ($installedEntry.LinkType -or ($installedEntry -and
-            (Get-FileHash -LiteralPath $installPath).Hash -ne (Get-FileHash -LiteralPath $newBinary.FullName).Hash)) {
-          throw "atlas.exe changed before it could be removed"
-        }
-        if ($installedEntry) { [IO.File]::Delete($installPath) }
+    if ($ownsPending) {
+      try { Restore-Transaction }
+      catch {
+        Write-Host "Recovery files: $pendingDir"
+        Fail "failed to recover after an installation error: $($_.Exception.Message)"
       }
-      if ($movedOld) { [IO.File]::Move($backup, $installPath) }
-    } catch {
-      $recovery = if ($movedOld) { " Backup: $backup." } else { "" }
-      Fail "failed to recover after an installation error: $($_.Exception.Message).$recovery"
     }
-    Fail "failed to replace or validate atlas.exe: $($failure.Exception.Message)"
+    Fail "failed to replace or validate Atlas: $($failure.Exception.Message)"
   } finally {
-    Remove-Item -LiteralPath $tmpDest -Force -ErrorAction SilentlyContinue
+    if ([IO.Directory]::Exists($stage)) {
+      foreach ($name in $names) { [IO.File]::Delete((Join-Path $stage "new.$name")) }
+      [IO.File]::Delete((Join-Path $stage 'transaction.json'))
+      [IO.Directory]::Delete($stage)
+    }
   }
-  if ($movedOld) { [IO.File]::Delete($backup) }
 } finally {
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "Installed atlas to $installPath"
-if ($pathStatus -ne "on-path") {
+$setupHint = "run 'atlas setup'"
+if ($InstallDir.Contains(';') -or $InstallDir -match '%[^%]+%') {
+  # Windows PowerShell and PowerShell 7 both split PATH at semicolons,
+  # including those inside quoted directory names.
+  $quotedExecutable = [Management.Automation.Language.CodeGeneration]::EscapeSingleQuotedStringContent($installPath)
+  $reason = if ($InstallDir.Contains(';')) { 'PowerShell splits PATH at semicolons.' } else { 'Windows can expand %variable% references in your user PATH.' }
+  Write-Host "$reason Run Atlas in PowerShell using its full path:"
+  Write-Host "  & '$quotedExecutable' setup"
+  $setupHint = 'run the command above'
+} elseif ($pathStatus -ne "on-path") {
   Write-Host ""
-  Write-Host "$InstallDir is not on PATH. Add it to your user PATH, then open a new terminal."
+  Write-Host "$InstallDir is not on PATH. Add it for this PowerShell session and future sign-ins."
   Write-Host "PowerShell hint:"
-  Write-Host "  [Environment]::SetEnvironmentVariable('Path', `$env:Path + ';$InstallDir', 'User')"
+  $quotedDirectory = [Management.Automation.Language.CodeGeneration]::EscapeSingleQuotedStringContent($InstallDir)
+  Write-Host "  `$atlasBin = '$quotedDirectory'"
+  Write-Host @'
+  $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+  try {
+    if (($key.GetValue('Path', '') -split ';') -notcontains $atlasBin) {
+      $userPath = $key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+      $kind = if ($key.GetValueNames() -contains 'Path') { $key.GetValueKind('Path') } else { 'String' }
+      $key.SetValue('Path', ((@($userPath, $atlasBin) | Where-Object { $_ }) -join ';'), $kind)
+    }
+  } finally { $key.Dispose() }
+  if (($env:Path -split ';') -notcontains $atlasBin) { $env:Path += ";$atlasBin" }
+'@
+  Write-Host "Other apps inherit the updated PATH after your next Windows sign-in."
 }
-Write-Host "After a fresh install or Atlas upgrade, run 'atlas setup' to prepare or update reference data and search models."
+Write-Host "After a fresh install or Atlas upgrade, $setupHint to prepare or update reference data and search models."
+} finally {
+  if ($lease) { $lease.Dispose() }
+}

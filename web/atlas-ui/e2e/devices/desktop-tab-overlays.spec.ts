@@ -2,6 +2,48 @@ import { expect, test } from "./fixtures";
 import { expectControlGaps } from "./controlGeometry";
 import { markdownSource, replaceMarkdown } from "./markdownEditor";
 
+test("only the visible tab searches selected record text and keyboard close follows focus", async ({
+  page,
+}, info) => {
+  await page.addInitScript(() => {
+    Object.assign(window, { __ATLAS_WINDOWS_TABS__: true });
+  });
+  await page.goto("/records/browser-conditions:offguard00000001");
+  const paragraph = page
+    .locator("article[data-selection-search] .prepared-content p")
+    .first();
+  await expect(paragraph).toBeVisible();
+  await page.keyboard.press("Control+t");
+  const search = page.getByRole("tab", { name: "Search", exact: true });
+  const record = page.getByRole("tab", { name: "Off-Guard", exact: true });
+  await expect(search).toHaveAttribute("aria-selected", "true");
+  await search.focus();
+  await page.keyboard.press("Control+Shift+Tab");
+  await expect(record).toBeFocused();
+  await paragraph.click({ clickCount: 3, position: { x: 4, y: 8 } });
+  const text = await page.evaluate(() => window.getSelection()?.toString().trim());
+  expect(text).toBeTruthy();
+  const action = page.getByRole("link", { name: "Search Atlas", exact: true });
+  await expect(action).toHaveCount(1);
+  await info.attach("selected-record-text", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await action.click();
+  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+    text!,
+  );
+  await page.keyboard.press("Control+Tab");
+  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+  const empty = page.getByRole("tab", { selected: true });
+  await empty.focus();
+  await page.keyboard.press("Control+Shift+Tab");
+  await expect(page.getByRole("tab", { selected: true })).toBeFocused();
+  await page.keyboard.press("Delete");
+  await expect(page.getByRole("tablist")).toHaveCount(0);
+  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+});
+
 test("desktop shortcuts keep visible edges, equal height and even spacing as statuses appear", async ({
   page,
 }) => {

@@ -111,11 +111,14 @@ describe("AtlasApp routing", () => {
       expect(search).toHaveAttribute("aria-selected", "true");
       expect(reference).toHaveAttribute("aria-selected", "false");
       const initialId = reference.getAttribute("id");
-      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+      search.focus();
+      fireEvent.keyDown(search, { key: "Tab", ctrlKey: true });
       expect(reference).toHaveAttribute("aria-selected", "true");
+      await waitFor(() => expect(reference).toHaveFocus());
       expect(window.location.pathname).toBe("/search");
       fireEvent.keyDown(window, { key: "Tab", ctrlKey: true, shiftKey: true });
       expect(search).toHaveAttribute("aria-selected", "true");
+      await waitFor(() => expect(search).toHaveFocus());
       expect(reference).toHaveAttribute("id", initialId);
       fireEvent.keyDown(search, { key: "ArrowRight", altKey: true, shiftKey: true });
       expect(screen.getAllByRole("tab")).toEqual([reference, search]);
@@ -130,11 +133,9 @@ describe("AtlasApp routing", () => {
           }),
         }),
       );
-      fireEvent.click(
-        within(reference.parentElement!).getByRole("button", {
-          name: "Close tab",
-        }),
-      );
+      fireEvent.keyDown(search, { key: "Tab", ctrlKey: true });
+      await waitFor(() => expect(reference).toHaveFocus());
+      fireEvent.keyDown(document.activeElement!, { key: "Delete" });
       expect(screen.queryByRole("tablist")).toBeNull();
       expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
       expect(input).toHaveValue("Retained search draft");

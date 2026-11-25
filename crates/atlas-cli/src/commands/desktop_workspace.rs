@@ -1,20 +1,7 @@
 //! Admission checks shared by desktop setup commands on every CLI platform.
 use atlas_desktop_protocol::workspace_selection::Role;
-use atlas_runtime::Workspace;
+use atlas_runtime::{Workspace, workspace_file_id};
 use std::{io, path::PathBuf};
-
-#[cfg(unix)]
-pub(crate) fn file_identity(path: &std::path::Path) -> io::Result<(u64, u64)> {
-    use std::os::unix::fs::MetadataExt;
-    let metadata = path.metadata()?;
-    Ok((metadata.dev(), metadata.ino()))
-}
-
-#[cfg(windows)]
-pub(crate) fn file_identity(path: &std::path::Path) -> io::Result<(u64, u64)> {
-    let information = winapi_util::file::information(std::fs::File::open(path)?)?;
-    Ok((information.volume_serial_number(), information.file_index()))
-}
 
 pub(crate) fn verify_expected_workspace(workspace: &Workspace) -> Result<(), String> {
     #[derive(serde::Deserialize)]
@@ -42,7 +29,7 @@ pub(crate) fn verify_expected_workspace(workspace: &Workspace) -> Result<(), Str
                 .check_update_history(&ledger)
                 .map_err(|error| error.to_string())?;
             if actual_key != key
-                || file_identity(current).map_err(|error| error.to_string())? != identity
+                || workspace_file_id(current).map_err(|error| error.to_string())? != identity
             {
                 return Err(changed());
             }

@@ -7,6 +7,21 @@ use std::path::Path;
 
 pub const WORKSPACE_SCHEMA_VERSION: u32 = RELEASE_HISTORY.target();
 
+/// Physical identity used to detect a replaced database across desktop operations.
+pub fn workspace_file_id(path: &Path) -> std::io::Result<(u64, u64)> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = path.metadata()?;
+        Ok((metadata.dev(), metadata.ino()))
+    }
+    #[cfg(windows)]
+    {
+        let information = winapi_util::file::information(std::fs::File::open(path)?)?;
+        Ok((information.volume_serial_number(), information.file_index()))
+    }
+}
+
 #[path = "release_history.rs"]
 mod release_history;
 pub(crate) use release_history::RELEASE_HISTORY;

@@ -27,7 +27,8 @@ export function notices(metadata: Json, pf2eNotices: string, sourcePin: Json): s
     '  - Project: https://github.com/microsoft/onnxruntime',
     '  - License: https://github.com/microsoft/onnxruntime/blob/main/LICENSE',
     '  - Third-party notices: https://github.com/microsoft/onnxruntime/blob/main/ThirdPartyNotices.txt',
-    '', 'If future release artifacts bundle additional native libraries, update this',
-    'section before publishing the release.', '',
+    '', 'Windows packages include the x64 Microsoft Visual C++ Redistributable runtime.',
+    'Microsoft publishes the redistributable files with Visual Studio.',
+    'https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files', '',
   ].join('\n');
 }

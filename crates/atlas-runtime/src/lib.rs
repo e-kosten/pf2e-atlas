@@ -51,7 +51,7 @@ pub use setup_model::{
 };
 pub use workspace::{
     WORKSPACE_SCHEMA_VERSION, claim_desktop_workspace, desktop_migration_ledger,
-    initialize_workspace, seed_desktop_copy,
+    initialize_workspace, seed_desktop_copy, workspace_file_id,
 };
 
 pub use operations::{ExactRecordRead, StateRead, WorkspaceRead, WorkspaceWrite};

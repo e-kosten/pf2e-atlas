@@ -40,7 +40,10 @@ access. Keep `atlas --version` unchanged for existing consumers.
 
 CLI-only source builds need no frontend assets or Node.js. Installed full builds
 continue embedding a compatible frontend/backend pair. Switching variants within
-one release replaces the executable without changing runtime data.
+one release replaces the executable without changing workspace data. On Windows,
+the standalone installer also replaces the app-local Visual C++ runtime from the
+selected ZIP. Its receipt identifies the DLLs the installer can update in a custom
+bin directory.
 
 Packaging validates both variants on all supported platforms, with shared CLI
 smoke checks and additional embedded-web checks for full builds. Local/CI Rust

@@ -75,5 +75,16 @@ export async function validateAssets(dist: string): Promise<void> {
     if (!entries.some((entry) => entry === noticesName || entry.endsWith(`/${noticesName}`))) {
       throw new Error(`release archive is missing ${noticesName}: ${name}`);
     }
+    if (name.endsWith('-x86_64-pc-windows-msvc.zip')) {
+      const binaries = entries.filter((entry) => path.posix.basename(entry).toLowerCase() === 'atlas.exe');
+      if (binaries.length !== 1) throw new Error(`expected one packaged atlas.exe: ${name}`);
+      const directory = path.posix.dirname(binaries[0]);
+      for (const runtimeFile of ['msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'atlas-windows-runtime.json']) {
+        const expected = path.posix.join(directory, runtimeFile);
+        if (entries.filter((entry) => entry.toLowerCase() === expected.toLowerCase()).length !== 1) {
+          throw new Error(`expected ${runtimeFile} beside atlas.exe: ${name}`);
+        }
+      }
+    }
   }
 }

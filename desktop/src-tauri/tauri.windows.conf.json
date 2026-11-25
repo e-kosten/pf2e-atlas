@@ -12,6 +12,8 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
+        "template": "installer.nsi",
+        "installerHooks": "windows-installer.nsh",
         "installerIcon": "icons/icon.ico"
       }
     }
