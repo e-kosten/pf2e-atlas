@@ -1574,7 +1574,7 @@ function savedListIndexFixture() {
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  return detailFixture(recordKey);
+  return { ...detailFixture(recordKey), artifact_generation: "generation-a" };
 }
 
 function render(

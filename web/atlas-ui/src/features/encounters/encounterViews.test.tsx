@@ -2034,7 +2034,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "rules:linked",
-        undefined,
+        expect.objectContaining({ expected_artifact_generation: "generation-a" }),
         expect.any(AbortSignal),
       ),
     );
@@ -2068,7 +2068,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "rules:linked",
-        undefined,
+        expect.objectContaining({ expected_artifact_generation: "generation-a" }),
         expect.any(AbortSignal),
       ),
     );
@@ -4002,7 +4002,7 @@ function encounterDetailFixture(
       opposition: [],
     },
     revision: 0,
-    artifact_generation: "test-generation",
+    artifact_generation: "generation-a",
     encounter: encounterIndexFixture().encounters[0],
     note: "Encounter note",
     current_turn_participant_key: currentTurnParticipantKey,
