@@ -274,6 +274,16 @@ pub struct RelationshipOccurrencesPage {
     pub page: SearchPageView,
 }
 
+impl SearchResultRow {
+    /// Preferred navigation and citation for an evidence-bearing row.
+    pub fn best_match(&self) -> Option<&SearchWitnessView> {
+        self.matches
+            .iter()
+            .find(|witness| witness.preview.is_some())
+            .or_else(|| self.matches.first())
+    }
+}
+
 #[cfg(test)]
 mod connection_contract_tests {
     use super::*;
@@ -304,15 +314,5 @@ mod connection_contract_tests {
         )
         .unwrap();
         assert_eq!(missing.parent, Box::new(context));
-    }
-}
-
-impl SearchResultRow {
-    /// Preferred navigation and citation for an evidence-bearing row.
-    pub fn best_match(&self) -> Option<&SearchWitnessView> {
-        self.matches
-            .iter()
-            .find(|witness| witness.preview.is_some())
-            .or_else(|| self.matches.first())
     }
 }
