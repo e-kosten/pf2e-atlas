@@ -119,7 +119,7 @@ Before the first official release, use the [nightly installer](#nightly-builds).
 
 Rerun the [standalone installer](#standalone-cli) to update the CLI to
 the latest stable release, then run `atlas setup`. Restart a running web session.
-The installer updates the executable; setup updates reference data while retaining
+The installer updates the executable and, on Windows, its accompanying runtime DLLs. Setup updates reference data while retaining
 your saved lists and encounters. Atlas does not update itself automatically.
 
 ## Install without the web UI
@@ -149,6 +149,11 @@ Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/latest/downloa
 
 Saving the script under `$env:TEMP` works even when PowerShell starts in a
 protected directory such as `C:\Windows\System32`.
+
+The Windows installer prints a command to add its folder to your user PATH.
+If a custom folder contains a semicolon or a literal `%variable%` reference,
+use the full command path the installer prints. PowerShell splits PATH at
+semicolons and Windows can expand environment references in user PATH entries.
 
 Continue with `atlas setup` and, for your agent, `atlas agent skills install`.
 CLI-only Atlas supports the existing CLI commands and semantic search. Its help
@@ -259,7 +264,10 @@ version does not restore earlier saved data. Run `atlas setup` after upgrading.
 
 Download the archive for your operating system from the
 [releases page](https://github.com/e-kosten/pf2e-atlas/releases), verify it against
-`SHA256SUMS`, extract `atlas`, put it on `PATH`, then run `atlas setup`.
+`SHA256SUMS`, then extract it. On Windows, keep `atlas.exe`, its Visual C++
+runtime DLLs and `atlas-windows-runtime.json` together in a dedicated folder.
+Add that folder to your user `PATH`. On macOS and Linux, place `atlas` on `PATH`.
+Run `atlas setup` to prepare your workspace.
 
 Full archives are named `atlas-cli-<target>.tar.xz` (Windows: `.zip`). CLI-only
 archives are named `atlas-cli-only-<target>.tar.xz` (Windows: `.zip`). Both contain

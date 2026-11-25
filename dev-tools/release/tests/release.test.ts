@@ -10,7 +10,7 @@ import { archiveEntries } from '../src/archives.js';
 import { generateManifest } from '../src/generate-release-manifest.js';
 import { notices } from '../src/generate-notices.js';
 import { pruneManifest } from '../src/prune-dist-manifest.js';
-import { fixture, writeZip } from './release-fixtures.js';
+import { fixture, windowsRuntimeFixture, writeZip } from './release-fixtures.js';
 import { jsonText, macosDmg, object, readJson, repoRoot, sha256, targets, variants, archiveName, windowsInstaller, writeJson } from '../src/release-data.js';
 import { stageCliOnly } from '../src/stage-cli-only.js';
 import { validateAssets } from '../src/validate-release-assets.js';
@@ -116,7 +116,7 @@ test('notices preserve dependency ordering, unknown licenses and native notices'
   assert.equal(dependencies, '- Alpha 1.0: Apache-2.0 (workspace)\n- Alpha 2.0: MIT (registry)\n- zeta 1.0: UNKNOWN (workspace)');
   assert.ok(content.includes('- PF2e Atlas: Apache-2.0'));
   assert.ok(content.includes('- ONNX Runtime: MIT'));
-  assert.ok(content.endsWith('section before publishing the release.\n'));
+  assert.match(content, /x64 Microsoft Visual C\+\+ Redistributable/);
 });
 
 test('release notices preserve both PF2e provenances and the complete applicable license text', () => {
@@ -199,7 +199,7 @@ test('asset checks reject missing metadata, bad hashes, runtime data in archives
   writeFileSync(path.join(archiveRoot, 'THIRD-PARTY-NOTICES.md'), 'fixture\n');
   for (const [target, variant] of Object.keys(targets).flatMap((target) => variants.map((variant) => [target, variant] as const))) {
     const file = path.join(dist, archiveName(target, variant));
-    if (target.includes('windows')) await writeZip(file, { 'atlas/atlas.exe': 'stub', 'atlas/THIRD-PARTY-NOTICES.md': 'fixture\n' });
+    if (target.includes('windows')) await writeZip(file, { ...windowsRuntimeFixture('atlas'), 'atlas/atlas.exe': 'stub', 'atlas/THIRD-PARTY-NOTICES.md': 'fixture\n' });
     else await fixture(['unix-archive', file, archiveRoot]);
   }
   for (const name of [macosDmg, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'fixture\n');
@@ -251,6 +251,12 @@ test('asset checks reject missing metadata, bad hashes, runtime data in archives
   await writeZip(path.join(bad, 'atlas-cli-x86_64-pc-windows-msvc.zip'), { 'atlas/atlas.exe': 'stub' });
   await generateManifest('v9.9.9', bad);
   await assert.rejects(validateAssets(bad), /release archive is missing THIRD-PARTY-NOTICES/);
+  await reset();
+  await writeZip(path.join(bad, 'atlas-cli-only-x86_64-pc-windows-msvc.zip'), {
+    'atlas/atlas.exe': 'stub', 'atlas/THIRD-PARTY-NOTICES.md': 'fixture', ...windowsRuntimeFixture('wrong-directory'),
+  });
+  await generateManifest('v9.9.9', bad);
+  await assert.rejects(validateAssets(bad), /expected msvcp140.dll beside atlas.exe/);
 });
 
 

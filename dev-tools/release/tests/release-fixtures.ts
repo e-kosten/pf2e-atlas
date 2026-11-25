@@ -6,6 +6,11 @@ import { pipeline } from 'node:stream/promises';
 import { ZipFile } from 'yazl';
 import { cli, object, readJson, writeJson, type Json } from '../src/release-data.js';
 
+export const windowsRuntimeFixture = (root: string) => Object.fromEntries(
+  ['msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'atlas-windows-runtime.json']
+    .map((name) => [`${root}/${name}`, 'Windows runtime fixture']),
+);
+
 export async function writeZip(file: string, entries: Record<string, string | Buffer>): Promise<void> {
   const zip = new ZipFile();
   for (const [name, value] of Object.entries(entries)) zip.addBuffer(typeof value === 'string' ? Buffer.from(value) : value, name);
@@ -20,7 +25,7 @@ export async function fixture(args: string[]): Promise<void> {
     case 'windows-archive': {
       if (!extra || !notices) throw new Error('Repository root and generated notices are required');
       const root = path.basename(file, '.zip');
-      const entries: Record<string, string | Buffer> = { [`${root}/atlas.exe`]: 'atlas 9.9.9\r\n' };
+      const entries: Record<string, string | Buffer> = { ...windowsRuntimeFixture(root), [`${root}/atlas.exe`]: 'atlas 9.9.9\r\n' };
       for (const name of ['LICENSE', 'README.md']) entries[`${root}/${name}`] = readFileSync(path.join(extra, name));
       entries[`${root}/THIRD-PARTY-NOTICES.md`] = readFileSync(notices);
       await writeZip(file, entries); break;

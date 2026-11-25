@@ -32,7 +32,6 @@ try {
     $prefix = if ($Variant -eq "cli-only") { "atlas-cli-only" } else { "atlas-cli" }
     $root = Join-Path $tmp "$prefix-$Target-$Variant"
     New-Item -ItemType Directory -Force -Path $root | Out-Null
-    $appDir = Join-Path $tmp "stub-app-$Variant"
     if ($env:OS -ne "Windows_NT") {
       @'
 #!/bin/sh
@@ -53,35 +52,48 @@ esac
 '@.Replace('__VARIANT__', $Variant).Replace('variant":"rollback"', 'variant":"full"') | Set-Content -Path (Join-Path $root "atlas.exe") -NoNewline
       chmod +x (Join-Path $root "atlas.exe")
     } else {
-    if (-not (Test-Path (Join-Path $appDir "bin"))) {
-      New-Item -ItemType Directory -Force -Path $appDir | Out-Null
+      # The Windows Framework compiler produces a single executable without a
+      # machine-specific SDK, self-contained runtime, or package restore.
+      $program = Join-Path $tmp "stub-$Variant.cs"
       @'
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-</Project>
-'@ | Set-Content -Path (Join-Path $appDir "atlas-stub.csproj")
-      @'
-var version = Environment.GetEnvironmentVariable("ATLAS_TEST_BINARY_VERSION") ?? "9.9.9";
-if ("__VARIANT__" == "rollback" && !AppContext.BaseDirectory.Contains(@"\extract\", StringComparison.OrdinalIgnoreCase)) {
-    version = "9.9.10";
-}
-if (args.Length > 0 && args[0] == "--version") { Console.WriteLine($"atlas {version}"); }
-else if (args.Length > 0 && args[0] == "build-info" && "__VARIANT__" != "legacy") {
-  Console.WriteLine("{\"status\":\"ok\",\"data\":{\"version\":\"9.9.9\",\"variant\":\"__VARIANT__\"}}");
-} else { Console.Error.WriteLine("unknown subcommand build-info"); Environment.Exit(2); }
-'@.Replace('__VARIANT__', $Variant).Replace('variant\":\"rollback\"', 'variant\":\"full\"') | Set-Content -Path (Join-Path $appDir "Program.cs")
-      dotnet publish $appDir --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true --output (Join-Path $appDir "out") | Out-Null
+using System;
+public class Program {
+  public static int Main(string[] args) {
+    var variant = "__VARIANT__";
+    var version = Environment.GetEnvironmentVariable("ATLAS_TEST_BINARY_VERSION") ?? "9.9.9";
+    if (variant == "rollback" && AppDomain.CurrentDomain.BaseDirectory.IndexOf(@"\extract\", StringComparison.OrdinalIgnoreCase) < 0) {
+      version = "9.9.10";
     }
-    Copy-Item (Join-Path $appDir "out/atlas-stub.exe") (Join-Path $root "atlas.exe")
+    if (args.Length > 0 && args[0] == "--version") {
+      Console.WriteLine("atlas " + version);
+      return 0;
+    }
+    if (args.Length > 0 && args[0] == "build-info" && variant != "legacy") {
+      Console.WriteLine("{\"status\":\"ok\",\"data\":{\"version\":\"9.9.9\",\"variant\":\"" + (variant == "rollback" ? "full" : variant) + "\"}}");
+      return 0;
+    }
+    Console.Error.WriteLine("unknown subcommand build-info");
+    return 2;
+  }
+}
+'@.Replace('__VARIANT__', $Variant) | Set-Content -LiteralPath $program
+      $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+      & $compiler /nologo /target:exe "/out:$(Join-Path $root 'atlas.exe')" $program
+      if ($LASTEXITCODE -ne 0) { throw "Failed to compile the $Variant installer fixture" }
     }
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
     Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $root "README.md")
     Copy-Item $notices (Join-Path $root "THIRD-PARTY-NOTICES.md")
+    if ($Variant -ne 'legacy') {
+      $runtime = [ordered]@{}
+      foreach ($name in 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+        $file = Join-Path $root $name
+        "$Variant runtime fixture" | Set-Content -LiteralPath $file -Encoding ascii
+        $runtime[$name] = (Get-FileHash -LiteralPath $file).Hash
+      }
+      @{ format = 'atlas-windows-runtime-v1'; files = $runtime } | ConvertTo-Json |
+        Set-Content -LiteralPath (Join-Path $root 'atlas-windows-runtime.json') -Encoding ascii
+    }
     Compress-Archive -Path $root -DestinationPath (Join-Path $Destination "$prefix-$Target.zip") -Force
   }
 
@@ -125,7 +137,7 @@ else if (args.Length > 0 && args[0] == "build-info" && "__VARIANT__" != "legacy"
   }
 
   $fakeBin = Join-Path $tmp "bin"
-  $installDir = Join-Path $tmp "install with spaces"
+  $installDir = Join-Path $tmp ("install with spaces O'Brien" + [char]0x2019 + 's $(test) & ' + [char]0x201C + 'bin' + [char]0x201D)
   New-Item -ItemType Directory -Force -Path $fakeBin, $installDir | Out-Null
   @'
 param(
@@ -162,13 +174,23 @@ function Expand-Archive {
 function Get-FixtureFileHash {
   param([string]$Path, [string]$LiteralPath, [string]$Algorithm)
   $installed = Join-Path $env:ATLAS_TEST_INSTALL_DIR "atlas.exe"
-  if ($LiteralPath -eq $installed) {
+  if (($env:ATLAS_TEST_INTERRUPT -or $env:ATLAS_TEST_HOLD) -and $LiteralPath -eq (Join-Path $env:ATLAS_TEST_INSTALL_DIR 'vcruntime140.dll') -and
+      (Test-Path -LiteralPath (Join-Path $env:ATLAS_TEST_INSTALL_DIR '.atlas-cli-installing/old.atlas.exe'))) {
+    if ($env:ATLAS_TEST_INTERRUPT) { [Environment]::Exit(73) }
+    [IO.File]::WriteAllText((Join-Path $env:ATLAS_TEST_HOLD 'paused'), '')
+    $wait = [Diagnostics.Stopwatch]::StartNew()
+    while (!(Test-Path -LiteralPath (Join-Path $env:ATLAS_TEST_HOLD 'resume'))) {
+      if ($wait.Elapsed.TotalSeconds -gt 90) { throw 'Timed out waiting for the concurrent installer' }
+      Start-Sleep -Milliseconds 100
+    }
+  }
+  if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -and $LiteralPath -eq $installed) {
     [IO.File]::WriteAllText($installed, "intervening file")
   }
   Microsoft.PowerShell.Utility\Get-FileHash @PSBoundParameters
 }
 # An alias keeps the injected fault active when legacy PowerShell loads Utility's hash function.
-if ($env:ATLAS_TEST_OBSTRUCT_RESTORE) { Set-Alias Get-FileHash Get-FixtureFileHash }
+if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -or $env:ATLAS_TEST_INTERRUPT -or $env:ATLAS_TEST_HOLD) { Set-Alias Get-FileHash Get-FixtureFileHash }
 if ($env:ATLAS_TEST_INSTALL_CWD) { Set-Location -LiteralPath $env:ATLAS_TEST_INSTALL_CWD }
 $variantArgs = @{}
 if ($env:ATLAS_TEST_VARIANT -eq "cli-only") { $variantArgs.WithoutWeb = $true }
@@ -190,8 +212,8 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
   $env:ATLAS_TEST_INSTALL_DIR = $installDir
   $dryRunDir = Join-Path $tmp "dry-run-install"
   & $env:ATLAS_INSTALLER -InstallDir $dryRunDir -Version v9.9.9 -DryRun | Out-Null
-  if (Test-Path (Join-Path $dryRunDir "atlas.exe")) {
-    throw "PowerShell installer dry-run wrote an atlas.exe binary"
+  if (Test-Path -LiteralPath $dryRunDir) {
+    throw "PowerShell installer dry-run created an installation directory"
   }
 
   & $Shell -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
@@ -225,8 +247,134 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
   if (($secondOutput -join "`n") -notmatch [regex]::Escape("not on PATH")) {
     throw "PowerShell installer did not print PATH guidance"
   }
+  $hint = @($secondOutput | Where-Object { $_ -match '^  \$atlasBin =' })
+  if ($hint.Count -ne 1) { throw 'Missing PATH hint assignment' }
+  $literalPath = & ([ScriptBlock]::Create($hint[0] + '; $atlasBin'))
+  if ($literalPath -cne $installDir) { throw 'PATH hint changed the installation path' }
+  if (($secondOutput -join "`n") -notmatch [regex]::Escape("CurrentUser.CreateSubKey('Environment')")) {
+    throw 'PATH hint must preserve the user PATH independently of the process PATH'
+  }
+  $shared = Join-Path $tmp 'shared-bin'
+  New-Item -ItemType Directory -Path $shared | Out-Null
+  Set-Content -LiteralPath (Join-Path $shared 'msvcp140.dll') -Value 'belongs to another app'
+  $env:ATLAS_TEST_INSTALL_DIR = $shared
+  $failed = $false
+  try { & $Shell -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null; $failed = $LASTEXITCODE -ne 0 } catch { $failed = $true }
+  if (!$failed -or (Test-Path -LiteralPath (Join-Path $shared 'atlas.exe')) -or
+      (Get-Content -LiteralPath (Join-Path $shared 'msvcp140.dll')) -ne 'belongs to another app') {
+    throw 'Installer changed an unrelated runtime file'
+  }
+  $env:ATLAS_TEST_INSTALL_DIR = $installDir
   if (($secondOutput -join "`n") -notmatch [regex]::Escape("After a fresh install or Atlas upgrade, run 'atlas setup'")) {
     throw "PowerShell installer did not print setup guidance"
+  }
+  foreach ($literalDir in 'literal %TEMP% folder', 'semicolon;folder') {
+    $env:ATLAS_TEST_INSTALL_DIR = Join-Path $tmp $literalDir
+    $output = & $Shell -NoProfile -File (Join-Path $fakeBin 'run-install.ps1')
+    $command = @($output | Where-Object { $_ -match '^  & .* setup$' })
+    if ($LASTEXITCODE -ne 0 -or $command.Count -ne 1 -or $output -contains 'PowerShell hint:') {
+      throw "Expected a full-path command for $literalDir"
+    }
+    $probe = Join-Path $tmp 'run-printed-command.ps1'
+    [IO.File]::WriteAllText($probe, ($command[0] -replace ' setup$', ' --version'), [Text.UTF8Encoding]::new($true))
+    if ((& $Shell -NoProfile -File $probe) -ne 'atlas 9.9.9' -or $LASTEXITCODE -ne 0) {
+      throw "Full-path command did not run the installed executable in $literalDir"
+    }
+  }
+  $env:ATLAS_TEST_INSTALL_DIR = $installDir
+
+  if ($env:OS -eq 'Windows_NT') {
+    # Deny rename on a later DLL after the executable and earlier DLLs retire.
+    $original = @{}
+    foreach ($file in Get-ChildItem -Force -LiteralPath $installDir -File) {
+      $original[$file.Name] = (Get-FileHash -LiteralPath $file.FullName).Hash
+    }
+    $locked = [IO.File]::Open((Join-Path $installDir 'vcruntime140.dll'), 'Open', 'Read', 'Read')
+    $env:ATLAS_TEST_VARIANT = 'cli-only'
+    try {
+      $failed = $false
+      try { & $Shell -NoProfile -File (Join-Path $fakeBin 'run-install.ps1') | Out-Null; $failed = $LASTEXITCODE -ne 0 } catch { $failed = $true }
+      if (!$failed) { throw 'Installer replaced a locked runtime' }
+    } finally {
+      $locked.Dispose()
+      Remove-Item Env:ATLAS_TEST_VARIANT
+    }
+    foreach ($name in $original.Keys) {
+      if ((Get-FileHash -LiteralPath (Join-Path $installDir $name)).Hash -ne $original[$name]) {
+        throw "Failed to restore $name after late lock"
+      }
+    }
+    $restored = (& (Join-Path $installDir 'atlas.exe') build-info --json) | ConvertFrom-Json
+    if ($restored.data.variant -ne 'full' -or (Test-Path -LiteralPath (Join-Path $installDir '.atlas-cli-installing'))) {
+      throw 'Locked-runtime rollback left an incomplete installation'
+    }
+    $env:ATLAS_TEST_VARIANT = 'cli-only'
+    $env:ATLAS_TEST_INTERRUPT = '1'
+    try {
+      try { & $Shell -NoProfile -File (Join-Path $fakeBin 'run-install.ps1') | Out-Null } catch { }
+      if ($LASTEXITCODE -ne 73 -or (Test-Path -LiteralPath (Join-Path $installDir 'atlas.exe'))) {
+        throw 'Installer did not interrupt at the expected runtime replacement'
+      }
+    } finally {
+      Remove-Item Env:ATLAS_TEST_VARIANT, Env:ATLAS_TEST_INTERRUPT
+    }
+    # Default selection must recover the original full variant before probing.
+    & $Shell -NoProfile -File (Join-Path $fakeBin 'run-install.ps1') | Out-Null
+    $restored = (& (Join-Path $installDir 'atlas.exe') build-info --json) | ConvertFrom-Json
+    if ($restored.data.variant -ne 'full' -or (Get-Content -LiteralPath (Join-Path $installDir 'msvcp140.dll')) -ne 'full runtime fixture') {
+      throw 'Retry failed to recover the interrupted install'
+    }
+
+    # Two spellings of the same destination must share one lock. Pause just
+    # after retiring part of the old payload and race through a junction.
+    $aliasDir = Join-Path $tmp 'install alias'
+    New-Item -ItemType Junction -Path $aliasDir -Target $installDir | Out-Null
+    $env:ATLAS_TEST_HOLD = $tmp
+    $env:ATLAS_TEST_VARIANT = 'cli-only'
+    $runner = Join-Path $fakeBin 'run-install.ps1'
+    $ownerLog = Join-Path $tmp 'concurrent-install.log'
+    $ownerErrors = Join-Path $tmp 'concurrent-install-errors.log'
+    $owner = Start-Process -FilePath $Shell -WindowStyle Hidden -PassThru -RedirectStandardOutput $ownerLog -RedirectStandardError $ownerErrors -ArgumentList @(
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $runner + '"')
+    )
+    try {
+      Remove-Item Env:ATLAS_TEST_HOLD, Env:ATLAS_TEST_VARIANT
+      $wait = [Diagnostics.Stopwatch]::StartNew()
+      while (!(Test-Path -LiteralPath (Join-Path $tmp 'paused'))) {
+        if ($owner.HasExited -or $wait.Elapsed.TotalSeconds -gt 120) {
+          throw "Installer did not reach the mid-transaction barrier: $(Get-Content -Raw -LiteralPath $ownerLog) $(Get-Content -Raw -LiteralPath $ownerErrors)"
+        }
+        Start-Sleep -Milliseconds 100
+      }
+      $env:ATLAS_TEST_INSTALL_DIR = $aliasDir
+      try { & $Shell -NoProfile -File $runner | Out-Null } catch { }
+      if ($LASTEXITCODE -eq 0 -or (Test-Path -LiteralPath (Join-Path $aliasDir 'atlas.exe')) -or
+          !(Test-Path -LiteralPath (Join-Path $aliasDir '.atlas-cli-installing/old.atlas.exe'))) {
+        throw 'Concurrent installer interfered with a live transaction through a junction'
+      }
+    } finally {
+      $env:ATLAS_TEST_INSTALL_DIR = $installDir
+      [IO.File]::WriteAllText((Join-Path $tmp 'resume'), '')
+      if (!$owner.WaitForExit(90000)) { $owner.Kill(); throw 'Paused installer did not exit' }
+      [IO.Directory]::Delete($aliasDir)
+    }
+    $restored = (& (Join-Path $installDir 'atlas.exe') build-info --json) | ConvertFrom-Json
+    if ($owner.ExitCode -ne 0 -or $restored.data.variant -ne 'cli-only' -or (Test-Path -LiteralPath (Join-Path $installDir '.atlas-cli-install.lock'))) {
+      throw 'Lock owner failed to finish its transaction'
+    }
+    $owner.Dispose()
+    $reservedDir = New-Item -ItemType Directory -Path (Join-Path $tmp 'unrelated lock')
+    $reserved = Join-Path $reservedDir.FullName '.atlas-cli-install.lock'
+    New-Item -ItemType Junction -Path $reserved -Target $installDir | Out-Null
+    try {
+      $env:ATLAS_TEST_INSTALL_DIR = $reservedDir.FullName
+      try { & $Shell -NoProfile -File $runner | Out-Null } catch { }
+      if ($LASTEXITCODE -eq 0 -or (Get-Item -LiteralPath $reserved).LinkType -ne 'Junction' -or
+          (Test-Path -LiteralPath (Join-Path $reservedDir.FullName 'atlas.exe'))) { throw 'Installer changed an unrelated lock entry' }
+    } finally {
+      $env:ATLAS_TEST_INSTALL_DIR = $installDir
+      [IO.Directory]::Delete($reserved)
+    }
   }
 
   foreach ($choice in @("cli-only", "preserve-cli", "full", "preserve-full")) {
@@ -235,6 +383,9 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
     $info = (& (Join-Path $installDir "atlas.exe") build-info --json) | ConvertFrom-Json
     $expected = if ($choice -in @("cli-only", "preserve-cli")) { "cli-only" } else { "full" }
     if ($info.data.variant -ne $expected) { throw "PowerShell installer failed variant selection: $choice" }
+    if ((Get-Content -LiteralPath (Join-Path $installDir 'msvcp140.dll')) -ne "$expected runtime fixture") {
+      throw "PowerShell installer left a mismatched app-local runtime: $choice"
+    }
   }
   Remove-Item Env:ATLAS_TEST_VARIANT
   $failed = $false
@@ -418,7 +569,8 @@ function Expand-Archive {
   $installedVersion = & (Join-Path $installDir "atlas.exe") --version
   if ($installedVersion.Trim() -ne "atlas 9.9.9" -or
       (Get-FileHash (Join-Path $installDir "atlas.exe")).Hash -ne $previousHash -or
-      (Test-Path (Join-Path $freshDir "atlas.exe"))) {
+      (Test-Path (Join-Path $freshDir "atlas.exe")) -or (Test-Path (Join-Path $freshDir 'msvcp140.dll')) -or
+      (Get-Content -LiteralPath (Join-Path $installDir 'msvcp140.dll')) -ne 'full runtime fixture') {
     throw "PowerShell installer left a failed executable after validation failure"
   }
 
@@ -440,8 +592,9 @@ function Expand-Archive {
   $PSNativeCommandUseErrorActionPreference = $false
   try {
     $output = & $Shell -NoProfile -File (Join-Path $fakeBin "run-install.ps1") 2>&1 | Out-String
-    $backups = @(Get-ChildItem -LiteralPath $obstructedDir -Filter ".atlas.backup.*.exe" -Force)
-    if ($LASTEXITCODE -ne 1 -or $backups.Count -ne 1 -or $output -notmatch [regex]::Escape($backups[0].Name) -or
+    $recovery = Join-Path $obstructedDir '.atlas-cli-installing'
+    $backups = @(Get-ChildItem -LiteralPath $recovery -Filter "old.atlas.exe" -Force)
+    if ($LASTEXITCODE -ne 1 -or $backups.Count -ne 1 -or $output -notmatch [regex]::Escape($recovery) -or
         (Get-FileHash -LiteralPath $backups[0].FullName).Hash -ne $previousHash -or
         (Get-Content -LiteralPath (Join-Path $obstructedDir "atlas.exe") -Raw) -ne "intervening file") {
       throw "PowerShell installer did not preserve the backup and intervening entry: $output"

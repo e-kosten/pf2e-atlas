@@ -292,6 +292,13 @@ jobs:
           RUSTFLAGS: "-C target-feature=-crt-static -C link-arg=/NODEFAULTLIB:libcmt -C link-arg=msvcprt.lib -C link-arg=legacy_stdio_definitions.lib"
         run: |
           New-Item -ItemType Directory -Force target | Out-Null
+          $runtime = ./scripts/release/stage-windows-crt.ps1 -Destination target/atlas-release -IncludeReceipt
+          $manifest = 'crates/atlas-cli/Cargo.toml'
+          $contents = Get-Content -Raw -LiteralPath $manifest
+          $marker = '# Windows release build inserts the app-local runtime here.'
+          if (!$contents.Contains($marker)) { throw 'Missing Windows runtime include location in the CLI package manifest' }
+          $include = ($runtime | ForEach-Object { '"../../target/atlas-release/' + $_ + '",' }) -join "`n    "
+          Set-Content -LiteralPath $manifest -Value $contents.Replace($marker, $include) -NoNewline
           dist build --allow-dirty --no-local-paths --output-format json --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" > target/package-dist-manifest.json
       - name: Stage CLI-only artifacts
         if: ${{ matrix.variant == 'cli-only' }}
@@ -354,6 +361,7 @@ jobs:
           Expand-Archive "target/distrib/$prefix-${{ matrix.target }}.zip" target/package-smoke
           $binary = Get-ChildItem target/package-smoke -Filter atlas.exe -Recurse | Select-Object -First 1
           if (-not $binary) { throw "packaged atlas.exe is missing" }
+          ./scripts/release/test-windows-runtime.ps1 -Binary $binary.FullName
           node dev-tools/release/dist/src/cli/smoke-packaged-cli.js $binary.FullName $env:EXPECTED_VERSION $env:VARIANT
           if ($LASTEXITCODE -ne 0) { throw "packaged CLI smoke test failed" }
           if ($env:VARIANT -eq "full") {
@@ -576,3 +584,44 @@ jobs:
           name: release-build-check-${{ needs.prepare.outputs.tag }}
           path: target/distrib/*
           if-no-files-found: error
+
+  clean-windows-cli:
+    name: Verify assembled CLI on clean Windows x64
+    needs: [prepare, assemble]
+    # Reusable publication calls always supply source-ref. This image pull is
+    # reserved for direct, nonpublishing release-build-check rehearsals.
+    if: ${{ !inputs.source-ref }}
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-build-check-${{ needs.prepare.outputs.tag }}
+          path: target/assembled
+      - name: Mount the assembled Windows assets and offline source fixture
+        shell: pwsh
+        run: |
+          $inputDir = New-Item -ItemType Directory -Path target/clean-windows
+          Copy-Item target/assembled/atlas-cli*-x86_64-pc-windows-msvc.zip -Destination $inputDir
+          foreach ($name in 'atlas-installer.ps1', 'atlas-release-manifest.json', 'SHA256SUMS') {
+            Copy-Item -LiteralPath "target/assembled/$name" -Destination $inputDir
+          }
+          Copy-Item -LiteralPath scripts/release/qualify-clean-windows.ps1 -Destination $inputDir
+          python -c "from pathlib import Path; import runpy; runpy.run_path('scripts/validation/probe-embedding-upgrade.py')['materialize_source'](Path('target/clean-windows'))"
+      - name: Rehearse both install routes and user PATH in disposable accounts
+        shell: pwsh
+        run: |
+          $image = 'mcr.microsoft.com/windows/servercore:ltsc2022'
+          docker pull $image
+          if ($LASTEXITCODE) { throw 'Could not pull Windows Server Core' }
+          docker image inspect --format '{{.Os}} {{.OsVersion}} {{.Architecture}} {{.Id}}' $image
+          $mount = "type=bind,source=$((Resolve-Path target/clean-windows).Path),target=C:\qualification,readonly"
+          $options = @('--rm', '--network', 'none', '--user', 'ContainerUser', '--env', 'ATLAS_CLEAN_WINDOWS_CONTAINER=1', '--mount', $mount)
+          docker run @options $image powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\qualification\qualify-clean-windows.ps1
+          if ($LASTEXITCODE) { throw 'Clean Windows CLI qualification failed' }
+          # Mount only the PowerShell 7 host for a separate printed-hint check.
+          # The first container runs the release payload on the unmodified image.
+          if (!(Test-Path -LiteralPath "$PSHOME\pwsh.exe" -PathType Leaf)) { throw 'PowerShell 7 executable missing from PSHOME' }
+          docker run @options --mount "type=bind,source=$PSHOME,target=C:\pwsh7,readonly" $image C:\pwsh7\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File C:\qualification\qualify-clean-windows.ps1 -PathOnly
+          if ($LASTEXITCODE) { throw 'PowerShell 7 clean user PATH qualification failed' }
