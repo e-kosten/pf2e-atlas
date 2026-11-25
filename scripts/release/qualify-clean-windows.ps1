@@ -16,10 +16,13 @@ $index = Join-Path $root 'workspace.sqlite'
 Set-Location -LiteralPath $root
 
 # Reject a contaminated baseline before launching any shipped executable.
+if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') { throw 'Expected Windows x64' }
 if (Get-Command cl.exe, msbuild.exe, cargo.exe -ErrorAction SilentlyContinue) { throw 'Build tools found on PATH' }
 if (Test-Path -LiteralPath "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") { throw 'Visual Studio installer found' }
-$redist = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64' -ErrorAction SilentlyContinue
-if ($redist.Installed -eq 1) { throw 'Machine-wide x64 Visual C++ runtime is installed' }
+foreach ($view in 'HKLM:\SOFTWARE', 'HKLM:\SOFTWARE\Wow6432Node') {
+    $redist = Get-ItemProperty -LiteralPath (Join-Path $view 'Microsoft\VisualStudio\14.0\VC\Runtimes\x64') -ErrorAction SilentlyContinue
+    if ($redist.Installed -eq 1) { throw 'Machine-wide x64 Visual C++ runtime is installed' }
+}
 foreach ($dir in @("$env:SystemRoot\System32") + @($env:Path -split ';' | Where-Object { $_ })) {
     foreach ($dll in 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
         if (Test-Path -LiteralPath (Join-Path $dir.Trim('"') $dll)) { throw "Unexpected preinstalled runtime: $dir\$dll" }

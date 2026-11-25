@@ -163,6 +163,9 @@ Copy-Item (Join-Path $env:ATLAS_FAKE_RELEASE_DIR $name) $OutFile
 '@ | Set-Content -Path (Join-Path $fakeBin "Invoke-WebRequest.ps1")
 
   @'
+# Start-Process can launch Windows PowerShell with the parent's PowerShell 7
+# modules ahead of the child's built-ins. Use the selected test shell's modules.
+$env:PSModulePath = (Join-Path $PSHOME 'Modules') + [IO.Path]::PathSeparator + $env:PSModulePath
 function Invoke-WebRequest {
   & (Join-Path $env:ATLAS_FAKE_BIN "Invoke-WebRequest.ps1") @args
 }
@@ -187,10 +190,14 @@ function Get-FixtureFileHash {
   if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -and $LiteralPath -eq $installed) {
     [IO.File]::WriteAllText($installed, "intervening file")
   }
-  Microsoft.PowerShell.Utility\Get-FileHash @PSBoundParameters
+  & $fixtureHashCommand @PSBoundParameters
 }
-# An alias keeps the injected fault active when legacy PowerShell loads Utility's hash function.
-if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -or $env:ATLAS_TEST_INTERRUPT -or $env:ATLAS_TEST_HOLD) { Set-Alias Get-FileHash Get-FixtureFileHash }
+# Resolve the real command before installing the alias. Windows PowerShell
+# loads Utility's hash function on demand in a fresh noninteractive process.
+if ($env:ATLAS_TEST_OBSTRUCT_RESTORE -or $env:ATLAS_TEST_INTERRUPT -or $env:ATLAS_TEST_HOLD) {
+  $fixtureHashCommand = Get-Command Get-FileHash -ErrorAction Stop
+  Set-Alias Get-FileHash Get-FixtureFileHash
+}
 if ($env:ATLAS_TEST_INSTALL_CWD) { Set-Location -LiteralPath $env:ATLAS_TEST_INSTALL_CWD }
 $variantArgs = @{}
 if ($env:ATLAS_TEST_VARIANT -eq "cli-only") { $variantArgs.WithoutWeb = $true }
