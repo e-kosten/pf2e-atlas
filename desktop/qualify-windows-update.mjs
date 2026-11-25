@@ -9,6 +9,11 @@ using System.Runtime.InteropServices;
 public static class AtlasDialog {
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
+  [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id);
+  [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr control);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
+  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr window);
   [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr window, uint message, UIntPtr command, IntPtr parameter);
 }
 '@
@@ -21,7 +26,23 @@ public static class AtlasDialog {
         $ownerId = [uint32]0
         [void][AtlasDialog]::GetWindowThreadProcessId($dialog, [ref]$ownerId)
         if ($ownerId -eq ${pid}) {
-          if (![AtlasDialog]::PostMessageW($dialog, 0x0111, [UIntPtr]${button}, [IntPtr]::Zero)) { throw 'Could not answer update dialog' }
+          $control = [AtlasDialog]::GetDlgItem($dialog, ${button})
+          if (${button} -eq 1) {
+            # A single acknowledgement button can have a different control ID.
+            $buttons = @(for ($item = [AtlasDialog]::FindWindowEx($dialog, [IntPtr]::Zero, 'Button', [NullString]::Value);
+                $item -ne [IntPtr]::Zero; $item = [AtlasDialog]::FindWindowEx($dialog, $item, 'Button', [NullString]::Value)) {
+              if ([AtlasDialog]::IsWindowVisible($item) -and [AtlasDialog]::IsWindowEnabled($item)) { $item }
+            })
+            if ($buttons.Count -ne 1) { throw 'Expected one acknowledgement button' }
+            $control = $buttons[0]
+          }
+          if ($control -eq [IntPtr]::Zero) { throw 'Requested dialog button is missing' }
+          $id = [AtlasDialog]::GetDlgCtrlID($control)
+          if (![AtlasDialog]::PostMessageW($dialog, 0x0111, [UIntPtr]$id, $control)) { throw 'Could not answer Atlas dialog' }
+          while ([AtlasDialog]::IsWindow($dialog)) {
+            if ([DateTime]::UtcNow -ge $deadline) { throw 'Atlas dialog stayed open after its button was pressed' }
+            Start-Sleep -Milliseconds 50
+          }
           return
         }
       } while ($true)

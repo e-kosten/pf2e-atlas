@@ -56,68 +56,74 @@ function payloadHashes() {
     .filter((name) => /^(atlas(-desktop)?\.exe|.+\.dll|THIRD-PARTY-NOTICES\.md)$/i.test(name))
     .map((name) => [name, sha256(join(installDirectory, name))]));
 }
-// Exercise the installed window's actual menu command independently of the
-// shortcut. WebView2 receives keyboard input through its own CDP session.
-function invokeMenu(pid, env, label) {
-  ps(`Add-Type -TypeDefinition @'
+const nativeWindows = `Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-public static class AtlasMenu {
-  [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr window);
-  [DllImport("user32.dll")] public static extern IntPtr GetSubMenu(IntPtr menu, int index);
-  [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr menu);
-  [DllImport("user32.dll")] public static extern uint GetMenuItemID(IntPtr menu, int index);
-  [DllImport("user32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)] public static extern int GetMenuStringW(IntPtr menu, uint item, StringBuilder text, int length, uint flags);
-  [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr window, uint message, UIntPtr command, IntPtr parameter);
-}
-'@
-    $window = (Get-Process -Id ${pid}).MainWindowHandle
-    $menu = [AtlasMenu]::GetMenu($window)
-    for ($i = 0; $i -lt [AtlasMenu]::GetMenuItemCount($menu); $i++) {
-      $submenu = [AtlasMenu]::GetSubMenu($menu, $i)
-      for ($j = 0; $j -lt [AtlasMenu]::GetMenuItemCount($submenu); $j++) {
-        $label = [Text.StringBuilder]::new(256)
-        [void][AtlasMenu]::GetMenuStringW($submenu, $j, $label, $label.Capacity, 0x400)
-        if (($label.ToString().Replace('&', '') -split [char]9)[0] -eq ${literal(label)}) {
-          $command = [AtlasMenu]::GetMenuItemID($submenu, $j)
-          if (![AtlasMenu]::PostMessageW($window, 0x0111, [UIntPtr]$command, [IntPtr]::Zero)) { throw 'Menu dispatch failed' }
-          return
-        }
-      }
-    }
-    throw 'Menu item missing from the installed Atlas window'`, env);
-}
-// Identify the added workspace HWND independently of translated titles or focus.
-function hostWindows(pid, env, close) {
-  return JSON.parse(ps(`Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
 public static class AtlasHostWindows {
   [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hwnd, System.Text.StringBuilder text, int length);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)] public static extern int GetWindowTextW(IntPtr hwnd, StringBuilder text, int length);
   [DllImport("user32.dll")] public static extern IntPtr GetTopWindow(IntPtr parent);
   [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hwnd, uint relation);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
   [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetSubMenu(IntPtr menu, int index);
+  [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr menu);
+  [DllImport("user32.dll")] public static extern uint GetMenuItemID(IntPtr menu, int index);
+  [DllImport("user32.dll")] public static extern uint GetMenuState(IntPtr menu, uint item, uint flags);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)] public static extern int GetMenuStringW(IntPtr menu, uint item, StringBuilder text, int length, uint flags);
   [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr hwnd, uint msg, UIntPtr wParam, IntPtr lParam);
 }
 '@
-    $views = for ($window = [AtlasHostWindows]::GetTopWindow([IntPtr]::Zero); $window -ne [IntPtr]::Zero;
-        $window = [AtlasHostWindows]::GetWindow($window, 2)) {
-      $ownerId = [uint32]0
-      [void][AtlasHostWindows]::GetWindowThreadProcessId($window, [ref]$ownerId)
-      if ($ownerId -eq ${pid} -and [AtlasHostWindows]::IsWindowVisible($window)) {
-        if ($window.ToInt64() -eq ${close ?? 0}) {
-          if (![AtlasHostWindows]::PostMessageW($window, 0x10, [UIntPtr]::Zero, [IntPtr]::Zero)) { throw 'Close request failed' }
+function Get-AtlasWindows([uint32]$processId) {
+  for ($window = [AtlasHostWindows]::GetTopWindow([IntPtr]::Zero); $window -ne [IntPtr]::Zero;
+      $window = [AtlasHostWindows]::GetWindow($window, 2)) {
+    $ownerId = [uint32]0
+    [void][AtlasHostWindows]::GetWindowThreadProcessId($window, [ref]$ownerId)
+    if ($ownerId -eq $processId -and [AtlasHostWindows]::IsWindowVisible($window)) { $window }
+  }
+}`;
+
+// Dispatch a real menu command. A confirmation dialog or helper window may be
+// the process's foreground window while several product windows remain open.
+function invokeMenu(pid, env, label, targetWindow) {
+  ps(`${nativeWindows}
+    $foreground = [AtlasHostWindows]::GetForegroundWindow()
+    $candidates = Get-AtlasWindows ${pid} | Where-Object {
+      [AtlasHostWindows]::IsWindowEnabled($_) -and [AtlasHostWindows]::GetMenu($_) -ne [IntPtr]::Zero -and
+        (${targetWindow ?? 0} -eq 0 -or $_.ToInt64() -eq ${targetWindow ?? 0})
+    } | Sort-Object -Stable { $_ -ne $foreground }
+    foreach ($window in $candidates) {
+      $menu = [AtlasHostWindows]::GetMenu($window)
+      for ($i = 0; $i -lt [AtlasHostWindows]::GetMenuItemCount($menu); $i++) {
+        $submenu = [AtlasHostWindows]::GetSubMenu($menu, $i)
+        for ($j = 0; $j -lt [AtlasHostWindows]::GetMenuItemCount($submenu); $j++) {
+          $label = [Text.StringBuilder]::new(256)
+          [void][AtlasHostWindows]::GetMenuStringW($submenu, $j, $label, $label.Capacity, 0x400)
+          if (($label.ToString().Replace('&', '') -split [char]9)[0] -ne ${literal(label)}) { continue }
+          if ([AtlasHostWindows]::GetMenuState($submenu, $j, 0x400) -band 3) { continue }
+          $command = [AtlasHostWindows]::GetMenuItemID($submenu, $j)
+          if (![AtlasHostWindows]::PostMessageW($window, 0x0111, [UIntPtr]$command, [IntPtr]::Zero)) { throw 'Menu dispatch failed' }
+          return
         }
-        $title = [Text.StringBuilder]::new(256)
-        [void][AtlasHostWindows]::GetWindowTextW($window, $title, $title.Capacity)
-        [pscustomobject]@{ id = $window.ToInt64(); title = $title.ToString(); menu = [AtlasHostWindows]::GetMenu($window) -ne [IntPtr]::Zero
-          enabled = [AtlasHostWindows]::IsWindowEnabled($window); foreground = $window -eq [AtlasHostWindows]::GetForegroundWindow() }
       }
+    }
+    throw "No enabled Atlas window offered the requested menu command: ${label} (HWNDs: $candidates)"`, env);
+}
+
+// Identify the added workspace HWND independently of translated titles or focus.
+function hostWindows(pid, env, close) {
+  return JSON.parse(ps(`${nativeWindows}
+    $views = foreach ($window in Get-AtlasWindows ${pid}) {
+      if ($window.ToInt64() -eq ${close ?? 0}) {
+        if (![AtlasHostWindows]::PostMessageW($window, 0x10, [UIntPtr]::Zero, [IntPtr]::Zero)) { throw 'Close request failed' }
+      }
+      $title = [Text.StringBuilder]::new(256)
+      [void][AtlasHostWindows]::GetWindowTextW($window, $title, $title.Capacity)
+      [pscustomobject]@{ id = $window.ToInt64(); title = $title.ToString(); menu = [AtlasHostWindows]::GetMenu($window) -ne [IntPtr]::Zero
+        enabled = [AtlasHostWindows]::IsWindowEnabled($window); foreground = $window -eq [AtlasHostWindows]::GetForegroundWindow() }
     }
     ConvertTo-Json -InputObject @($views) -Compress`, env));
 }
@@ -456,7 +462,7 @@ async function runCase(mode) {
       await target.screenshot({ path: join(caseRoot, "target.png") });
       const pid = installedProcesses().find((entry) => entry.Name === "atlas-desktop.exe").ProcessId;
       await qualifyWindowsTabs({
-        exit: () => invokeMenu(pid, env, "Exit"),
+        exit: (hwnd) => invokeMenu(pid, env, "Exit", hwnd),
         windows: (close) => hostWindows(pid, env, close), log,
         answer: (title, button) => answerDialog(ps, pid, env, title, button),
 
