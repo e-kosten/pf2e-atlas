@@ -94,7 +94,11 @@ describe("record route views", () => {
         await waitFor(() =>
           expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
             "spell:heal",
-            expect.objectContaining({ spell_rank: rank }),
+            expect.objectContaining({
+              spell_rank: rank,
+              expected_artifact_generation:
+                detailFixture("spell:heal").artifact_generation,
+            }),
             expect.any(AbortSignal),
           ),
         );
@@ -282,6 +286,8 @@ describe("record route views", () => {
       second.record_key,
       {
         record_key: second.record_key,
+        expected_artifact_generation: recordDetailFixture(first.record_key)
+          .artifact_generation,
         embedded_path: second.embedded_path,
         fields: [second.field],
         passage: second.passage,

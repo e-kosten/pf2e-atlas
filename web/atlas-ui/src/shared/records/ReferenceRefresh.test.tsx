@@ -213,12 +213,21 @@ it.each(["changed", "unreadable"] as const)(
         .mocked(getDefinitionDetail)
         .mock.calls.every(([request]) => request.definition_key === "sense:darkvision"),
     ).toBe(true);
-    expect(
-      vi
-        .mocked(getRecordDetail)
-        .mock.calls.filter(([key]) => key === replacement.record_key)
-        .every(([, request]) => request === undefined),
-    ).toBe(true);
+    const replacements = vi
+      .mocked(getRecordDetail)
+      .mock.calls.filter(([key]) => key === replacement.record_key);
+    if (outcome === "changed") {
+      expect(replacements.length).toBeGreaterThan(0);
+      for (const [, request] of replacements) {
+        expect(request).toMatchObject({
+          record_key: replacement.record_key,
+          expected_artifact_generation: "g2",
+          fields: [],
+        });
+      }
+    } else {
+      expect(replacements).toHaveLength(0);
+    }
   },
 );
 

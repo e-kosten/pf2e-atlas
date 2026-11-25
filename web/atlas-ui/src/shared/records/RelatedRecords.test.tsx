@@ -70,6 +70,7 @@ function renderRelated(
   detail = detailFixture("actors:seed", "Viewed creature"),
   providedClient?: QueryClient,
   providedRouter?: ReturnType<typeof createAtlasRouter>,
+  onReload?: () => void,
 ) {
   const onReference = vi.fn();
   const queryClient =
@@ -87,7 +88,13 @@ function renderRelated(
               readingNotice={
                 <RecordEditionNotice detail={detail} onReference={onReference} />
               }
-              explore={<RelatedRecords detail={detail} onReference={onReference} />}
+              explore={
+                <RelatedRecords
+                  detail={detail}
+                  onReference={onReference}
+                  onReload={onReload}
+                />
+              }
             >
               <input
                 aria-label="Retained reading draft"
@@ -918,7 +925,8 @@ it("compares a logical relationship's available root without duplicating its nam
   });
   const original = detailFixture("actors:seed", "Viewed creature");
   original.remaster_relationships = { kind: "content", content };
-  const onReference = renderRelated(original, client);
+  const reload = vi.fn();
+  const onReference = renderRelated(original, client, undefined, reload);
   openRelated();
   await selectTab("Versions");
   const line = screen.getByText("Renamed to:").closest("p")!;
@@ -955,6 +963,15 @@ it("compares a logical relationship's available root without duplicating its nam
   ).toBeNull();
   expect(within(dialog).getByText("Legacy comparison rules.")).toBeVisible();
   expect(within(dialog).getByText("Modern comparison rules.")).toBeVisible();
+  for (const key of ["actors:seed", "actors:modern"]) {
+    expect(api.getRecordDetail).toHaveBeenCalledWith(
+      key,
+      expect.objectContaining({
+        expected_artifact_generation: original.artifact_generation,
+      }),
+      expect.any(AbortSignal),
+    );
+  }
   expect(within(dialog).queryByText("Reciprocal edition banner:")).toBeNull();
   expect(dialog.querySelector(".record-edition-notice")).toBeNull();
   expect(within(dialog).getAllByRole("link", { name: "Nested Rule" })).toHaveLength(2);
@@ -974,9 +991,17 @@ it("compares a logical relationship's available root without duplicating its nam
       ([request]) => request.selection.record_key === "actors:seed",
     ),
   ).toBe(true);
-  fireEvent.keyDown(dialog, { key: "Escape", keyCode: 27 });
+  api.getRecordDetail.mockRejectedValueOnce(
+    new AtlasApiError(409, "Reference generation changed", {
+      code: "artifact_generation_changed",
+      message: "Reference generation changed",
+      recoverable_action: "reload_record",
+    }),
+  );
+  fireEvent.click(within(dialog).getByRole("button", { name: "Retry" }));
+  fireEvent.click(await within(dialog).findByRole("button", { name: "Reload record" }));
+  expect(reload).toHaveBeenCalledOnce();
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  expect(compare).toHaveFocus();
 });
 
 it.each([
