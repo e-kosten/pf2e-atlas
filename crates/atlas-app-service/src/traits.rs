@@ -43,6 +43,7 @@ impl AtlasAppService {
                                 prepared,
                                 retrieval,
                                 "trait-definition-centroid/v1",
+                                request.include_section_rendering,
                             )
                         })
                         .transpose()?,
@@ -130,6 +131,7 @@ mod tests {
             .worker
             .trait_definition(
                 TraitDetailRequest {
+                    include_section_rendering: false,
                     trait_key: "trait:custom-trait".into(),
                     expected_artifact_generation: None,
                 },
@@ -198,6 +200,7 @@ mod tests {
             .worker
             .trait_definition(
                 TraitDetailRequest {
+                    include_section_rendering: false,
                     trait_key: "trait:agile".into(),
                     expected_artifact_generation: None,
                 },

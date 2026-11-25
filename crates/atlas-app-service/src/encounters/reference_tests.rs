@@ -84,37 +84,47 @@ fn addressed_condition_formula_includes_the_creatures_authored_condition_value()
     let current = f.worker.encounter(&encounter.slug).unwrap();
     let saved = &current.participants[0].conditions[0];
     assert_eq!(saved.value, Some(2));
-    let view = f
-        .worker
-        .encounter_reference(
-            &encounter.slug,
-            &participant_key,
-            EncounterReferenceRequest {
-                artifact_generation: current.artifact_generation.unwrap(),
-                condition_id: Some(saved.condition_id),
-                selection: RecordDetailRequest {
-                    expected_artifact_generation: None,
-                    record_key: "conditionitems:e1XGnhKNSQIm5IXg".into(),
-                    owners: vec![],
-                    fields: vec![],
-                    passage: None,
-                    spell_rank: None,
-                    source_fingerprint: None,
-                }
-                .into_selection(),
-            },
-        )
-        .unwrap();
-    let html = view
-        .presentation
-        .content
-        .iter()
-        .find_map(|field| match &field.body {
-            PreparedFieldBodyView::Html { html, .. } => Some(html.as_str()),
-            _ => None,
-        })
-        .unwrap();
-    assert!(html.contains("DC 9 flat check"), "{html}");
+    let request = EncounterReferenceRequest {
+        artifact_generation: current.artifact_generation.unwrap(),
+        condition_id: Some(saved.condition_id),
+        selection: RecordDetailRequest {
+            include_section_rendering: false,
+            expected_artifact_generation: None,
+            record_key: "conditionitems:e1XGnhKNSQIm5IXg".into(),
+            owners: vec![],
+            fields: vec![],
+            passage: None,
+            spell_rank: None,
+            source_fingerprint: None,
+        }
+        .into_selection(),
+    };
+    for include_section_rendering in [false, true] {
+        let view = f
+            .worker
+            .encounter_reference(
+                &encounter.slug,
+                &participant_key,
+                request.clone(),
+                include_section_rendering,
+            )
+            .unwrap();
+        let field = view
+            .presentation
+            .content
+            .iter()
+            .find(|field| {
+                matches!(&field.body,
+                    PreparedFieldBodyView::Html { html, .. } if html.contains("DC 9 flat check")
+                )
+            })
+            .expect("condition check uses its effective value");
+        assert_eq!(field.section_rendering.is_some(), include_section_rendering);
+        if let Some(rendering) = &field.section_rendering {
+            assert!(rendering.html.contains("DC 9 flat check"));
+            assert!(rendering.html.contains("data-atlas-source-section"));
+        }
+    }
 }
 
 #[test]
@@ -172,6 +182,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         condition_id: None,
         artifact_generation: generation.clone(),
         selection: RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
@@ -199,6 +210,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                     &selected_encounter,
                     &selected_participant,
                     selected_request,
+                    false,
                 )?;
                 Ok((physical, workspace.retrieval().read_metrics()))
             },
@@ -296,7 +308,12 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     ] {
         let selected = f
             .worker
-            .encounter_reference(&encounter.slug, &participant.participant_key, request(id))
+            .encounter_reference(
+                &encounter.slug,
+                &participant.participant_key,
+                request(id),
+                false,
+            )
             .unwrap();
         assert_eq!(f.worker.last_read_metrics().source_body_decodes, 1);
         assert_eq!(
@@ -332,6 +349,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             &encounter.slug,
             &updated.participants[1].participant_key,
             request("cccccccccccccccc"),
+            false,
         )
         .unwrap();
     assert_eq!(f.worker.last_read_metrics().source_body_decodes, 1);
@@ -344,7 +362,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     stale.artifact_generation = "old-generation".into();
     let error = f
         .worker
-        .encounter_reference(&encounter.slug, &participant.participant_key, stale)
+        .encounter_reference(&encounter.slug, &participant.participant_key, stale, false)
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
@@ -363,7 +381,12 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     foreign.selection.address.record_key = "equipment:oooooooooooooooo".into();
     assert!(
         f.worker
-            .encounter_reference(&encounter.slug, &participant.participant_key, foreign)
+            .encounter_reference(
+                &encounter.slug,
+                &participant.participant_key,
+                foreign,
+                false
+            )
             .unwrap_err()
             .to_string()
             .contains("does not belong")
@@ -373,7 +396,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             .encounter_reference(
                 &encounter.slug,
                 "missing-participant",
-                request("eeeeeeeeeeeeeeee")
+                request("eeeeeeeeeeeeeeee"),
+                false
             )
             .is_err()
     );
@@ -382,7 +406,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             .encounter_reference(
                 &encounter.slug,
                 &participant.participant_key,
-                request("missing-owner")
+                request("missing-owner"),
+                false
             )
             .is_err()
     );
@@ -395,6 +420,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                 condition_id: None,
                 artifact_generation: generation,
                 selection: RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: "actors:aaaaaaaaaaaaaaaa".into(),
@@ -405,6 +431,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                 }
                 .into_selection(),
             },
+            false,
         )
         .unwrap();
     assert_eq!(
@@ -468,6 +495,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         condition_id: None,
         artifact_generation: generation_a.clone(),
         selection: RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
@@ -483,7 +511,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     };
     let selected_a = a
         .worker
-        .encounter_reference(&encounter.slug, &participant_key, request_a.clone())
+        .encounter_reference(&encounter.slug, &participant_key, request_a.clone(), false)
         .unwrap();
     assert_eq!(selected_a.presentation.identity.title, "Stable ability");
     let fingerprint_a = a
@@ -530,6 +558,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
                     &lookup_encounter,
                     &lookup_participant,
                     lookup_request,
+                    false,
                 )
                 .unwrap_err()
                 .into_app_error();
@@ -560,7 +589,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     request_b.artifact_generation = refreshed.artifact_generation.unwrap();
     let selected_b = b
         .worker
-        .encounter_reference(&encounter.slug, &participant_key, request_b.clone())
+        .encounter_reference(&encounter.slug, &participant_key, request_b.clone(), false)
         .unwrap();
     assert_eq!(
         selected_b.selected.owners,
@@ -573,7 +602,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     request_b.selection.address.source_fingerprint = Some("old-source-fingerprint".into());
     let navigation_error = b
         .worker
-        .encounter_reference(&encounter.slug, &participant_key, request_b)
+        .encounter_reference(&encounter.slug, &participant_key, request_b, false)
         .unwrap_err()
         .into_app_error();
     assert_eq!(navigation_error.code, AppErrorCode::InvalidRequest);
@@ -641,6 +670,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         condition_id: None,
         artifact_generation: current.artifact_generation.clone().unwrap(),
         selection: RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             record_key: "actors:contextActor0001".into(),
             owners: vec![],
@@ -657,6 +687,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             &encounter.slug,
             &participant.participant_key,
             request.clone(),
+            false,
         )
         .unwrap();
     let get_roll = |view: &RecordDetailView| {
@@ -685,7 +716,12 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     item.selection.address.owners = vec![owner("/items", "consumable000001")];
     let literal = f
         .worker
-        .encounter_reference(&encounter.slug, &participant.participant_key, item.clone())
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            item.clone(),
+            false,
+        )
         .unwrap();
     let mut forged = get_roll(&literal);
     assert!(forged.encounter.is_none());
@@ -701,6 +737,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     let stored = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             record_key: item.selection.address.record_key.clone(),
             owners: item.selection.address.owners.clone(),
             fields: vec![],
@@ -716,7 +753,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     let rejected = f.worker.roll_content(nested).unwrap_err().into_app_error();
     let reader_error = f
         .worker
-        .encounter_reference(&encounter.slug, &participant.participant_key, item)
+        .encounter_reference(&encounter.slug, &participant.participant_key, item, false)
         .unwrap_err()
         .into_app_error();
     assert_eq!(rejected.message, reader_error.message);
@@ -769,6 +806,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             &encounter.slug,
             &participant.participant_key,
             request.clone(),
+            false,
         )
         .unwrap();
     let outcome = f.worker.roll_content(get_roll(&updated)).unwrap();
@@ -779,6 +817,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             &encounter.slug,
             &participant.participant_key,
             passage_request,
+            false,
         )
         .unwrap();
     let addressed_html = addressed
@@ -828,6 +867,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             &encounter.slug,
             &participant.participant_key,
             request.clone(),
+            false,
         )
         .unwrap();
     let text = selected
@@ -844,7 +884,12 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     request.condition_id = Some(condition.condition_id + 999);
     assert!(
         f.worker
-            .encounter_reference(&encounter.slug, &participant.participant_key, request)
+            .encounter_reference(
+                &encounter.slug,
+                &participant.participant_key,
+                request,
+                false
+            )
             .is_err()
     );
     let generic = f
@@ -882,6 +927,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
                 condition_id: None,
                 artifact_generation: current.artifact_generation.unwrap(),
                 selection: RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     record_key: "actors:contextUnknown01".into(),
                     owners: vec![],
@@ -892,6 +938,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
                 }
                 .into_selection(),
             },
+            false,
         )
         .unwrap();
     let content = serde_json::to_string(&fallback.presentation.content).unwrap();

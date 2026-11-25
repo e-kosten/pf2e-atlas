@@ -40,6 +40,7 @@ pub(crate) fn run(options: DefinitionOptions) -> Result<ExitCode, String> {
     };
     let definition = match service.definition_detail(
         DefinitionDetailRequest {
+            include_section_rendering: false,
             definition_key: options.key.to_string(),
             expected_artifact_generation: None,
         },

@@ -45,6 +45,7 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
         second.item_note(&original.list.list_key, "actions:first"),
         Err(LocalStateError::ListNotFound(_))
     ));
+    assert!(second.delete(&original.list.list_key)?.is_none());
     assert!(second.get_with_items(&original.list.list_key)?.is_none());
     assert!(matches!(
         second.update_item_note(&original.list.list_key, "actions:first", Some("Changed")),
@@ -86,6 +87,57 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
         |row| row.get(0),
     )?;
     assert_eq!(count, 0);
+    Ok(())
+}
+
+#[test]
+fn directory_tag_reads_are_bounded_and_leave_item_counts_and_tag_order_intact()
+-> crate::LocalStateResult<()> {
+    use rusqlite::trace::{TraceEvent, TraceEventCodes};
+    thread_local! { static TAG_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+    let store = TestStore::open(temp_path("directory-tags"))?;
+    let mut connection = store.connection()?;
+    for index in 0..20 {
+        let slug = format!("list-{index}");
+        let lists = store.saved_lists();
+        lists.create(NewSavedList {
+            slug: slug.clone(),
+            name: slug.clone(),
+            description: None,
+            tags: if index % 2 == 0 {
+                vec!["zulu".into(), "Alpha".into()]
+            } else {
+                vec![]
+            },
+        })?;
+        lists.add_resolved_item(&slug, resolved_item("actions:first", None, "First", None))?;
+        if [0, 19].contains(&index) {
+            TAG_READS.set(0);
+            connection.trace_v2(
+                TraceEventCodes::SQLITE_TRACE_STMT,
+                Some(|event: TraceEvent<'_>| {
+                    if let TraceEvent::Stmt(_, sql) = event
+                        && sql.contains("saved_list_tags")
+                    {
+                        TAG_READS.set(TAG_READS.get() + 1);
+                    }
+                }),
+            )?;
+            let directory = SavedListsRead::from_connection(&connection, 1).list(false)?;
+            connection.trace_v2(TraceEventCodes::empty(), None::<fn(TraceEvent<'_>)>)?;
+            assert_eq!(TAG_READS.get(), 1);
+            assert_eq!(directory.len(), index + 1);
+            for list in directory {
+                let i: usize = list.slug.trim_start_matches("list-").parse().unwrap();
+                if i.is_multiple_of(2) {
+                    assert_eq!(list.tags, ["Alpha", "zulu"]);
+                } else {
+                    assert!(list.tags.is_empty());
+                }
+                assert_eq!(list.item_count, 1);
+            }
+        }
+    }
     Ok(())
 }
 

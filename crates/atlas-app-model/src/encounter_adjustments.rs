@@ -49,7 +49,6 @@ pub struct EncounterAdjustmentTimingInput {
     pub duration: ConditionDurationView,
     /// Set remaining rounds or seconds explicitly. Omit to preserve progress on edits.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub remaining: Option<i64>,
 }
 
@@ -61,7 +60,6 @@ pub struct EncounterAdjustmentInput {
     pub name: String,
     pub amount: i64,
     pub modifier_type: AdjustmentModifierType,
-    #[cfg_attr(feature = "openapi", schema(required))]
     pub timing: Option<EncounterAdjustmentTimingInput>,
 }
 
@@ -89,7 +87,6 @@ pub struct EncounterAdjustmentRequest {
     pub expected_encounter_revision: i64,
     pub expected_participant_revision: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub expected_reference_revision: Option<u64>,
     pub action: EncounterAdjustmentAction,
 }

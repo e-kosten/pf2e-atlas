@@ -208,7 +208,7 @@ test("saved list entries remain usable when reference details cannot be checked"
     await page.getByRole("button", { name: "Remove", exact: true }).click();
     await expect(list.getByText(name, { exact: true })).toHaveCount(0);
   } finally {
-    await page.request.delete(`/api/lists/${slug}`);
+    await page.request.delete(`/api/lists/${savedList.list_key}`);
   }
 });
 
@@ -434,6 +434,10 @@ for (const section of [
     await activate(link, info);
     const sourceResponse = await sourceRead;
     expect(sourceResponse.ok()).toBeTruthy();
+    expect(sourceResponse.request().postDataJSON()).toMatchObject({
+      expected_artifact_generation: inventory.artifact_generation,
+      include_section_rendering: true,
+    });
     expect((await sourceResponse.json()).selected).toEqual(part.navigation);
     const source = dialog.getByRole("region", { name: "Record preview", exact: true });
     await expect(source).toBeVisible();
@@ -449,6 +453,10 @@ for (const section of [
     await expect(emphasized).toBeVisible();
     await expect(emphasized).toHaveClass(/source-section-selected/);
     await expect(emphasized).not.toHaveClass(/source-section-excluded/);
+    await info.attach("Selected source section", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
     await expect(
       dialog.getByText("Only highlighted sections are used for comparison.", {
         exact: true,

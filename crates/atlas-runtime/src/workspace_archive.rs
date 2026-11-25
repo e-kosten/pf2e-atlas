@@ -429,7 +429,7 @@ mod tests {
         encounters
             .save_creation_receipt("first", &digest, &key)
             .unwrap();
-        assert!(encounters.delete(&key).unwrap());
+        assert!(encounters.delete(&key).unwrap().is_some());
         write.commit().unwrap();
 
         let raw = capture_json(runtime(source.path()).capture_workspace_archive().unwrap());
@@ -526,6 +526,8 @@ mod tests {
         write.connection().execute_batch(
             "INSERT INTO record_identity(key,last_known_name,availability)
                 VALUES('bestiary:aaaaaaaaaaaaaaaa','Old title','unavailable');
+             INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at)
+                VALUES(1,'historical-list','supplies','Supplies','created','updated');
              INSERT INTO encounters(owner_id,encounter_key,slug,name,archived,created_at,updated_at,revision)
                 VALUES(1,'stable-key','encounter','Encounter',0,'created','updated',5);
              INSERT INTO encounter_participants(encounter_id,participant_key,record_key,participant_kind,
@@ -622,6 +624,16 @@ mod tests {
             })
             .unwrap();
         assert_eq!(retried, receipt);
+        assert_eq!(
+            encounters.delete("stable-key").unwrap().as_deref(),
+            Some("encounter")
+        );
+        let lists = LocalStateWrite::for_local(&write).unwrap().saved_lists();
+        assert_eq!(
+            lists.delete("historical-list").unwrap().as_deref(),
+            Some("supplies")
+        );
+        write.commit().unwrap();
     }
 
     #[test]

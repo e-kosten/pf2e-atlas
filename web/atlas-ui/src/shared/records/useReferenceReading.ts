@@ -63,6 +63,7 @@ export function useReferenceReading(
   enabled = true,
   epoch = 0,
   generation?: string | null,
+  sectionRenderingRecord?: string,
 ) {
   const [session, dispatch] = useReducer(
     (
@@ -113,6 +114,8 @@ export function useReferenceReading(
     request?.navigation,
     generation,
     request?.fields,
+    sectionRenderingRecord !== undefined &&
+      sectionRenderingRecord === request?.navigation.record_key,
   );
   const parentQuery = useQuery({
     ...parentOptions,
@@ -123,6 +126,9 @@ export function useReferenceReading(
     fallback?.record_key ?? null,
     fallback,
     generation ?? parentQuery.data?.artifact_generation,
+    undefined,
+    sectionRenderingRecord !== undefined &&
+      sectionRenderingRecord === fallback?.record_key,
   );
   const exactQuery = useQuery({
     ...exactOptions,

@@ -97,7 +97,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
     null,
   );
   const [directEditorOpen, setDirectEditorOpen] = useState(!!onCloseDirectEditor);
-  const editing = useEncounterSettingsOpening();
+  const editing = useEncounterSettingsOpening("runner");
   const closeEditor = (slug?: string) => {
     if (directEditorOpen) {
       setDirectEditorOpen(false);

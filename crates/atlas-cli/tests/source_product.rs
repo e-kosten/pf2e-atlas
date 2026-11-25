@@ -2090,6 +2090,40 @@ fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
         "--json",
     ]);
     assert_eq!(saved["note"], "Useful for recovery");
+    let sorted_snapshot = || {
+        f.data(&[
+            "lists",
+            "show",
+            "research",
+            "--sort",
+            "random",
+            "--seed",
+            "4",
+            "--no-records",
+            "--json",
+        ])
+    };
+    let keys = f.data(&[
+        "lists",
+        "show",
+        "research",
+        "--sort",
+        "random",
+        "--seed",
+        "4",
+        "--keys-only",
+        "--json",
+    ]);
+    let active = sorted_snapshot();
+    assert_eq!(
+        keys["record_keys"],
+        serde_json::json!(["actions:aaaaaaaaaaaaaaaa"])
+    );
+    assert_eq!(keys["sort"], active["sort"]);
+    assert_eq!(active["items"][0]["status"], "active");
+    assert!(active["items"][0].get("record").is_none());
+    let saved_order = f.data(&["lists", "show", "research", "--no-records", "--json"]);
+    assert_eq!(saved_order["items"][0]["status"], "unchecked");
     let before = f.data(&["lists", "show", "research", "--json"]);
     fs::remove_file(f.root.join("packs/actions/heal.json")).unwrap();
     assert!(
@@ -2113,6 +2147,7 @@ fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
     );
     assert_eq!(after["items"][0]["status"], "unresolved");
     assert_eq!(after["items"][0]["note"], "Still useful context");
+    assert_eq!(sorted_snapshot()["items"], after["items"]);
     let exported = f.command(&["lists", "export", "research"], false);
     let document: Value = serde_json::from_slice(&exported.stdout).unwrap();
     assert_eq!(document["items"][0]["note"], "Still useful context");
@@ -2212,9 +2247,10 @@ fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
         )
         .unwrap();
     write.commit().unwrap();
-    f.data(&[
+    let list = f.data(&[
         "lists", "create", "Research", "--slug", "research", "--json",
     ]);
+    let encounter = f.data(&["encounters", "create", "Test patrol", "--json"]);
     let complete = |words: &[&str], index: &str| {
         let out = Command::new(env!("CARGO_BIN_EXE_atlas"))
             .env("ATLAS_COMPLETE", "zsh")
@@ -2231,6 +2267,17 @@ fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
         String::from_utf8(out.stdout).unwrap()
     };
     let path = f.index.to_str().unwrap();
+    for (domain, key) in [
+        ("lists", list["list_key"].as_str().unwrap()),
+        (
+            "encounters",
+            encounter["encounter"]["encounter_key"].as_str().unwrap(),
+        ),
+    ] {
+        let values = complete(&[domain, "delete", "--index", path, &key[..6]], "5");
+        assert!(values.contains(key), "{values}");
+        assert!(complete(&[domain, "delete", "--index", path, "foreign"], "5").is_empty());
+    }
     assert!(complete(&["lists", "show", "--index", path, "res"], "5").contains("research"));
     assert!(!complete(&["lists", "show", "--index", path, "res"], "5").contains("restricted"));
     let keys = complete(
@@ -2793,6 +2840,50 @@ fn definition_lookup_uses_the_exact_key_exposed_by_filter_discovery() {
     assert!(unavailable["content"].is_null());
     let invalid = f.command(&["record", "definition", "healing", "--json"], false);
     assert_eq!(invalid.status.code(), Some(2));
+}
+
+#[test]
+fn saved_deletes_require_the_original_key_across_slug_reuse() {
+    let f = Fixture::new();
+    for (collection, kind, field, miss) in [
+        ("lists", "list", "list_key", "saved_list_not_found"),
+        (
+            "encounters",
+            "encounter",
+            "encounter_key",
+            "encounter_not_found",
+        ),
+    ] {
+        let create = || {
+            let created = f.data(&[collection, "create", "Reusable", "--json"]);
+            created[field]
+                .as_str()
+                .or_else(|| created[kind][field].as_str())
+                .unwrap()
+                .to_owned()
+        };
+        let reject = |reference: &str| {
+            let output = f.command(&[collection, "delete", reference, "--json"], false);
+            assert!(!output.status.success());
+            let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(envelope["error"]["code"], miss);
+        };
+        let first = create();
+        reject("reusable");
+        reject("never-created");
+        assert_eq!(
+            f.data(&[collection, "delete", &first, "--json"])[field],
+            first
+        );
+        let replacement = create();
+        assert_ne!(replacement, first);
+        reject("reusable");
+        reject(&first);
+        assert_eq!(
+            f.data(&[collection, "show", "reusable", "--json"])[kind][field],
+            replacement
+        );
+    }
 }
 
 #[test]

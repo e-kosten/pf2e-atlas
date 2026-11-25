@@ -385,7 +385,7 @@ fn creation_receipts_remain_with_the_owner_after_copy_and_deletion() -> crate::L
         Some("copy".into()),
     )?;
     assert_ne!(key, copy.encounter_key);
-    assert!(local.delete(&key)?);
+    assert!(local.delete(&key)?.is_some());
     assert_eq!(local.creation_receipt("same", &digest)?, Some(key));
     Ok(())
 }

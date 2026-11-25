@@ -75,6 +75,7 @@ function RecordSourceDocument({
     true,
     0,
     generation,
+    recordKey,
   );
   const { inspect } = reading;
   const root = useRef<HTMLDivElement>(null);

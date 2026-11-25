@@ -204,6 +204,11 @@ rows require an explicit preservation decision.
 
 ### Saved-state ownership
 
+List and encounter reads accept a key or a slug. Whole-resource deletion
+uses the owned stable key within one transaction so a retried deletion cannot
+resolve to a new resource after slug reuse. Encounter Settings reads its
+metadata and revision from saved state without presenting participant records.
+
 Product access to saved lists, parties and encounters uses an owner bound to the
 consuming transaction. The local CLI and web runtime resolve the seeded `local`
 principal by key when they request saved-state capabilities. Missing local

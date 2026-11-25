@@ -126,6 +126,33 @@ impl AtlasAppService {
         })
     }
 
+    pub fn encounter_settings(
+        &self,
+        encounter_ref: &str,
+    ) -> AppServiceResult<atlas_app_model::EncounterSettingsView> {
+        self.with_state(|session| {
+            let encounter = session
+                .local_state()?
+                .encounters()
+                .get(encounter_ref)?
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+            Ok(atlas_app_model::EncounterSettingsView {
+                revision: encounter.revision,
+                note: encounter.note,
+                encounter: atlas_app_model::EncounterSettingsMetadataView {
+                    encounter_key: encounter.encounter_key,
+                    slug: encounter.slug,
+                    name: encounter.name,
+                    description: encounter.description,
+                    archived: encounter.archived,
+                    round_duration_seconds: encounter.round_duration_seconds,
+                    created_at: encounter.created_at,
+                    updated_at: encounter.updated_at,
+                },
+            })
+        })
+    }
+
     pub fn encounter(&self, encounter_ref: &str) -> AppServiceResult<EncounterDetailView> {
         self.encounter_with_reference(encounter_ref, Default::default())
     }
@@ -214,18 +241,17 @@ impl AtlasAppService {
         })
     }
 
-    pub fn delete_encounter(&self, encounter_ref: &str) -> AppServiceResult<DeleteEncounterView> {
-        self.with_write(move |session| {
-            let store = session.local_state()?;
-            let encounter = store
+    pub fn delete_encounter(&self, encounter_key: &str) -> AppServiceResult<DeleteEncounterView> {
+        self.with_write(|session| {
+            let slug = session
+                .local_state()?
                 .encounters()
-                .get(encounter_ref)?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            let deleted = store.encounters().delete(&encounter.encounter_key)?;
+                .delete(encounter_key)?
+                .ok_or_else(|| encounter_not_found(encounter_key))?;
             Ok(DeleteEncounterView {
-                encounter_key: encounter.encounter_key,
-                slug: encounter.slug,
-                deleted,
+                encounter_key: encounter_key.to_owned(),
+                slug,
+                deleted: true,
             })
         })
     }

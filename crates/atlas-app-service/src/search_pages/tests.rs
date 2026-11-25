@@ -779,6 +779,7 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
         let opened = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: navigation.spell_rank,
                 record_key: navigation.record_key.clone(),
@@ -1081,6 +1082,7 @@ fn core_source_acknowledges_identity_and_prose_and_identity_navigation_opens_the
     let detail = fixture
         .worker
         .record_detail_at(atlas_app_model::RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: navigation.record_key.clone(),
@@ -1309,6 +1311,7 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
             let detail = fixture
                 .worker
                 .record_detail_at(atlas_app_model::RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: navigation.record_key.clone(),

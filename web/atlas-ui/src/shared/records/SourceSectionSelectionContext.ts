@@ -21,6 +21,10 @@ export const SourceSectionSelectionContext = createContext<SourceSectionScope | 
   null,
 );
 
+export function useSourceSectionRendering(recordKey: string) {
+  return useContext(SourceSectionSelectionContext)?.seed.record_key === recordKey;
+}
+
 export type SourceContentLocation = ContentLocationView;
 
 /** Compact embedded links represent an owner, even when its prose is not inline. */

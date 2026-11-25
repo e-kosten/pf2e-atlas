@@ -68,10 +68,10 @@ impl SavedListsWrite<'_> {
         self.create(list)
     }
 
-    pub fn delete(&self, list_ref: &str) -> LocalStateResult<bool> {
+    pub fn delete(&self, list_key: &str) -> LocalStateResult<Option<String>> {
         crate::atomic_action::run(self.connection, || {
-            storage::validate_list_ref(list_ref)?;
-            storage::delete(self.connection, self.owner_id, list_ref)
+            storage::validate_list_ref(list_key)?;
+            storage::delete(self.connection, self.owner_id, list_key)
         })
     }
 
@@ -245,6 +245,18 @@ fn normalize_tags(tags: Vec<String>) -> Vec<String> {
 }
 
 impl<'a> SavedListsRead<'a> {
+    pub fn complete_keys(&self, prefix: &str) -> LocalStateResult<Vec<(String, String)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT list_key, name FROM saved_lists
+             WHERE owner_id = ?1 AND instr(list_key, ?2) = 1
+             ORDER BY updated_at DESC, slug ASC LIMIT 100",
+        )?;
+        let rows = statement.query_map(rusqlite::params![self.owner_id, prefix], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
     pub fn list(&self, include_archived: bool) -> LocalStateResult<Vec<SavedList>> {
         let transaction = self.connection;
         let result = storage::list(transaction, self.owner_id, include_archived)?;

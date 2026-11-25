@@ -41,8 +41,18 @@ async fn glossary_reading_and_typed_associations_share_generation_and_identity()
         assert!(detail.get(removed).is_none(), "{removed}");
     }
     assert!(detail["notices"][0].get("sha256").is_none());
+    assert!(detail["content"].get("section_rendering").is_none());
+    let (status, annotated) = fixture
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(json!({"definition_key":"language:chthonian", "include_section_rendering":true})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{annotated}");
+    assert_eq!(annotated["content"]["body"], detail["content"]["body"]);
     assert_eq!(
-        detail["content"]["section_rendering"]["selection_version"],
+        annotated["content"]["section_rendering"]["selection_version"],
         "reference-definition/v1"
     );
     let inline = &detail["content"]["references"][0];

@@ -173,13 +173,15 @@ pub(crate) fn update_encounter(
 pub(crate) fn delete(
     connection: &Connection,
     owner_id: i64,
-    encounter_ref: &str,
-) -> LocalStateResult<bool> {
-    let removed = connection.execute(
-        "DELETE FROM encounters WHERE owner_id = ?2 AND (encounter_key = ?1 OR slug = ?1)",
-        params![encounter_ref, owner_id],
-    )?;
-    Ok(removed > 0)
+    encounter_key: &str,
+) -> LocalStateResult<Option<String>> {
+    Ok(connection
+        .query_row(
+            "DELETE FROM encounters WHERE owner_id = ?2 AND encounter_key = ?1 RETURNING slug",
+            params![encounter_key, owner_id],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 /// Pristine source-derived rows may complete initialization without becoming edited state.

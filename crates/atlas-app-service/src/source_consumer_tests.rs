@@ -6,6 +6,56 @@ use serde_json::json;
 const ACTOR: &str = "actors:testCreature1000";
 
 #[test]
+fn standard_record_reads_skip_family_verification_and_exact_fields_keep_only_the_requested_content()
+{
+    let fixture =
+        fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+            let records = [
+            ("X345VfEx9DZwO47G", "Alloy Orb (Low-Grade)"),
+            ("OOli8iQmLZoMOoG0", "Alloy Orb (Standard-Grade)"),
+            ("tTrJnXJYt15arH6G", "Alloy Orb (Exquisite Standard-Grade)"),
+            ("s0DffbZbYlav3mu1", "Alloy Orb (High-Grade)"),
+            ("ECjche2BfpWHZ3vU", "Alloy Orb (Exquisite High-Grade)"),
+        ].into_iter().map(|(id, name)| record("equipment-srd", "Item", json!({
+            "_id":id, "name":name, "type":"consumable", "system":{
+                "category":"other", "level":{"value":3}, "description":{"value":"<p>Orb rules.</p>"}
+            }
+        }))).collect();
+            Ok(open_source_fixture(records, false)?)
+        }));
+    let mut request: RecordDetailRequest = serde_json::from_value(json!({
+        "record_key":"equipment-srd:X345VfEx9DZwO47G"
+    }))
+    .unwrap();
+    let (full, _) = fixture
+        .worker
+        .record_read_at(request.clone(), crate::RecordReadDetail::Full, vec![])
+        .unwrap();
+    assert_eq!(full.equipment_family.unwrap().id, "alloy-orb");
+    assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 5);
+    for detail in [
+        crate::RecordReadDetail::Standard {
+            include_grants: true,
+        },
+        crate::RecordReadDetail::Standard {
+            include_grants: false,
+        },
+        crate::RecordReadDetail::Full,
+    ] {
+        if matches!(detail, crate::RecordReadDetail::Full) {
+            request.fields = vec!["/system/description/value".into()];
+        }
+        let (reading, _) = fixture
+            .worker
+            .record_read_at(request.clone(), detail, vec![])
+            .unwrap();
+        assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 1);
+        assert!(reading.equipment_family.is_none());
+        assert!(reading.presentation.content.iter().any(|field| matches!(&field.body, PreparedFieldBodyView::Html { html, .. } if html.contains("Orb rules."))));
+    }
+}
+
+#[test]
 fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
     let f = fixture_worker();
     let keys = [
@@ -156,6 +206,7 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
             let selected = f
                 .worker
                 .record_detail_at(RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: link.link.navigation.record_key.clone(),
@@ -309,6 +360,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         let detail = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),
@@ -339,6 +391,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: result.link.navigation.record_key.clone(),
@@ -364,6 +417,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: result.link.navigation.record_key.clone(),
@@ -406,6 +460,7 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
     let owned = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: true,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: ACTOR.into(),
@@ -442,6 +497,7 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
         },
     };
     let mut request = RecordDetailRequest {
+        include_section_rendering: true,
         expected_artifact_generation: None,
         spell_rank: None,
         record_key: ACTOR.into(),
@@ -498,6 +554,7 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
     assert!(
         f.worker
             .record_detail_at(RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: ACTOR.into(),
@@ -548,6 +605,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
         assert!(
             f.worker
                 .record_detail_at(RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: ACTOR.into(),
@@ -564,6 +622,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: ACTOR.into(),
@@ -613,6 +672,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
     assert!(
         f.worker
             .record_detail_at(RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: nav.record_key.clone(),
@@ -752,7 +812,12 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
             unresolved_count: 1
         }
     );
-    assert!(f.worker.delete_saved_list("copied-list").unwrap().deleted);
+    assert!(
+        f.worker
+            .delete_saved_list(&imported.list.list_key)
+            .unwrap()
+            .deleted
+    );
 }
 
 #[test]
@@ -797,6 +862,21 @@ fn v1_replacement_is_rejected_and_v2_round_trips_without_reference() {
     assert_eq!(
         result.resolution,
         atlas_app_model::ImportedListResolutionView::Unchecked
+    );
+    let snapshot = f.worker.saved_list_snapshot("portable", None).unwrap();
+    assert!(
+        snapshot
+            .items
+            .iter()
+            .all(|item| item.status == atlas_app_model::SavedListItemStatusView::Unchecked)
+    );
+    assert!(
+        f.worker
+            .saved_list_snapshot(
+                "portable",
+                Some(atlas_domain::ResultSort::Random { seed: 4 })
+            )
+            .is_err()
     );
     let mut obsolete = document("actions:missing000000003");
     obsolete.version = 1;
@@ -912,6 +992,7 @@ fn explicitly_selected_empty_and_null_prose_keep_distinct_availability() {
     let d = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             spell_rank: None,
             record_key: "actions:empty00000000000".into(),
@@ -985,6 +1066,7 @@ fn rebuilt_snapshot_rejects_navigation_to_a_reordered_unstable_child() {
         .clone();
     let after = fixture_worker_with_executor(make(true, 'b'));
     let request = RecordDetailRequest {
+        include_section_rendering: false,
         expected_artifact_generation: None,
         spell_rank: None,
         record_key: nav.record_key,
@@ -1447,6 +1529,7 @@ fn multi_field_projection_reopens_without_record_wide_edges_or_duplicate_fields(
         ),
     ] {
         let mut request = RecordDetailRequest {
+            include_section_rendering: false,
             record_key: key.into(),
             owners,
             fields: vec![],
@@ -1518,6 +1601,7 @@ fn defenses_only_skips_unrelated_activities_and_edges_and_retains_defense_facts(
         },
     ));
     let request = RecordDetailRequest {
+        include_section_rendering: false,
         record_key: "actors:defender00000001".into(),
         owners: vec![],
         fields: vec![],
@@ -1537,7 +1621,11 @@ fn defenses_only_skips_unrelated_activities_and_edges_and_retains_defense_facts(
     );
     let (section, _) = fixture
         .worker
-        .record_read_at(request, vec![crate::RecordReadSection::Defenses])
+        .record_read_at(
+            request,
+            crate::RecordReadDetail::Full,
+            vec![crate::RecordReadSection::Defenses],
+        )
         .unwrap();
     let work = fixture.worker.last_read_metrics();
     assert_eq!(

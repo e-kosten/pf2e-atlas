@@ -12,7 +12,7 @@ export type InitiativeEntryFields = Omit<
   "expected_revision" | "request_id"
 >;
 
-function textValue(note?: string) {
+function textValue(note?: string | null) {
   return note?.trim() ? note : "";
 }
 

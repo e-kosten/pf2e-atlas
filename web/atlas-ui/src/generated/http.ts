@@ -712,7 +712,8 @@ export interface AddEncounterInitiativeEntryRequest {
   display_name: string;
   expected_revision: number;
   initiative: number;
-  note?: string;
+  /** @nullable */
+  note?: string | null;
   request_id: string;
 }
 
@@ -949,16 +950,20 @@ export interface PreparedCreatureChoice {
 
 export interface CreatureScenarioContext {
   artifact_generation: string;
-  expected?: PreparedCreatureChoice;
-  use_id?: string;
+  expected?: PreparedCreatureChoice | null;
+  /** @nullable */
+  use_id?: string | null;
 }
 
 export interface AddEncounterRecordParticipantRequest {
-  creature_scenario?: CreatureScenarioContext;
+  creature_scenario?: CreatureScenarioContext | null;
   /** @nullable */
   initiative?: number | null;
   participant_variant?: EncounterParticipantVariantView | null;
-  /** @minimum 0 */
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
   quantity: number;
   record_ref: string;
   /**
@@ -1534,7 +1539,7 @@ export interface CharacterLevelUpdate {
   character_key: string;
   expected_character_revision: number;
   /** @nullable */
-  level?: number | null;
+  level: number | null;
 }
 
 export interface CharacterMutationView {
@@ -2367,6 +2372,8 @@ export interface DefinitionDetailRequest {
   definition_key: string;
   /** @nullable */
   expected_artifact_generation?: string | null;
+  /** Include section-annotated HTML for selecting Similar source passages. */
+  include_section_rendering?: boolean;
 }
 
 export type RecordReferenceDestinationView = {
@@ -2984,6 +2991,8 @@ export type EmbeddedReadingSelection = {
 
 export interface EmbeddedReadingRequest {
   artifact_generation: string;
+  /** Include section-annotated HTML for selecting Similar source passages. */
+  include_section_rendering?: boolean;
   parent: EmbeddedReadingParent;
   selection: EmbeddedReadingSelection;
 }
@@ -3065,8 +3074,11 @@ export interface EncounterAdditionContextView {
 
 export interface EncounterAdjustmentTimingInput {
   duration: ConditionDurationViewInputSchema;
-  /** Set remaining rounds or seconds explicitly. Omit to preserve progress on edits. */
-  remaining?: number;
+  /**
+     * Set remaining rounds or seconds explicitly. Omit to preserve progress on edits.
+     * @nullable
+     */
+  remaining?: number | null;
 }
 
 export interface EncounterAdjustmentInput {
@@ -3074,7 +3086,7 @@ export interface EncounterAdjustmentInput {
   modifier_type: AdjustmentModifierType;
   name: string;
   target: AdjustmentTarget;
-  timing: EncounterAdjustmentTimingInput | null;
+  timing?: EncounterAdjustmentTimingInput | null;
 }
 
 export type EncounterAdjustmentAction = {
@@ -3108,8 +3120,11 @@ export interface EncounterAdjustmentRequest {
   action: EncounterAdjustmentAction;
   expected_encounter_revision: number;
   expected_participant_revision: number;
-  /** @minimum 0 */
-  expected_reference_revision?: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  expected_reference_revision?: number | null;
   request_id: string;
 }
 
@@ -4025,9 +4040,12 @@ export interface EncounterDetailView {
 }
 
 export interface EncounterDifficultyAddition {
-  creature_scenario?: CreatureScenarioContext;
+  creature_scenario?: CreatureScenarioContext | null;
   participant_variant?: EncounterParticipantVariantView | null;
-  /** @minimum 0 */
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
   quantity: number;
   record_ref: string;
 }
@@ -4173,7 +4191,29 @@ export interface EncounterReferenceRequest {
   selection: RecordSelection;
 }
 
+export type EncounterReferenceReadRequest = EncounterReferenceRequest & {
+  /** Include section-annotated HTML for selecting Similar source passages. */
+  include_section_rendering?: boolean;
+};
+
 export interface EncounterRevisionView {
+  revision: number;
+}
+
+export interface EncounterSettingsMetadataView {
+  archived: boolean;
+  created_at: string;
+  description?: string;
+  encounter_key: string;
+  name: string;
+  round_duration_seconds: number;
+  slug: string;
+  updated_at: string;
+}
+
+export interface EncounterSettingsView {
+  encounter: EncounterSettingsMetadataView;
+  note?: string;
   revision: number;
 }
 
@@ -5170,6 +5210,8 @@ export interface RecordDetailRequest {
   /** @nullable */
   expected_artifact_generation?: string | null;
   fields?: string[];
+  /** Include section-annotated HTML for selecting Similar source passages. */
+  include_section_rendering?: boolean;
   passage?: SourcePassageAddressInputSchema | null;
   record_key: string;
   /** @nullable */
@@ -5974,6 +6016,8 @@ export interface TableRollView {
 export interface TraitDetailRequest {
   /** @nullable */
   expected_artifact_generation?: string | null;
+  /** Include section-annotated HTML for selecting Similar source passages. */
+  include_section_rendering?: boolean;
   trait_key: string;
 }
 
@@ -8092,7 +8136,7 @@ export const getEncounterReferenceUrl = (encounterRef: string,
 
 export const encounterReference = async (encounterRef: string,
     participantKey: string,
-    encounterReferenceRequest: EncounterReferenceRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<RecordDetailView> => {
+    encounterReferenceReadRequest: EncounterReferenceReadRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<RecordDetailView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -8113,7 +8157,7 @@ return fetchGenerated<RecordDetailView>(getEncounterReferenceUrl(encounterRef,pa
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(encounterReferenceRequest)
+    body: JSON.stringify(encounterReferenceReadRequest)
   }
 );}
 
@@ -8416,6 +8460,27 @@ export const getEncounterRevisionUrl = (encounterRef: string,) => {
 export const encounterRevision = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterRevisionView> => {
 
   return fetchGenerated<EncounterRevisionView>(getEncounterRevisionUrl(encounterRef),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getEncounterSettingsUrl = (encounterRef: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/settings`
+}
+
+export const encounterSettings = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterSettingsView> => {
+
+  return fetchGenerated<EncounterSettingsView>(getEncounterSettingsUrl(encounterRef),
   {
     ...options,
     method: 'GET'

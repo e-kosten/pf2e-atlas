@@ -1,8 +1,8 @@
 import type { FormInstance } from "antd";
 import { useLayoutEffect, useRef, useState } from "react";
 import type {
-  EncounterDetailView,
-  EncounterSummaryView,
+  EncounterSettingsView,
+  EncounterSettingsMetadataView,
   UpdateEncounterRequest,
 } from "../../generated/atlas";
 import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
@@ -44,7 +44,7 @@ function isSetting(field: string): field is Setting {
 }
 
 function savedSettings(
-  encounter: EncounterSummaryView,
+  encounter: EncounterSettingsMetadataView,
   note: string | undefined,
 ): SavedSettings {
   return {
@@ -84,11 +84,11 @@ export function useEncounterSettingsDraft({
   onRefreshConflict,
   onConflictChange,
 }: {
-  encounter: EncounterSummaryView;
+  encounter: EncounterSettingsMetadataView;
   encounterNote: string | undefined;
   form: FormInstance<EncounterSettingsValues>;
   onSave: (request: UpdateEncounterRequest) => Promise<unknown>;
-  onRefreshConflict: () => Promise<EncounterDetailView | undefined>;
+  onRefreshConflict: () => Promise<EncounterSettingsView | undefined>;
   onConflictChange?: (blocked: boolean) => void;
 }) {
   const baseline = useRef(savedSettings(encounter, encounterNote));

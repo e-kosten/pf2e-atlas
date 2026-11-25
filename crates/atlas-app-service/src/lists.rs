@@ -115,7 +115,15 @@ impl AtlasAppService {
         })
     }
 
-    pub fn saved_list_snapshot(&self, list_ref: &str) -> AppServiceResult<SavedListDetailView> {
+    pub fn saved_list_snapshot(
+        &self,
+        list_ref: &str,
+        sort: Option<atlas_domain::ResultSort>,
+    ) -> AppServiceResult<SavedListDetailView> {
+        let sort = crate::result_order::saved_list_sort(sort)?;
+        if sort.is_record_order() {
+            return self.saved_list_with_filter(list_ref, None, None, sort, false);
+        }
         self.with_state(|session| {
             let list = session
                 .local_state()?
@@ -147,8 +155,7 @@ impl AtlasAppService {
         if filter.is_none() && query.is_none() && !sort.is_record_order() {
             return self.saved_list(list_ref);
         }
-        let has_match_scope = filter.is_some() || query.is_some();
-        self.saved_list_with_filter(list_ref, filter.as_ref(), query, has_match_scope, sort)
+        self.saved_list_with_filter(list_ref, filter.as_ref(), query, sort, true)
     }
 
     pub fn create_saved_list(
@@ -516,19 +523,17 @@ impl AtlasAppService {
         })
     }
 
-    pub fn delete_saved_list(&self, list_ref: &str) -> AppServiceResult<DeleteSavedListView> {
-        let list_ref = list_ref.to_string();
-        self.with_write(move |session| {
-            let store = session.local_state()?;
-            let list = store
+    pub fn delete_saved_list(&self, list_key: &str) -> AppServiceResult<DeleteSavedListView> {
+        self.with_write(|session| {
+            let slug = session
+                .local_state()?
                 .saved_lists()
-                .get(&list_ref)?
-                .ok_or_else(|| saved_list_not_found(&list_ref))?;
-            let deleted = store.saved_lists().delete(&list.list_key)?;
+                .delete(list_key)?
+                .ok_or_else(|| saved_list_not_found(list_key))?;
             Ok(DeleteSavedListView {
-                list_key: list.list_key,
-                slug: list.slug,
-                deleted,
+                list_key: list_key.to_owned(),
+                slug,
+                deleted: true,
             })
         })
     }
@@ -626,9 +631,10 @@ impl AtlasAppService {
         list_ref: &str,
         filter: Option<&atlas_domain::QueryPredicate>,
         query: Option<&str>,
-        has_match_scope: bool,
         sort: atlas_domain::ResultSort,
+        include_records: bool,
     ) -> AppServiceResult<SavedListDetailView> {
+        let has_match_scope = filter.is_some() || query.is_some();
         let list_ref = list_ref.to_owned();
         let filter = filter.cloned();
         let query = query.map(str::to_owned);
@@ -660,6 +666,19 @@ impl AtlasAppService {
                     }
                     Err(error) => return Err(error.into()),
                 };
+                if !include_records {
+                    let keys = list
+                        .items
+                        .iter()
+                        .filter_map(|item| RecordKey::parse(&item.record_key).ok())
+                        .collect::<Vec<_>>();
+                    let ordered = session
+                        .retrieval()
+                        .order_available_record_keys(&keys, sort.clone())?;
+                    let mut view = saved_list_without_reference(list, sort, false, false, None);
+                    view.items = ordered_saved_items(view.items, ordered)?;
+                    return Ok(view);
+                }
                 let mut records_by_key = if has_match_scope {
                     let membership = session
                         .local_state()?
@@ -718,24 +737,7 @@ impl AtlasAppService {
                     let ordered = session
                         .retrieval_mut()
                         .order_record_keys(&keys, sort.clone())?;
-                    let mut active = std::collections::BTreeMap::new();
-                    let mut unavailable = Vec::new();
-                    for item in items {
-                        if records_by_key.contains_key(&item.record_key) {
-                            active.insert(item.record_key.clone(), item);
-                        } else {
-                            unavailable.push(item);
-                        }
-                    }
-                    items = ordered
-                        .into_iter()
-                        .map(|key| {
-                            active.remove(&key.to_string()).ok_or_else(|| {
-                                AppServiceError::invalid_request("The saved record is unavailable")
-                            })
-                        })
-                        .collect::<AppServiceResult<Vec<_>>>()?;
-                    items.extend(unavailable);
+                    items = ordered_saved_items(items, ordered)?;
                 }
                 Ok(SavedListDetailView {
                     reference_error: None,
@@ -746,6 +748,34 @@ impl AtlasAppService {
             },
         )
     }
+}
+
+/// Indexed matches take their requested order; missing records retain their saved order.
+fn ordered_saved_items(
+    items: Vec<SavedListItemView>,
+    order: Vec<RecordKey>,
+) -> AppServiceResult<Vec<SavedListItemView>> {
+    let mut ordered = vec![None; order.len()];
+    let mut ranks = order
+        .into_iter()
+        .enumerate()
+        .map(|(index, key)| (key.to_string(), index))
+        .collect::<BTreeMap<_, _>>();
+    let mut missing = Vec::new();
+    for mut item in items {
+        if let Some(rank) = ranks.remove(&item.record_key) {
+            item.status = SavedListItemStatusView::Active;
+            ordered[rank] = Some(item);
+        } else {
+            missing.push(item);
+        }
+    }
+    let mut ordered = ordered
+        .into_iter()
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| AppServiceError::invalid_request("The saved record is unavailable"))?;
+    ordered.extend(missing);
+    Ok(ordered)
 }
 
 fn saved_list_without_reference(

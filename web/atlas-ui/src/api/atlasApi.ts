@@ -148,7 +148,7 @@ export async function getEmbeddedReading(
 export async function getEncounterReference(
   encounterRef: string,
   participantKey: string,
-  request: import("../generated/atlas").EncounterReferenceRequest,
+  request: import("../generated/atlas").EncounterReferenceReadRequest,
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
   return http.encounterReference(encounterRef, participantKey, checkRequest(request), {
@@ -170,6 +170,7 @@ export async function getEncounterConditionDefinitions(
   );
 }
 
+export const getEncounterSettings = http.encounterSettings;
 export const getEncounterRevision = http.encounterRevision;
 export const getEncounterAdditionContext = http.encounterAdditionContext;
 export const getCreatureAdditionContext = http.creatureAdditionContext;
@@ -203,9 +204,9 @@ export async function createEncounter(
 }
 
 export async function deleteEncounter(
-  encounterRef: string,
+  encounterKey: string,
 ): Promise<DeleteEncounterView> {
-  return http.deleteEncounter(encounterRef, { intent: "action" });
+  return http.deleteEncounter(encounterKey, { intent: "action" });
 }
 
 export async function updateEncounter(
@@ -606,8 +607,8 @@ export async function updateSavedList(
   });
 }
 
-export async function deleteSavedList(listRef: string): Promise<DeleteSavedListView> {
-  return http.deleteSavedList(listRef, { intent: "action" });
+export async function deleteSavedList(listKey: string): Promise<DeleteSavedListView> {
+  return http.deleteSavedList(listKey, { intent: "action" });
 }
 
 export async function addSavedListItem(

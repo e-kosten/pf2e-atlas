@@ -61,10 +61,10 @@ impl EncountersWrite<'_> {
         })
     }
 
-    pub fn delete(&self, encounter_ref: &str) -> LocalStateResult<bool> {
+    pub fn delete(&self, encounter_key: &str) -> LocalStateResult<Option<String>> {
         crate::atomic_action::run(self.connection, || {
-            validate_ref(encounter_ref)?;
-            storage::delete(self.connection, self.owner_id, encounter_ref)
+            validate_ref(encounter_key)?;
+            storage::delete(self.connection, self.owner_id, encounter_key)
         })
     }
 
@@ -402,6 +402,18 @@ fn validate_ref(value: &str) -> LocalStateResult<()> {
 }
 
 impl EncountersRead<'_> {
+    pub fn complete_keys(&self, prefix: &str) -> LocalStateResult<Vec<(String, String)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT encounter_key, name FROM encounters
+             WHERE owner_id = ?1 AND instr(encounter_key, ?2) = 1
+             ORDER BY updated_at DESC, slug ASC LIMIT 100",
+        )?;
+        let rows = statement.query_map(rusqlite::params![self.owner_id, prefix], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
     pub fn list(&self) -> LocalStateResult<Vec<Encounter>> {
         storage::list(self.connection, self.owner_id)
     }

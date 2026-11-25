@@ -107,7 +107,11 @@ enum EncounterCommand {
         participant: String,
     },
     /// Delete a saved encounter and its participants.
-    Delete { encounter: String },
+    Delete {
+        /// Stable encounter key (see encounters show).
+        #[arg(add = clap_complete::ArgValueCompleter::new(crate::commands::completions::encounter_keys))]
+        encounter_key: String,
+    },
     /// Export a complete saved encounter as a versioned JSON document.
     Export {
         encounter: String,
@@ -414,8 +418,8 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
                 println!("Removed {participant} from {}", view.encounter_key);
             }
         }
-        EncounterCommand::Delete { encounter } => {
-            let view = view!(service.delete_encounter(&encounter));
+        EncounterCommand::Delete { encounter_key } => {
+            let view = view!(service.delete_encounter(&encounter_key));
             if json {
                 write_json_data(&view)?;
             } else {

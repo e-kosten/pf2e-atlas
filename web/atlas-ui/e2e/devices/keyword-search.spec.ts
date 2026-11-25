@@ -110,6 +110,7 @@ test("inline record links work without stored vectors", async ({ page }, info) =
     data: { slug, name: "Keyword inline lookup" },
   });
   expect(created.ok()).toBe(true);
+  const { list } = await created.json();
   try {
     await page.goto(`/lists/${slug}/edit`);
     const editor = page.getByRole("textbox", { name: "Description" });
@@ -137,7 +138,7 @@ test("inline record links work without stored vectors", async ({ page }, info) =
       `${inserted} and [Lantern Ward](record:browser-spells:spell00000000001)`,
     );
   } finally {
-    await page.request.delete(`/api/lists/${slug}`);
+    await page.request.delete(`/api/lists/${list.list_key}`);
   }
 });
 

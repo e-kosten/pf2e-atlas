@@ -18,8 +18,8 @@ impl AtlasAppService {
         let roll = self.project_table_roll(request, false, |loaded, selection| {
             let (view, _) = loaded.project_with_excerpt(
                 selection,
-                None,
                 crate::records::ReadingProjection::TableMatch,
+                false,
             )?;
             Ok(TableRollMatchView {
                 title: view.presentation.identity.title,
@@ -40,7 +40,7 @@ impl AtlasAppService {
         request: RollTableRequest,
     ) -> AppServiceResult<RolledTable<RecordDetailView>> {
         self.project_table_roll(request, true, |loaded, selection| {
-            loaded.project(selection, None)
+            loaded.project(selection, false)
         })
     }
 
@@ -66,8 +66,8 @@ impl AtlasAppService {
             let loaded = crate::records::LoadedRecordDetail::load(retrieval, &request.selection)?;
             let (detail, _) = loaded.project_with_excerpt(
                 request.selection,
-                None,
                 crate::records::ReadingProjection::Table,
+                false,
             )?;
             if detail.artifact_generation != request.artifact_generation {
                 return Err(AppServiceError::artifact_generation_changed(
@@ -191,6 +191,7 @@ mod service_tests {
         let mut request = RollTableRequest {
             artifact_generation: detail.artifact_generation,
             selection: RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: "tables:table00000000000".into(),
@@ -227,6 +228,7 @@ mod service_tests {
             let ordinary = fixture
                 .worker
                 .record_detail_at(RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: result.selected.record_key.clone(),
@@ -300,6 +302,7 @@ mod service_tests {
         RollTableRequest {
             artifact_generation: detail.artifact_generation,
             selection: RecordDetailRequest {
+                include_section_rendering: false,
                 expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: key.into(),
@@ -346,6 +349,7 @@ mod service_tests {
                 let ordinary = fixture
                     .worker
                     .record_detail_at(RecordDetailRequest {
+                        include_section_rendering: false,
                         expected_artifact_generation: None,
                         record_key: result.selected.record_key.clone(),
                         owners: result.selected.owners.clone(),
@@ -454,6 +458,7 @@ mod service_tests {
             let expected = fixture
                 .worker
                 .record_detail_at(RecordDetailRequest {
+                    include_section_rendering: false,
                     expected_artifact_generation: None,
                     record_key: selection.address.record_key.clone(),
                     owners: selection.address.owners.clone(),
@@ -494,8 +499,7 @@ mod service_tests {
         let error = fixture
             .worker
             .with_retrieval(&ReadExecutionContext::uncancellable(), move |r| {
-                let (loaded, _) =
-                    crate::records::LoadedRecordDetail::read(r, selection.clone(), None)?;
+                let loaded = crate::records::LoadedRecordDetail::load(r, &selection)?;
                 loaded.project(
                     RecordSelection {
                         address: RecordAddress {
@@ -504,7 +508,7 @@ mod service_tests {
                         },
                         ..selection
                     },
-                    None,
+                    false,
                 )
             })
             .unwrap_err()

@@ -162,6 +162,7 @@ fn recipient_grants_are_uncapped_but_do_not_appear_on_actors_or_partial_readings
             .is_none()
     );
     let mut request = RecordDetailRequest {
+        include_section_rendering: false,
         expected_artifact_generation: None,
         record_key: "actors:actor00000000000".into(),
         owners: vec![atlas_domain::OwnedContentLocator {

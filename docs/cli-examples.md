@@ -213,6 +213,9 @@ atlas lists import undead-research.json --index /path/to/destination/workspace.s
 `data.slug`, including when the list starts empty. The receipt includes ordered
 item outcomes and counts. Use `atlas lists show KEY --json` for saved metadata.
 
+To delete a list, take its `list_key` from `lists list --json` and run
+`atlas lists delete LIST_KEY`. Use the same key on every retry.
+
 The v2 export preserves saved item order, keys, notes, and snapshots. It can be
 written to a new file without loading reference records. An existing output file is preserved. Import accepts v2 files. A new list
 imported from one of these files starts active. Use a full workspace backup to
@@ -339,6 +342,8 @@ To review a replacement for an existing character, use its key:
 atlas characters preview character.json --character CHARACTER_KEY --json
 ```
 
+Add `--detail full` to inspect explicit availability tags for each fact. The default
+uses compact fields for both the proposed and saved character.
 This preview includes the current revision/context and import `changes`, including
 retained and removed ability corrections. Refresh replaces the canonical name and
 level, complete source and rule reference. After review, use its returned guards:
@@ -429,7 +434,7 @@ atlas encounters add ENCOUNTER_KEY --record PACK:ID --quantity 2 --request-id UU
 Use `encounters edit garden-sentries --note 'Starts behind cover'` to change
 encounter metadata. Copy a participant key from `encounters show` to remove
 that instance with `encounters remove garden-sentries --participant KEY`.
-Use `encounters delete garden-sentries` to delete the saved encounter.
+To delete the saved encounter, pass the same stable key to `encounters delete ENCOUNTER_KEY`. Keep this key for retries.
 
 The party options preview difficulty and suggested XP per PC for the supplied
 party without saving those options to the encounter. Omit them to use the
@@ -635,8 +640,9 @@ generation. After a reference update, rerun the search for a fresh locator.
 
 ### Filter discovery details
 
-The default field list and `--group` use the same groups as the browser filter
-editor. `--all`, `--text` and `--field` JSON return field descriptions. Text output
+Use `filters fields --json` for group IDs and labels, `--group ID` to inspect one
+group, or `--detail full --json` for the complete grouped editor catalog.
+`--all`, `--text` and `--field` JSON return field descriptions. Text output
 for collections also lists entry fields. `--text movement.speeds --json` discovers
 the collection and its members together; `movement.speeds[]` alone is not a field ID.
 
@@ -777,6 +783,10 @@ atlas index check --json
 atlas index check --no-embeddings --json
 atlas index validate --json
 ```
+
+A healthy report has `data.valid: true` and exits 0. A completed check that
+finds a problem exits 3 with `data.valid: false` and a `data.reason.code`.
+If the database cannot be checked, the command exits 3 with a top-level error.
 
 Deep validation scans the reference database; ordinary source ingest does not run
 this complete audit. Use it to investigate problems, rather than before every query.

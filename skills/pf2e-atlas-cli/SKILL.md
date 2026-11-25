@@ -117,8 +117,9 @@ JSON documents directly, not envelopes.
 Record batch exit classes are 0 success, 1 miss/ambiguity, 2 invalid input and
 3 runtime failure; mixed failures use the highest class. Other data commands use
 the usual
-`{ "status": "ok", "data": ... }` envelope. Deep index validation can return
-`status: "ok"` with `data.valid: false` and exit 3; check the payload as well as status.
+`{ "status": "ok", "data": ... }` envelope. Index check and validate return `data.valid: true` on success. Exit 3 with
+`data.valid: false` identifies a completed check that found a problem. Inspect
+`data.reason.code`. Exit 3 with a top-level error means the check could not run.
 Do not treat a failure, ambiguity or bounded candidate count as a complete answer.
 
 Resolve identities before relying on a guessed key:
@@ -293,6 +294,7 @@ Discover filters before constructing a more specific expression:
 ```sh
 atlas filters fields --json
 atlas filters fields --group movement --json
+atlas filters fields --detail full --json
 atlas filters fields --all --json
 atlas filters fields --text 'maximum hp' --json
 atlas filters fields --field defenses.hp.maximum --json
@@ -333,10 +335,9 @@ CEL syntax or fields fail explicitly. The retired metric/reference/filter-JSON
 flags are not available; do not fabricate an alternative expression language.
 Unknown, missing, null, invalid and not-applicable values are distinct. Only a true
 predicate admits a record; do not assume missing stats have a numeric value.
-The default catalog uses shared UI product groups; `--group ID` browses one.
-`--all` lists the flat catalog; `--field` expands one descriptor. Default and
-`--group` JSON return the grouped editor catalog. `--all`, `--field`, and `--text`
-return the query catalog with complete descriptor metadata.
+Use `filters fields --json` for the directory of group IDs and labels. Use
+`--group ID` to inspect one editor group or `--detail full` for all editor groups.
+`--all`, `--field`, and `--text` return flat query catalog descriptors.
 Numeric and collection discovery return statistics/availability with `values: null`;
 categorical and Boolean fields return paged values plus availability counts.
 
@@ -432,7 +433,9 @@ Use `--replace` to replace the list at the target id.
 Use `lists edit ID` for name, description, tags or id changes. To hide a list
 without deleting it, use `lists edit ID --archive`; discover it with
 `lists list --include-archived` and restore it with `lists edit ID --restore`.
-`lists remove ID PACK:ID` removes one entry; `lists delete ID` removes the list.
+Use `lists remove ID PACK:ID` to remove one entry. To delete the whole list,
+look up its `list_key` with `lists list --json` and pass it to `lists delete LIST_KEY`.
+Keep that key for retries, even if the original slug has since been reused.
 
 Lists share the persistent workspace with reference data. A missing record keeps
 its saved snapshot and explicit unresolved status after a reference update. Use
@@ -507,6 +510,8 @@ atlas characters preview character.json --character CHARACTER_KEY --json
 atlas characters refresh CHARACTER_KEY character.json --expected-revision REVISION --expected-source-sha256 SHA256 --expected-generation GENERATION --json
 ```
 
+Standard JSON uses compact section facts in both `proposed` and `current.sections`.
+Use `--detail full` for explicit fact availability.
 Take SHA256/generation/revision from preview, inspect `proposed` and any `current`
 context plus `changes`, then save the same input. `-` accepts bounded UTF-8 stdin.
 Refresh replaces canonical name/level, complete source and rule references; retained
@@ -617,8 +622,9 @@ without saving a party override.
 `encounters edit ENCOUNTER --name NAME --note TEXT` changes metadata; use
 `--clear-note` or `--clear-description` to remove optional text. Remove one roster
 entry with `encounters remove ENCOUNTER --participant PARTICIPANT_KEY`, taking the
-participant key from `encounters show`. `encounters delete ENCOUNTER` deletes the
-encounter and its participants. Encounter export writes the complete portable
+participant key from `encounters show`. To delete the encounter and its participants,
+copy `data.encounter.encounter_key` from `encounters show SLUG --json` and use
+`encounters delete ENCOUNTER_KEY`. Retry with that same key. Encounter export writes the complete portable
 JSON document directly to stdout or a new `--output` file; import creates a new
 encounter and fails if its destination slug already exists.
 

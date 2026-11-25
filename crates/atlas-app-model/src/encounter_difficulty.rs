@@ -33,9 +33,9 @@ pub struct PreviewEncounterDifficultyRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterDifficultyAddition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub creature_scenario: Option<crate::CreatureScenarioContext>,
     pub record_ref: String,
+    #[cfg_attr(feature = "openapi", schema(minimum = 1, maximum = 50))]
     pub quantity: u32,
     pub participant_variant: Option<crate::EncounterParticipantVariantView>,
 }

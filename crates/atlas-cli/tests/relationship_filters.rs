@@ -365,6 +365,79 @@ fn assert_armor_destination(occurrence: &Value) {
 }
 
 #[test]
+fn graph_navigation_reopens_at_both_detail_levels() {
+    let fixture = Fixture::new();
+    let scout = "actors:scout00000000000";
+    let armor = "items:armor00000000000";
+    for detail in ["standard", "full"] {
+        let outgoing = fixture.data(&["graph", "links", scout, "--detail", detail, "--json"]);
+        let generation = outgoing["artifact_generation"].as_str().unwrap();
+        let incoming = fixture.data(&[
+            "graph",
+            "links",
+            armor,
+            "--backlinks",
+            "8",
+            "--detail",
+            detail,
+            "--json",
+        ]);
+        let page = fixture.data(&[
+            "graph",
+            "occurrences",
+            scout,
+            "--links-to",
+            armor,
+            "--artifact-generation",
+            generation,
+            "--detail",
+            detail,
+            "--json",
+        ]);
+        for occurrence in [
+            &outgoing["outgoing"]["occurrences"][0],
+            &incoming["backlinks"]["occurrences"][0],
+            &page["occurrences"][0],
+        ] {
+            for locator in [
+                &occurrence["source_navigation"],
+                &occurrence["destination"]["target"],
+            ] {
+                assert_eq!(locator["artifact_generation"], generation);
+                let opened = fixture.data(&[
+                    "record",
+                    "get",
+                    "--navigation",
+                    &locator.to_string(),
+                    "--json",
+                ]);
+                assert_eq!(
+                    opened["results"][0]["value"]["selected"]["record_key"],
+                    locator["record_key"]
+                );
+            }
+        }
+        let mut retired = page["occurrences"][0]["source_navigation"].clone();
+        retired["artifact_generation"] = json!("retired");
+        let output = fixture.command(
+            &[
+                "record",
+                "get",
+                "--navigation",
+                &retired.to_string(),
+                "--json",
+            ],
+            false,
+        );
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(
+            response["data"]["results"][0]["error"]["code"],
+            "artifact_generation_changed"
+        );
+    }
+}
+
+#[test]
 fn occurrence_pages_require_generation_and_relevant_positive_proof() {
     let fixture = Fixture::new();
     let result = fixture.data(&["search", "--links-to", "Fixture Armor", "--json"]);

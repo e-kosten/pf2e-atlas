@@ -6,6 +6,7 @@ use serde_json::json;
 const ACTOR: &str = "actors:testCreature1000";
 fn request(generation: &str, selection: EmbeddedReadingSelection) -> EmbeddedReadingRequest {
     EmbeddedReadingRequest {
+        include_section_rendering: false,
         parent: EmbeddedReadingParent {
             record_key: ACTOR.into(),
         },
@@ -78,6 +79,27 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         (first.total, first.start, first.end, first.entries.len()),
         (600, 0, 32, 32)
     );
+    assert!(
+        first
+            .entries
+            .iter()
+            .flat_map(|entry| &entry.content)
+            .all(|field| field.section_rendering.is_none())
+    );
+    let mut annotated_request = request(
+        &detail.artifact_generation,
+        EmbeddedReadingSelection::Activity {
+            address: activity_address(&last),
+        },
+    );
+    annotated_request.include_section_rendering = true;
+    let annotated = f.worker.embedded_reading(annotated_request).unwrap();
+    assert!(annotated.entries[0].content.iter().any(|field| {
+        field
+            .section_rendering
+            .as_ref()
+            .is_some_and(|rendering| rendering.html.contains("data-atlas-source-section"))
+    }));
     assert!(first.previous.is_none());
     assert_eq!(first.next.as_ref().unwrap().offset, 32);
     for entry in &first.entries {
@@ -360,6 +382,7 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
         .record_detail("tables:table00000000000")
         .unwrap();
     let mut request = EmbeddedReadingRequest {
+        include_section_rendering: false,
         parent: EmbeddedReadingParent {
             record_key: detail.selected.record_key,
         },
@@ -611,6 +634,7 @@ fn hazard_free_actions_and_reactions_share_exact_bounded_activation_reading() {
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            include_section_rendering: false,
             expected_artifact_generation: None,
             record_key: ACTOR.into(),
             owners: activities[0].navigation.owners.clone(),

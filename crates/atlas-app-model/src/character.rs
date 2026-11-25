@@ -77,6 +77,8 @@ pub struct CharacterRevision {
 pub struct CharacterLevelUpdate {
     pub character_key: String,
     pub expected_character_revision: i64,
+    #[serde(deserialize_with = "Option::deserialize")]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub level: Option<i64>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

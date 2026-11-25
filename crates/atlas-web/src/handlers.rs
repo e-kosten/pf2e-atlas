@@ -188,7 +188,7 @@ pub(crate) async fn reorder_saved_list_item(
     ))
 }
 
-#[utoipa::path(delete, path = "/api/lists/{list_ref}", operation_id = "deleteSavedList", params(("list_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteSavedListView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(delete, path = "/api/lists/{list_ref}", operation_id = "deleteSavedList", params(("list_ref" = String, Path, description = "Stable list key. Look up the current key before deleting.")), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteSavedListView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn delete_saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
@@ -226,6 +226,19 @@ pub(crate) async fn encounter(
 ) -> Result<impl IntoResponse, WebError> {
     Ok(Json(
         call_service(state, move |service| service.encounter(&encounter_ref)).await?,
+    ))
+}
+
+#[utoipa::path(get, path = "/api/encounters/{encounter_ref}/settings", operation_id = "encounterSettings", params(("encounter_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterSettingsView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn encounter_settings(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    Ok(Json(
+        call_service(state, move |service| {
+            service.encounter_settings(&encounter_ref)
+        })
+        .await?,
     ))
 }
 
@@ -268,7 +281,7 @@ pub(crate) async fn create_encounter_with_addition(
     ))
 }
 
-#[utoipa::path(delete, path = "/api/encounters/{encounter_ref}", operation_id = "deleteEncounter", params(("encounter_ref" = String, Path, description = "Stable key or current slug.")), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteEncounterView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(delete, path = "/api/encounters/{encounter_ref}", operation_id = "deleteEncounter", params(("encounter_ref" = String, Path, description = "Stable encounter key. Look up the current key before deleting.")), responses((status = 200, description = "Successful response", body = atlas_app_model::DeleteEncounterView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn delete_encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
@@ -607,16 +620,31 @@ pub(crate) async fn record_detail_at(
         call_service(state, move |service| service.record_detail_at(request)).await?,
     ))
 }
-#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/reference", operation_id = "encounterReference", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = atlas_app_model::EncounterReferenceRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::RecordDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(crate) struct EncounterReferenceReadRequest {
+    #[serde(flatten)]
+    reference: atlas_app_model::EncounterReferenceRequest,
+    /// Include section-annotated HTML for selecting Similar source passages.
+    #[serde(default)]
+    #[schema(default = false)]
+    include_section_rendering: bool,
+}
+
+#[utoipa::path(post, path = "/api/encounters/{encounter_ref}/participants/{participant_key}/reference", operation_id = "encounterReference", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = EncounterReferenceReadRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::RecordDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn encounter_reference(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key)): Path<(String, String)>,
-    payload: Result<Json<atlas_app_model::EncounterReferenceRequest>, JsonRejection>,
+    payload: Result<Json<EncounterReferenceReadRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     Ok(Json(
         call_service(state, move |service| {
-            service.encounter_reference(&encounter_ref, &participant_key, request)
+            service.encounter_reference(
+                &encounter_ref,
+                &participant_key,
+                request.reference,
+                request.include_section_rendering,
+            )
         })
         .await?,
     ))

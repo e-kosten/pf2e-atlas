@@ -90,6 +90,28 @@ pub(crate) fn list_slugs(current: &std::ffi::OsStr) -> Vec<clap_complete::Comple
         .collect()
 }
 
+pub(crate) fn list_keys(current: &std::ffi::OsStr) -> Vec<clap_complete::CompletionCandidate> {
+    let Some((options, prefix)) = options().zip(current.to_str()) else {
+        return Vec::new();
+    };
+    atlas_app_service::complete_saved_list_keys(&options, prefix)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(key, name)| clap_complete::CompletionCandidate::new(key).help(Some(name.into())))
+        .collect()
+}
+
+pub(crate) fn encounter_keys(current: &std::ffi::OsStr) -> Vec<clap_complete::CompletionCandidate> {
+    let Some((options, prefix)) = options().zip(current.to_str()) else {
+        return Vec::new();
+    };
+    atlas_app_service::complete_encounter_keys(&options, prefix)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(key, name)| clap_complete::CompletionCandidate::new(key).help(Some(name.into())))
+        .collect()
+}
+
 pub(crate) fn record_keys(current: &std::ffi::OsStr) -> Vec<clap_complete::CompletionCandidate> {
     let Some((options, prefix)) = options().zip(current.to_str()) else {
         return Vec::new();

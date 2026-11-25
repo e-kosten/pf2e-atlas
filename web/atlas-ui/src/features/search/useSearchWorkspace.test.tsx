@@ -1233,6 +1233,7 @@ describe("useSearchWorkspace", () => {
         fields: [match.field],
         passage: match.passage,
         source_fingerprint: "source-a",
+        expected_artifact_generation: "test-generation",
       },
       expect.any(AbortSignal),
     );

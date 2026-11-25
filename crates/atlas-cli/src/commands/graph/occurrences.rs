@@ -82,7 +82,12 @@ pub(crate) fn run(options: GraphOccurrencesOptions) -> Result<ExitCode, String> 
     if options.json {
         use serde_json::json;
         let mut data = if options.detail == EvidenceDetail::Full {
-            json!(result)
+            let mut full = json!(result);
+            crate::commands::record::navigation::bind_nested(
+                &mut full["occurrences"],
+                &result.artifact_generation,
+            );
+            full
         } else {
             json!({"artifact_generation":result.artifact_generation,
             "clause":{"clause_id":result.clause.clause_id,"title":result.clause.title,"relationship":result.clause.relationship},

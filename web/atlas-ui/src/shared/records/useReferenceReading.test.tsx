@@ -2,7 +2,7 @@ import { recordDetailQueryOptions, recordDetailRequest } from "./recordDetailQue
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { Activity, type ReactNode } from "react";
-import { getRecordDetail } from "../../api/atlasApi";
+import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
 import {
   detailFixture,
   activityFixture,
@@ -96,6 +96,76 @@ it("reopens a returned multi-field projection in its generation without loading 
   );
 });
 
+it("requests the specified generation for retained roots, and selector markup only for the seed", async () => {
+  const detail = detailFixture("actors:ghoul");
+  api.mockResolvedValue(detail);
+  const { result } = renderHook(
+    () =>
+      useReferenceReading(
+        { navigation: rootNavigation("actors:ghoul") },
+        true,
+        0,
+        detail.artifact_generation,
+        "actors:ghoul",
+      ),
+    { wrapper },
+  );
+  await waitFor(() =>
+    expect(api).toHaveBeenLastCalledWith(
+      "actors:ghoul",
+      {
+        ...recordDetailRequest(
+          rootNavigation("actors:ghoul"),
+          undefined,
+          detail.artifact_generation,
+        ),
+        include_section_rendering: true,
+      },
+      expect.any(AbortSignal),
+    ),
+  );
+  act(() => result.current.inspect({ navigation: rootNavigation("items:linked") }));
+  await waitFor(() =>
+    expect(api).toHaveBeenLastCalledWith(
+      "items:linked",
+      recordDetailRequest(
+        rootNavigation("items:linked"),
+        undefined,
+        detail.artifact_generation,
+      ),
+      expect.any(AbortSignal),
+    ),
+  );
+});
+
+it.each([null, "/system/description/value"])(
+  "drops retained data and exposes reload after republishing a root or field (%s)",
+  async (field) => {
+    const detail = detailFixture("actors:ghoul");
+    const navigation = { ...detail.selected, field };
+    const published = { ...detail, selected: navigation };
+    const changed = new AtlasApiError(409, "Reference changed", {
+      code: "artifact_generation_changed",
+      message: "Reference changed",
+      recoverable_action: "reload_record",
+    });
+    api.mockResolvedValueOnce(published).mockRejectedValueOnce(changed);
+    const { result } = renderHook(
+      () => useReferenceReading({ navigation }, true, 0, published.artifact_generation),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.detail).toEqual(published));
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.error).toBe(changed));
+    expect(result.current.detail).toBeUndefined();
+    expect(api).toHaveBeenLastCalledWith(
+      navigation.record_key,
+      recordDetailRequest(navigation, undefined, published.artifact_generation),
+      expect.any(AbortSignal),
+    );
+  },
+);
+
 it("lands a typed inline activity in its parent without reading a separate document", async () => {
   const activity = activityFixture("Jaws", "actors:ghoul");
   const parent = detailFixture("actors:ghoul");
@@ -132,7 +202,7 @@ it("reads an exact field address even when its owner is a parent activity", asyn
   await waitFor(() => expect(result.current.detail?.selected).toEqual(match));
   expect(api).toHaveBeenLastCalledWith(
     "actors:ghoul",
-    recordDetailRequest(match),
+    recordDetailRequest(match, undefined, "test-generation"),
     expect.any(AbortSignal),
   );
   expect(result.current.landing).toBeUndefined();

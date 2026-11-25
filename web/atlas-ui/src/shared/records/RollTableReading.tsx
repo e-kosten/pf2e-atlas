@@ -1,5 +1,6 @@
 import { referenceRecordTarget } from "./recordReferenceDestination";
 import { recordSelection } from "./recordDetailQuery";
+import { useSourceSectionRendering } from "./SourceSectionSelectionContext";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { ErrorNotice } from "../feedback/ErrorNotice";
@@ -36,6 +37,7 @@ export function RollTableReading({
 }) {
   const [result, setResult] = useState<TableRollView>();
   const [highlight, setHighlight] = useState<string[]>([]);
+  const includeSectionRendering = useSourceSectionRendering(context.parent.record_key);
   const reading = useInfiniteQuery({
     meta: referenceQueryMeta,
     queryKey: [
@@ -43,6 +45,7 @@ export function RollTableReading({
       context.generation,
       selection.record_key,
       "table-results",
+      includeSectionRendering,
     ],
     initialPageParam: {
       kind: "table_results",
@@ -54,6 +57,7 @@ export function RollTableReading({
           parent: { record_key: context.parent.record_key },
           artifact_generation: context.generation,
           selection: pageParam,
+          ...(includeSectionRendering ? { include_section_rendering: true } : {}),
         },
         signal,
       ),

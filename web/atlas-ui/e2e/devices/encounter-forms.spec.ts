@@ -802,7 +802,22 @@ test("encounter settings previews the saved GM note as Markdown and keeps siblin
   const { encounter } = await created.json();
   const path = `/api/encounters/${encounter.encounter_key}`;
   try {
-    await page.goto(`/encounters/${encounter.slug}/edit`);
+    const reads: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url()).pathname;
+      if (
+        request.method() === "GET" &&
+        (url === path ||
+          url.startsWith(path + "/") ||
+          url === `/api/encounters/${encounter.slug}`)
+      )
+        reads.push(url);
+    });
+    await page.goto("/encounters");
+    await activate(
+      page.getByRole("button", { name: `Edit ${encounter.name}`, exact: true }),
+      info,
+    );
     const settings = page.getByRole("dialog", { name: "Settings", exact: true });
     const description = settings.getByRole("textbox", { name: "Description" });
     await description.fill("Gatehouse");
@@ -824,7 +839,8 @@ test("encounter settings previews the saved GM note as Markdown and keeps siblin
     await expect(description).toHaveValue("Gatehouse");
     await activate(settings.getByRole("button", { name: "Save", exact: true }), info);
     await expect(settings).toBeHidden();
-    const saved = await (await page.request.get(path)).json();
+    expect(reads).toEqual([path + "/settings", path + "/settings"]);
+    const saved = await (await page.request.get(path + "/settings")).json();
     expect(saved.note).toBe(source);
     expect(saved.encounter.description).toBe("Gatehouse");
   } finally {

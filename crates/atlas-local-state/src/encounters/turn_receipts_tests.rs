@@ -148,7 +148,8 @@ fn encounter_deletion_removes_lifetime_receipts_and_current_context() -> crate::
         .encounters()
         .add_participant("test", creature("Actor", Some(10), 20))?;
     advance(&store, &participant.participant_key, "first", true)?;
-    assert!(store.encounters().delete("test")?);
+    let key = store.encounters().get("test")?.unwrap().encounter_key;
+    assert!(store.encounters().delete(&key)?);
     let connection = store.connection()?;
     for table in ["encounter_command_receipts", "encounter_outgoing_turns"] {
         assert_eq!(

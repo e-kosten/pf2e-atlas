@@ -244,6 +244,21 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
             .as_deref(),
         Some("0.005 gp each")
     );
+    let assert_snapshot = |mut detail: atlas_app_model::SavedListDetailView| {
+        let projected = f
+            .worker
+            .saved_list_snapshot("ordered", Some(detail.sort.clone()))
+            .unwrap();
+        let metrics = f.worker.last_read_metrics();
+        assert_eq!(metrics.summary_batches, 0);
+        assert_eq!(metrics.source_body_decodes, 0);
+        assert_eq!(metrics.sql_statements, 1);
+        for item in &mut detail.items {
+            item.record = None;
+        }
+        assert_eq!(projected, detail);
+    };
+    assert_snapshot(sorted.clone());
     for seed in [0, u32::MAX] {
         let request = FilterSavedListRequest {
             sort: Some(ResultSort::Random { seed }),
@@ -258,6 +273,7 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
             shuffled,
             f.worker.filter_saved_list("ordered", request).unwrap()
         );
+        assert_snapshot(shuffled.clone());
         assert_eq!(shuffled.items.len(), keys.len());
         assert_eq!(shuffled.items[4].record_key, keys[1]);
         assert_eq!(shuffled.items[5].record_key, keys[3]);

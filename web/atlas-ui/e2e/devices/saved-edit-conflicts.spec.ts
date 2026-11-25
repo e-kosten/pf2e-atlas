@@ -11,6 +11,10 @@ async function createList(page: Page, slug: string) {
     data: { slug, name: "Note review" },
   });
   expect(created.ok()).toBeTruthy();
+  return (await created.json()).list.list_key as string;
+}
+
+async function addItems(page: Page, slug: string) {
   for (const record of [first, second]) {
     const added = await page.request.post(`/api/lists/${slug}/items`, {
       data: {
@@ -37,8 +41,9 @@ test("two tabs saving the same note finish without review", async ({
 }, info) => {
   const slug = `note-match-${info.project.name}-${Date.now()}`;
   const other = await context.newPage();
+  const key = await createList(page, slug);
   try {
-    await createList(page, slug);
+    await addItems(page, slug);
     const left = await openNote(page, slug);
     const right = await openNote(other, slug);
     const text = "Both tabs made the same edit";
@@ -65,7 +70,7 @@ test("two tabs saving the same note finish without review", async ({
     ).toBeFocused();
   } finally {
     await other.close();
-    await page.request.delete(`/api/lists/${slug}`);
+    await page.request.delete(`/api/lists/${key}`);
   }
 });
 
@@ -77,8 +82,9 @@ test("reorder in the same list view preserves an open note draft and both saves"
     "The desktop list and reader are side by side",
   );
   const slug = `note-reorder-${Date.now()}`;
+  const key = await createList(page, slug);
   try {
-    await createList(page, slug);
+    await addItems(page, slug);
     const { region, draft } = await openNote(page, slug);
     await replaceMarkdown(draft, "Edited after opening");
     const handle = page.locator(".list-member__drag-handle").first();
@@ -117,7 +123,7 @@ test("reorder in the same list view preserves an open note draft and both saves"
       [first, "Edited after opening"],
     ]);
   } finally {
-    await page.request.delete(`/api/lists/${slug}`);
+    await page.request.delete(`/api/lists/${key}`);
   }
 });
 
@@ -129,8 +135,9 @@ test("same-note saves from two tabs require explicit conflict resolution", async
   const keyboard = !info.project.use.hasTouch;
   if (keyboard) await page.setViewportSize({ width: 1200, height: 440 });
   const other = await context.newPage();
+  const key = await createList(page, slug);
   try {
-    await createList(page, slug);
+    await addItems(page, slug);
     const left = await openNote(page, slug);
     const right = await openNote(other, slug);
     const draftText = "My draft\n" + "More draft details\n".repeat(25) + "End of draft";
@@ -223,6 +230,6 @@ test("same-note saves from two tabs require explicit conflict resolution", async
     expect((await savedAfter.json()).note).toBe(draftText);
   } finally {
     await other.close();
-    await page.request.delete(`/api/lists/${slug}`);
+    await page.request.delete(`/api/lists/${key}`);
   }
 });

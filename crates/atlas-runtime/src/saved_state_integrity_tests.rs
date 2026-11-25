@@ -69,7 +69,7 @@ fn integrity_constraints_allow_current_participant_and_encounter_deletion() {
         let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         let state = LocalStateWrite::for_local(&write).unwrap();
         if remove_encounter {
-            assert!(state.encounters().delete("one").unwrap());
+            assert!(state.encounters().delete("one").unwrap().is_some());
         } else {
             assert!(state.encounters().remove_participant("actor").unwrap());
         }

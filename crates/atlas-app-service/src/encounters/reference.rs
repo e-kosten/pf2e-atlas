@@ -10,13 +10,20 @@ impl AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         request: EncounterReferenceRequest,
+        include_section_rendering: bool,
     ) -> AppServiceResult<RecordDetailView> {
         let encounter_ref = encounter_ref.to_owned();
         let participant_key = participant_key.to_owned();
         self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |workspace| {
-                read_encounter_reference(workspace, &encounter_ref, &participant_key, request)
+                read_encounter_reference(
+                    workspace,
+                    &encounter_ref,
+                    &participant_key,
+                    request,
+                    include_section_rendering,
+                )
             },
         )
     }
@@ -27,6 +34,7 @@ pub(crate) fn read_encounter_reference(
     encounter_ref: &str,
     participant_key: &str,
     request: EncounterReferenceRequest,
+    include_section_rendering: bool,
 ) -> AppServiceResult<RecordDetailView> {
     let (encounter, index, runtime) =
         checked_reference(workspace, encounter_ref, participant_key, &request)?;
@@ -34,7 +42,7 @@ pub(crate) fn read_encounter_reference(
     let r = workspace.retrieval_mut();
     if request.condition_id.is_some() {
         let (source, mut selected) =
-            crate::records::read_record_detail(r, request.selection, None)?;
+            crate::records::read_record_detail(r, request.selection, include_section_rendering)?;
         crate::prepared_content::resolve_runtime_content(
             r,
             &source.source,
@@ -43,7 +51,8 @@ pub(crate) fn read_encounter_reference(
         )?;
         return Ok(selected);
     }
-    let (source, mut selected) = crate::records::read_record_detail(r, request.selection, None)?;
+    let (source, mut selected) =
+        crate::records::read_record_detail(r, request.selection, include_section_rendering)?;
     check_participant_selection(&source.source, &selected.selected.owners)?;
     let root_node = source
         .source
