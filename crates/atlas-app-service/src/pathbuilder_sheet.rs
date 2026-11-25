@@ -149,16 +149,20 @@ macro_rules! export_build {
             }
         }
 
-        impl FactSource for PathbuilderSheet {
-            fn fact_value(&self) -> ImportedFactValue {
-                object([
-                    ("name", present(self.name.fact_value())),
-                    ("level", present(self.level.fact_value())),
-                    ("xp", self.xp.to_fact()),
-                    ("alignment", self.alignment.to_fact()),
-                    $( (stringify!($field), self.$field.to_fact()) ),+
-                ])
+        impl PathbuilderSheet {
+            pub(super) fn fact(&self, field: &str) -> Option<atlas_app_model::ImportedFactView> {
+                Some(match field {
+                    "name" => present(self.name.fact_value()),
+                    "level" => present(self.level.fact_value()),
+                    "xp" => self.xp.to_fact(),
+                    "alignment" => self.alignment.to_fact(),
+                    $(stringify!($field) => self.$field.to_fact(),)+
+                    _ => return None,
+                })
             }
+
+            #[cfg(test)]
+            pub(super) const FACT_NAMES: &[&str] = &["name", "level", "xp", "alignment", $(stringify!($field)),+];
         }
     };
 }

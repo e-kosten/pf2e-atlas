@@ -209,8 +209,13 @@ fn equipment_group(group: &SheetGroupView) -> Value {
 }
 
 pub(crate) fn compact_character(view: &CharacterContextView) -> Value {
-    let sections = view
-        .sections
+    json!({"character":view.character,"source_state":view.source_state,"imported_identity":view.imported_identity,"selected_sections":view.selected_sections,"sections":compact_sections(&view.sections)})
+}
+
+fn compact_sections(
+    sections: &BTreeMap<CharacterSection, CharacterSectionView>,
+) -> BTreeMap<&CharacterSection, Value> {
+    sections
         .iter()
         .map(|(kind, section)| {
             let compact = match kind {
@@ -236,8 +241,23 @@ pub(crate) fn compact_character(view: &CharacterContextView) -> Value {
             };
             (kind, compact)
         })
-        .collect::<BTreeMap<_, _>>();
-    json!({"character":view.character,"source_state":view.source_state,"imported_identity":view.imported_identity,"selected_sections":view.selected_sections,"sections":sections})
+        .collect()
+}
+
+pub(crate) fn compact_preview(view: &CharacterImportPreviewView) -> Value {
+    let mut result = json!({
+        "source_sha256": view.source_sha256,
+        "artifact_generation": view.artifact_generation,
+        "name": view.name,
+        "level": view.level,
+        "changes": view.changes,
+        "selected_sections": view.selected_sections,
+        "proposed": compact_sections(&view.proposed),
+    });
+    if let Some(current) = &view.current {
+        result["current"] = compact_character(current);
+    }
+    result
 }
 
 fn fact_text(text: &mut String, key: &str, fact: &ImportedFactView, indent: usize) {

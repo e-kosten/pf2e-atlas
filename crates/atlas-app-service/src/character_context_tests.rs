@@ -113,6 +113,47 @@ fn context_preserves_typed_availability_occurrences_and_exact_source() {
 }
 
 #[test]
+fn money_and_crafting_read_only_their_selected_facts_and_links() {
+    use atlas_search::test_support::{open_source_fixture, record};
+    let (retrieval, _artifact) = open_source_fixture(
+        vec![record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","name":"Rope","type":"equipment"}),
+        )],
+        false,
+    )
+    .unwrap();
+    let mut source: serde_json::Value = serde_json::from_str(&pathbuilder_export(7)).unwrap();
+    source["build"]["formula"] = json!([{"type":"Alchemical","known":["Rope"]}]);
+    source["build"]["money"] = json!({"gp":5});
+    let sections = |source: &serde_json::Value, section| {
+        let sheet = crate::pathbuilder_sheet::read_sheet(&source.to_string()).unwrap();
+        retrieval.reset_read_metrics();
+        let view = crate::character_context::source_sections(
+            Some(&sheet),
+            None,
+            None,
+            &[section],
+            Some(&retrieval),
+        )
+        .unwrap();
+        (
+            serde_json::to_value(view).unwrap(),
+            retrieval.read_metrics().sql_statements,
+        )
+    };
+    let pristine = sections(&source, S::Crafting);
+    source["build"]["weapons"] = json!([{"name":"Longsword"}]);
+    source["build"]["armor"] = json!([{"name":"Plate"}]);
+    source["build"]["equipment"] = json!([["Bedroll", 1, "Not Invested"]]);
+    assert_eq!(sections(&source, S::Crafting), pristine);
+    let (money, statements) = sections(&source, S::Money);
+    assert_eq!(statements, 0);
+    assert_eq!(money["money"]["fields"]["money"]["value"]["gp"]["value"], 5);
+}
+
+#[test]
 fn sheet_places_imported_stats_by_use_and_keeps_cli_section_membership() {
     use atlas_app_model::{SheetGroupView, SheetSectionKind};
 
@@ -554,13 +595,8 @@ fn saved_sheet_states_and_owner_isolation_work_without_reference_content() {
 
 #[test]
 fn every_typed_source_field_has_a_selected_section_and_round_trips() {
-    use crate::character_context::facts::FactSource;
     let (_directory, service) = pathbuilder_service();
     let source = pathbuilder_export(7);
-    let decoded = crate::pathbuilder_sheet::read_sheet(&source).unwrap();
-    let ImportedFactValue::Object(all) = decoded.fact_value() else {
-        panic!("expected source fields")
-    };
     let key = import_source(&service, source);
     let view = service
         .character_context(&key, CharacterContextRequest::default())
@@ -568,9 +604,15 @@ fn every_typed_source_field_has_a_selected_section_and_round_trips() {
     let keys: std::collections::BTreeSet<_> = view
         .sections
         .values()
-        .flat_map(|s| s.fields.keys())
+        .flat_map(|s| s.fields.keys().map(String::as_str))
         .collect();
-    assert_eq!(keys, all.keys().collect());
+    assert_eq!(
+        keys,
+        crate::pathbuilder_sheet::PathbuilderSheet::FACT_NAMES
+            .iter()
+            .copied()
+            .collect()
+    );
     let json = serde_json::to_value(&view).unwrap();
     let decoded: CharacterContextView = serde_json::from_value(json.clone()).unwrap();
     assert_eq!(serde_json::to_value(decoded).unwrap(), json);

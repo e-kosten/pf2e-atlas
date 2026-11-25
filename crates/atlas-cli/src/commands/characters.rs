@@ -149,15 +149,18 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
                 Ok(source) => source,
                 Err(error) => return file_error(json, error),
             };
-            respond(
-                service.preview_character_import(
-                    &source,
-                    character.as_deref(),
-                    selection.unwrap_or_default(),
-                ),
-                json,
-                |view| output::preview(view, options.detail),
-            )
+            let result = service.preview_character_import(
+                &source,
+                character.as_deref(),
+                selection.unwrap_or_default(),
+            );
+            if json && options.detail == super::saved_workspace::SheetDetail::Standard {
+                super::saved_workspace::respond_json(
+                    result.map(|view| output::compact_preview(&view)),
+                )
+            } else {
+                respond(result, json, |view| output::preview(view, options.detail))
+            }
         }
         CharacterCommand::Import(options) => {
             let party = party_target(options.party, options.expected_party_revision)?;

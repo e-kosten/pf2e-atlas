@@ -9,12 +9,19 @@ enum ItemFamily {
     Armor,
 }
 
-struct ItemLinks<'a> {
+pub(super) struct ItemLinks<'a> {
     retrieval: Option<&'a AtlasRetrievalService>,
     matches: HashMap<(ItemFamily, String), Option<RecordKey>>,
 }
 
-impl ItemLinks<'_> {
+impl<'a> ItemLinks<'a> {
+    pub(super) fn new(retrieval: Option<&'a AtlasRetrievalService>) -> Self {
+        Self {
+            retrieval,
+            matches: HashMap::new(),
+        }
+    }
+
     fn link(
         &mut self,
         row: &mut SheetRowView,
@@ -54,21 +61,17 @@ pub(super) fn groups(
     sheet: &PathbuilderSheet,
     retrieval: Option<&AtlasRetrievalService>,
 ) -> AppServiceResult<Vec<SheetGroupView>> {
-    Ok(categorized(sheet, retrieval)?
-        .into_iter()
-        .map(|(_, group)| group)
-        .collect())
+    let mut links = ItemLinks::new(retrieval);
+    let mut groups = equipment(sheet, &mut links)?;
+    groups.extend(coins(sheet));
+    groups.extend(formulas(sheet, &mut links)?);
+    Ok(groups)
 }
 
-pub(super) fn categorized(
+pub(super) fn equipment(
     sheet: &PathbuilderSheet,
-    retrieval: Option<&AtlasRetrievalService>,
-) -> AppServiceResult<Vec<(atlas_app_model::CharacterSection, SheetGroupView)>> {
-    use atlas_app_model::CharacterSection;
-    let mut links = ItemLinks {
-        retrieval,
-        matches: HashMap::new(),
-    };
+    links: &mut ItemLinks<'_>,
+) -> AppServiceResult<Vec<SheetGroupView>> {
     let mut weapons = Vec::new();
     for weapon in values(&sheet.weapons) {
         let mut facts = Vec::new();
@@ -238,25 +241,31 @@ pub(super) fn categorized(
         groups[index].rows.push(item);
     }
 
-    let mut categorized: Vec<_> = groups
-        .into_iter()
-        .map(|group| (CharacterSection::Equipment, group))
-        .collect();
-    if let Some(money) = value(&sheet.money) {
-        let mut facts = Vec::new();
-        add_facts(
-            &mut facts,
-            [
-                ("pp", shown(&money.pp)),
-                ("gp", shown(&money.gp)),
-                ("sp", shown(&money.sp)),
-                ("cp", shown(&money.cp)),
-            ],
-        );
-        let mut coins = summary("Coins", facts);
-        coins.kind = Some(SheetGroupKind::Coins);
-        categorized.push((CharacterSection::Money, coins));
-    }
+    Ok(groups)
+}
+
+pub(super) fn coins(sheet: &PathbuilderSheet) -> Option<SheetGroupView> {
+    let money = value(&sheet.money)?;
+    let mut facts = Vec::new();
+    add_facts(
+        &mut facts,
+        [
+            ("pp", shown(&money.pp)),
+            ("gp", shown(&money.gp)),
+            ("sp", shown(&money.sp)),
+            ("cp", shown(&money.cp)),
+        ],
+    );
+    let mut coins = summary("Coins", facts);
+    coins.kind = Some(SheetGroupKind::Coins);
+    Some(coins)
+}
+
+pub(super) fn formulas(
+    sheet: &PathbuilderSheet,
+    links: &mut ItemLinks<'_>,
+) -> AppServiceResult<Vec<SheetGroupView>> {
+    let mut groups = Vec::new();
     for formulas in values(&sheet.formula) {
         let mut known = Vec::new();
         for label in values(&formulas.known) {
@@ -270,12 +279,9 @@ pub(super) fn categorized(
                 || "Known formulas".into(),
                 |kind| format!("Known formulas · {}", sentence_case(kind)),
             );
-        categorized.push((
-            CharacterSection::Crafting,
-            typed_group(SheetGroupKind::Formulas, label, known),
-        ));
+        groups.push(typed_group(SheetGroupKind::Formulas, label, known));
     }
-    Ok(categorized)
+    Ok(groups)
 }
 
 fn damage_type(value: &str) -> &str {

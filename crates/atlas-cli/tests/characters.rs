@@ -328,6 +328,37 @@ fn agent_can_repair_an_ability_and_refresh_without_losing_its_correction() {
         "--character",
         &key,
     ]);
+    let full = f.data(&[
+        "characters",
+        "preview",
+        path.to_str().unwrap(),
+        "--character",
+        &key,
+        "--detail",
+        "full",
+    ]);
+    for field in [
+        "artifact_generation",
+        "source_sha256",
+        "changes",
+        "selected_sections",
+    ] {
+        assert_eq!(refresh[field], full[field]);
+    }
+    for (compact, detailed) in [
+        (&refresh["proposed"], &full["proposed"]),
+        (
+            &refresh["current"]["sections"],
+            &full["current"]["sections"],
+        ),
+    ] {
+        assert_eq!(compact["money"]["fields"]["money"]["gp"], 50);
+        assert_eq!(
+            detailed["money"]["fields"]["money"]["value"]["gp"]["value"],
+            50
+        );
+        assert!(compact.get("source").is_none());
+    }
     assert_eq!(refresh["current"]["character"]["revision"], 1);
     assert_eq!(refresh["changes"]["retained_corrections"], 1);
     let args = [
