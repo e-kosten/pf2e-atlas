@@ -557,7 +557,8 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 )
         },
     )?;
-    if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "normal") {
+    let check_find = std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "normal");
+    if check_find {
         find_in_scrolling_pane(app, &window)?;
     }
     if SETUP_RUNS.load(Ordering::Relaxed) != 1 || app.webview_windows().len() != 1 {
@@ -584,6 +585,9 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 sessionStorage.getItem("atlas-smoke-token") !== window.__ATLAS_DESKTOP_SETUP__.token)"#,
         )
     })?;
+    if check_find {
+        find_after_reload(app, &window, deadline)?;
+    }
     window
         .eval(
             r#"void (async () => {
@@ -1189,8 +1193,7 @@ fn key_event(
 }
 
 fn find_in_scrolling_pane(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
-    use objc2::MainThreadMarker;
-    use objc2_app_kit::{NSApplication, NSEventModifierFlags};
+    use objc2_app_kit::NSEventModifierFlags;
 
     // A deterministic offscreen match in a pane of the live product webview.
     window
@@ -1198,6 +1201,7 @@ fn find_in_scrolling_pane(app: &AppHandle, window: &WebviewWindow) -> Result<(),
             r#"
         const pane = document.createElement('div');
         pane.id = 'smoke-find-pane';
+        sessionStorage.setItem('atlas-smoke-page-height', String(innerHeight));
         pane.style.cssText = 'position:fixed;top:0;left:0;height:80px;overflow:auto;z-index:9999';
         pane.innerHTML = '<div style="height:700px">Start</div><strong>Quetzal</strong>';
         document.body.append(pane);
@@ -1214,22 +1218,13 @@ fn find_in_scrolling_pane(app: &AppHandle, window: &WebviewWindow) -> Result<(),
             )
         },
     )?;
-    let (send, recv) = std::sync::mpsc::channel();
-    crate::run_on_main(app, move |_| {
-        let _ = send.send((|| {
-            menu_shortcut("f", 3)?;
-            let main = MainThreadMarker::new().ok_or("Find smoke needs the main thread.")?;
-            let native = NSApplication::sharedApplication(main)
-                .keyWindow()
-                .ok_or("No Find window.")?;
-            menu_shortcut("a", 0)?;
-            let event = key_event(&native, "Quetzal", 12, NSEventModifierFlags::empty())?;
-            native.sendEvent(&event);
-            Ok::<_, String>(())
-        })());
+    in_key_window(app, |native| {
+        menu_shortcut("f", 3)?;
+        menu_shortcut("a", 0)?;
+        let event = key_event(native, "Quetzal", 12, NSEventModifierFlags::empty())?;
+        native.sendEvent(&event);
+        Ok(())
     })?;
-    recv.recv_timeout(Duration::from_secs(3))
-        .map_err(display)??;
     wait_for(
         Instant::now() + Duration::from_secs(3),
         "highlighted and revealed Find match",
@@ -1239,12 +1234,95 @@ fn find_in_scrolling_pane(app: &AppHandle, window: &WebviewWindow) -> Result<(),
                 r#"(() => {
             const pane = document.querySelector('#smoke-find-pane');
             const rect = pane.lastElementChild.getBoundingClientRect();
-            return getSelection().toString() === 'Quetzal' && pane.scrollTop > 0
+            return innerHeight < Number(sessionStorage.getItem('atlas-smoke-page-height'))
+                && getSelection().toString() === 'Quetzal' && pane.scrollTop > 0
                 && rect.top >= pane.getBoundingClientRect().top && rect.bottom <= pane.getBoundingClientRect().bottom;
         })()"#,
             )
         },
     )
+}
+
+fn find_after_reload(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    deadline: Instant,
+) -> Result<(), String> {
+    wait_for(deadline, "Find visibility after reload", || {
+        evaluates_true(
+            window,
+            "document.documentElement.hasAttribute('data-atlas-find-open')",
+        )
+    })?;
+    in_key_window(app, |native| {
+        let escape = key_event(
+            native,
+            "\u{1b}",
+            53,
+            objc2_app_kit::NSEventModifierFlags::empty(),
+        )?;
+        native.sendEvent(&escape);
+        Ok(())
+    })?;
+    wait_for(deadline, "Escape restored the full page", || {
+        evaluates_true(
+            window,
+            "!document.documentElement.hasAttribute('data-atlas-find-open') && innerHeight === Number(sessionStorage.getItem('atlas-smoke-page-height'))",
+        )
+    })?;
+    window
+        .eval(
+            r#"
+        const draft = document.createElement('input');
+        draft.id = 'smoke-find-draft';
+        draft.value = 'saved draft';
+        document.body.prepend(draft, document.createTextNode('Tanager'));
+        draft.focus();
+    "#,
+        )
+        .map_err(display)?;
+    wait_for(deadline, "focused editable document field", || {
+        evaluates_true(window, "document.activeElement?.id === 'smoke-find-draft'")
+    })?;
+    in_key_window(app, |_| menu_shortcut("f", 3))?;
+    wait_for(deadline, "Find reopened after Escape", || {
+        evaluates_true(
+            window,
+            "document.documentElement.hasAttribute('data-atlas-find-open')",
+        )
+    })?;
+    in_key_window(app, |native| {
+        menu_shortcut("a", 0)?;
+        let event = key_event(
+            native,
+            "Tanager",
+            17,
+            objc2_app_kit::NSEventModifierFlags::empty(),
+        )?;
+        native.sendEvent(&event);
+        Ok(())
+    })?;
+    wait_for(deadline, "reopened Find received the new query", || {
+        evaluates_true(
+            window,
+            "getSelection().toString() === 'Tanager' && document.querySelector('#smoke-find-draft')?.value === 'saved draft'",
+        )
+    })
+}
+
+fn in_key_window(
+    app: &AppHandle,
+    action: impl FnOnce(&objc2_app_kit::NSWindow) -> Result<(), String> + Send + 'static,
+) -> Result<(), String> {
+    let (send, recv) = std::sync::mpsc::channel();
+    crate::run_on_main(app, move |_| {
+        let result = objc2::MainThreadMarker::new()
+            .and_then(|main| objc2_app_kit::NSApplication::sharedApplication(main).keyWindow())
+            .ok_or_else(|| "No key window for the Find smoke check.".to_owned())
+            .and_then(|window| action(&window));
+        let _ = send.send(result);
+    })?;
+    recv.recv_timeout(Duration::from_secs(3)).map_err(display)?
 }
 
 fn click_settings_button(window: &WebviewWindow, text: &str) -> bool {

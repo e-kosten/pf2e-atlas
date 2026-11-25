@@ -2,17 +2,21 @@
 
 #![allow(unsafe_code)]
 
-use std::{cell::RefCell, collections::HashMap, ptr::NonNull};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    ptr::NonNull,
+};
 
 use block2::RcBlock;
 use objc2::{
-    MainThreadMarker, MainThreadOnly, Message, define_class, msg_send,
+    DefinedClass, MainThreadOnly, Message, define_class, msg_send,
     rc::Retained,
-    runtime::{NSObjectProtocol, ProtocolObject},
+    runtime::{NSObject, NSObjectProtocol, ProtocolObject, Sel},
 };
 use objc2_app_kit::{
-    NSBorderType, NSControlTextDidChangeNotification, NSScrollView, NSSearchField, NSTextFinder,
-    NSTextFinderAction, NSTextFinderBarContainer,
+    NSControlTextDidChangeNotification, NSSearchField, NSTextFinder, NSTextFinderAction,
+    NSTextFinderBarContainer, NSTextFinderClient, NSTitlebarAccessoryViewController, NSView,
 };
 use objc2_foundation::{NSNotification, NSNotificationCenter, NSOperationQueue, NSString};
 use objc2_web_kit::WKWebView;
@@ -22,74 +26,147 @@ thread_local! {
     static FINDERS: RefCell<HashMap<String, PageFind>> = RefCell::default();
 }
 
-// AppKit can change the DOM selection without sending the document a blur.
-// Report the actual lifetime of the Find bar, including Done and Escape.
-define_class!(
-    #[unsafe(super = NSScrollView)]
-    #[thread_kind = MainThreadOnly]
-    #[name = "AtlasFindScrollView"]
-    struct FindScrollView;
+struct FindSession {
+    page: Retained<WKWebView>,
+    bar: RefCell<Option<Retained<NSView>>>,
+    accessory: RefCell<Option<Retained<NSTitlebarAccessoryViewController>>>,
+    visible: Cell<bool>,
+}
 
-    impl FindScrollView {
+// AppKit uses the client's editability to decide whether to offer Replace.
+// Keep the live WebKit client responsible for every other Find operation.
+define_class!(
+    #[unsafe(super = NSObject)]
+    #[thread_kind = MainThreadOnly]
+    #[ivars = FindSession]
+    #[name = "AtlasReadOnlyFindClient"]
+    struct ReadOnlyFindClient;
+
+    unsafe impl NSObjectProtocol for ReadOnlyFindClient {
+        #[unsafe(method(respondsToSelector:))]
+        fn responds_to_selector(&self, selector: Sel) -> bool {
+            let own: bool = unsafe { msg_send![super(self), respondsToSelector: selector] };
+            own || self.ivars().page.respondsToSelector(selector)
+        }
+    }
+
+    unsafe impl NSTextFinderClient for ReadOnlyFindClient {
+        #[unsafe(method(isEditable))]
+        fn is_editable(&self) -> bool {
+            false
+        }
+    }
+
+    impl ReadOnlyFindClient {
+        #[unsafe(method_id(forwardingTargetForSelector:))]
+        fn forwarding_target(&self, _selector: Sel) -> Retained<WKWebView> {
+            self.ivars().page.clone()
+        }
+    }
+
+    // AppKit supplies the stock bar. Hosting it under the title bar lets the
+    // native window reserve space without moving or resizing the live webview.
+    unsafe impl NSTextFinderBarContainer for ReadOnlyFindClient {
+        #[unsafe(method_id(findBarView))]
+        fn find_bar(&self) -> Option<Retained<NSView>> {
+            self.ivars().bar.borrow().clone()
+        }
+
+        #[unsafe(method(setFindBarView:))]
+        fn set_find_bar(&self, bar: Option<&NSView>) {
+            self.ivars().bar.replace(bar.map(Message::retain));
+            self.update_accessory();
+        }
+
+        #[unsafe(method(isFindBarVisible))]
+        fn bar_visible(&self) -> bool {
+            self.ivars().visible.get()
+        }
+
         #[unsafe(method(setFindBarVisible:))]
-        fn set_find_bar_visible(&self, visible: bool) {
-            // Forward the NSTextFinderBarContainer setter to AppKit.
-            unsafe {
-                let _: () = msg_send![super(self), setFindBarVisible: visible];
+        fn set_bar_visible(&self, visible: bool) {
+            let state = self.ivars();
+            if state.visible.replace(visible) == visible {
+                return;
             }
-            if let Some(view) = self.documentView().and_then(|view| view.downcast::<WKWebView>().ok()) {
-                let script = NSString::from_str(&format!(
-                    "document.documentElement.toggleAttribute('data-atlas-find-open', {visible});
-                     window.dispatchEvent(new Event('atlas-find-visibility'));"
-                ));
-                // The only interpolated value is a native boolean.
-                unsafe { view.evaluateJavaScript_completionHandler(&script, None) };
+            self.update_accessory();
+            notify_document(&state.page, visible);
+        }
+
+        #[unsafe(method(findBarViewDidChangeHeight))]
+        fn bar_height_changed(&self) {
+            if let Some(accessory) = self.ivars().accessory.borrow().as_ref() {
+                accessory.setFullScreenMinHeight(accessory.view().frame().size.height);
             }
+        }
+
+        #[unsafe(method_id(contentView))]
+        fn content_view(&self) -> Option<Retained<NSView>> {
+            Some(self.ivars().page.clone().into_super())
         }
     }
 );
 
+impl ReadOnlyFindClient {
+    fn update_accessory(&self) {
+        let state = self.ivars();
+        if let Some(previous) = state.accessory.take() {
+            previous.removeFromParentViewController();
+            // AppKit checks whether the stock bar is attached before it shows
+            // it again. Drop the prior accessory's view hierarchy on dismissal.
+            previous.view().removeFromSuperview();
+        }
+        let bar = state.bar.borrow().clone();
+        if state.visible.get()
+            && let (Some(bar), Some(window)) = (bar, state.page.window())
+        {
+            let accessory = NSTitlebarAccessoryViewController::new(self.mtm());
+            accessory.setView(&bar);
+            accessory.setFullScreenMinHeight(bar.frame().size.height);
+            state.accessory.replace(Some(accessory.clone()));
+            window.addTitlebarAccessoryViewController(&accessory);
+        }
+    }
+}
+
+fn notify_document(view: &WKWebView, visible: bool) {
+    let script = NSString::from_str(&format!(
+        "document.documentElement.toggleAttribute('data-atlas-find-open', {visible});
+         window.dispatchEvent(new Event('atlas-find-visibility'));"
+    ));
+    // The only interpolated value is a native boolean.
+    unsafe { view.evaluateJavaScript_completionHandler(&script, None) };
+}
+
 struct PageFind {
     finder: Retained<NSTextFinder>,
     changes: Retained<ProtocolObject<dyn NSObjectProtocol>>,
-    view: Retained<WKWebView>,
-    // NSTextFinder does not retain its client or bar container.
-    _container: Retained<NSScrollView>,
+    client: Retained<ReadOnlyFindClient>,
 }
 
 impl PageFind {
-    fn install(view: &WKWebView, main: MainThreadMarker) -> Result<Self, &'static str> {
-        // The key NSWindow owns the superview throughout this main-thread call.
-        let parent = unsafe { view.superview() }.ok_or("The Atlas page has no containing view.")?;
-        let container: Retained<FindScrollView> =
-            unsafe { msg_send![FindScrollView::alloc(main), initWithFrame: view.frame()] };
-        let container = container.into_super();
-        container.setAutoresizingMask(view.autoresizingMask());
-        container.setBorderType(NSBorderType::NoBorder);
-        container.setHasHorizontalScroller(false);
-        container.setHasVerticalScroller(false);
-        container.setDrawsBackground(false);
-
-        // Keep Wry's window content view and the live document. The scroll view
-        // supplies AppKit's bar and the webview tracks its remaining content area.
-        parent.replaceSubview_with(view, &container);
-        container.setDocumentView(Some(view));
-        view.setFrameSize(container.contentSize());
-
+    fn new(view: &WKWebView) -> Self {
         let finder = NSTextFinder::new();
+        let client = ReadOnlyFindClient::alloc(view.mtm()).set_ivars(FindSession {
+            page: view.retain(),
+            bar: RefCell::default(),
+            accessory: RefCell::default(),
+            visible: Cell::default(),
+        });
+        // Initialize the NSObject after storing its WebKit forwarding target.
+        let client: Retained<ReadOnlyFindClient> = unsafe { msg_send![super(client), init] };
 
-        // Both objects are held until Drop disconnects these unretained links.
+        // AppKit leaves both references unretained. PageFind owns their lifetime.
         unsafe {
-            finder.setClient(Some(ProtocolObject::from_ref(view)));
-            finder.setFindBarContainer(Some(ProtocolObject::from_ref(&*container)));
+            finder.setClient(Some(ProtocolObject::from_ref(&*client)));
+            finder.setFindBarContainer(Some(ProtocolObject::from_ref(&*client)));
         }
-        let changes = observe_query(&finder, &container);
-        Ok(Self {
+        let changes = observe_query(&finder, &client);
+        Self {
             changes,
             finder,
-            view: view.retain(),
-            _container: container,
-        })
+            client,
+        }
     }
 }
 
@@ -98,7 +175,7 @@ impl PageFind {
 // enclosing HTML pane. Use it for edits as well as the bar's arrow buttons.
 fn observe_query(
     finder: &NSTextFinder,
-    container: &NSScrollView,
+    container: &ReadOnlyFindClient,
 ) -> Retained<ProtocolObject<dyn NSObjectProtocol>> {
     let finder = finder.retain();
     let container = container.retain();
@@ -148,20 +225,31 @@ pub fn show(window: &WebviewWindow) -> tauri::Result<()> {
         }
         let finder = FINDERS.with_borrow_mut(|windows| {
             if let Some(entry) = windows.get(&label)
-                && std::ptr::eq(&*entry.view, view)
+                && std::ptr::eq(&*entry.client.ivars().page, view)
             {
-                return Ok(entry.finder.clone());
+                return entry.finder.clone();
             }
-            let entry = PageFind::install(view, view.mtm())?;
+            let entry = PageFind::new(view);
             let finder = entry.finder.clone();
             windows.insert(label, entry);
-            Ok(finder)
+            finder
         });
-        match finder {
-            Ok(finder) => finder.performAction(NSTextFinderAction::ShowFindInterface),
-            Err(error) => crate::window_host::report("Could not open Find", error),
-        }
+        finder.performAction(NSTextFinderAction::ShowFindInterface);
     })
+}
+
+// The bar is owned by the native window and can outlive a full page reload.
+pub fn document_loaded(window: &WebviewWindow) {
+    let label = window.label().to_owned();
+    let _ = window.run_on_main_thread(move || {
+        FINDERS.with_borrow(|windows| {
+            if let Some(entry) = windows.get(&label)
+                && entry.client.isFindBarVisible()
+            {
+                notify_document(&entry.client.ivars().page, true);
+            }
+        });
+    });
 }
 
 pub fn forget(label: &str) {
