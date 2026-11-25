@@ -65,7 +65,9 @@ export async function qualifyUpdateGuards({ second, channel, expect, ps, pid, en
   log("missing-window-reply-refused");
 
   const newDraft = async (value) => {
-    await second.getByRole("link", { name: "Parties", exact: true }).first().click();
+    await second.getByRole("link", { name: "Characters", exact: true }).click();
+    await second.getByRole("navigation", { name: "Character pages" })
+      .getByRole("link", { name: "Parties", exact: true }).click();
     await second.getByRole("button", { name: "New party" }).click();
     const draft = second.getByRole("textbox", { name: "Party name" });
     await draft.fill(value);

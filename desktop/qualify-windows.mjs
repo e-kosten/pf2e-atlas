@@ -218,7 +218,8 @@ async function runCase(mode) {
       assert.equal(sha256(join(installDirectory, "atlas-desktop.exe")), plan.oldHostSha256);
       assert.equal(sha256(join(installDirectory, "atlas.exe")), plan.oldCliSha256);
     }
-    cli(["setup", "--offline", "--no-embeddings", "--json", "--source", source], env);
+    const setup = ["setup", "--offline", "--no-embeddings", "--json", "--source", source];
+    cli(setup, env);
     cli(["lists", "create", "Windows handoff saved work", "--slug", "handoff", "--record", "actions:aaaaaaaaaaaaaaaa", "--json"], env);
     const original = join(home, "pf2e-atlas/workspace.sqlite");
     const selectionPath = join(home, "pf2e-atlas/workspace-selection.json");
@@ -236,14 +237,29 @@ async function runCase(mode) {
       assert.deepEqual(payloadHashes(), before);
       assert.equal(existsSync(selectionPath) ? sha256(selectionPath) : null, selectionHash);
       assert(!existsSync(join(caseRoot, "postinstall.json")));
-      assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--json"], env)), /Windows handoff saved work/);
+      const showList = ["lists", "show", "handoff", "--json"];
+      const saved = cli(showList, env);
+      assert.equal(saved.list.name, "Windows handoff saved work");
+      assert.deepEqual(saved.items.map((item) => item.record_key), ["actions:aaaaaaaaaaaaaaaa"]);
       log("direct-installer-locked-sidecar-refused", { tag: plan.priorTag, sourceSha256: plan.priorHash, files: before });
       ps(`$p = Start-Process -FilePath ${literal(plan.directInstaller)} -ArgumentList ${literal(`/P /D=${installDirectory}`)} -PassThru -Wait; if ($p.ExitCode -ne 0) { throw "Forward installation failed: $($p.ExitCode)" }`, env, 90_000);
       assert.equal(sha256(join(installDirectory, "atlas-desktop.exe")), plan.directHostHash);
       assert.equal(sha256(join(installDirectory, "atlas.exe")), plan.targetCliSha256);
       assert.equal(existsSync(selectionPath) ? sha256(selectionPath) : null, selectionHash);
-      assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--json"], env)), /Windows handoff saved work/);
-      log("published-predecessor-upgraded", { tag: plan.priorTag, files: payloadHashes() });
+      const beforeSetup = cli(["desktop-probe"], env);
+      assert.equal(windowsPath(beforeSetup.workspace), windowsPath(original));
+      assert.equal(beforeSetup.status, "upgrade_required");
+      assert.equal(cli(setup, env).ready, true);
+      const afterSetup = cli(["desktop-probe"], env);
+      assert.equal(windowsPath(afterSetup.workspace), windowsPath(original));
+      assert(["browsable", "ready"].includes(afterSetup.status));
+      const migrated = cli(showList, env);
+      assert.equal(migrated.list.list_key, saved.list.list_key);
+      assert.equal(migrated.list.name, saved.list.name);
+      assert.deepEqual(migrated.items.map((item) => item.record_key), saved.items.map((item) => item.record_key));
+      assert.equal(existsSync(selectionPath) ? sha256(selectionPath) : null, selectionHash);
+      log("published-predecessor-upgraded", { tag: plan.priorTag, files: payloadHashes(),
+        beforeSetup: beforeSetup.status, afterSetup: afterSetup.status, listKey: migrated.list.list_key });
       return;
     }
     log("launch-old", { mode, caseRoot });
