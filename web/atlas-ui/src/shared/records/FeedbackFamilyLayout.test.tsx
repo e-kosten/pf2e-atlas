@@ -498,7 +498,9 @@ it("keeps sense summaries concise and explains contextual Perception beside its 
       />
     </ConfigProvider>,
   );
-  expect(screen.getByText("precise · Unavailable (Blinded)")).toBeVisible();
+  expect(screen.getByText("Vision").closest(".record-fact")).toHaveTextContent(
+    /^Vision \(Blinded\)$/,
+  );
   expect(screen.getByText("precise · 40 feet")).toBeVisible();
   expect(screen.queryByText(/Availability unknown|Confirm the target/)).toBeNull();
   expect(screen.queryByText(/Perception \+11/)).toBeNull();

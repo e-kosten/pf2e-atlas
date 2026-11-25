@@ -274,6 +274,39 @@ it("activates supplied categorical help while keeping actor qualifiers, modifier
   expect(onHelp.mock.lastCall?.[0].definition_key).toBe("ability:str");
 });
 
+it("shows No vision beside a sightless creature's usable motion sense", () => {
+  const actor = actorFixture();
+  actor.runtime = {
+    senses: [
+      {
+        sense_type: { value: "vision", label: "Vision" },
+        precision: "precise",
+        range_feet: null,
+        available: false,
+        reason: null,
+        perception: null,
+      },
+      {
+        sense_type: { value: "motion-sense", label: "Motion Sense" },
+        precision: "precise",
+        range_feet: 60,
+        available: true,
+        reason: null,
+        perception: null,
+      },
+    ],
+    contextual_armor_class: [],
+    action_budget: null,
+  };
+  render(<ActorAwareness actor={actor} encounter />);
+  expect(screen.getByText("No vision").closest(".record-fact")).toHaveTextContent(
+    /^No vision$/,
+  );
+  expect(screen.getByText("Motion Sense").closest(".record-fact")).toHaveTextContent(
+    /^Motion Sense precise · 60 feet$/,
+  );
+});
+
 it("keeps runtime sense availability and Perception beside the supplied help", () => {
   const actor = actorFixture();
   actor.runtime = {
@@ -290,14 +323,18 @@ it("keeps runtime sense availability and Perception beside the supplied help", (
     contextual_armor_class: [],
     action_budget: null,
   };
+  const onHelp = vi.fn();
   render(
-    <ReferenceHelpProvider onHelp={vi.fn()}>
+    <ReferenceHelpProvider onHelp={onHelp}>
       <ActorAwareness actor={actor} encounter />
     </ReferenceHelpProvider>,
   );
-  expect(
-    screen.getByRole("link", { name: "Darkvision" }).closest(".record-fact"),
-  ).toHaveTextContent("precise · 60 feet · Unavailable (Blinded) · Perception +4");
+  const darkvision = screen.getByRole("link", { name: "Darkvision" });
+  expect(darkvision.closest(".record-fact")).toHaveTextContent(
+    /^Darkvision \(Blinded\) · 60 feet · Perception \+4$/,
+  );
+  fireEvent.click(darkvision);
+  expect(onHelp).toHaveBeenCalledWith(senseHelp, darkvision, undefined);
 });
 
 it("opens the exact owned ability from its title without an inline general definition", () => {

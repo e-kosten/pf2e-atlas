@@ -20,7 +20,11 @@ pub(in crate::encounters) fn adapt_senses(block: &mut StatBlockView, record: &So
             available: Some(vision),
         });
         block.senses.push(EncounterSenseView {
-            sense_type: "vision".into(),
+            sense_type: atlas_app_model::ReferenceValueView {
+                value: "vision".into(),
+                label: "Vision".into(),
+                help: None,
+            },
             precision: Some("precise".into()),
             range_feet: None,
             available: Some(vision),

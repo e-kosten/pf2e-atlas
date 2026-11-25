@@ -422,7 +422,11 @@ fn project_for_opponent(
         };
         if available == super::senses::Availability::Unavailable {
             sense.perception = None;
-            sense.reason = if petrified == Some(true) {
+            // An unavailable ordinary vision row with no reason means the actor
+            // intrinsically lacks sight, even when a condition also suppresses it.
+            sense.reason = if sense.sense_type.value == "vision" && facts.available == Some(false) {
+                None
+            } else if petrified == Some(true) {
                 Some("Petrified".into())
             } else if deafened == Some(true) && facts.auditory {
                 Some("Deafened".into())
