@@ -2407,14 +2407,13 @@ fn index_rebuild_persists_corrected_source_and_manifest_only_after_success() {
         "--json",
     ]);
     let stored: Value = serde_json::from_str(&read_config()).unwrap();
-    assert_eq!(
-        stored["config"]["source_root"],
-        fixture.root.to_str().unwrap()
-    );
-    assert_eq!(
-        stored["config"]["manifest_path"],
-        manifest.to_str().unwrap()
-    );
+    for (key, expected) in [("source_root", &fixture.root), ("manifest_path", &manifest)] {
+        let saved = PathBuf::from(stored["config"][key].as_str().unwrap());
+        assert_eq!(
+            saved.canonicalize().unwrap(),
+            expected.canonicalize().unwrap()
+        );
+    }
     fixture.data(&["index", "rebuild", "--json"]);
 }
 

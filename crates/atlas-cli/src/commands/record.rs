@@ -510,7 +510,8 @@ mod tests {
                 .map(str::trim_end)
                 .collect::<Vec<_>>()
                 .join("\n");
-            assert_eq!(normalized, expected.trim_end(), "terminal width {width}");
+            let expected = expected.trim_end().lines().collect::<Vec<_>>().join("\n");
+            assert_eq!(normalized, expected, "terminal width {width}");
         }
     }
 }
