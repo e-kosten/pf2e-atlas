@@ -64,12 +64,11 @@ jobs:
           npm --prefix web/atlas-ui ci
           npm --prefix desktop ci
           npm --prefix dev-tools/release ci --ignore-scripts
-      - name: Build installer and test the bundled CLI
+      - name: Build installer
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           node --test desktop/bootstrap.test.mjs desktop/release-config.test.mjs
           ./desktop/bundle-windows.ps1 -HostTargetDirectory desktop/src-tauri/target -CargoTimings
-          cargo test --locked --release --target x86_64-pc-windows-msvc -p atlas-cli --test desktop
       - name: Test the native host
         env:
           CARGO_ENCODED_RUSTFLAGS: -Ctarget-feature=+crt-static
@@ -81,6 +80,9 @@ jobs:
           if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
           $cli = 'target/x86_64-pc-windows-msvc/release/atlas.exe'
           ./desktop/verify-windows-installer.ps1 -Installer $installer[0].FullName -ExpectedCli $cli -ScratchDirectory $env:RUNNER_TEMP
+      # The CLI integration tests can replace the executable used to verify the installer.
+      - name: Test the CLI desktop commands
+        run: cargo test --locked --release --target x86_64-pc-windows-msvc -p atlas-cli --test desktop
       - name: Upload Cargo build timings
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
