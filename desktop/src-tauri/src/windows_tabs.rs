@@ -25,6 +25,40 @@ struct State {
     delivery: Option<Delivery>,
     exit: Option<ExitCheck>,
     update_handoff: bool,
+    opening_windows: usize,
+}
+
+pub(crate) struct OpeningWindow<'a>(&'a Mutex<State>);
+
+impl WindowsTabs {
+    pub(crate) fn reserve_opening(&self) -> Result<OpeningWindow<'_>, String> {
+        let mut state = lock(&self.0);
+        if state.update_handoff {
+            return Err("Wait for the Atlas update to finish.".into());
+        }
+        state.opening_windows += 1;
+        Ok(OpeningWindow(&self.0))
+    }
+
+    fn begin_update(&self) -> Result<(), String> {
+        let mut state = lock(&self.0);
+        if state.opening_windows != 0 {
+            return Err(
+                "A workspace window is still opening. Retry the update once it opens.".into(),
+            );
+        }
+        if state.update_handoff || state.exit.is_some() {
+            return Err("Atlas is already checking its windows.".into());
+        }
+        state.update_handoff = true;
+        Ok(())
+    }
+}
+
+impl Drop for OpeningWindow<'_> {
+    fn drop(&mut self) {
+        lock(self.0).opening_windows -= 1;
+    }
 }
 
 struct ExitCheck {
@@ -262,7 +296,7 @@ pub fn deliver(app: &AppHandle, route: &str) -> Result<(), String> {
                     && desktop.staged_setup.attached_to(label, &instance)
             });
             if !attaching && crate::setup_window_label(app) != crate::opening::PRIMARY {
-                crate::open_product(app, route, None)?;
+                crate::open_missing_product(app, route)?;
             }
             return Ok(());
         };
@@ -529,13 +563,7 @@ impl UpdateHandoff {
 
     fn freeze(app: &AppHandle, reply: mpsc::Sender<(bool, bool)>) -> Result<Self, String> {
         let desktop = app.state::<Desktop>();
-        {
-            let mut state = lock(&desktop.windows_tabs.0);
-            if state.update_handoff || state.exit.is_some() {
-                return Err("Atlas is already checking its windows.".into());
-            }
-            state.update_handoff = true;
-        }
+        desktop.windows_tabs.begin_update()?;
         let mut guard = Self {
             app: app.clone(),
             disabled: Vec::new(),
@@ -583,5 +611,23 @@ impl Drop for UpdateHandoff {
                 crate::report_link_error(app, &error);
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_waits_for_every_window_and_blocks_new_opens() {
+        let tabs = WindowsTabs::default();
+        let first = tabs.reserve_opening().unwrap();
+        let second = tabs.reserve_opening().unwrap();
+        assert!(tabs.begin_update().is_err());
+        drop(first);
+        assert!(tabs.begin_update().is_err());
+        drop(second);
+        tabs.begin_update().unwrap();
+        assert!(tabs.reserve_opening().is_err());
     }
 }

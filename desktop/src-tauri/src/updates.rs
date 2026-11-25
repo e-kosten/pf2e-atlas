@@ -18,7 +18,7 @@ use url::Url;
 
 use crate::workspace_switch::{self, Admission, Build, Role, Transition, Waiting};
 
-use crate::{Desktop, current_product, display, lock, opening, process, run_on_main, staged_setup};
+use crate::{Desktop, current_product, display, lock, opening, process, staged_setup};
 
 const RELEASES: &str = "https://github.com/e-kosten/pf2e-atlas/releases";
 const MANIFEST: &str = "atlas-desktop-update.json";
@@ -1549,7 +1549,7 @@ fn recover(app: &AppHandle, old_base: Url, old_instance: &str) {
         return;
     }
     app.state::<Desktop>().staged_setup.clear_documents();
-    let result = run_on_main(app, move |app| {
+    let restore = move |app: &AppHandle| {
         let desktop = app.state::<Desktop>();
         let views = app
             .webview_windows()
@@ -1590,8 +1590,22 @@ fn recover(app: &AppHandle, old_base: Url, old_instance: &str) {
                             }
                             let _ = window.navigate(target);
                         }
-                    } else if crate::open_product(app, &route, None).is_ok() {
-                        let _ = window.destroy();
+                    } else {
+                        #[cfg(target_os = "macos")]
+                        let replacement = crate::open_product(app, &route, None);
+                        #[cfg(windows)]
+                        let replacement = crate::open_product_on_worker(app, &route, &instance);
+                        match replacement {
+                            Ok(_) => {
+                                let _ = window.destroy();
+                            }
+                            #[cfg(windows)]
+                            Err(error) => {
+                                crate::window_host::report("Atlas couldn’t reopen a window", &error)
+                            }
+                            #[cfg(target_os = "macos")]
+                            Err(_) => {}
+                        }
                     }
                 }
             }
@@ -1605,8 +1619,13 @@ fn recover(app: &AppHandle, old_base: Url, old_instance: &str) {
                 crate::window_host::report("Atlas couldn’t reconnect", &error);
             }
         }
-    });
-    if let Err(error) = result {
+    };
+    // Installation already runs on a worker. Keep WebView2 creation there
+    // while each old window remains available until its replacement succeeds.
+    #[cfg(windows)]
+    restore(app);
+    #[cfg(target_os = "macos")]
+    if let Err(error) = crate::run_on_main(app, restore) {
         eprintln!("Could not restore Atlas windows: {error}");
     }
 }

@@ -71,6 +71,12 @@ struct Desktop {
     window_id: AtomicUsize,
     quitting: AtomicBool,
     recovery: AtomicBool,
+    #[cfg(windows)]
+    creating_setup_window: AtomicBool,
+    #[cfg(windows)]
+    creating_product_window: AtomicBool,
+    #[cfg(windows)]
+    pending_settings_window: Mutex<Option<(String, settings::Destination)>>,
     primary: Mutex<opening::PrimaryWindow>,
     #[cfg(target_os = "macos")]
     terminal_operation: Mutex<()>,
@@ -132,6 +138,33 @@ fn show_bootstrap(app: &AppHandle) -> tauri::Result<()> {
         }
         return Ok(());
     }
+    #[cfg(windows)]
+    {
+        let desktop = app.state::<Desktop>();
+        // Another launch or deep link may arrive while WebView2 is still
+        // creating the first hidden window. Keep one owner for that build.
+        if !desktop.creating_setup_window.swap(true, Ordering::AcqRel) {
+            let app = app.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let result = build_bootstrap(&app, label);
+                app.state::<Desktop>()
+                    .creating_setup_window
+                    .store(false, Ordering::Release);
+                if let Err(error) = result {
+                    window_host::report("Atlas Setup couldn’t open", &error.to_string());
+                    if label == opening::PRIMARY && app.webview_windows().is_empty() {
+                        app.exit(1);
+                    }
+                }
+            });
+        }
+        Ok(())
+    }
+    #[cfg(target_os = "macos")]
+    build_bootstrap(app, label)
+}
+
+fn build_bootstrap(app: &AppHandle, label: &str) -> tauri::Result<()> {
     let window = if label == opening::PRIMARY {
         opening::build(app)?
     } else {
@@ -196,7 +229,13 @@ fn run_on_main(
 }
 
 fn show_error(app: &AppHandle, error: String) {
-    if let Some(window) = app.get_webview_window(setup_window_label(app)) {
+    let label = setup_window_label(app);
+    #[cfg(windows)]
+    if !lock(&app.state::<Desktop>().presented_bootstrap).contains(label) {
+        window_host::report("PF2e Atlas", &error);
+        return;
+    }
+    if let Some(window) = app.get_webview_window(label) {
         let _ = window.emit("atlas-error", error);
     }
 }
@@ -595,7 +634,7 @@ fn show_pending_or_default(app: &AppHandle) {
             if let Some(window) = recent_product_views(app, &base, &instance).first() {
                 window_host::select(window)
             } else {
-                open_product(app, "/search", None).map(|_| ())
+                open_missing_product(app, "/search")
             }
         })
     } else {
@@ -610,11 +649,80 @@ fn show_pending_or_default(app: &AppHandle) {
 
 fn hide_bootstrap_after_delivery(app: &AppHandle) {
     let desktop = app.state::<Desktop>();
+    #[cfg(windows)]
+    if desktop.creating_product_window.load(Ordering::Acquire) {
+        return;
+    }
     if !desktop.recovery.load(Ordering::Acquire)
         && lock(&desktop.links).is_empty()
         && let Some(window) = app.get_webview_window("bootstrap")
     {
+        #[cfg(windows)]
+        if !current_product(app).is_ok_and(|(_, instance)| {
+            app.webview_windows().into_values().any(|view| {
+                desktop.staged_setup.attached_to(view.label(), &instance)
+                    && view.is_visible().unwrap_or(false)
+            })
+        }) {
+            return;
+        }
         let _ = window.hide();
+    }
+}
+
+// WebView2 controller creation requires the Windows message loop to keep
+// pumping messages. Reconnect and deep-link callbacks can run on that loop.
+fn open_missing_product(app: &AppHandle, route: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        open_product(app, route, None).map(|_| ())
+    }
+    #[cfg(windows)]
+    {
+        let (_, instance) = current_product(app)?;
+        if app
+            .state::<Desktop>()
+            .creating_product_window
+            .swap(true, Ordering::AcqRel)
+        {
+            return Ok(());
+        }
+        let app = app.clone();
+        let route = route.to_owned();
+        tauri::async_runtime::spawn_blocking(move || {
+            let result = current_product(&app).and_then(|(_, current)| {
+                if current == instance
+                    && !app.webview_windows().keys().any(|label| {
+                        app.state::<Desktop>()
+                            .staged_setup
+                            .attached_to(label, &current)
+                    })
+                {
+                    open_product_on_worker(&app, &route, &instance)?;
+                }
+                Ok(())
+            });
+            let _ = run_on_main(&app, move |app| {
+                app.state::<Desktop>()
+                    .creating_product_window
+                    .store(false, Ordering::Release);
+                let Ok((_, current)) = current_product(app) else {
+                    return;
+                };
+                if current != instance {
+                    show_pending_or_default(app);
+                } else if let Err(error) = result {
+                    if window_host::offer_retry("Could not open an Atlas window", &error) {
+                        show_pending_or_default(app);
+                    }
+                } else if let Err(error) = drain_links(app) {
+                    report_link_error(app, &error);
+                } else {
+                    hide_bootstrap_after_delivery(app);
+                }
+            });
+        });
+        Ok(())
     }
 }
 
@@ -670,17 +778,39 @@ fn recent_product_views(app: &AppHandle, base: &Url, instance: &str) -> Vec<Webv
     windows
 }
 
+#[cfg(target_os = "macos")]
 fn open_product(
     app: &AppHandle,
     route: &str,
     tab: Option<(&WebviewWindow, bool)>,
 ) -> Result<WebviewWindow, String> {
-    let desktop = app.state::<Desktop>();
-    #[cfg(windows)]
-    if windows_tabs::update_handoff_active(app) {
-        return Err("Wait for the Atlas update to finish.".into());
-    }
     let (base, instance) = current_product(app)?;
+    build_product(app, route, tab, base, &instance)
+}
+
+#[cfg(windows)]
+pub(crate) fn open_product_on_worker(
+    app: &AppHandle,
+    route: &str,
+    expected_instance: &str,
+) -> Result<WebviewWindow, String> {
+    let desktop = app.state::<Desktop>();
+    let _opening = desktop.windows_tabs.reserve_opening()?;
+    let (base, instance) = current_product(app)?;
+    if instance != expected_instance {
+        return Err("The Atlas service changed while opening the window.".into());
+    }
+    build_product(app, route, None, base, &instance)
+}
+
+fn build_product(
+    app: &AppHandle,
+    route: &str,
+    tab: Option<(&WebviewWindow, bool)>,
+    base: Url,
+    instance: &str,
+) -> Result<WebviewWindow, String> {
+    let desktop = app.state::<Desktop>();
     let url = base.join(route).map_err(display)?;
     let origin = base.origin();
     if url.origin() != origin {
@@ -697,7 +827,7 @@ fn open_product(
     };
     desktop
         .staged_setup
-        .attach_window(app, &label, &base, &instance)?;
+        .attach_window(app, &label, &base, instance)?;
     let window = opening::with_cover(
         WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url)),
         appearance::product_dark(app),
@@ -726,7 +856,13 @@ fn open_product(
     .inspect_err(|_| desktop.staged_setup.detach_window(&label))?;
     zoom::apply(&window);
     #[cfg(windows)]
-    let placement = window_host::select(&window);
+    let placement = current_product(app).and_then(|(_, current)| {
+        if current == instance {
+            window_host::select(&window)
+        } else {
+            Err("The Atlas service changed while opening the window.".into())
+        }
+    });
     #[cfg(target_os = "macos")]
     let placement = window_host::configure(&window, true).and_then(|()| {
         if let Some((source, foreground)) = tab {
@@ -747,11 +883,26 @@ fn new_search(app: &AppHandle, as_tab: bool) -> Result<(), String> {
     if setup_window_label(app) == opening::PRIMARY || current_product(app).is_err() {
         return show_bootstrap(app).map_err(display);
     }
-    let (base, instance) = current_product(app)?;
-    let source = as_tab
-        .then(|| recent_product_views(app, &base, &instance))
-        .and_then(|views| views.into_iter().next());
-    open_product(app, "/search", source.as_ref().map(|window| (window, true))).map(|_| ())
+    #[cfg(target_os = "macos")]
+    {
+        let (base, instance) = current_product(app)?;
+        let source = as_tab
+            .then(|| recent_product_views(app, &base, &instance))
+            .and_then(|views| views.into_iter().next());
+        open_product(app, "/search", source.as_ref().map(|window| (window, true))).map(|_| ())
+    }
+    #[cfg(windows)]
+    {
+        debug_assert!(!as_tab);
+        let (_, instance) = current_product(app)?;
+        let app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            if let Err(error) = open_product_on_worker(&app, "/search", &instance) {
+                window_host::report("Could not open an Atlas window", &error);
+            }
+        });
+        Ok(())
+    }
 }
 
 fn open_external(destination: &Url) {
