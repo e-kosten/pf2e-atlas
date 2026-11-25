@@ -12,7 +12,7 @@ const request: ConditionEventInput = {
   parameters: { kind: "none" },
   scope: { kind: "everyone" },
   extra_action: { kind: "unspecified" },
-  immunity_override: false,
+  immunity_override: true,
   event_intent: "apply",
   decisions: { keep_upright: false },
 };
@@ -78,10 +78,12 @@ it("shows sole HP consequences before the first Apply and preserves its explicit
   expect(commit).not.toHaveBeenCalled();
   fireEvent.click(effect);
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  expect(commit).toHaveBeenCalledExactlyOnceWith({
-    ...request,
+  expect(commit).toHaveBeenCalledOnce();
+  expect(commit.mock.calls[0][0]).toMatchObject({
+    condition_id: 1,
     event_intent: "correction",
   });
+  expect(commit.mock.calls[0][0]).not.toHaveProperty("immunity_override");
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 it("mixed consequences offer only the supported Prone opt-out", async () => {

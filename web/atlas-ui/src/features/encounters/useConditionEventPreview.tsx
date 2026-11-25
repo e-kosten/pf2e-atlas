@@ -112,7 +112,7 @@ export function useConditionEventPreview(
     preview: ConditionEventPreviewView,
   ): T => {
     const retainChoices = consequencesOf(preview) === consequenceIdentity;
-    return {
+    const prepared = {
       ...request,
       expected_reference_revision: preview.reference_revision,
       event_intent: retainChoices && correction ? "correction" : request.event_intent,
@@ -124,6 +124,10 @@ export function useConditionEventPreview(
           preview.persistent_precedence?.sources.map((entry) => entry.source),
       },
     };
+    // A correction keeps the saved override, including when the GM declines HP loss.
+    if ("condition_id" in prepared && prepared.event_intent === "correction")
+      delete prepared.immunity_override;
+    return prepared;
   };
   const apply = <T extends ConditionEventInput>(request: T): T => {
     if (!current || identityOf(request) !== identity || loading || error)
