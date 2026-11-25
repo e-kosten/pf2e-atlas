@@ -1,3 +1,4 @@
+import type { ImmunityReading } from './immunity-reading.js';
 import type { UnionOrderRegistry } from './union-order.js';
 import type { ActionDefinition } from './action-definitions.js';
 import type { ConditionCatalog } from './condition-definitions.js';
@@ -16,6 +17,7 @@ export interface GenerationInput {
   referenceCatalog?: ReferenceCatalog;
   actionDefinitions?: ActionDefinition[];
   conditionCatalog?: ConditionCatalog;
+  immunityReading?: ImmunityReading;
   source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];
   portfolio?: { typescript: string; schemaRoots: TypeGraph['roots']; families: NonNullable<TypeGraph['portfolio']>['families'] };
 }

@@ -1,3 +1,4 @@
+import { immunityReading } from './immunity-reading.js';
 import { actionDefinitions } from './action-definitions.js';
 import { conditionDefinitions, type ConditionCoverage } from './condition-definitions.js';
 import { spawnSync } from 'node:child_process';
@@ -44,6 +45,7 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   input.actionDefinitions = await actionDefinitions(source);
   const conditionCoverage = JSON.parse(await readFile(path.join(repositoryRoot, 'dev-tools/source-contracts/fixtures/condition-rule-coverage.json'), 'utf8')) as ConditionCoverage;
   input.conditionCatalog = await conditionDefinitions(source, new Set(input.traitDefinitions.map(entry => entry.identifier)), conditionCoverage);
+  input.immunityReading = await immunityReading(source, input.referenceCatalog, input.conditionCatalog, input.traitDefinitions);
   if (JSON.stringify(input.portfolio!.schemaRoots.flatMap(root => root.ruleKey ? [root.ruleKey] : []).sort())
     !== JSON.stringify([...pin.ruleKeys].sort())) throw new Error('Extracted rule keys do not match source-pin.json');
   input.referenceSource = { repository: pin.repository, commit: pin.commit, systemVersion: pin.systemVersion };

@@ -204,6 +204,30 @@ test('runtime acquisition identity comes from the same canonical declaration pin
   for (const value of [pin.repository, pin.commit, pin.systemVersion]) assert.ok(root.includes(JSON.stringify(value)));
 });
 
+test('immunity reading covers exactly the reviewed glossary, conditions and traits', () => {
+  const reading = input.immunityReading!;
+  assert.equal(reading.swarmRuleKey, 'rule:pf2e:PF2E.NPC.Abilities.Glossary.SwarmMind');
+  assert.equal(reading.swarmRecordKey, 'bestiary-ability-glossary-srd:baA0nSMhQyFyJIia');
+  assert.deepEqual([...reading.conditions].sort(), [
+    'blinded', 'clumsy', 'confused', 'controlled', 'dazzled', 'deafened', 'doomed', 'drained', 'enfeebled',
+    'fascinated', 'fatigued', 'fleeing', 'frightened', 'grabbed', 'immobilized', 'off-guard', 'paralyzed',
+    'persistent-damage', 'petrified', 'prone', 'restrained', 'sickened', 'slowed', 'stunned', 'stupefied',
+    'unconscious', 'wounded',
+  ]);
+  const sameName = [
+    'air', 'alchemical', 'arcane', 'auditory', 'disease', 'divine', 'earth', 'emotion', 'holy', 'light',
+    'metal', 'occult', 'olfactory', 'prediction', 'primal', 'radiation', 'unholy', 'visual', 'water', 'wood',
+  ];
+  assert.deepEqual(Object.fromEntries(reading.traits.map(({ immunity, trait }) => [immunity, trait])), {
+    ...Object.fromEntries(sameName.map(trait => [trait, trait])),
+    'death-effects': 'death', 'fear-effects': 'fear',
+  });
+  const sources = new Set(['swarm-mind', ...reading.conditions, ...reading.traits.map(target => target.immunity)]);
+  const immunityTypes = input.referenceCatalog!.definitions.filter(entry => entry.namespace === 'immunity_type');
+  assert.equal(sources.size, 50);
+  assert.equal(immunityTypes.filter(entry => !sources.has(entry.identifier)).length, 56);
+});
+
 test('condition facts cover the full pinned pack and retain all native relationship inputs', () => {
   const catalog = input.conditionCatalog;
   assert.ok(catalog);

@@ -83,6 +83,24 @@ only obsolete tool-owned files and refuses unmanaged files or symlinks. Formatti
 and preflight finish before writes. A normal Rust build needs neither Node nor
 upstream source. See [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md).
 
+### Immunity reading targets on a source upgrade
+
+The compiled stat-block reading lookup uses the intersection of the pinned
+immunity and condition catalogs, the checked Swarm Mind glossary record, and
+the reviewed trait associations in `src/generation/immunity-reading.ts`. Its
+output is independent of the stored reference catalog identity.
+
+When `verify-generated` flags changed immunity evidence, inspect the new
+`IWR.describe` body and the `instantDeath` calculation in
+`ActorPF2e.applyDamage`. Check each affected predicate against its proposed
+reading destination. For example, Disease uses the Disease trait, fear effects
+uses Fear, and death effects has evidence in the zero-HP calculation. The Time
+predicate names a trait whose current text describes time creatures. Review
+changed destinations or new immunity/condition intersections before updating
+the accepted cohort test. After reviewing the source, update changed evidence
+digests using the values reported by generation, regenerate, and run
+`verify-generated`.
+
 ### Compiler upgrades and persisted union names
 
 `source-union-order.json` owns the ordinals and Serde variant names of unions

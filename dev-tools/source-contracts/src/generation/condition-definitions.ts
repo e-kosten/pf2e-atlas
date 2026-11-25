@@ -164,9 +164,9 @@ function immunityPredicate(value: ImmunityPredicate): string {
   if (value.kind === 'all' || value.kind === 'any') return `ImmunityPredicate::${value.kind === 'all' ? 'All' : 'Any'}(&[${value.terms.map(immunityPredicate).join(',')}])`;
   return `ImmunityPredicate::${value.kind === 'trait' ? 'Trait' : value.kind === 'actorKind' ? 'ActorKind' : 'Authored'}(${quote((value as { value: string }).value)})`;
 }
+export const conditionId = (slug: string) => 'ConditionId::'+pascal(slug);
 export function generateConditionModule(catalog: ConditionCatalog, header: string, source: {repository: string; commit: string}): string {
   const optional = (value: unknown) => value === undefined || value === null ? 'None' : `Some(${typeof value === 'string' ? quote(value) : value})`;
-  const id = (slug: string) => 'ConditionId::'+pascal(slug);
   return `${header}
 // Derived factual metadata from ${source.repository.replace(/\.git$/,'')}/tree/${source.commit}/packs/pf2e/conditions.
 // Engine behavior: src/module/actor/creature/helpers.ts.
@@ -195,10 +195,10 @@ pub enum ImmunityPredicate { Trait(&'static str), ActorKind(&'static str), Autho
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TraitImmunity { pub immunity: &'static str, pub predicate: ImmunityPredicate, pub source_label_key: &'static str, pub source_line: usize }
 pub static CONDITION_DEFINITIONS: &[ConditionDefinition] = &[
-${catalog.conditions.map(c=>`ConditionDefinition { id: ${id(c.slug)}, record_key: ${quote('conditionitems:'+c.id)}, slug: ${quote(c.slug)}, name: ${quote(c.name)}, has_value: ${c.valued}, default_value: ${optional(c.defaultValue)},
+${catalog.conditions.map(c=>`ConditionDefinition { id: ${conditionId(c.slug)}, record_key: ${quote('conditionitems:'+c.id)}, slug: ${quote(c.slug)}, name: ${quote(c.name)}, has_value: ${c.valued}, default_value: ${optional(c.defaultValue)},
 modifiers: &[${c.modifiers.map(m=>`ConditionModifier { ordinal:${m.ordinal}, slug:${quote(m.slug)}, selectors:&[${m.selectors.map(quote).join(',')}], modifier_type:ConditionModifierType::${pascal(m.type)}, value:${expression(m.value)}, predicate:${predicate(m.predicate)} }`).join(',')}],
-grants: &[${c.grants.map(g=>`ConditionGrant { ordinal:${g.ordinal}, target:${id(g.target)}, in_memory_only:${optional(g.inMemoryOnly)}, allow_duplicate:${optional(g.allowDuplicate)}, on_delete_granter:${optional(g.granter)}, on_delete_grantee:${optional(g.grantee)} }`).join(',')}],
-overrides: &[${c.overrides.map(id).join(',')}], hp_loss:${c.hpLoss ? `Some(ConditionHpLoss {value:${expression(c.hpLoss.value)},reevaluate_on_update:${c.hpLoss.reevaluateOnUpdate}})` : 'None'},source_file:${quote(c.file)},source_digest:${quote(c.digest)} }`).join(',\n')}
+grants: &[${c.grants.map(g=>`ConditionGrant { ordinal:${g.ordinal}, target:${conditionId(g.target)}, in_memory_only:${optional(g.inMemoryOnly)}, allow_duplicate:${optional(g.allowDuplicate)}, on_delete_granter:${optional(g.granter)}, on_delete_grantee:${optional(g.grantee)} }`).join(',')}],
+overrides: &[${c.overrides.map(conditionId).join(',')}], hp_loss:${c.hpLoss ? `Some(ConditionHpLoss {value:${expression(c.hpLoss.value)},reevaluate_on_update:${c.hpLoss.reevaluateOnUpdate}})` : 'None'},source_file:${quote(c.file)},source_digest:${quote(c.digest)} }`).join(',\n')}
 ];
 impl ConditionId {
     pub fn definition(self) -> &'static ConditionDefinition { match self { ${catalog.conditions.map((c,i)=>`Self::${pascal(c.slug)} => &CONDITION_DEFINITIONS[${i}]`).join(',')} } }
