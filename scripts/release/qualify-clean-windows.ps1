@@ -16,6 +16,11 @@ $index = Join-Path $root 'workspace.sqlite'
 Set-Location -LiteralPath $root
 
 # Reject a contaminated baseline before launching any shipped executable.
+if ($PathOnly) {
+    # PowerShell 7 adds its own directory to PATH. Keep the mounted host's
+    # private dependencies out of every Atlas child process's loader search.
+    $env:Path = (($env:Path -split ';') | Where-Object { $_ -and $_ -ne $PSHOME }) -join ';'
+}
 if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') { throw 'Expected Windows x64' }
 if (Get-Command cl.exe, msbuild.exe, cargo.exe -ErrorAction SilentlyContinue) { throw 'Build tools found on PATH' }
 if (Test-Path -LiteralPath "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") { throw 'Visual Studio installer found' }

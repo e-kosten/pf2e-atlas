@@ -603,6 +603,9 @@ jobs:
         shell: pwsh
         run: |
           $inputDir = New-Item -ItemType Directory -Path target/clean-windows
+          # Process-isolated Windows containers honor host ACLs on bind mounts.
+          icacls $inputDir.FullName /grant '*S-1-5-11:(OI)(CI)RX'
+          if ($LASTEXITCODE) { throw 'Could not grant ContainerUser read access to the qualification inputs' }
           Copy-Item target/assembled/atlas-cli*-x86_64-pc-windows-msvc.zip -Destination $inputDir
           foreach ($name in 'atlas-installer.ps1', 'atlas-release-manifest.json', 'SHA256SUMS') {
             Copy-Item -LiteralPath "target/assembled/$name" -Destination $inputDir
