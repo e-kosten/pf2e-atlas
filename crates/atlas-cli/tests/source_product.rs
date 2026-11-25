@@ -412,6 +412,22 @@ fn index_diagnostics_distinguish_invalid_artifacts_from_checks_that_cannot_run()
     }
     assert!(!f.root.join("never-created").exists());
     let db = rusqlite::Connection::open(&f.index).unwrap();
+    let (id, seed, end): (i64,i64,i64) = db.query_row(
+        "DELETE FROM projection_allocations WHERE record_id=(SELECT min(record_id) FROM records) RETURNING record_id,seed,end_id", [],
+        |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
+    ).unwrap();
+    invalid(
+        checked(
+            f.command(&["index", "validate", "--json", "--no-embeddings"], false),
+            3,
+        ),
+        "artifact_invalid",
+    );
+    db.execute(
+        "INSERT INTO projection_allocations(record_id,seed,end_id) VALUES(?1,?2,?3)",
+        (id, seed, end),
+    )
+    .unwrap();
     db.execute("UPDATE records SET source_path='/bad/path'", [])
         .unwrap();
     drop(db);
