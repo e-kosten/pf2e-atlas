@@ -212,7 +212,11 @@ scripts/prepare-release.sh --prepare-pr
 ```
 
 The helper prompts for the release version, creates `release-prep/v<version>`, updates
-`crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock`, and scaffolds `docs/releases/v<version>.md`. Pass
+the CLI package version in `crates/atlas-cli/Cargo.toml` and `Cargo.lock`, and creates
+`docs/releases/v<version>.md` if it is missing. This step requires Node and can
+run from a clean checkout before building the frontend. If preparation is interrupted,
+rerun the same command on its release-prep branch. The helper recognizes the
+original and intended version edits and preserves authored notes. Pass
 `--version <X.Y.Z[-rc.N]>` to skip the prompt. In an interactive terminal, the
 helper opens the release notes with `VISUAL`, `EDITOR`, or `git config
 core.editor` after creating the file. Edit the release notes and complete independent review of the release-preparation
@@ -231,7 +235,11 @@ Independent review is required before merge readiness; this helper does not
 perform it.
 The helper verifies the release-prep branch, checks that the release notes no
 longer contain template text, runs local validation, commits the release-prep
-files, pushes the branch, and opens a PR to `main`.
+files, pushes the branch, and opens a PR to `main`. If a push or GitHub request
+fails, rerun `--open-pr` on the same branch. It verifies the candidate against
+its branch point and origin, then resumes with the existing commit or returns
+the matching open PR. If it reports an unexpected commit or file, inspect that
+difference before retrying.
 
 3. After the PR lands, publish the release from any clean checkout:
 

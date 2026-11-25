@@ -73,6 +73,22 @@ test('invalid versions and inconsistent locks fail before changing either file',
   assert.match(readFileSync(manifest, 'utf8'), /0.1.0-rc.6/);
 });
 
+test('ambiguous CLI packages and mismatched versions preserve both input files', (t) => {
+  const { root, manifest, lock } = fixture(t);
+  const original = { manifest: readFileSync(manifest, 'utf8'), lock: readFileSync(lock, 'utf8') };
+  for (const [manifestText, lockText] of [
+    [original.manifest, original.lock.replace('0.1.0-rc.6', '0.0.9')],
+    [original.manifest, original.lock + '\n[[package]]\nname = "atlas-cli"\nversion = "0.0.9"\n'],
+    [original.manifest + '\n[package]\nname = "atlas-cli"\nversion = "0.0.9"\n', original.lock],
+  ]) {
+    writeFileSync(manifest, manifestText);
+    writeFileSync(lock, lockText);
+    assert.throws(() => prepareNightly(root, packageTag));
+    assert.equal(readFileSync(manifest, 'utf8'), manifestText);
+    assert.equal(readFileSync(lock, 'utf8'), lockText);
+  }
+});
+
 test('scheduled skip requires the published channel to point to this exact source', (t) => {
   const { root } = fixture(t);
   for (const scenario of ['same', 'changed', 'draft', 'missing-channel', 'missing-pointer', 'missing-dmg', 'missing-windows', 'manual']) {

@@ -61,9 +61,10 @@ read_crate_version() {
 validate_version() {
   case "$1" in
     v*) die "pass --version without a leading v" ;;
+    *[!0-9rc.-]*) die "invalid release version" ;;
   esac
 
-  if ! printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'; then
+  if ! printf '%s\n' "$1" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.(0|[1-9][0-9]*))?$'; then
     die "version must look like 0.1.0 or 0.1.0-rc.1"
   fi
 }
@@ -391,20 +392,16 @@ ensure_release_identity_is_unused() {
 }
 
 ensure_release_identity_has_no_remote() {
-  if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-    if [ "$dry_run" -eq 1 ]; then
-      warn "remote tag $tag already exists"
-    else
-      die "remote tag $tag already exists"
-    fi
+  if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+    if [ "$dry_run" -eq 1 ]; then warn "remote tag $tag already exists"; else die "remote tag $tag already exists"; fi
+  else
+    [ "$?" -eq 2 ] || die "could not check remote tag $tag"
   fi
-
-  if gh release view "$tag" >/dev/null 2>&1; then
-    if [ "$dry_run" -eq 1 ]; then
-      warn "GitHub release $tag already exists"
-    else
-      die "GitHub release $tag already exists"
-    fi
+  release_match=$(gh api --paginate 'repos/{owner}/{repo}/releases?per_page=100' \
+    --jq ".[] | select(.tag_name == \"$tag\") | .tag_name") ||
+    die "could not determine whether GitHub release $tag exists"
+  if [ -n "$release_match" ]; then
+    if [ "$dry_run" -eq 1 ]; then warn "GitHub release $tag already exists"; else die "GitHub release $tag already exists"; fi
   fi
 }
 
@@ -478,30 +475,34 @@ open_release_notes_editor() {
   "$@" "$notes_file"
 }
 
-update_crate_version() {
-  tmp_file="crates/atlas-cli/Cargo.toml.release-tmp"
-  awk -v version="$version" '
-    BEGIN { replaced = 0 }
-    /^version = / && replaced == 0 {
-      print "version = \"" version "\""
-      replaced = 1
-      next
-    }
-    { print }
-    END {
-      if (replaced == 0) {
-        exit 1
-      }
-    }
-  ' crates/atlas-cli/Cargo.toml > "$tmp_file" || {
-    rm -f "$tmp_file"
-    die "failed to update crates/atlas-cli version"
-  }
-  mv "$tmp_file" crates/atlas-cli/Cargo.toml
+prep_state() {
+  node scripts/release/prep-state.mjs "$@"
 }
 
-update_lockfile() {
-  cargo check -p atlas-cli
+read_main_for_prep() {
+  main_ref=$(git ls-remote --exit-code --heads origin refs/heads/main) || die "could not verify main on origin"
+  prep_main=${main_ref%%[[:space:]]*}
+  if ! git cat-file -e "$prep_main^{commit}" 2>/dev/null; then
+    [ "$dry_run" -eq 0 ] || die "fetch origin main before inspecting this dry run"
+    git fetch origin main || die "could not fetch main"
+    git cat-file -e "$prep_main^{commit}" || die "origin/main moved during inspection; retry"
+  fi
+}
+
+remote_prep_head() {
+  remote_ref=$(git ls-remote --heads origin "refs/heads/$release_branch") || die "could not check release branch on origin"
+  printf '%s' "${remote_ref%%[[:space:]]*}"
+}
+
+check_prep_publication() {
+  remote_head=$(remote_prep_head) || exit 1
+  if [ -n "$remote_head" ] && { [ "$kind" != committed ] || [ "$head" != "$remote_head" ]; }; then
+    die "origin/$release_branch points to a different release-preparation commit"
+  fi
+  prs=$(gh pr list --repo "$repo_url" --head "$release_branch" --state all \
+    --json url,state,isCrossRepository,baseRefName,headRefName,headRefOid) || die "could not check existing pull requests"
+  pr_url=$(printf '%s' "$prs" | prep_state pr "$release_branch" "$head" "$repo_url") || exit 1
+  if [ -n "$pr_url" ] && [ -z "$remote_head" ]; then die "existing PR has no matching branch on origin"; fi
 }
 
 release_branch_from_current_branch() {
@@ -516,25 +517,6 @@ release_branch_from_current_branch() {
     die "current release branch is for $branch_version, but --version requested $version"
   fi
   version=$branch_version
-}
-
-ensure_release_notes_are_edited() {
-  [ -s "$notes_file" ] || die "release notes file is missing or empty: $notes_file"
-  if grep -Eq 'Describe the user-facing release|Mention install, update, setup, or compatibility notes' "$notes_file"; then
-    die "release notes still contain template placeholder text: $notes_file"
-  fi
-}
-
-ensure_release_prep_scope() {
-  status_output=$(git status --porcelain)
-  [ -n "$status_output" ] || return 0
-  printf '%s\n' "$status_output" | while IFS= read -r status_line; do
-    path=${status_line#???}
-    case "$path" in
-      Cargo.lock|crates/atlas-cli/Cargo.toml|"$notes_file") ;;
-      *) die "unexpected release-prep change: $path" ;;
-    esac
-  done
 }
 
 run_release_pr_checks() {
@@ -552,25 +534,18 @@ run_check() {
 if [ "$open_pr" -eq 1 ]; then
   release_branch_from_current_branch
   set_release_vars
-  crate_version=$(read_crate_version)
-  [ "$crate_version" = "$version" ] || die "crates/atlas-cli version is $crate_version, expected $version"
+  origin_url=$(git remote get-url origin) || die "could not resolve origin"
+  repo_url=$(gh repo view "$origin_url" --json url --jq .url) || die "could not identify the GitHub repository for origin"
+  [ -n "$repo_url" ] || die "missing GitHub repository URL for origin"
+  export GH_REPO="$repo_url"
   ensure_release_identity_is_unused
-  ensure_release_notes_are_edited
-  ensure_release_prep_scope
-  if ! gh auth status >/dev/null 2>&1; then
-    if [ "$dry_run" -eq 1 ]; then
-      warn "gh is not authenticated; real PR creation requires gh auth login"
-    else
-      die "gh is not authenticated; run gh auth login"
-    fi
-  fi
-  if gh pr view "$release_branch" >/dev/null 2>&1; then
-    if [ "$dry_run" -eq 1 ]; then
-      warn "GitHub PR already exists for $release_branch"
-    else
-      die "GitHub PR already exists for $release_branch"
-    fi
-  fi
+  read_main_for_prep
+  state=$(prep_state candidate "$version" "$notes_file" "$prep_main") || exit 1
+  read -r kind head inputs <<EOF_STATE
+$state
+EOF_STATE
+  check_prep_publication
+  if [ -n "$pr_url" ]; then info "$pr_url"; exit 0; fi
 
   info "Release PR: $tag"
   info "Branch:     $release_branch"
@@ -582,7 +557,9 @@ if [ "$open_pr" -eq 1 ]; then
   info "  scripts/verify.sh"
 
   if [ "$dry_run" -eq 1 ]; then
-    info "Dry run: would run checks, commit release-prep files, push $release_branch, and create a PR to main."
+    [ "$kind" = committed ] || info "Dry run: would commit the validated release-preparation files."
+    [ -n "$remote_head" ] || info "Dry run: would push $release_branch."
+    info "Dry run: would validate this candidate and open its PR to main."
     exit 0
   fi
 
@@ -596,15 +573,56 @@ if [ "$open_pr" -eq 1 ]; then
   fi
 
   run_release_pr_checks
-  git add Cargo.lock crates/atlas-cli/Cargo.toml "$notes_file"
-  git commit --no-verify -m "chore(release): prepare $package_tag"
-  git push --no-verify -u origin "$release_branch"
-  gh pr create \
+  [ "$(git branch --show-current)" = "$release_branch" ] || die "release branch changed during validation"
+  read_main_for_prep
+  validated=$(prep_state candidate "$version" "$notes_file" "$prep_main") || exit 1
+  [ "$validated" = "$state" ] || die "release-preparation inputs changed during validation"
+  if [ "$kind" = pending ]; then
+    git add -- Cargo.lock crates/atlas-cli/Cargo.toml "$notes_file"
+    git commit --no-verify -m "chore(release): prepare $package_tag" -- Cargo.lock crates/atlas-cli/Cargo.toml "$notes_file"
+    head=$(git rev-parse HEAD)
+    kind=committed
+    [ "$(prep_state candidate "$version" "$notes_file" "$prep_main")" = "committed $head $inputs" ] ||
+      die "committed release preparation differs from the validated inputs"
+  fi
+  check_prep_publication
+  if [ -z "$remote_head" ]; then
+    git push --no-verify -u origin "$release_branch"
+    check_prep_publication
+    [ "$remote_head" = "$head" ] || die "could not verify the pushed release branch"
+  fi
+  if [ -n "$pr_url" ]; then info "$pr_url"; exit 0; fi
+  gh pr create --repo "$repo_url" \
     --base main \
     --head "$release_branch" \
     --title "chore(release): prepare $package_tag" \
     --body "Prepare $package_tag for release."
   exit 0
+fi
+
+# A retry on this exact branch may complete a partially written pair of
+# version files. Only the original and intended bytes are eligible for recovery.
+if [ "$prepare_pr" -eq 1 ]; then
+  current=$(git branch --show-current)
+  case "$current" in
+    release-prep/v*)
+      if [ -z "$version" ] || [ "$version" = "${current#release-prep/v}" ]; then
+        release_branch_from_current_branch
+        set_release_vars
+        ensure_release_identity_is_unused
+        read_main_for_prep
+        if [ "$dry_run" -eq 1 ]; then
+          prep_state resume-dry-run "$version" "$notes_file" "$prep_main"
+          info "Dry run: would resume preparation of $release_branch."
+          exit 0
+        fi
+        prep_state resume "$version" "$notes_file" "$prep_main"
+        if [ ! -f "$notes_file" ]; then write_release_notes_template; fi
+        open_release_notes_editor
+        info "Resumed release-preparation branch $release_branch."
+        exit 0
+      fi ;;
+  esac
 fi
 
 ensure_current_main_checkout
@@ -631,12 +649,14 @@ if [ "$prepare_pr" -eq 1 ]; then
       die "local branch $release_branch already exists"
     fi
   fi
-  if git ls-remote --exit-code --heads origin "$release_branch" >/dev/null 2>&1; then
+  if git ls-remote --exit-code --heads origin "refs/heads/$release_branch" >/dev/null; then
     if [ "$dry_run" -eq 1 ]; then
       warn "remote branch $release_branch already exists"
     else
       die "remote branch $release_branch already exists"
     fi
+  else
+    [ "$?" -eq 2 ] || die "could not check release branch on origin"
   fi
 
   current_crate_version=$(read_crate_version)
@@ -646,14 +666,14 @@ if [ "$prepare_pr" -eq 1 ]; then
   info "Notes:        $notes_file"
   info "Crate:        $current_crate_version -> $version"
 
+  prep_state check "$version" "$notes_file"
   if [ "$dry_run" -eq 1 ]; then
     info "Dry run: would create $release_branch, update crates/atlas-cli/Cargo.toml, and ensure $notes_file exists."
     exit 0
   fi
 
   git switch -c "$release_branch"
-  update_crate_version
-  update_lockfile
+  prep_state write "$version" "$notes_file" || die "version preparation was interrupted; rerun --prepare-pr --version $version from $release_branch"
   if [ ! -f "$notes_file" ]; then
     write_release_notes_template
   fi
