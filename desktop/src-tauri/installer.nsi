@@ -408,11 +408,22 @@ Function PageLeaveReinstall
       ExecWait '$R1' $0
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+      ; Execute a temporary copy in place. The child can delete the installed
+      ; uninstaller while holding its own lifecycle lock, before ExecWait returns.
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ${IfThen} $UpdateMode = 1 ${|} StrCpy $R1 "$R1 /UPDATE" ${|} ; append /UPDATE
-      ${IfThen} $PassiveMode = 1 ${|} StrCpy $R1 "$R1 /P" ${|} ; append /P
-      StrCpy $R1 "$R1 _?=$4" ; append uninstall directory
-      ExecWait '$R1' $0
+      ${If} $4 == ""
+      ${OrIf} $R1 != '"$4\uninstall.exe"'
+        SetErrors
+      ${Else}
+        InitPluginsDir
+        CopyFiles /SILENT "$4\uninstall.exe" "$PLUGINSDIR"
+      ${EndIf}
+      ${IfNot} ${Errors}
+        StrCpy $R1 '$\"$PLUGINSDIR\uninstall.exe$\"'
+        ${IfThen} $UpdateMode = 1 ${|} StrCpy $R1 "$R1 /UPDATE" ${|}
+        ${IfThen} $PassiveMode = 1 ${|} StrCpy $R1 "$R1 /P" ${|}
+        ExecWait '$R1 _?=$4' $0
+      ${EndIf}
     ${EndIf}
 
     BringToFront
@@ -437,14 +448,6 @@ Function PageLeaveReinstall
       Abort
     ${EndIf}
 
-    ; The NSIS uninstaller was run in place (`_?=`), so it cannot delete itself
-    ; and the install directory, clean them up here once the uninstall succeeded
-    ; https://nsis.sourceforge.io/Docs/Chapter3.html#:~:text=path%20contains%20spaces.-,3.2.3%20Examples,-installer.exe%20/NCRC
-    ${If} $WixMode = 0
-    ${AndIf} $4 != ""
-      Delete "$4\uninstall.exe"
-      RMDir "$4"
-    ${EndIf}
   reinst_done:
 FunctionEnd
 
@@ -719,6 +722,7 @@ Section WebView2
 SectionEnd
 
 Section Install
+  !insertmacro AtlasReserveInstallation
   SetOutPath $INSTDIR
 
   !ifmacrodef NSIS_HOOK_PREINSTALL
@@ -858,6 +862,7 @@ Function un.onInit
 FunctionEnd
 
 Section Uninstall
+  !insertmacro AtlasReserveInstallation
 
   !ifmacrodef NSIS_HOOK_PREUNINSTALL
     !insertmacro NSIS_HOOK_PREUNINSTALL

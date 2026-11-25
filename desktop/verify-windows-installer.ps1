@@ -15,6 +15,12 @@ $installDir = Join-Path $scratch ('Atlas Desktop Test ' + [guid]::NewGuid().ToSt
 $process = Start-Process $Installer -ArgumentList "/S /D=$installDir" -WindowStyle Hidden -PassThru -Wait
 if ($process.ExitCode -ne 0) { throw "Setup failed with code $($process.ExitCode)." }
 
+# The passive same-version maintenance path may invoke an in-place child
+# uninstaller before reinstalling. It must finish with the same registration.
+$maintenance = Start-Process $Installer -ArgumentList "/P /D=$installDir" -PassThru
+if (!$maintenance.WaitForExit(120000)) { throw 'Same-version maintenance did not finish.' }
+if ($maintenance.ExitCode -ne 0) { throw "Same-version maintenance failed with code $($maintenance.ExitCode)." }
+
 foreach ($file in 'atlas-desktop-windows-runtime.json', 'atlas-desktop.exe', 'atlas.exe', 'THIRD-PARTY-NOTICES.md', 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
     if (!(Test-Path -LiteralPath (Join-Path $installDir $file) -PathType Leaf)) {
         throw "Missing installed file $file."

@@ -52,6 +52,26 @@ try {
         }
         [IO.File]::Delete($foreign)
     }
+    # Model an entry arriving after the destination snapshot. Use a fixed
+    # inventory boundary so this regression is independent of timing and OS.
+    & {
+        $lateFile = Join-Path $isolated 'vcruntime140_1.dll'
+        [IO.File]::WriteAllText($lateFile, 'late arrival')
+        function Get-ChildItem {
+            param($LiteralPath, [switch]$Force, $Filter)
+            $entries = Microsoft.PowerShell.Management\Get-ChildItem @PSBoundParameters
+            if ($LiteralPath -eq $isolated -and !$Filter) {
+                return $entries | Where-Object FullName -ne $lateFile
+            }
+            $entries
+        }
+        Expect-Refusal $isolated $lateFile
+        $remaining = @(Microsoft.PowerShell.Management\Get-ChildItem -LiteralPath $isolated -Force)
+        if ($remaining.Count -ne 1 -or [IO.File]::ReadAllText($lateFile) -ne 'late arrival') {
+            throw 'Rollback changed a file that appeared after the inventory or left partial Atlas files.'
+        }
+        [IO.File]::Delete($lateFile)
+    }
     $foreign = Join-Path $isolated 'atlas-windows-runtime.json'
     [IO.File]::Copy((Join-Path $payload $receipt), $foreign)
     Expect-Refusal $isolated 'standalone Atlas CLI'
@@ -91,6 +111,15 @@ try {
     [IO.File]::WriteAllText($journal, (@{ stage = $stageName; files = $intent } | ConvertTo-Json -Depth 3))
     [IO.File]::Move("$installed/atlas-desktop.exe", "$stage/previous/atlas-desktop.exe")
     [IO.File]::Move("$stage/incoming/atlas-desktop.exe", "$installed/atlas-desktop.exe")
+    # One backup was moved before its incoming file was published. A foreign
+    # file also replaced the already published host before recovery.
+    [IO.File]::Move("$installed/atlas.exe", "$stage/previous/atlas.exe")
+    [IO.File]::WriteAllText("$installed/atlas-desktop.exe", 'user replacement')
+    Expect-Refusal $installed "$installed$([IO.Path]::DirectorySeparatorChar)atlas-desktop.exe"
+    if ([IO.File]::ReadAllText("$installed/atlas-desktop.exe") -ne 'user replacement' -or
+        [IO.File]::ReadAllText("$stage/previous/atlas-desktop.exe") -ne 'old-atlas-desktop.exe' -or
+        !(Test-Path -LiteralPath $journal)) { throw 'Interrupted rollback discarded a modified file or its backup' }
+    [IO.File]::Delete("$installed/atlas-desktop.exe")
     & $transaction -Payload $payload -InstallDirectory $installed
     Check-Package new
     if (Test-Path -LiteralPath $journal) { throw 'Upgrade left a pending payload' }

@@ -79,10 +79,16 @@ function Restore-Payload($intent, [string]$stage) {
         $slot = Join-Path $destination $name
         $old = Join-Path "$stage/previous" $name
         $new = Join-Path "$stage/incoming" $name
-        if (![IO.File]::Exists($new) -and ([IO.File]::Exists($old) -or !$entry.existed)) {
+        if (![IO.File]::Exists($new) -and ([IO.File]::Exists($old) -or !$entry.existed) -and [IO.File]::Exists($slot)) {
+            if (([IO.File]::GetAttributes($slot) -band [IO.FileAttributes]::ReparsePoint) -or (Get-PayloadHash $slot) -ne $entry.sha256) {
+                throw "The interrupted installation's file changed: $slot. Move it to a safe location and retry."
+            }
             [IO.File]::Move($slot, $new)
         }
-        if ([IO.File]::Exists($old)) { [IO.File]::Move($old, $slot) }
+        if ([IO.File]::Exists($old)) {
+            try { [IO.File]::Move($old, $slot) }
+            catch { throw "Could not restore the previous file to $slot. Clear the obstruction and retry. $($_.Exception.Message)" }
+        }
     }
 }
 function Remove-Stage([string]$stage, $names) {
@@ -117,15 +123,17 @@ function Recover-Payload([bool]$completeFirstInstall) {
         $slot = Join-Path $destination $entry.name
         $old = Join-Path "$stage/previous" $entry.name
         $new = Join-Path "$stage/incoming" $entry.name
-        if (![IO.File]::Exists($new) -and ([IO.File]::Exists($old) -or !$entry.existed)) {
-            if ((Get-PayloadHash $slot) -ne $entry.sha256) { throw "The interrupted installation's file changed: $slot" }
+        if (![IO.File]::Exists($new) -and ([IO.File]::Exists($old) -or !$entry.existed) -and [IO.File]::Exists($slot)) {
+            Hold-File $slot
         }
-        foreach ($path in $slot, $old) { if ([IO.File]::Exists($path)) { Hold-File $path } }
+        if ([IO.File]::Exists($old)) { Hold-File $old }
     }
     if ($completeFirstInstall) {
         if (!$saved.fresh -or $intent.Count -ne $names.Count) { throw "Unexpected unfinished installation at $stage" }
         foreach ($entry in $intent) {
-            if ($entry.existed -or [IO.File]::Exists((Join-Path "$stage/incoming" $entry.name))) {
+            $slot = Join-Path $destination $entry.name
+            if ($entry.existed -or [IO.File]::Exists((Join-Path "$stage/incoming" $entry.name)) -or
+                ![IO.File]::Exists($slot) -or (Get-PayloadHash $slot) -ne $entry.sha256) {
                 throw "Incomplete first installation at $stage. Rerun setup."
             }
         }
@@ -203,14 +211,15 @@ try {
             if ($incomingHashes.ContainsKey($file.Name) -and $hash -ne $incomingHashes[$file.Name]) {
                 throw "The packaged runtime does not match its receipt: $($file.Name)"
             }
-            if ($existing.ContainsKey($file.Name)) {
+            $wasPresent = $existing.ContainsKey($file.Name)
+            if ($wasPresent) {
                 if (!$registered) { throw "An existing file occupies $slot. Choose a dedicated folder for Atlas." }
                 Hold-File $slot
                 if ($installedHashes.ContainsKey($file.Name) -and (Get-PayloadHash $slot) -ne $installedHashes[$file.Name]) {
                     throw "The existing runtime at $slot does not match the previous Atlas package. Choose a dedicated folder."
                 }
             }
-            [pscustomobject]@{ name = $file.Name; existed = [IO.File]::Exists($slot); sha256 = $hash }
+            [pscustomobject]@{ name = $file.Name; existed = $wasPresent; sha256 = $hash }
         })
         $record = @{ stage = $stageName; files = $intent; fresh = !$registered } | ConvertTo-Json -Depth 3
         $prepared = Join-Path $stage 'intent.json'
@@ -220,7 +229,8 @@ try {
             foreach ($entry in $intent) {
                 $slot = Join-Path $destination $entry.name
                 if ($entry.existed) { [IO.File]::Move($slot, (Join-Path "$stage/previous" $entry.name)) }
-                [IO.File]::Move((Join-Path "$stage/incoming" $entry.name), $slot)
+                try { [IO.File]::Move((Join-Path "$stage/incoming" $entry.name), $slot) }
+                catch { throw "Could not place the packaged file at $slot. Check the destination and retry. $($_.Exception.Message)" }
             }
             # The fresh installation remains recoverable until NSIS has registered
             # its destination. A retry before registration rolls back this payload.

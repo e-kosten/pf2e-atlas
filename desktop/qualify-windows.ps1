@@ -109,6 +109,29 @@ try {
     $hooks = Join-Path $root 'postinstall.nsh'
     $macro = @'
 !include "%ATLAS_INSTALLER_HOOK%"
+; The fixture invokes the real helper, then starts a competing process at the
+; exact gap between the helper returning and NSIS publishing/removing metadata.
+!macro QualifyAtlasPayload Arguments
+  !insertmacro AtlasPayload '${Arguments}'
+  ${If} ${FileExists} "%ROOT%\qualify-lifecycle"
+    !if '${Arguments}' != '-Finish'
+      !if '${Arguments}' == '-RemoveRuntime'
+        ExecWait '"%DIRECT%" /S /UPDATE /D=$INSTDIR-other' $0
+        StrCpy $1 "%ROOT%\uninstall-refused-setup"
+      !else
+        ExecWait '"$INSTDIR\uninstall.exe" /S _?=$INSTDIR' $0
+        StrCpy $1 "%ROOT%\setup-refused-uninstall"
+      !endif
+      ${If} $0 != 1618
+        SetErrorLevel 2
+        Quit
+      ${EndIf}
+      FileOpen $0 "$1" w
+      FileWrite $0 "1618"
+      FileClose $0
+    !endif
+  ${EndIf}
+!macroend
 !macro NSIS_HOOK_PREINSTALL
   IfFileExists "%ROOT%\request-late-lock" 0 atlas_lock_done
   ; Synchronize with the runner only after the old host handed off. Make this
@@ -130,6 +153,7 @@ try {
   atlas_lock_done:
 !macroend
 !macro NSIS_HOOK_POSTINSTALL
+  IfFileExists "%ROOT%\qualify-lifecycle" atlas_skip_updater_hook
   ClearErrors
   ExecWait "$\"%PWSH%$\" -NoProfile -File $\"%HOOK%$\" -QualificationRoot $\"%ROOT%$\" -InstallDirectory $\"$INSTDIR$\"" $0
   IfErrors atlas_hook_failed
@@ -141,20 +165,25 @@ try {
   atlas_hook_failed:
     SetErrorLevel 1
     Abort "Atlas qualification POSTINSTALL hook failed"
+  atlas_skip_updater_hook:
 !macroend
 '@
     $installerHook = (Get-Item -LiteralPath (Join-Path $PSScriptRoot 'src-tauri\windows-installer.nsh')).FullName
     $hookScript = Join-Path $PSScriptRoot 'qualify-windows.hook.ps1'
     $paths = @{
         '%ATLAS_INSTALLER_HOOK%' = $installerHook
+        '%DIRECT%' = Get-NsisRuntimePath $directInstaller
         '%PWSH%' = Get-NsisRuntimePath (Get-Command pwsh -CommandType Application).Source
         '%HOOK%' = Get-NsisRuntimePath $hookScript
         '%ROOT%' = Get-NsisRuntimePath $root
     }
-    $macro = [regex]::Replace($macro, '%(ATLAS_INSTALLER_HOOK|PWSH|HOOK|ROOT)%', { param($match) $paths[$match.Value] })
+    $macro = [regex]::Replace($macro, '%(ATLAS_INSTALLER_HOOK|DIRECT|PWSH|HOOK|ROOT)%', { param($match) $paths[$match.Value] })
     $macro | Set-Content -LiteralPath $hooks -Encoding utf8BOM
+    $template = Join-Path $root 'qualify-installer.nsi'
+    (Get-Content -LiteralPath "$PSScriptRoot/src-tauri/installer.nsi" -Raw).Replace('!insertmacro AtlasPayload ', '!insertmacro QualifyAtlasPayload ') |
+        Set-Content -LiteralPath $template -Encoding utf8
     $config = Join-Path $root 'target-config.json'
-    @{ version = $nightly; bundle = @{ windows = @{ nsis = @{ installerHooks = $hooks } } } } |
+    @{ version = $nightly; bundle = @{ windows = @{ nsis = @{ installerHooks = $hooks; template = $template } } } } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $config -Encoding utf8
     $env:ATLAS_DESKTOP_RELEASE = $nightly
     $env:ATLAS_DESKTOP_SOURCE_COMMIT = $commit
@@ -166,6 +195,14 @@ try {
     try { Invoke-Checked node @('./node_modules/@tauri-apps/cli/tauri.js', 'build', '--target', 'x86_64-pc-windows-msvc', '--bundles', 'nsis', '--no-sign', '--config', $config, '--', '--locked') }
     finally { Pop-Location }
     Copy-Item -LiteralPath "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/PF2e Atlas_${nightly}_x64-setup.exe" -Destination $targetInstaller -Force
+    $lifecycle = Join-Path $root 'qualify-lifecycle'
+    [IO.File]::WriteAllText($lifecycle, '')
+    try {
+        & "$PSScriptRoot/verify-windows-installer.ps1" -Installer $targetInstaller -ExpectedCli $cli -ScratchDirectory $root
+        foreach ($evidence in 'setup-refused-uninstall', 'uninstall-refused-setup') {
+            if ([IO.File]::ReadAllText((Join-Path $root $evidence)) -ne '1618') { throw "Missing lifecycle evidence: $evidence" }
+        }
+    } finally { [IO.File]::Delete($lifecycle) }
     Invoke-Checked node @('desktop/updater-package.mjs', 'sign', "v$nightly", $targetInstaller)
     $targetHostHash = Get-NsisHostHash "$PSScriptRoot/src-tauri/target/x86_64-pc-windows-msvc/release/atlas-desktop.exe"
     @{
