@@ -40,6 +40,13 @@ state, and a copied Atlas link opens the correct destination both while the app
 is running and after it exits. Close the last product window and reopen the app
 to verify it reuses the prepared workspace.
 
+With a creature selected in a running encounter, press **Ctrl+F** and enter
+an offscreen statistic such as **Speed**. Verify that WebView2 highlights
+the text and brings its value into view. Move through a repeated word in both
+directions, then press **Esc** and check the selected creature and turn.
+In a second tab, search for a phrase specific to the first tab’s creature
+description and check that the hidden page contributes no matches.
+
 ## macOS build
 
 Build a local app from the checkout on Apple Silicon. You need the Xcode
@@ -102,6 +109,11 @@ from an Atlas link’s context menu to open its destination in a background tab.
 All windows and tabs share the local workspace and service with a compatible
 `atlas web` session. Choose **Quit PF2e Atlas** to release the app’s connection
 to the service.
+
+Press **⌘F** on macOS or **Ctrl+F** on Windows to find text on the current
+page. In a running encounter, try **Speed** or **Fortitude** to bring that
+statistic into view. Use the arrows to move between matches and **Esc** to
+close Find. On macOS you can also choose **Edit → Find…**.
 
 Use **View → Zoom In**, **Zoom Out**, or **Actual Size** to scale the entire
 view. Atlas saves one zoom level for all windows and tabs.

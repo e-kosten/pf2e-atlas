@@ -59,15 +59,9 @@ fn document(
     })
 }
 
-fn focused(app: &AppHandle) -> Option<WebviewWindow> {
-    app.webview_windows()
-        .into_values()
-        .find(|window| window.is_focused().unwrap_or(false))
-}
-
 pub fn refresh(app: &AppHandle) {
     let desktop = app.state::<Desktop>();
-    let enabled = focused(app).is_some_and(|window| {
+    let enabled = crate::focused_window(app).is_some_and(|window| {
         let ready = lock(&desktop.copy_menu.0)
             .ready
             .get(window.label())
@@ -111,7 +105,7 @@ pub fn invalidate(app: &AppHandle, label: &str, remove: bool) {
 }
 
 pub fn request(app: &AppHandle) -> Result<(), String> {
-    let Some(window) = focused(app) else {
+    let Some(window) = crate::focused_window(app) else {
         return Ok(());
     };
     let desktop = app.state::<Desktop>();
