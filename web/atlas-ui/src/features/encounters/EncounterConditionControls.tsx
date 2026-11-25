@@ -127,6 +127,7 @@ export function EncounterConditionControls({
     setCommitted(false);
   }
   const [addRevision, setAddRevision] = useState(encounterRevision);
+  const [submitting, setSubmitting] = useState(false);
   const handledEdit = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (
@@ -153,8 +154,10 @@ export function EncounterConditionControls({
       : undefined;
   const open = editor !== null;
   const [inlineRequest, setInlineRequest] = useState<UpdateConditionDraft>();
+  const [inlinePreviewError, setInlinePreviewError] = useState<unknown>();
   const [valueResetEpoch, setValueResetEpoch] = useState(0);
   const cancelInlineEdit = () => {
+    setInlinePreviewError(undefined);
     setInlineRequest(undefined);
     setValueResetEpoch((epoch) => epoch + 1);
     preview.reset();
@@ -167,19 +170,25 @@ export function EncounterConditionControls({
     preview.reset();
     setCommitted(true);
   };
-  const update = (
+  const update = async (
     condition: EncounterParticipantConditionView,
     changes: Partial<UpdateConditionDraft>,
-    revision = encounterRevision,
   ) => {
-    const request = conditionUpdate(condition, revision, changes);
-    return onPreviewCondition(current.participant_key, request).then((result) => {
-      if (!result.consequences.length)
-        return onUpdateCondition(current.participant_key, request);
-      setInlineRequest(request);
-      preview.setDraft(request);
-      return false;
-    });
+    const request = conditionUpdate(condition, encounterRevision, changes);
+    setInlinePreviewError(undefined);
+    let result;
+    try {
+      result = await onPreviewCondition(current.participant_key, request);
+    } catch (error) {
+      setInlinePreviewError(error);
+      // The inline field returns to its saved value after a failed preview.
+      return true;
+    }
+    if (!result.consequences.length)
+      return onUpdateCondition(current.participant_key, request);
+    setInlineRequest(request);
+    preview.setDraft(request);
+    return false;
   };
   const renderConditionActions = (
     condition: EncounterParticipantConditionView,
@@ -513,6 +522,9 @@ export function EncounterConditionControls({
   return (
     <section className="encounter-conditions">
       {!open && preview.errorNotice}
+      {!open && !!inlinePreviewError && (
+        <ErrorNotice error={inlinePreviewError} title="Could not preview condition" />
+      )}
       {consequences.error && (
         <ErrorNotice
           error={consequences.error}
@@ -732,11 +744,12 @@ export function EncounterConditionControls({
           footer={<div ref={setActionsContainer} />}
           onCancel={(event) => {
             // A keyboard drag handles its own Escape before the modal sees it.
-            if (!event.defaultPrevented) close();
+            if (!event.defaultPrevented && !submitting && !pending) close();
           }}
-          closable={!pending}
-          keyboard={!pending}
-          mask={{ closable: !pending }}
+          confirmLoading={submitting || pending}
+          closable={!submitting && !pending}
+          keyboard={!submitting && !pending}
+          mask={{ closable: !submitting && !pending }}
         >
           <EncounterConditionEditor
             key={
@@ -747,6 +760,7 @@ export function EncounterConditionControls({
                   : `${editor.conditionId}:${editor.revision}`
             }
             formId={editorFormId}
+            onSubmittingChange={setSubmitting}
             actionsContainer={actionsContainer}
             condition={selected}
             participantKind={current.participant_kind}

@@ -26,6 +26,7 @@ import {
   useEffect,
   useEffectEvent,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -59,6 +60,7 @@ export function EncounterConditionEditor({
   recovery,
   revision,
   onPreview,
+  onSubmittingChange,
   onSave,
   onRemove,
   onReload,
@@ -81,6 +83,7 @@ export function EncounterConditionEditor({
     input: ConditionEventInput,
   ) => Promise<import("../../generated/atlas").ConditionEventPreviewView>;
   onSave: (input: ConditionEventInput) => Promise<void>;
+  onSubmittingChange?: (pending: boolean) => void;
   onRemove?: () => void;
   onReload?: () => void;
 }) {
@@ -251,6 +254,17 @@ export function EncounterConditionEditor({
   const watchedDraft = Form.useWatch((values) => values, form);
   const draftIdentity = JSON.stringify({ ...watchedDraft, note: undefined });
   const [preparing, setPreparing] = useState(false);
+  const busy = disabled || pending || preparing;
+  const submitting = useRef(false);
+  useLayoutEffect(
+    () => () => {
+      if (submitting.current) {
+        submitting.current = false;
+        onSubmittingChange?.(false);
+      }
+    },
+    [onSubmittingChange],
+  );
   const notifyDraft = useEffectEvent((values: ConditionFormValues | undefined) => {
     if (!values) {
       preview.reset();
@@ -272,6 +286,7 @@ export function EncounterConditionEditor({
           !durationInstead &&
           !definition?.supports_duration_instead_of_value && (
             <Button
+              disabled={busy}
               onClick={() =>
                 form.setFieldsValue({
                   durationUnit: "rounds",
@@ -287,14 +302,14 @@ export function EncounterConditionEditor({
         <Button
           aria-expanded={detailsOpen}
           onClick={() => setDetailsOpen(!detailsOpen)}
-          disabled={pending}
+          disabled={busy}
         >
           {detailsOpen ? "Hide details" : "Add details"}
         </Button>
       </Space>
       <EncounterConditionEditorActions
         formId={formId ?? name}
-        disabled={disabled}
+        disabled={busy}
         pending={pending || preparing}
         reloadRequired={!!onReload}
         onRemove={onRemove}
@@ -309,7 +324,7 @@ export function EncounterConditionEditor({
           title="Encounter changed"
           description="Reload this condition to review its current values before saving. This replaces your unsaved changes."
           action={
-            <Button disabled={pending} onClick={onReload}>
+            <Button disabled={busy} onClick={onReload}>
               Reload condition
             </Button>
           }
@@ -328,7 +343,7 @@ export function EncounterConditionEditor({
         id={formId ?? name}
         form={form}
         layout="vertical"
-        disabled={disabled || preparing}
+        disabled={busy}
         initialValues={{
           durationUnit: condition?.duration?.unit ?? "none",
           durationAmount: condition?.duration ? condition.duration.amount : undefined,
@@ -398,15 +413,21 @@ export function EncounterConditionEditor({
             setDetailsOpen(true);
         }}
         onFinish={async (values) => {
-          if (disabled || preparing || onReload) return;
+          if (disabled || pending || submitting.current || onReload) return;
+          submitting.current = true;
           setPreparing(true);
+          onSubmittingChange?.(true);
           try {
             const request = await preview.prepare(normalizeDraft(values));
-            if (request) await onSave(request);
+            if (request && submitting.current) await onSave(request);
           } catch {
             /* Retain draft; preview or mutation owner reports the error. */
           } finally {
-            setPreparing(false);
+            if (submitting.current) {
+              submitting.current = false;
+              setPreparing(false);
+              onSubmittingChange?.(false);
+            }
           }
         }}
       >
@@ -505,7 +526,7 @@ export function EncounterConditionEditor({
               <EncounterPersistentPrecedence
                 precedence={preview.persistentPrecedence}
                 order={preview.persistentOrder}
-                disabled={pending || preview.loading}
+                disabled={busy || preview.loading}
                 onChange={preview.setPersistentOrder}
               />
             )}
@@ -682,7 +703,12 @@ export function EncounterConditionEditor({
             rules={[
               {
                 validator: (_rule, value) =>
-                  Number.isSafeInteger(value) && value >= 1
+                  (Number.isSafeInteger(value) && value >= 1) ||
+                  (condition &&
+                    condition.value === undefined &&
+                    value == null &&
+                    !form.isFieldTouched("value") &&
+                    !form.isFieldTouched("stunMode"))
                     ? Promise.resolve()
                     : Promise.reject(
                         new Error("Enter a whole number, one or greater."),
@@ -692,6 +718,7 @@ export function EncounterConditionEditor({
           >
             <ConditionValueInput
               name="Condition value"
+              disabled={busy}
               onRemove={onRemove}
               onFocus={(event) => {
                 const field = event.target;

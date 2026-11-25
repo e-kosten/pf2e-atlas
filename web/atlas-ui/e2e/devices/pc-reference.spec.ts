@@ -69,6 +69,111 @@ async function deleteParties(request: APIRequestContext, ...keys: string[]) {
   }
 }
 
+test("rule pagination restarts after a reference library change and links the recovered rule", async ({
+  page,
+}, info) => {
+  const json = exportedCharacter("Rule pagination " + Date.now());
+  const preview = await page.request.post("/api/characters/pathbuilder/preview", {
+    data: { json },
+  });
+  expect(preview.ok()).toBeTruthy();
+  const { artifact_generation } = await preview.json();
+  const saved = await page.request.post("/api/characters/pathbuilder", {
+    data: {
+      json,
+      request_id: crypto.randomUUID(),
+      expected_artifact_generation: artifact_generation,
+    },
+  });
+  expect(saved.ok()).toBeTruthy();
+  const { character_key } = await saved.json();
+  try {
+    const requests: Array<[number, string | null]> = [];
+    await page.route("**/api/search/page", async (route) => {
+      const request = route.request().postDataJSON();
+      if (request.criteria.query !== "Darkvision") return route.continue();
+      requests.push([
+        request.page.number,
+        request.expected_artifact_generation ?? null,
+      ]);
+      const response = await route.fetch({
+        postData: {
+          ...request,
+          page: { ...request.page, number: 1 },
+          expected_artifact_generation: null,
+        },
+      });
+      if (request.page.number === 2) {
+        return route.fulfill({
+          response,
+          status: 409,
+          json: { code: "artifact_generation_changed", message: "Library changed" },
+        });
+      }
+      const data = await response.json();
+      const old = requests.length === 1;
+      const rows = [
+        data.rows[0],
+        ...Array.from({ length: old ? 9 : 8 }, (_, i) => ({
+          ...data.rows[0],
+          record: {
+            ...data.rows[0].record,
+            record_key: `feats:fixture${i}`,
+            title: `Fixture rule ${i}`,
+          },
+        })),
+      ];
+      return route.fulfill({
+        response,
+        json: {
+          ...data,
+          rows,
+          artifact_generation: old ? "prior-library" : artifact_generation,
+          page: {
+            ...data.page,
+            count: rows.length,
+            total: old ? 11 : 9,
+            next_page: old ? 2 : null,
+            has_more: old,
+          },
+        },
+      });
+    });
+    await page.goto(`/characters/${character_key}`);
+    await activate(page.getByRole("tab", { name: "Abilities" }), info);
+    await activate(page.getByRole("button", { name: "Search for Night sight" }), info);
+    const search = page.getByRole("searchbox", { name: "Search Atlas rules" });
+    await search.fill("Darkvision");
+    await search.press("Enter");
+    await activate(page.getByRole("button", { name: "Next Page" }), info);
+    await expect(page.getByText("9 results", { exact: true })).toBeVisible();
+    expect(requests).toEqual([
+      [1, null],
+      [2, "prior-library"],
+      [1, null],
+    ]);
+    await expect(page.getByRole("group", { name: "Result pages" })).toHaveCount(0);
+    await page.screenshot({
+      path: info.outputPath("character-rule-search-recovered.png"),
+      animations: "disabled",
+    });
+    await activate(page.getByRole("link", { name: /^Darkvision\b/ }), info);
+    await activate(page.getByRole("button", { name: "Link this rule" }), info);
+    await expect
+      .poll(async () => {
+        const character = (await (
+          await page.request.get(`/api/characters/${character_key}`)
+        ).json()) as PcReferenceView;
+        return character.sections
+          .flatMap((section) => section.abilities)
+          .find((ability) => ability.label === "Night sight")?.manual;
+      })
+      .toBe(true);
+  } finally {
+    await deleteCharacters(page.request, [character_key]);
+  }
+});
+
 test("a failed character sheet read can be retried on the same character", async ({
   page,
 }, info) => {

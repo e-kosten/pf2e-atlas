@@ -14,6 +14,7 @@ export function EncounterConditionValue({
   minimum?: number;
   value: number | undefined;
   disabled: boolean;
+  /** Resolve true to display the saved value, or false to retain the inline draft. */
   onCommit: (value: number) => Promise<boolean>;
   onClear?: () => Promise<boolean>;
 }) {

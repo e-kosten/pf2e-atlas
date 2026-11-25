@@ -51,15 +51,28 @@ export function AbilityRulePicker({
     searchContent,
   ];
   const pagingKey = JSON.stringify(searchIdentity);
-  const [paging, setPaging] = useState({ key: pagingKey, page: 1 });
-  const pageNumber = paging.key === pagingKey ? paging.page : 1;
+  const firstPage = {
+    key: pagingKey,
+    page: 1,
+    generation: null as string | null,
+    epoch: 0,
+  };
+  const [paging, setPaging] = useState(firstPage);
+  if (paging.key !== pagingKey) setPaging(firstPage);
+  const pageNumber = paging.page;
   const [submission, setSubmission] = useState<SearchSubmission>();
   const input = useRef<InputRef>(null);
   useLayoutEffect(() => {
     input.current?.focus({ preventScroll: true });
   }, []);
   const result = useQuery({
-    queryKey: ["pc-ability-search", ...searchIdentity, pageNumber],
+    queryKey: [
+      "pc-ability-search",
+      ...searchIdentity,
+      pageNumber,
+      paging.generation,
+      paging.epoch,
+    ],
     queryFn: ({ signal }) =>
       searchPage(
         {
@@ -70,6 +83,7 @@ export function AbilityRulePicker({
             search_content: searchContent,
           },
           page: { number: pageNumber, size: pageSize },
+          expected_artifact_generation: paging.generation,
           search_profile: execution.profile,
           ranking,
         },
@@ -79,6 +93,15 @@ export function AbilityRulePicker({
     retry: false,
     meta: referenceQueryMeta,
   });
+  function restartSearch() {
+    setPaging({ ...firstPage, epoch: paging.epoch + 1 });
+  }
+  if (
+    paging.key === pagingKey &&
+    paging.generation &&
+    isArtifactGenerationChanged(result.error)
+  )
+    restartSearch();
   const loading = Boolean(text && (!execution.ready || result.isFetching));
   const page = text && execution.ready ? result.data : undefined;
   return (
@@ -96,9 +119,7 @@ export function AbilityRulePicker({
           onSearch={(value, accepted) => {
             const next = value.trim();
             setSubmission(accepted);
-            setPaging({ key: pagingKey, page: 1 });
-            if (next === text && next && pageNumber === 1 && execution.ready)
-              void result.refetch();
+            if (next === text && next) restartSearch();
             onSearch(next);
           }}
         />
@@ -122,15 +143,22 @@ export function AbilityRulePicker({
         />
       )}
       <AbilityRuleResults
-        key={JSON.stringify([pagingKey, pageNumber])}
+        key={JSON.stringify([pagingKey, pageNumber, paging.epoch])}
         page={page}
         pageNumber={pageNumber}
-        onPage={(page) => setPaging({ key: pagingKey, page })}
+        onPage={(number) => {
+          if (page)
+            setPaging({
+              ...paging,
+              page: number,
+              generation: page.artifact_generation,
+            });
+        }}
         loading={loading}
         preparing={!execution.ready}
         failed={Boolean(result.error)}
         hasQuery={Boolean(text)}
-        onRefresh={() => void result.refetch()}
+        onRefresh={restartSearch}
         onLink={onLink}
         disabled={disabled}
       />
