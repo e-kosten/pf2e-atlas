@@ -142,35 +142,49 @@ fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain([0]).collect()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{fs, path::PathBuf, process::Command};
+/// Restart Manager resolves the exact installed file, including sessions that
+/// use a different workspace. This query never asks Windows to stop a process.
+pub fn check_cli_sessions(launcher: u32, worker: Option<u32>) -> Result<(), String> {
+    use std::time::{Duration, Instant};
 
-    #[test]
-    fn copied_command_runs_from_a_quoted_install_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let executable = dir.path().join("Atlas O'Brien ‘one’ ‚two‛ & $test.exe");
-        let system = PathBuf::from(std::env::var_os("SystemRoot").unwrap());
-        fs::copy(system.join("System32/where.exe"), &executable).unwrap();
-        fs::write(dir.path().join("atlas-marker.txt"), b"").unwrap();
+    let cli = process::bundled_cli()?;
+    let deadline = Instant::now() + Duration::from_secs(2);
+    check_cli_sessions_at(&cli, launcher, worker, || {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(150));
+        true
+    })
+}
 
-        let command = powershell_invocation(executable.to_str().unwrap());
-        for shell in ["powershell.exe", "pwsh.exe"] {
-            let result = Command::new(shell)
-                .args(["-NoProfile", "-NonInteractive", "-Command"])
-                .arg(format!("$ErrorActionPreference = 'Stop'; {command} /q atlas-marker.txt; exit $LASTEXITCODE"))
-                .current_dir(dir.path())
-                .output()
-                .unwrap();
-            assert!(result.status.success(), "{shell}: {:?}", result);
+fn check_cli_sessions_at(
+    cli: &std::path::Path,
+    launcher: u32,
+    worker: Option<u32>,
+    mut retry: impl FnMut() -> bool,
+) -> Result<(), String> {
+    loop {
+        let owners = cli_owners(cli)?;
+        if owners
+            .iter()
+            .all(|&pid| pid == launcher || Some(pid) == worker)
+        {
+            return Ok(());
+        }
+        if !retry() {
+            eprintln!(
+                "Bundled Atlas command in use: launcher={launcher}, worker={worker:?}, reported PIDs={:?}",
+                &owners[..owners.len().min(8)]
+            );
+            return Err("Close the terminal session using the bundled Atlas command, then retry the update.".into());
         }
     }
 }
 
-/// Restart Manager resolves the exact installed file, including sessions that
-/// use a different workspace. This query never asks Windows to stop a process.
-pub fn check_cli_sessions(launcher: u32, worker: Option<u32>) -> Result<(), String> {
+// A Restart Manager session remembers affected processes even after they exit.
+// Register the resource in a fresh session for each ownership sample.
+fn cli_owners(cli: &std::path::Path) -> Result<Vec<u32>, String> {
     use std::{os::windows::ffi::OsStrExt, ptr::null};
     use windows_sys::Win32::{
         Foundation::{ERROR_MORE_DATA, ERROR_SUCCESS},
@@ -201,14 +215,9 @@ pub fn check_cli_sessions(launcher: u32, worker: Option<u32>) -> Result<(), Stri
     // The session key, path and process buffers live across their respective calls.
     check(unsafe { RmStartSession(&mut handle, 0, key.as_mut_ptr()) })?;
     let session = Session(handle);
-    let cli: Vec<_> = process::bundled_cli()?
-        .as_os_str()
-        .encode_wide()
-        .chain([0])
-        .collect();
+    let cli: Vec<_> = cli.as_os_str().encode_wide().chain([0]).collect();
     check(unsafe { RmRegisterResources(session.0, 1, &cli.as_ptr(), 0, null(), 0, null()) })?;
     let mut processes = vec![RM_PROCESS_INFO::default(); 8];
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
     loop {
         let mut count = processes.len() as u32;
         let mut needed = 0;
@@ -227,18 +236,10 @@ pub fn check_cli_sessions(launcher: u32, worker: Option<u32>) -> Result<(), Stri
             continue;
         }
         check(result)?;
-        if processes[..count as usize].iter().any(|entry| {
-            let pid = entry.Process.dwProcessId;
-            pid != launcher && Some(pid) != worker
-        }) {
-            // Selection broadcasts run brief CLI probes. Give them time to finish.
-            if std::time::Instant::now() < deadline {
-                std::thread::sleep(std::time::Duration::from_millis(150));
-                continue;
-            }
-            return Err("Close the terminal session using the bundled Atlas command, then retry the update.".into());
-        }
-        return Ok(());
+        return Ok(processes[..count as usize]
+            .iter()
+            .map(|entry| entry.Process.dwProcessId)
+            .collect());
     }
 }
 
@@ -262,6 +263,56 @@ pub fn wait_for_cli_release() -> Result<(), String> {
                     "Atlas could not check its bundled command: {error}"
                 ));
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{fs, path::PathBuf, process::Command};
+
+    #[test]
+    fn cli_guard_refuses_a_live_holder_and_rechecks_after_it_exits() {
+        let dir = tempfile::tempdir().unwrap();
+        let executable = dir.path().join("atlas.exe");
+        let system = PathBuf::from(std::env::var_os("SystemRoot").unwrap());
+        fs::copy(system.join("System32/findstr.exe"), &executable).unwrap();
+        let mut child = Command::new(&executable)
+            .arg("atlas")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        assert!(check_cli_sessions_at(&executable, 0, None, || false).is_err());
+        let mut retried = false;
+        check_cli_sessions_at(&executable, 0, None, || {
+            assert!(!retried, "reported a holder after its process exited");
+            retried = true;
+            drop(child.stdin.take());
+            child.wait().unwrap();
+            true
+        })
+        .unwrap();
+        assert!(retried);
+    }
+
+    #[test]
+    fn copied_command_runs_from_a_quoted_install_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let executable = dir.path().join("Atlas O'Brien ‘one’ ‚two‛ & $test.exe");
+        let system = PathBuf::from(std::env::var_os("SystemRoot").unwrap());
+        fs::copy(system.join("System32/where.exe"), &executable).unwrap();
+        fs::write(dir.path().join("atlas-marker.txt"), b"").unwrap();
+
+        let command = powershell_invocation(executable.to_str().unwrap());
+        for shell in ["powershell.exe", "pwsh.exe"] {
+            let result = Command::new(shell)
+                .args(["-NoProfile", "-NonInteractive", "-Command"])
+                .arg(format!("$ErrorActionPreference = 'Stop'; {command} /q atlas-marker.txt; exit $LASTEXITCODE"))
+                .current_dir(dir.path())
+                .output()
+                .unwrap();
+            assert!(result.status.success(), "{shell}: {:?}", result);
         }
     }
 }

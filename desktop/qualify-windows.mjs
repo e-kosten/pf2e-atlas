@@ -92,7 +92,7 @@ function installedProcesses() {
   const result = ps(`@((Get-CimInstance Win32_Process | Where-Object {
     $_.ExecutablePath -and ([IO.Path]::GetDirectoryName($_.ExecutablePath) -eq ${literal(installDirectory)}) -and
       ($_.Name -in @('atlas.exe', 'atlas-desktop.exe'))
-  }) | Select-Object ProcessId, Name, CommandLine) | ConvertTo-Json -Compress`);
+  }) | Select-Object ProcessId, ParentProcessId, Name, CommandLine) | ConvertTo-Json -Compress`);
   const value = result.trim() ? JSON.parse(result) : [];
   return Array.isArray(value) ? value : [value];
 }
@@ -443,6 +443,11 @@ async function runCase(mode) {
     }
   } catch (error) {
     log("case-failed", { mode, message: String(error) });
+    try {
+      writeFileSync(join(caseRoot, "failure-processes.json"), JSON.stringify(installedProcesses(), null, 2));
+    } catch (inventoryError) {
+      log("process-inventory-failed", { mode, message: String(inventoryError) });
+    }
     for (const context of browser?.contexts() ?? []) {
       for (const [index, page] of context.pages().entries()) {
         await page.screenshot({ path: join(caseRoot, `failure-${index}.png`) }).catch(() => {});
