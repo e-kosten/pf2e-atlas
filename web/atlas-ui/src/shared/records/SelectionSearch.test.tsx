@@ -72,6 +72,31 @@ function select(element: Element, end = element) {
 const searchAction = () => screen.findByRole("link", { name: "Search Atlas" });
 const settled = () => act(() => new Promise((resolve) => setTimeout(resolve, 230)));
 
+it("keeps native Find matches quiet and offers the same text when selected by hand", async () => {
+  preview();
+  select(screen.getByRole("heading"));
+  await searchAction();
+  document.documentElement.setAttribute("data-atlas-find-open", "");
+  try {
+    fireEvent(window, new Event("atlas-find-visibility"));
+    const match = screen.getByText("Fire & ice?");
+    select(match);
+    await settled();
+    expect(screen.queryByRole("link", { name: "Search Atlas" })).toBeNull();
+    document.documentElement.removeAttribute("data-atlas-find-open");
+    fireEvent(window, new Event("atlas-find-visibility"));
+    fireEvent(document, new Event("selectionchange"));
+    await settled();
+    expect(screen.queryByRole("link", { name: "Search Atlas" })).toBeNull();
+    fireEvent.pointerDown(match);
+    select(match);
+    fireEvent.pointerUp(match);
+    expect(await searchAction()).toBeInTheDocument();
+  } finally {
+    document.documentElement.removeAttribute("data-atlas-find-open");
+  }
+});
+
 it("offers a fresh native search link, preserving punctuation and the chosen model, without searching on selection", async () => {
   preview();
   select(screen.getByText("Fire & ice?"));

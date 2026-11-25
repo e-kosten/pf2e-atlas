@@ -6,7 +6,7 @@ use std::{cell::RefCell, collections::HashMap, ptr::NonNull};
 
 use block2::RcBlock;
 use objc2::{
-    MainThreadMarker, MainThreadOnly, Message,
+    MainThreadMarker, MainThreadOnly, Message, define_class, msg_send,
     rc::Retained,
     runtime::{NSObjectProtocol, ProtocolObject},
 };
@@ -14,13 +14,40 @@ use objc2_app_kit::{
     NSBorderType, NSControlTextDidChangeNotification, NSScrollView, NSSearchField, NSTextFinder,
     NSTextFinderAction, NSTextFinderBarContainer,
 };
-use objc2_foundation::{NSNotification, NSNotificationCenter, NSOperationQueue};
+use objc2_foundation::{NSNotification, NSNotificationCenter, NSOperationQueue, NSString};
 use objc2_web_kit::WKWebView;
 use tauri::WebviewWindow;
 
 thread_local! {
     static FINDERS: RefCell<HashMap<String, PageFind>> = RefCell::default();
 }
+
+// AppKit can change the DOM selection without sending the document a blur.
+// Report the actual lifetime of the Find bar, including Done and Escape.
+define_class!(
+    #[unsafe(super = NSScrollView)]
+    #[thread_kind = MainThreadOnly]
+    #[name = "AtlasFindScrollView"]
+    struct FindScrollView;
+
+    impl FindScrollView {
+        #[unsafe(method(setFindBarVisible:))]
+        fn set_find_bar_visible(&self, visible: bool) {
+            // Forward the NSTextFinderBarContainer setter to AppKit.
+            unsafe {
+                let _: () = msg_send![super(self), setFindBarVisible: visible];
+            }
+            if let Some(view) = self.documentView().and_then(|view| view.downcast::<WKWebView>().ok()) {
+                let script = NSString::from_str(&format!(
+                    "document.documentElement.toggleAttribute('data-atlas-find-open', {visible});
+                     window.dispatchEvent(new Event('atlas-find-visibility'));"
+                ));
+                // The only interpolated value is a native boolean.
+                unsafe { view.evaluateJavaScript_completionHandler(&script, None) };
+            }
+        }
+    }
+);
 
 struct PageFind {
     finder: Retained<NSTextFinder>,
@@ -34,7 +61,9 @@ impl PageFind {
     fn install(view: &WKWebView, main: MainThreadMarker) -> Result<Self, &'static str> {
         // The key NSWindow owns the superview throughout this main-thread call.
         let parent = unsafe { view.superview() }.ok_or("The Atlas page has no containing view.")?;
-        let container = NSScrollView::initWithFrame(NSScrollView::alloc(main), view.frame());
+        let container: Retained<FindScrollView> =
+            unsafe { msg_send![FindScrollView::alloc(main), initWithFrame: view.frame()] };
+        let container = container.into_super();
         container.setAutoresizingMask(view.autoresizingMask());
         container.setBorderType(NSBorderType::NoBorder);
         container.setHasHorizontalScroller(false);

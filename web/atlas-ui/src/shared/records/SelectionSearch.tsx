@@ -103,8 +103,18 @@ export function SelectionSearch() {
     };
     const insidePopup = (target: EventTarget | null) =>
       target instanceof Node && popup.current?.contains(target);
+    const findVisibilityChanged = () => {
+      // Native Find selects text in the reader while its own field has focus.
+      // Remember that range so returning focus cannot revive the action.
+      const selection = window.getSelection();
+      dismissedRange = selection?.rangeCount
+        ? selection.getRangeAt(0).cloneRange()
+        : null;
+      dismiss();
+    };
     const read = () => {
       cancelRead();
+      if (document.documentElement.hasAttribute("data-atlas-find-open")) return;
       if (selecting || insidePopup(document.activeElement)) return;
       timer = setTimeout(() => {
         timer = undefined;
@@ -180,6 +190,7 @@ export function SelectionSearch() {
     document.addEventListener("focusin", focusIn);
     document.addEventListener("keydown", keyDown, true);
     document.addEventListener("scroll", scroll, true);
+    window.addEventListener("atlas-find-visibility", findVisibilityChanged);
     window.addEventListener("resize", dismiss);
     return () => {
       clearTimeout(timer);
@@ -190,6 +201,7 @@ export function SelectionSearch() {
       document.removeEventListener("focusin", focusIn);
       document.removeEventListener("keydown", keyDown, true);
       document.removeEventListener("scroll", scroll, true);
+      window.removeEventListener("atlas-find-visibility", findVisibilityChanged);
       window.removeEventListener("resize", dismiss);
     };
   }, []);
