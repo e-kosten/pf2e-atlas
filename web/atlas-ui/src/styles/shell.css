@@ -79,9 +79,6 @@
 }
 
 .topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   justify-content: flex-end;
 }
 
@@ -341,18 +338,17 @@
   border-bottom: 1px solid var(--line);
 }
 
-.workspace-context-bar__main,
-.workspace-context-bar__actions {
+.workspace-context-bar__main {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--space-control);
   min-width: 0;
+  justify-content: space-between;
 }
 
-.workspace-context-bar__main {
-  align-items: flex-start;
-  justify-content: space-between;
+.workspace-context-bar__actions {
+  min-width: 0;
 }
 
 .workspace-context-bar__identity {

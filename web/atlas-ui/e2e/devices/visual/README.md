@@ -5,6 +5,35 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Combined action spacing and quiet encounter sections
+
+These frames preserve both the action group spacing from PR #421 and the empty
+Conditions and Trackers sections from PR #424. The macOS frames were captured
+from the combined application at `5a1ec53ae`. The Ubuntu frames came from the
+verified fixture at `efdc24efa`, which also includes main's 0.1.0 API update.
+All 12 capture scenarios passed on each platform. Review covered all 40 frames
+per platform against both parent sets, including the changed scroll position
+in the phone WebKit precedence views.
+[Ubuntu capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45559091471).
+
+## Action group spacing
+
+The Theme button has a visible outline. The encounter badge, reference button,
+HP controls and recovery actions use the ordinary 8 px control gap. The
+recovery popover fits the narrower row and stays attached to its trigger after
+clearing the effect.
+
+The macOS 27.2.1 arm64 capture used implementation `a8cdacdd7` and Playwright
+1.65.0. All 12 scenarios passed during capture. Review covered all 40 frames
+across the four browser profiles, including the scrolled phone WebKit view.
+
+The Ubuntu 24.04 x64 capture used the same Playwright version and the verified
+fixture from PR merge candidate `649bfc81e` (head `86e2ce10b`). All 12 capture
+scenarios passed. Review covered the 40 Linux frames. In desktop Chromium,
+the precedence source view also had a 4 × 2 px color difference in the roster,
+with a maximum channel difference of 10/255 and the same text and layout.
+[Ubuntu visual capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45523967050).
+
 ## Quiet empty encounter sections
 
 Empty Conditions and Trackers show the heading and add button, matching

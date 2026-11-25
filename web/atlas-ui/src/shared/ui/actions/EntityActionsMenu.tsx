@@ -1,7 +1,13 @@
-import { Button, Dropdown, type MenuProps } from "antd";
+import { Button, Dropdown, type ButtonProps, type MenuProps } from "antd";
 import { ChevronDown, Ellipsis } from "lucide-react";
 import { useLayoutEffect, useState, type KeyboardEvent, type RefObject } from "react";
 import { useDesktopTab } from "../../../app/DesktopTabContext";
+
+const buttonTypes = {
+  overflow: "text",
+  outlined: "default",
+  primary: "primary",
+} as const;
 
 export function EntityActionsMenu({
   label,
@@ -10,6 +16,7 @@ export function EntityActionsMenu({
   onAction,
   disabled,
   loading,
+  size,
   appearance = "overflow",
 }: {
   label: string;
@@ -18,7 +25,8 @@ export function EntityActionsMenu({
   onAction: (key: string, opener: HTMLButtonElement) => void;
   disabled?: boolean;
   loading?: boolean;
-  appearance?: "overflow" | "primary";
+  size?: ButtonProps["size"];
+  appearance?: keyof typeof buttonTypes;
 }) {
   const tab = useDesktopTab();
   const activation = tab?.activation ?? 0;
@@ -80,7 +88,8 @@ export function EntityActionsMenu({
     >
       <Button
         ref={trigger}
-        type={appearance === "primary" ? "primary" : "text"}
+        size={size}
+        type={buttonTypes[appearance]}
         disabled={disabled}
         aria-label={label}
         aria-haspopup="menu"
@@ -89,7 +98,7 @@ export function EntityActionsMenu({
         onKeyDown={dismissByKey}
         loading={loading ? { delay: 200 } : false}
         icon={
-          appearance === "overflow" ? (
+          appearance !== "primary" ? (
             <Ellipsis size={18} aria-hidden="true" />
           ) : undefined
         }

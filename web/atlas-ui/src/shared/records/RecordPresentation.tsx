@@ -24,7 +24,7 @@ import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
-import { Button, Collapse, ConfigProvider, Space } from "antd";
+import { Button, Collapse, ConfigProvider } from "antd";
 import type {
   CreatureLinkPlacementView,
   NamedCreatureLinksView,
@@ -320,13 +320,11 @@ export function RecordIdentity({
       actions={
         typeof actions === "function" ? (
           actions(secondaryActions)
-        ) : secondaryActions && actions ? (
-          <Space wrap align="start">
+        ) : (
+          <>
             {secondaryActions}
             {actions}
-          </Space>
-        ) : (
-          (actions ?? secondaryActions)
+          </>
         )
       }
       attribution={

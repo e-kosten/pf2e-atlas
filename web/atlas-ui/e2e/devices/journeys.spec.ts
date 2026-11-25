@@ -1,3 +1,4 @@
+import { expectControlGaps } from "./controlGeometry";
 import { markdownSource, replaceMarkdown } from "./markdownEditor";
 import { readUrl } from "../readingUrl";
 import type { TableRollView } from "../../src/generated/http";
@@ -97,15 +98,18 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
       };
     });
   const before = await geometry();
+  await expectControlGaps(
+    tools.locator(".record-reference__kind, button, a[href]"),
+    8,
+    4,
+  );
   await activate(exploreButton, info);
   const region = page.getByRole("region", { name: "Explore record", exact: true });
   await expect(region).toBeVisible();
   const after = await geometry();
   expect(after).toEqual(before);
   expect(after.buttons).toHaveLength(3);
-  for (const [index, button] of after.buttons.entries()) {
-    const previous = after.buttons[index - 1];
-    if (previous) expect(button.x - previous.x - previous.width).toBe(4);
+  for (const button of after.buttons) {
     expect(button.width).toBe(34);
     expect(button.height).toBe(34);
     expect(Math.abs(button.center - after.badge.center)).toBeLessThanOrEqual(1);
@@ -830,6 +834,13 @@ test("closing a reference with a feature-action tooltip preserves the owner view
   const drawer = page.getByRole("dialog", { name: "Off-Guard", exact: true });
   await expect(drawer).toBeVisible();
   const save = drawer.getByRole("button", { name: "Add to list", exact: true });
+  await expectControlGaps(
+    drawer.locator(
+      ".record-reference__tools :is(.record-reference__kind, button, a[href])",
+    ),
+    8,
+    4,
+  );
   await save.focus();
   await save.hover();
   await expect(page.getByRole("tooltip", { name: "Add to list" })).toBeVisible();

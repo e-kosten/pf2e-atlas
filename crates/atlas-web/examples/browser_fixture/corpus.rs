@@ -90,6 +90,14 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
         "system":{"level":{"value":2}, "description":{"value":"<p>Choose @UUID[Compendium.pf2e.browser-effects.Item.gQnDKDeBTtjwOWAk]{Bear} or @UUID[Compendium.pf2e.browser-effects.Item.sPCWrhUHqlbGhYSD]{Enlarge}.</p>"}}
     })));
     records.push(record("browser-hazards", "Actor", json!({
+        "_id":"chime00000000001", "type":"hazard", "name":"Warning Chime",
+        "system":{
+            "details":{"level":{"value":7},"isComplex":false,"disable":"<p>Silence the chime.</p>"},
+            "attributes":{"ac":{"value":0},"hp":{"max":0}}
+        },
+        "items":[]
+    })));
+    records.push(record("browser-hazards", "Actor", json!({
         "_id":"routine000000001", "type":"hazard", "name":"Browser Routine Trap",
         "system": {
             "details":{"level":{"value":8}, "isComplex":true, "description":"<p>A set of blades follows a repeating pattern.</p>",

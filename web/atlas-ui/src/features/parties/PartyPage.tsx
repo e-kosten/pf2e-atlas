@@ -143,7 +143,7 @@ function PartyRoster({ party }: { party: PartyView }) {
             {memberCount(party.members.length)}
           </span>
         </div>
-        <div className="party-heading-actions">
+        <div className="action-group">
           <AddCharacter
             party={party}
             onManual={() => setManual(party)}
@@ -153,6 +153,7 @@ function PartyRoster({ party }: { party: PartyView }) {
           />
           <EntityActionsMenu
             label="Party actions"
+            appearance="outlined"
             trigger={actions}
             items={[
               { key: "rename", label: "Rename party", disabled: busy },

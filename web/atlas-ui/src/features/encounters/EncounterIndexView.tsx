@@ -420,6 +420,7 @@ function EncounterRowMenu({
     <>
       <EntityActionsMenu
         label={`More actions for ${encounter.name}`}
+        size="small"
         trigger={trigger}
         disabled={disabled}
         items={[

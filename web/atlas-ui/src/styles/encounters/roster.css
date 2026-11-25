@@ -165,10 +165,11 @@
   text-align: right;
 }
 
-.encounter-row-actions {
+.encounter-row-actions,
+.encounter-roster__actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-micro);
 }
 
 .encounter-add-receipt {
@@ -206,11 +207,6 @@
   font-size: 12px;
 }
 
-.encounter-roster__actions {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
 .encounter-roster__hp--healthy {
   color: var(--hp-current-text, var(--text));
 }

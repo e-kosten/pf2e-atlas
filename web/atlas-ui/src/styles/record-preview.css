@@ -39,24 +39,22 @@
 }
 
 .record-preview-toolbar {
+  flex-basis: 100%;
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   max-width: 100%;
-  gap: 8px;
-  font-weight: normal;
+  gap: var(--space-control);
 }
-.record-preview-toolbar:not(:has(> :nth-child(2))) {
-  display: block;
+/* Without casting controls, navigation joins the document's existing action group. */
+.record-preview-toolbar:has(> :only-child),
+.record-preview-toolbar > .record-preview-toolbar__navigation:only-child {
+  display: contents;
 }
 
 .record-preview-toolbar__navigation {
-  display: flex;
-  align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 4px;
   grid-column: 2;
   grid-row: 1;
   justify-self: end;

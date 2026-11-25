@@ -1,5 +1,47 @@
 import { expect, test } from "./fixtures";
+import { expectControlGaps } from "./controlGeometry";
 import { markdownSource, replaceMarkdown } from "./markdownEditor";
+
+test("desktop shortcuts keep visible edges, equal height and even spacing as statuses appear", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.assign(window, { __ATLAS_WINDOWS_TABS__: true });
+  });
+  await page.goto("/search");
+  const bar = page.locator(".topbar__actions");
+  const controls = bar.getByRole("button");
+  const theme = bar.getByRole("button", { name: "Theme" });
+  await expect(controls).toHaveCount(1);
+  await expect(theme).not.toHaveCSS("border-top-color", "rgba(0, 0, 0, 0)");
+
+  await page.evaluate(() => {
+    Object.assign(window, {
+      __ATLAS_DESKTOP_SETUP__: {
+        token: "toolbar-fixture",
+        setup: { job: 1, sequence: 1, status: "failed" },
+        update: { version: "0.2.3", phase: { kind: "available" } },
+      },
+    });
+    window.dispatchEvent(new Event("atlas-desktop-setup"));
+  });
+  const setup = bar.getByRole("button", { name: "Review setup" });
+  await expect(setup).toBeVisible();
+  await expect(bar.getByRole("button", { name: "Update available" })).toBeVisible();
+  await expectControlGaps(controls, 8, 4);
+  const border = await setup.evaluate(
+    (button) => getComputedStyle(button).borderTopColor,
+  );
+  await expect(bar.getByRole("button", { name: "Settings" })).toHaveCSS(
+    "border-top-color",
+    border,
+  );
+  await expect(theme).toHaveCSS("border-top-color", border);
+  const height = await theme.evaluate((button) => getComputedStyle(button).height);
+  await expect(bar).toHaveCSS("height", height);
+  for (const control of await controls.all())
+    await expect(control).toHaveCSS("height", height);
+});
 
 test("only visible desktop tab overlays receive Escape and suspended drafts resume", async ({
   page,

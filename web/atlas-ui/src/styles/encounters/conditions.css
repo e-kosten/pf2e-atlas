@@ -157,6 +157,7 @@
 
 .encounter-persistent-recovery-roll {
   flex-wrap: wrap;
+  gap: var(--space-control);
 }
 
 .encounter-recovery-roll__submit {

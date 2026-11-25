@@ -48,10 +48,11 @@ and its [design principles](../web/atlas-ui/docs/frontend-guidelines.md#design-p
   user unsure why it is blocked or how to proceed, show the reason near the
   action. An existing label or state can be enough, such as Immune on a
   condition choice.
-- Adjacent buttons in the same action group must use the same size and aligned
-  height. Express primary/secondary importance with variant or emphasis, not a
-  smaller secondary button. Dense inline actions may use small buttons only when
-  the whole group uses that size. Align adjacent inputs and buttons consistently.
+- Give peer controls a consistent gap and height. A familiar icon can sit beside
+  a labeled action. When one button has a visible fill or border, give its peers
+  a visible edge at rest so the spacing reads evenly. Use a neutral outline for
+  secondary actions and keep the primary action prominent. A group of quiet
+  icon buttons may stay borderless. See the [frontend control-group guidance](../web/atlas-ui/docs/frontend-guidelines.md#padding-and-control-group-ownership).
 - Keep encounter workflows visually stable. Do not use expanding disclosures as
   the default container for unrelated controls or introduce animated layout shifts
   around frequently used actions. Place contextual information beside its action;
