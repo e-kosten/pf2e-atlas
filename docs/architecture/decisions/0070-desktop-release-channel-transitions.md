@@ -43,8 +43,12 @@ ordinary primary-workspace updates.
 The host records a reviewed destination before installing. The incoming build
 checks the expected release and workspace identity under storage admission
 before routing probes and setup, and commits selection after the workspace
-service starts successfully. On Windows the bundled CLI exits before NSIS
-replaces it. Startup repeats admission to handle a concurrent change during
+service starts successfully. Before recording an installation on Windows, the
+host pauses native input, collects a draft report from every product window
+and requests confirmation before discarding edits. A missing report, pending
+save or independent bundled CLI session postpones the handoff. NSIS stages
+the host, CLI and runtime together and keeps the previous files until every
+replacement succeeds. Startup repeats admission to handle a concurrent change during
 that handoff. Protected bootstrap recovery is available before a workspace
 service starts.
 

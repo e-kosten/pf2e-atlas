@@ -40,6 +40,8 @@ struct Settings {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Endpoint {
     protocol: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    worker_pid: Option<u32>,
     build: String,
     workspace: PathBuf,
     settings: Settings,
@@ -291,6 +293,7 @@ pub(super) async fn run(args: WebArgs) -> Result<(), String> {
                 let ready = tokio::task::spawn_blocking(move || {
                     prove_http(&endpoint)?;
                     Some(atlas_desktop_protocol::LauncherReady {
+                        worker_pid: endpoint.worker_pid,
                         version: atlas_desktop_protocol::VERSION,
                         workspace: endpoint.workspace,
                         endpoint: url,
@@ -396,6 +399,7 @@ async fn serve(
         .await
         .map_err(|error| error.to_string())?;
     let endpoint = Endpoint {
+        worker_pid: Some(std::process::id()),
         protocol: PROTOCOL,
         build: env!("CARGO_PKG_VERSION").into(),
         workspace: workspace.path().into(),

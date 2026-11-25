@@ -603,7 +603,17 @@ fn show_pending_or_default(app: &AppHandle) {
     };
     if let Err(error) = result {
         report_link_error(app, &error);
-    } else if let Some(window) = app.get_webview_window("bootstrap") {
+    } else {
+        hide_bootstrap_after_delivery(app);
+    }
+}
+
+fn hide_bootstrap_after_delivery(app: &AppHandle) {
+    let desktop = app.state::<Desktop>();
+    if !desktop.recovery.load(Ordering::Acquire)
+        && lock(&desktop.links).is_empty()
+        && let Some(window) = app.get_webview_window("bootstrap")
+    {
         let _ = window.hide();
     }
 }
@@ -666,6 +676,10 @@ fn open_product(
     tab: Option<(&WebviewWindow, bool)>,
 ) -> Result<WebviewWindow, String> {
     let desktop = app.state::<Desktop>();
+    #[cfg(windows)]
+    if windows_tabs::update_handoff_active(app) {
+        return Err("Wait for the Atlas update to finish.".into());
+    }
     let (base, instance) = current_product(app)?;
     let url = base.join(route).map_err(display)?;
     let origin = base.origin();
@@ -1059,6 +1073,9 @@ fn main() {
                 && windows_tabs::ready(&view)
             {
                 api.prevent_close();
+                if windows_tabs::update_handoff_active(app) {
+                    return;
+                }
                 if let Err(error) = windows_tabs::send(&view, windows_tabs::Command::CloseWindow) {
                     window_host::report("Could not close Atlas window", &error);
                 }
@@ -1086,6 +1103,10 @@ fn main() {
             }
         })
         .on_menu_event(|app, event| {
+            #[cfg(windows)]
+            if windows_tabs::update_handoff_active(app) {
+                return;
+            }
             let result = match event.id().as_ref() {
                 "setup" => settings::open(app, None, settings::Destination::General),
                 "terminal-access" => settings::open(app, None, settings::Destination::Terminal),

@@ -1431,6 +1431,15 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
     {
         return Err("A different Atlas install is already pending.".into());
     }
+    #[cfg(windows)]
+    let windows = {
+        let (launcher, worker) = lock(&desktop.launcher)
+            .as_ref()
+            .map(|launcher| (launcher.pid, launcher.ready.worker_pid))
+            .ok_or("The Atlas service stopped.")?;
+        crate::window_host::check_cli_sessions(launcher, worker)?;
+        crate::windows_tabs::UpdateHandoff::acquire(app)?
+    };
     let reservation = if let Some(transition) = &offer.switch {
         if transition.config != config {
             return Err(
@@ -1462,7 +1471,6 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
                 expected,
                 transition.returning_to_stable,
             )?);
-            workspace_switch::save(app, &mut config)?;
         }
         Some(reservation)
     } else {
@@ -1473,16 +1481,33 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
         }
         None
     };
-    let launcher = lock(&desktop.launcher)
-        .take()
-        .ok_or("The Atlas service stopped.")?;
+    #[cfg(windows)]
+    windows.validate()?;
+    let launcher = {
+        let mut slot = lock(&desktop.launcher);
+        if slot
+            .as_ref()
+            .is_none_or(|launcher| launcher.ready.instance != current_instance)
+        {
+            return Err("The workspace connection changed. Try the update again.".into());
+        }
+        // Keep an unexpected service exit from separating the pending switch
+        // from the handoff that owns it.
+        if !retry && config.pending.is_some() {
+            workspace_switch::save(app, &mut config)?;
+        }
+        slot.take().ok_or("The Atlas service stopped.")?
+    };
     if let Some(attempt) = &mut lock(&desktop.updates.state).attempt {
         attempt.phase = Phase::Installing;
     }
     staged_setup::broadcast(app);
     let install = launcher.release().and_then(|()| {
         #[cfg(windows)]
-        drop(reservation);
+        {
+            drop(reservation);
+            crate::window_host::wait_for_cli_release()?;
+        }
         offer.update.install(bytes).map_err(|error| {
             eprintln!("Could not install Atlas update: {error}");
             if matches!(error, tauri_plugin_updater::Error::Io(ref io)
@@ -1503,8 +1528,9 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
         {
             eprintln!("Atlas could not clear its interrupted transition: {error}");
         }
-        desktop.staged_setup.clear_documents();
-        recover(app, old_base);
+        #[cfg(windows)]
+        drop(windows);
+        recover(app, old_base, &current_instance);
         return Err(error);
     }
     #[cfg(target_os = "macos")]
@@ -1513,8 +1539,16 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
     Ok(())
 }
 
-fn recover(app: &AppHandle, old_base: Url) {
+fn recover(app: &AppHandle, old_base: Url, old_instance: &str) {
     let recovery = crate::start_launcher(app).and_then(|()| current_product(app));
+    if recovery
+        .as_ref()
+        .is_ok_and(|(base, instance)| base == &old_base && instance == old_instance)
+    {
+        // An independent lease kept the same service and its documents alive.
+        return;
+    }
+    app.state::<Desktop>().staged_setup.clear_documents();
     let result = run_on_main(app, move |app| {
         let desktop = app.state::<Desktop>();
         let views = app

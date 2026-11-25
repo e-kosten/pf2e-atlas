@@ -1,13 +1,16 @@
 // Native WebView2/NSIS qualification on a disposable Windows runner. CDP is
 // enabled only in the child process environment; no product test API is added.
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { execFile, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "node:https";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, realpathSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer as createTcpServer } from "node:net";
 import { basename, dirname, join, resolve } from "node:path";
+import { promisify } from "node:util";
+import { qualifyUpdateGuards } from "./qualify-windows-update.mjs";
+import { qualifyWindowsTabs } from "./qualify-windows-tabs.mjs";
 
 if (process.platform !== "win32") throw new Error("This qualification requires native Windows.");
 if (process.env.GITHUB_ACTIONS !== "true") throw new Error("This installer qualification is restricted to a disposable CI runner.");
@@ -48,6 +51,11 @@ function run(command, args, options = {}) {
 const ps = (script, env, timeout = 30_000) => run("pwsh", ["-NoProfile", "-Command", script], { env, timeout });
 const literal = (value) => "'" + value.replaceAll("'", "''") + "'";
 const installDirectory = join(root, "installed");
+function payloadHashes() {
+  return Object.fromEntries(readdirSync(installDirectory)
+    .filter((name) => /^(atlas(-desktop)?\.exe|.+\.dll|THIRD-PARTY-NOTICES\.md)$/i.test(name))
+    .map((name) => [name, sha256(join(installDirectory, name))]));
+}
 // Exercise the installed window's actual menu command independently of the
 // shortcut. WebView2 receives keyboard input through its own CDP session.
 function openSettingsMenu(pid, env) {
@@ -181,6 +189,7 @@ async function runCase(mode) {
   writeFileSync(join(source, "module.json"), JSON.stringify({ packs: [{ name: "actions", label: "Actions", type: "Item", path: "packs/actions" }] }));
   writeFileSync(join(source, "static/lang/en.json"), "{}");
   writeFileSync(join(source, "packs/actions/handoff.json"), JSON.stringify({ _id: "aaaaaaaaaaaaaaaa", name: "Windows updater fixture", type: "action", system: { description: { value: "Disposable signed Windows updater qualification." }, traits: { value: [] } } }));
+  writeFileSync(join(source, "packs/actions/second.json"), JSON.stringify({ _id: "bbbbbbbbbbbbbbbb", name: "Second Windows fixture", type: "action", system: { description: { value: "Second link destination." }, traits: { value: [] } } }));
   const cdpPort = await unusedPort();
   const env = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: home,
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${cdpPort}`,
@@ -202,15 +211,41 @@ async function runCase(mode) {
   const product = (version) => nativePage((page) => page.evaluate((version) => window.__ATLAS_DESKTOP_SETUP__?.channel?.installed.version === version, version).catch(() => false));
   try {
     stopInstalled();
-    ps(`$p = Start-Process -FilePath ${literal(plan.oldInstaller)} -ArgumentList ${literal(`/S /D=${installDirectory}`)} -PassThru -Wait; if ($p.ExitCode -ne 0) { throw "Old installer failed: $($p.ExitCode)" }`, env, 90_000);
-    assert.equal(sha256(join(installDirectory, "atlas-desktop.exe")), plan.oldHostSha256);
-    assert.equal(sha256(join(installDirectory, "atlas.exe")), plan.oldCliSha256);
+    const prior = mode === "predecessor";
+    const sourceInstaller = prior ? plan.priorInstaller : plan.oldInstaller;
+    ps(`$p = Start-Process -FilePath ${literal(sourceInstaller)} -ArgumentList ${literal(`/S /D=${installDirectory}`)} -PassThru -Wait; if ($p.ExitCode -ne 0) { throw "Old installer failed: $($p.ExitCode)" }`, env, 90_000);
+    if (!prior) {
+      assert.equal(sha256(join(installDirectory, "atlas-desktop.exe")), plan.oldHostSha256);
+      assert.equal(sha256(join(installDirectory, "atlas.exe")), plan.oldCliSha256);
+    }
     cli(["setup", "--offline", "--no-embeddings", "--json", "--source", source], env);
     cli(["lists", "create", "Windows handoff saved work", "--slug", "handoff", "--record", "actions:aaaaaaaaaaaaaaaa", "--json"], env);
     const original = join(home, "pf2e-atlas/workspace.sqlite");
     const selectionPath = join(home, "pf2e-atlas/workspace-selection.json");
     writeFileSync(join(root, "active-case.json"), JSON.stringify({ caseRoot, home, mode, installDirectory, cdpPort,
       targetVersion: plan.nightly, targetHostSha256: plan.targetHostSha256, targetCliSha256: plan.targetCliSha256 }));
+    if (prior) {
+      const before = payloadHashes();
+      const selectionHash = existsSync(selectionPath) ? sha256(selectionPath) : null;
+      // A predecessor or a late terminal can reach NSIS without the host preflight.
+      ps(`$held = [IO.File]::OpenRead(${literal(join(installDirectory, "atlas.exe"))})
+        try {
+          $p = Start-Process -FilePath ${literal(plan.directInstaller)} -ArgumentList ${literal(`/S /D=${installDirectory}`)} -PassThru -Wait
+          if ($p.ExitCode -eq 0) { throw 'The installer accepted a locked sidecar' }
+        } finally { $held.Dispose() }`, env, 90_000);
+      assert.deepEqual(payloadHashes(), before);
+      assert.equal(existsSync(selectionPath) ? sha256(selectionPath) : null, selectionHash);
+      assert(!existsSync(join(caseRoot, "postinstall.json")));
+      assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--json"], env)), /Windows handoff saved work/);
+      log("direct-installer-locked-sidecar-refused", { tag: plan.priorTag, sourceSha256: plan.priorHash, files: before });
+      ps(`$p = Start-Process -FilePath ${literal(plan.directInstaller)} -ArgumentList ${literal(`/P /D=${installDirectory}`)} -PassThru -Wait; if ($p.ExitCode -ne 0) { throw "Forward installation failed: $($p.ExitCode)" }`, env, 90_000);
+      assert.equal(sha256(join(installDirectory, "atlas-desktop.exe")), plan.directHostHash);
+      assert.equal(sha256(join(installDirectory, "atlas.exe")), plan.targetCliSha256);
+      assert.equal(existsSync(selectionPath) ? sha256(selectionPath) : null, selectionHash);
+      assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--json"], env)), /Windows handoff saved work/);
+      log("published-predecessor-upgraded", { tag: plan.priorTag, files: payloadHashes() });
+      return;
+    }
     log("launch-old", { mode, caseRoot });
     const child = spawn(join(installDirectory, "atlas-desktop.exe"), [], { env, cwd: home, stdio: ["ignore", "pipe", "pipe"], windowsHide: false });
     captureHostOutput(child.stdout, join(caseRoot, "host.stdout.log"));
@@ -220,6 +255,7 @@ async function runCase(mode) {
     const page = await product(plan.stable);
     const runningPath = await page.evaluate(() => window.__ATLAS_DESKTOP_SETUP__?.channel?.workspace_path);
     assert.equal(windowsPath(runningPath), windowsPath(original), "The old host did not open the isolated fixture");
+    let second;
     if (mode === "normal") {
       const input = page.getByRole("searchbox", { name: "Search records" });
       await input.fill("unsubmitted fixture search");
@@ -232,8 +268,11 @@ async function runCase(mode) {
       await terminalRow.click();
       await expect(page.getByRole("heading", { name: "Run Atlas in PowerShell" })).toBeVisible();
       const command = await page.getByRole("main").locator("code").innerText();
-      assert.match(command, /^& '([^']|'')+'$/);
-      assert.equal(windowsPath(command.slice(3, -1).replaceAll("''", "'")), windowsPath(join(installDirectory, "atlas.exe")));
+      const cliPath = join(installDirectory, "atlas.exe");
+      const quotedPath = /^& '((?:[^'\u2018-\u201b]|(['\u2018-\u201b])\2)*)'$/.exec(command);
+      assert.ok(quotedPath, "Expected a single PowerShell-quoted executable path");
+      assert.equal(windowsPath(quotedPath[1].replace(/(['\u2018-\u201b])\1/g, "$1")), windowsPath(cliPath));
+      assert.equal(ps(command + " --version", env).trim(), run(cliPath, ["--version"], { env }).trim());
       await page.getByRole("button", { name: "Copy command" }).click();
       await expect(page.getByText("Command copied.", { exact: true })).toBeVisible();
       assert.equal(ps("Get-Clipboard -Raw", env).trimEnd(), command);
@@ -249,7 +288,7 @@ async function runCase(mode) {
       openSettingsMenu(child.pid, env);
       await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
       await page.keyboard.press("Control+n");
-      const second = await nativePage(async (candidate) =>
+      second = await nativePage(async (candidate) =>
         candidate !== page && await candidate.getByRole("button", { name: "Settings", exact: true }).isVisible().catch(() => false));
       await second.getByRole("button", { name: "Settings", exact: true }).click();
       const secondSettings = second.getByRole("heading", { name: "Settings", exact: true });
@@ -277,7 +316,67 @@ async function runCase(mode) {
     assert(processes.some((entry) => entry.Name === "atlas-desktop.exe"));
     assert(processes.some((entry) => entry.Name === "atlas.exe" && entry.CommandLine?.includes("--desktop-launcher")));
     writeFileSync(join(caseRoot, "before-processes.json"), JSON.stringify(processes, null, 2));
-    await channel.getByRole("button", { name: "Install Nightly and restart", exact: true }).click();
+    const lateLock = mode === "late-lock";
+    const before = lateLock ? payloadHashes() : null;
+    const lockRequest = join(root, "request-late-lock");
+    if (lateLock) writeFileSync(lockRequest, "");
+    if (mode === "normal") {
+      await qualifyUpdateGuards({
+        second, channel, expect, pid: child.pid, env, log,
+        ps: (code, env, timeout) => promisify(execFile)("pwsh", ["-NoProfile", "-Command", code], { env, timeout, windowsHide: true }),
+        terminal: async () => {
+          const session = spawn(join(installDirectory, "atlas.exe"), ["web"], { cwd: home, env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+          let output = "";
+          session.stdout.on("data", (bytes) => { output += bytes; });
+          session.stderr.on("data", (bytes) => { output += bytes; });
+          await until("independent terminal lease", () => /Atlas web service listening at/.test(output), 20_000);
+          return session;
+        },
+        verifyOld: () => {
+          assert.equal(sha256(join(installDirectory, "atlas-desktop.exe")), plan.oldHostSha256);
+          assert.equal(sha256(join(installDirectory, "atlas.exe")), plan.oldCliSha256);
+          const selection = existsSync(selectionPath) ? readJson(selectionPath) : { active: "original", pending: null };
+          assert.equal(selection.active, "original");
+          assert.equal(selection.pending, null);
+          assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--json"], env)), /Windows handoff saved work/);
+        },
+      });
+    } else {
+      await channel.getByRole("button", { name: "Install Nightly and restart", exact: true }).click();
+    }
+    if (lateLock) {
+      const started = join(root, "installer-started");
+      const installerPid = await until("installer reached replacement", () => Number(readFileSync(started, "utf8")), 90_000);
+      // Keep the exact installed sidecar open until this NSIS instance exits.
+      // A running desktop or active old worker would fail this admission.
+      assert(!installedProcesses().some((entry) => entry.Name === "atlas-desktop.exe"));
+      ps(`$installer = Get-Process -Id ${installerPid}
+        $lock = [IO.File]::OpenRead(${literal(join(installDirectory, "atlas.exe"))})
+        try {
+          [IO.File]::WriteAllText(${literal(join(root, "lock-ready"))}, "ready")
+          if (!$installer.WaitForExit(45000)) { throw 'NSIS did not report the locked executable' }
+        } finally { $lock.Dispose() }`, env, 55_000);
+      unlinkSync(lockRequest);
+      assert.deepEqual(payloadHashes(), before);
+      assert(!existsSync(join(caseRoot, "postinstall.json")));
+      const pending = readJson(selectionPath);
+      assert.equal(pending.active, "original");
+      assert.equal(pending.pending.target.version, plan.nightly);
+      assert(!pending.pending.previous_resumed);
+      if (browser?.isConnected()) await browser.close().catch(() => {});
+      browser = null;
+      const resumed = spawn(join(installDirectory, "atlas-desktop.exe"), [], { env, cwd: home, windowsHide: false, stdio: "ignore" });
+      resumed.on("error", (error) => log("resume-error", { message: String(error) }));
+      const recovery = await nativePage((candidate) => candidate.getByRole("button", { name: "Resume my previous workspace" }).isVisible().catch(() => false));
+      await recovery.getByRole("button", { name: "Resume my previous workspace" }).click();
+      const previous = await product(plan.stable);
+      assert(readJson(selectionPath).pending.previous_resumed);
+      assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--json"], env)), /Windows handoff saved work/);
+      await previous.getByRole("button", { name: "Settings", exact: true }).click();
+      await previous.getByRole("link", { name: /Release channel/ }).click();
+      await previous.getByRole("button", { name: "Retry pending install" }).click();
+      log("late-lock-resumed-and-retried");
+    }
     const hook = await until("NSIS replacement and race hook", () => existsSync(join(caseRoot, "postinstall.json")) && readJson(join(caseRoot, "postinstall.json")), 90_000);
     assert.equal(hook.oldProcesses, 0);
     assert.equal(hook.hostSha256, plan.targetHostSha256);
@@ -301,7 +400,23 @@ async function runCase(mode) {
       const key = (path) => run("python", ["-c", "from pathlib import Path; import sqlite3,sys; db=sqlite3.connect(Path(sys.argv[1]).as_uri()+'?mode=ro',uri=True); print(db.execute('select workspace_key from workspace where id=1').fetchone()[0]); db.close()", windowsPath(path)]).trim();
       assert.notEqual(key(original), key(selected.workspace));
       await target.screenshot({ path: join(caseRoot, "target.png") });
+      await qualifyWindowsTabs({
+        page: target, expect, nativePage, evidence: caseRoot,
+        listKey: cli(["lists", "show", "handoff", "--json"], env).list.list_key,
+        openLink: (url) => run(join(installDirectory, "atlas-desktop.exe"), [url], { env, cwd: home }),
+        stopWorker: () => ps(`$workers = @(Get-CimInstance Win32_Process -Filter "Name='atlas.exe'" | Where-Object {
+          $_.ExecutablePath -eq ${literal(join(installDirectory, "atlas.exe"))} -and $_.CommandLine -like '*--managed-worker *'
+        }); if ($workers.Count -ne 1) { throw 'Expected one disposable Atlas service worker.' }
+        Stop-Process -Id $workers[0].ProcessId -Force`, env),
+      });
       log("normal-complete", { selected: selected.workspace, config });
+    } else if (lateLock) {
+      const target = await product(plan.nightly);
+      assert.equal(readJson(selectionPath).active, "original");
+      assert.equal(readJson(selectionPath).pending, null);
+      assert.match(JSON.stringify(cli(["lists", "show", "handoff", "--json"], env)), /Windows handoff saved work/);
+      await target.screenshot({ path: join(caseRoot, "retried.png") });
+      log("late-lock-retry-complete");
     } else {
       const recovery = await nativePage((candidate) => candidate.getByRole("heading", { name: "Choose a workspace", exact: true }).isVisible().catch(() => false));
       await expect(recovery.getByRole("button", { name: "Set up Atlas", exact: true })).not.toBeVisible();
@@ -327,8 +442,8 @@ async function runCase(mode) {
   }
 }
 try {
-  for (const mode of ["normal", "identity", "ledger"]) await runCase(mode);
-  writeFileSync(join(root, "result.json"), JSON.stringify({ status: "passed", commit: plan.commit, version: plan.nightly, cases: ["normal", "identity", "ledger"] }, null, 2));
+  for (const mode of ["predecessor", "normal", "identity", "ledger", "late-lock"]) await runCase(mode);
+  writeFileSync(join(root, "result.json"), JSON.stringify({ status: "passed", commit: plan.commit, version: plan.nightly, cases: ["predecessor", "normal", "identity", "ledger", "late-lock"] }, null, 2));
   log("qualification-passed", { commit: plan.commit });
 } finally {
   await new Promise((done) => server.close(done));

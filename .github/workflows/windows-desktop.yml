@@ -165,5 +165,15 @@ jobs:
             ${{ steps.qualification.outputs.evidence }}/ledger/*.log
             ${{ steps.qualification.outputs.evidence }}/ledger/failure-*.txt
             ${{ steps.qualification.outputs.evidence }}/ledger/hook-error.txt
+            ${{ steps.qualification.outputs.evidence }}/predecessor/*.png
+            ${{ steps.qualification.outputs.evidence }}/predecessor/*.json
+            ${{ steps.qualification.outputs.evidence }}/predecessor/*.log
+            ${{ steps.qualification.outputs.evidence }}/predecessor/failure-*.txt
+            ${{ steps.qualification.outputs.evidence }}/predecessor/hook-error.txt
+            ${{ steps.qualification.outputs.evidence }}/late-lock/*.png
+            ${{ steps.qualification.outputs.evidence }}/late-lock/*.json
+            ${{ steps.qualification.outputs.evidence }}/late-lock/*.log
+            ${{ steps.qualification.outputs.evidence }}/late-lock/failure-*.txt
+            ${{ steps.qualification.outputs.evidence }}/late-lock/hook-error.txt
           if-no-files-found: warn
           retention-days: 3

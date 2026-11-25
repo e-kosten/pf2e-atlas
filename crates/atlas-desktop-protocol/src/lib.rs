@@ -120,6 +120,9 @@ pub enum ReferenceRefreshOutcome {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LauncherReady {
     pub version: u32,
+    /// PID of the authenticated service worker for Windows installer preflight.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_pid: Option<u32>,
     pub workspace: PathBuf,
     pub endpoint: String,
     pub instance: String,

@@ -73,8 +73,8 @@ if (!$checkedDatabase.StartsWith($caseRoot + [IO.Path]::DirectorySeparatorChar, 
     throw 'The reviewed database is outside the disposable case.'
 }
 $database = $checkedDatabase
-if ($request.mode -notin @('normal', 'identity', 'ledger')) { throw 'Unknown qualification mode.' }
-if ($request.mode -ne 'normal') {
+if ($request.mode -notin @('normal', 'identity', 'ledger', 'late-lock')) { throw 'Unknown qualification mode.' }
+if ($request.mode -in @('identity', 'ledger')) {
     $code = @'
 import os, shutil, sqlite3, sys, uuid
 path, mode = sys.argv[1:]

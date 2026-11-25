@@ -72,11 +72,22 @@ pub fn open_external(destination: &Url) {
 }
 
 pub fn powershell_command() -> Result<String, String> {
-    let path = process::bundled_cli()?
-        .display()
-        .to_string()
-        .replace('\'', "''");
-    Ok(format!("& '{path}'"))
+    Ok(powershell_invocation(
+        &process::bundled_cli()?.to_string_lossy(),
+    ))
+}
+
+fn powershell_invocation(path: &str) -> String {
+    let mut command = String::from("& '");
+    for ch in path.chars() {
+        // PowerShell recognizes all five characters as single-quote delimiters.
+        if matches!(ch, '\'' | '\u{2018}'..='\u{201b}') {
+            command.push(ch);
+        }
+        command.push(ch);
+    }
+    command.push('\'');
+    command
 }
 
 pub fn show_cli_path(app: &AppHandle) -> Result<(), String> {
@@ -108,6 +119,14 @@ pub fn confirm_exit() -> bool {
     ) == IDYES
 }
 
+pub fn confirm_update() -> bool {
+    message(
+        "Install Atlas update",
+        "Discard unsaved changes in all open Atlas windows and restart to install the update?",
+        MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
+    ) == IDYES
+}
+
 pub fn offer_retry(title: &str, detail: &str) -> bool {
     message(title, detail, MB_RETRYCANCEL | MB_ICONERROR) == IDRETRY
 }
@@ -121,4 +140,128 @@ fn message(title: &str, detail: &str, style: MESSAGEBOX_STYLE) -> i32 {
 
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain([0]).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{fs, path::PathBuf, process::Command};
+
+    #[test]
+    fn copied_command_runs_from_a_quoted_install_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let executable = dir.path().join("Atlas O'Brien ‘one’ ‚two‛ & $test.exe");
+        let system = PathBuf::from(std::env::var_os("SystemRoot").unwrap());
+        fs::copy(system.join("System32/where.exe"), &executable).unwrap();
+        fs::write(dir.path().join("atlas-marker.txt"), b"").unwrap();
+
+        let command = powershell_invocation(executable.to_str().unwrap());
+        for shell in ["powershell.exe", "pwsh.exe"] {
+            let result = Command::new(shell)
+                .args(["-NoProfile", "-NonInteractive", "-Command"])
+                .arg(format!("$ErrorActionPreference = 'Stop'; {command} /q atlas-marker.txt; exit $LASTEXITCODE"))
+                .current_dir(dir.path())
+                .output()
+                .unwrap();
+            assert!(result.status.success(), "{shell}: {:?}", result);
+        }
+    }
+}
+
+/// Restart Manager resolves the exact installed file, including sessions that
+/// use a different workspace. This query never asks Windows to stop a process.
+pub fn check_cli_sessions(launcher: u32, worker: Option<u32>) -> Result<(), String> {
+    use std::{os::windows::ffi::OsStrExt, ptr::null};
+    use windows_sys::Win32::{
+        Foundation::{ERROR_MORE_DATA, ERROR_SUCCESS},
+        System::RestartManager::{
+            CCH_RM_SESSION_KEY, RM_PROCESS_INFO, RmEndSession, RmGetList, RmRegisterResources,
+            RmStartSession,
+        },
+    };
+
+    struct Session(u32);
+    impl Drop for Session {
+        fn drop(&mut self) {
+            unsafe { RmEndSession(self.0) };
+        }
+    }
+    let check = |status| {
+        if status == ERROR_SUCCESS {
+            Ok(())
+        } else {
+            Err(format!(
+                "Atlas could not check which processes are using the bundled command: {}",
+                std::io::Error::from_raw_os_error(status as i32)
+            ))
+        }
+    };
+    let mut handle = 0;
+    let mut key = [0u16; CCH_RM_SESSION_KEY as usize + 1];
+    // The session key, path and process buffers live across their respective calls.
+    check(unsafe { RmStartSession(&mut handle, 0, key.as_mut_ptr()) })?;
+    let session = Session(handle);
+    let cli: Vec<_> = process::bundled_cli()?
+        .as_os_str()
+        .encode_wide()
+        .chain([0])
+        .collect();
+    check(unsafe { RmRegisterResources(session.0, 1, &cli.as_ptr(), 0, null(), 0, null()) })?;
+    let mut processes = vec![RM_PROCESS_INFO::default(); 8];
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let mut count = processes.len() as u32;
+        let mut needed = 0;
+        let mut reasons = 0;
+        let result = unsafe {
+            RmGetList(
+                session.0,
+                &mut needed,
+                &mut count,
+                processes.as_mut_ptr(),
+                &mut reasons,
+            )
+        };
+        if result == ERROR_MORE_DATA {
+            processes.resize(needed as usize, RM_PROCESS_INFO::default());
+            continue;
+        }
+        check(result)?;
+        if processes[..count as usize].iter().any(|entry| {
+            let pid = entry.Process.dwProcessId;
+            pid != launcher && Some(pid) != worker
+        }) {
+            // Selection broadcasts run brief CLI probes. Give them time to finish.
+            if std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(150));
+                continue;
+            }
+            return Err("Close the terminal session using the bundled Atlas command, then retry the update.".into());
+        }
+        return Ok(());
+    }
+}
+
+/// The last owned worker may still be draining after its launcher exits. An
+/// independent lease keeps the executable mapped beyond this grace period.
+pub fn wait_for_cli_release() -> Result<(), String> {
+    use std::time::{Duration, Instant};
+    let path = process::bundled_cli()?;
+    let deadline = Instant::now() + Duration::from_secs(7);
+    loop {
+        match std::fs::OpenOptions::new().write(true).open(&path) {
+            Ok(_) => return Ok(()),
+            Err(error) if matches!(error.raw_os_error(), Some(5 | 32 | 1224)) => {
+                if Instant::now() >= deadline {
+                    return Err("Atlas could not replace its bundled command. Close any terminal sessions using it, check its permissions, and retry.".into());
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            Err(error) => {
+                return Err(format!(
+                    "Atlas could not check its bundled command: {error}"
+                ));
+            }
+        }
+    }
 }

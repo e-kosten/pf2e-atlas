@@ -36,6 +36,12 @@ in the workspace toolbar. Open it to see the version and any setup notice. Choos
 setup afterward, follow the instructions Atlas shows on restart. An interrupted
 download can be retried in Atlas.
 
+On Windows, finish any saves in other Atlas windows and close terminal sessions
+running the app's bundled command before updating. When Atlas finds unsaved
+edits, choose **No** to keep editing or **Yes** to discard them and restart.
+If the installer reports a file in use, close the session using it, reopen Atlas
+and retry the installation.
+
 Updater-enabled builds can install subsequent updates in the app. Install the
 first updater-enabled release the same way you installed Atlas originally.
 
