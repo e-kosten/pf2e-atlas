@@ -5,6 +5,17 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Action group spacing
+
+The Theme button has a visible outline. The encounter badge, reference button,
+HP controls and recovery actions use the ordinary 8 px control gap. The
+recovery popover fits the narrower row and stays attached to its trigger after
+clearing the effect.
+
+The macOS 27.2.1 arm64 capture used implementation `a8cdacdd7` and Playwright
+1.65.0. All 12 scenarios passed during capture. Review covered all 40 frames
+across the four browser profiles, including the scrolled phone WebKit view.
+
 ## Compact encounter panels and condition HP choices
 
 These references show compact participants without section links above HP and Turn.
