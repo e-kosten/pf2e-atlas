@@ -158,6 +158,13 @@ from the complete set of visible authored evidence.
 App-service projects categorical values as raw identity, readable label and optional
 typed help. Record destinations retain `RecordNavigationView` and ordinary authored
 content, with their existing control and reference addresses.
+For stat-block immunities, the app-service can also supply an ordinary reading
+link from a reviewed Foundry immunity token to a glossary record, a condition
+record or a readable trait. It verifies the owner and destination against the
+active PF2e workspace and preserves the immunity's localized label and filter
+identifier. The source-contract generator owns these finite associations. They
+use existing workspace content and apply when projecting stat blocks.
+
 Standalone definition destinations remain typed definition keys. Definition detail
 supplies executable predicates for its full-page property associations. Inline
 references are carried by prepared content. Older traits-only coverage preserves

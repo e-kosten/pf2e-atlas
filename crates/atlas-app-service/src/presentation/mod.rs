@@ -4,6 +4,7 @@ mod activity_references;
 pub(crate) mod actor;
 mod facts;
 mod hazard_readouts;
+mod immunity_reading;
 mod item_reference;
 mod physical_reference;
 pub(crate) mod reference_help;

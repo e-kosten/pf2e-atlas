@@ -1,4 +1,6 @@
 //! Application reads over canonical, checked-source glossary fixtures.
+mod immunities;
+
 use super::*;
 use atlas_domain::{DefinitionKey, DefinitionNamespace as N};
 use atlas_search::test_support::{

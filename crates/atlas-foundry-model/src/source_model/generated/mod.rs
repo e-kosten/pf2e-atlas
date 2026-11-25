@@ -812,4 +812,6 @@ pub use action_definitions::{
     FoundryActionDefinition, FoundryActionVariant, action_definition, action_definitions,
 };
 
+pub mod immunity_reading;
+
 pub mod condition_definitions;

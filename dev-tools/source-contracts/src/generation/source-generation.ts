@@ -1,3 +1,4 @@
+import { generateImmunityReading } from './immunity-reading.js';
 import { generateActionModule } from './action-definitions.js';
 import { generateConditionModule } from './condition-definitions.js';
 import { generateTraitDefinitionModule } from './trait-definitions.js';
@@ -710,6 +711,11 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
     if (!input.referenceSource) throw new Error('Action metadata requires pinned source provenance');
     files['action_definitions.rs'] = generateActionModule(input.actionDefinitions, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest, input.referenceSource);
     files['mod.rs'] += '\nmod action_definitions;\npub use action_definitions::{FoundryActionDefinition, FoundryActionVariant, action_definition, action_definitions};\n';
+  }
+  if (input.immunityReading) {
+    if (!input.referenceSource || !input.conditionCatalog) throw new Error('Immunity reading requires pinned condition metadata');
+    files['immunity_reading.rs'] = generateImmunityReading(input.immunityReading, generatedHeader, input.referenceSource);
+    files['mod.rs'] += '\npub mod immunity_reading;\n';
   }
   if (input.conditionCatalog) {
     if (!input.referenceSource) throw new Error('Condition facts require pinned source provenance');
