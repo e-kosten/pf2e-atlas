@@ -271,15 +271,25 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
       (Get-Content -LiteralPath (Join-Path $shared 'msvcp140.dll')) -ne 'belongs to another app') {
     throw 'Installer changed an unrelated runtime file'
   }
-  $desktopReceipt = Join-Path $shared 'atlas-desktop-windows-runtime.json'
-  Set-Content -LiteralPath $desktopReceipt -Value 'desktop receipt'
-  $bundled = Join-Path $shared 'atlas.exe'
-  Set-Content -LiteralPath $bundled -Value 'bundled sidecar'
+  $desktopDir = (New-Item -ItemType Directory -Path (Join-Path $tmp 'desktop install')).FullName
+  $desktopReceipt = Join-Path $desktopDir 'atlas-desktop-windows-runtime.json'
+  Copy-Item -LiteralPath (Join-Path $installDir 'atlas-windows-runtime.json') -Destination $desktopReceipt
+  $bundled = Join-Path $desktopDir 'atlas.exe'
+  Copy-Item -LiteralPath (Join-Path $installDir 'atlas.exe') -Destination $bundled
+  $bundledHash = (Get-FileHash -LiteralPath $bundled).Hash
+  $env:ATLAS_TEST_INSTALL_DIR = $desktopDir
   foreach ($variant in 'full', 'cli-only') {
     $env:ATLAS_TEST_VARIANT = $variant
-    $failed = $false
-    try { & $Shell -NoProfile -File (Join-Path $fakeBin 'run-install.ps1') | Out-Null; $failed = $LASTEXITCODE -ne 0 } catch { $failed = $true }
-    if (!$failed -or (Get-Content -LiteralPath $bundled) -ne 'bundled sidecar') { throw "Standalone $variant replaced the desktop sidecar" }
+    & {
+      $ErrorActionPreference = 'Continue'
+      $PSNativeCommandUseErrorActionPreference = $false
+      $output = & $Shell -NoProfile -File (Join-Path $fakeBin 'run-install.ps1') 2>&1 | Out-String
+      if ($LASTEXITCODE -eq 0 -or $output -notmatch 'contains the Atlas desktop app' -or
+          (Get-FileHash -LiteralPath $bundled).Hash -ne $bundledHash -or
+          @(Get-ChildItem -LiteralPath $desktopDir -Force).Count -ne 2) {
+        throw "Standalone $variant failed to preserve the bundled desktop installation: $output"
+      }
+    }
   }
   Remove-Item Env:ATLAS_TEST_VARIANT
   $env:ATLAS_TEST_INSTALL_DIR = $installDir
