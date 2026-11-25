@@ -345,6 +345,8 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $runner + '"')
     )
     try {
+      # Windows PowerShell 5.1 needs a live process handle to read ExitCode after exit.
+      $null = $owner.Handle
       Remove-Item Env:ATLAS_TEST_HOLD, Env:ATLAS_TEST_VARIANT
       $wait = [Diagnostics.Stopwatch]::StartNew()
       while (!(Test-Path -LiteralPath (Join-Path $tmp 'paused'))) {
@@ -366,8 +368,9 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
       [IO.Directory]::Delete($aliasDir)
     }
     $restored = (& (Join-Path $installDir 'atlas.exe') build-info --json) | ConvertFrom-Json
-    if ($owner.ExitCode -ne 0 -or $restored.data.variant -ne 'cli-only' -or (Test-Path -LiteralPath (Join-Path $installDir '.atlas-cli-install.lock'))) {
-      throw 'Lock owner failed to finish its transaction'
+    $leaseExists = Test-Path -LiteralPath (Join-Path $installDir '.atlas-cli-install.lock')
+    if ($owner.ExitCode -ne 0 -or $restored.data.variant -ne 'cli-only' -or $leaseExists) {
+      throw "Lock owner exit '$($owner.ExitCode)', installed variant '$($restored.data.variant)', remaining lock '$leaseExists'. $(Get-Content -Raw -LiteralPath $ownerErrors)"
     }
     $owner.Dispose()
     $reservedDir = New-Item -ItemType Directory -Path (Join-Path $tmp 'unrelated lock')
@@ -385,7 +388,7 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
   }
 
   foreach ($choice in @("cli-only", "preserve-cli", "full", "preserve-full")) {
-    $env:ATLAS_TEST_VARIANT = if ($choice.StartsWith("preserve")) { "" } else { $choice }
+    $env:ATLAS_TEST_VARIANT = if (!$choice.StartsWith("preserve")) { $choice }
     & $Shell -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
     $info = (& (Join-Path $installDir "atlas.exe") build-info --json) | ConvertFrom-Json
     $expected = if ($choice -in @("cli-only", "preserve-cli")) { "cli-only" } else { "full" }
@@ -394,7 +397,7 @@ $version = if ($env:ATLAS_TEST_INSTALL_VERSION) { $env:ATLAS_TEST_INSTALL_VERSIO
       throw "PowerShell installer left a mismatched app-local runtime: $choice"
     }
   }
-  Remove-Item Env:ATLAS_TEST_VARIANT
+  $env:ATLAS_TEST_VARIANT = $null
   $failed = $false
   try { & $Shell -NoProfile -File $env:ATLAS_INSTALLER -InstallDir $installDir -WithWeb -WithoutWeb -DryRun | Out-Null; $failed = $LASTEXITCODE -ne 0 } catch { $failed = $true }
   if (-not $failed) { throw "PowerShell installer accepted conflicting web choices" }
@@ -553,9 +556,22 @@ function Expand-Archive {
   $danglingLinkDir = Join-Path $tmp "dangling-link-rollback"
   New-Item -ItemType Directory -Path $fileLinkDir, $danglingLinkDir | Out-Null
   $missingTarget = Join-Path $tmp "missing-target.exe"
-  New-Item -ItemType SymbolicLink -Path (Join-Path $fileLinkDir "atlas.exe") -Target $previousPath | Out-Null
-  New-Item -ItemType SymbolicLink -Path (Join-Path $danglingLinkDir "atlas.exe") -Target $missingTarget | Out-Null
-  foreach ($destination in @($installDir, $freshDir, $fileLinkDir, $danglingLinkDir)) {
+  $destinations = @($installDir, $freshDir)
+  $fileLinksAvailable = $true
+  try {
+    New-Item -ItemType SymbolicLink -Path (Join-Path $fileLinkDir "atlas.exe") -Target $previousPath | Out-Null
+  } catch {
+    if ($env:OS -ne 'Windows_NT' -or $env:GITHUB_ACTIONS -eq 'true' -or $_.Exception.InnerException.NativeErrorCode -ne 1314) { throw }
+    $fileLinksAvailable = $false
+    Write-Warning 'Skipped file-symlink and dangling-symlink rollback cases. This Windows account lacks the file-symlink privilege.'
+  }
+  if ($fileLinksAvailable) {
+    New-Item -ItemType File -Path $missingTarget | Out-Null
+    New-Item -ItemType SymbolicLink -Path (Join-Path $danglingLinkDir "atlas.exe") -Target $missingTarget | Out-Null
+    Remove-Item -LiteralPath $missingTarget
+    $destinations += $fileLinkDir, $danglingLinkDir
+  }
+  foreach ($destination in $destinations) {
     $env:ATLAS_TEST_INSTALL_DIR = $destination
     $previousNativePreference = $PSNativeCommandUseErrorActionPreference
     $previousErrorPreference = $ErrorActionPreference
@@ -581,11 +597,13 @@ function Expand-Archive {
     throw "PowerShell installer left a failed executable after validation failure"
   }
 
-  $fileLink = Get-ChildItem -Force -LiteralPath $fileLinkDir -Filter "atlas.exe"
-  $danglingLink = Get-ChildItem -Force -LiteralPath $danglingLinkDir -Filter "atlas.exe"
-  if ($fileLink.LinkType -ne "SymbolicLink" -or $fileLink.Target -ne $previousPath -or
-      $danglingLink.LinkType -ne "SymbolicLink" -or $danglingLink.Target -ne $missingTarget) {
-    throw "PowerShell installer failed to restore the prior symlink entries"
+  if ($fileLinksAvailable) {
+    $fileLink = Get-ChildItem -Force -LiteralPath $fileLinkDir -Filter "atlas.exe"
+    $danglingLink = Get-ChildItem -Force -LiteralPath $danglingLinkDir -Filter "atlas.exe"
+    if ($fileLink.LinkType -ne "SymbolicLink" -or $fileLink.Target -ne $previousPath -or
+        $danglingLink.LinkType -ne "SymbolicLink" -or $danglingLink.Target -ne $missingTarget) {
+      throw "PowerShell installer failed to restore the prior symlink entries"
+    }
   }
 
   $obstructedDir = Join-Path $tmp "obstructed-restore"
@@ -639,8 +657,8 @@ function Expand-Archive {
 
   Write-Host "PowerShell installer smoke tests passed ($Shell)"
   if ($env:OS -eq "Windows_NT" -and $PSVersionTable.PSEdition -eq "Core" -and !$PSBoundParameters.ContainsKey("Shell")) {
-    # The Windows gate runs here with PowerShell 7. Repeat with Desktop-edition children.
-    & $Shell -NoProfile -File $PSCommandPath -RepoRoot $RepoRoot -Shell powershell.exe
+    # Repeat the harness and its installer children under Windows PowerShell 5.1.
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -RepoRoot $RepoRoot
     if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell installer smoke tests failed" }
   }
   exit 0
