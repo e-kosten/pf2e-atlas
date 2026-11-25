@@ -81,7 +81,7 @@ impl AtlasAppService {
                     ..
                 } = &request.criteria
                 {
-                    workspace.retrieval().validate_filter(filter)?;
+                    workspace.retrieval_mut().prepare_page_filter(filter)?;
                 }
             }
             let connected = request

@@ -6,6 +6,7 @@ use atlas_index::SqliteIndexReader;
 pub struct AtlasRetrievalService {
     pub(crate) index: SqliteIndexReader,
     pub(crate) bestiary_glossary: std::cell::OnceCell<crate::bestiary_glossary::BestiaryGlossary>,
+    pub(crate) prepared_filter: Option<crate::relationship_selection::PreparedFilter>,
     query_embedding: Option<PreparedQueryEmbedding>,
     default_profile: SearchProfileId,
     pub(crate) neighbor_reuse: Option<(
@@ -64,6 +65,7 @@ impl AtlasRetrievalService {
             index,
             bestiary_glossary: std::cell::OnceCell::new(),
             default_profile,
+            prepared_filter: None,
             query_embedding,
             neighbor_reuse: None,
         })
@@ -135,8 +137,15 @@ impl AtlasRetrievalService {
         &self,
         predicate: &atlas_domain::QueryPredicate,
     ) -> Result<atlas_index::ValidatedQuery, SearchError> {
+        if let Some(prepared) = &self.prepared_filter
+            && prepared.query.predicate() == predicate
+        {
+            return Ok(prepared.query.clone());
+        }
         let query = atlas_index::validate_query(predicate)?;
-        self.check_relationship_leaves(predicate)?;
+        crate::relationship_selection::visit_selections(predicate, &mut |selection| {
+            self.checked_relationship_selection(selection).map(|_| ())
+        })?;
         Ok(query)
     }
     pub(crate) fn predicate(
