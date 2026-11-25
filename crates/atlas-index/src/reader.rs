@@ -28,6 +28,7 @@ pub struct SourceReadMetrics {
     pub sql_statements: usize,
     pub source_body_decodes: usize,
     pub prepared_content_batches: usize,
+    pub non_content_relationship_queries: usize,
     pub summary_batches: usize,
 }
 #[derive(Debug, Clone, serde::Serialize)]
@@ -77,6 +78,13 @@ impl SqliteIndexReader {
         let mut m = self.read_metrics.get();
         m.prepared_content_batches += 1;
         self.read_metrics.set(m);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn count_non_content_relationship_query(&self) {
+        let mut metrics = self.read_metrics.get();
+        metrics.non_content_relationship_queries += 1;
+        self.read_metrics.set(metrics);
     }
 
     pub(crate) fn count_statement(&self) {

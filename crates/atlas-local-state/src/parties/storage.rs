@@ -69,18 +69,61 @@ pub(super) fn candidates(
         .collect::<Result<_, _>>()?)
 }
 
+pub(super) fn directory(
+    connection: &Connection,
+    owner_id: i64,
+) -> LocalStateResult<Vec<crate::PartySummary>> {
+    let mut statement = connection.prepare(
+        "SELECT p.party_key,p.name,p.revision,count(m.character_key) FROM parties p
+         LEFT JOIN party_character_memberships m USING(party_key)
+         WHERE p.owner_id=?1 GROUP BY p.party_key ORDER BY p.name COLLATE NOCASE,p.party_key",
+    )?;
+    Ok(statement
+        .query_map([owner_id], |row| {
+            Ok(crate::PartySummary {
+                party_key: row.get(0)?,
+                name: row.get(1)?,
+                revision: row.get(2)?,
+                member_count: row.get(3)?,
+            })
+        })?
+        .collect::<Result<_, _>>()?)
+}
+
 pub(super) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<Vec<Party>> {
     let mut statement = connection.prepare(
-        "SELECT party_key FROM parties WHERE owner_id=?1 ORDER BY name COLLATE NOCASE, party_key",
+        "SELECT p.party_key,p.name,p.revision,c.character_key,c.name,c.level,c.revision,c.reference_payload IS NOT NULL
+         FROM parties p LEFT JOIN party_character_memberships m USING(party_key)
+         LEFT JOIN characters c ON c.character_key=m.character_key AND c.owner_id=p.owner_id
+         WHERE p.owner_id=?1 ORDER BY p.name COLLATE NOCASE,p.party_key,m.position",
     )?;
-    let keys = statement
-        .query_map([owner_id], |row| row.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    keys.into_iter()
-        .map(|key| {
-            get(connection, owner_id, &key)?.ok_or(crate::LocalStateError::PartyNotFound(key))
-        })
-        .collect()
+    let mut rows = statement.query([owner_id])?;
+    let mut parties = Vec::<Party>::new();
+    while let Some(row) = rows.next()? {
+        let key: String = row.get(0)?;
+        if parties.last().is_none_or(|p| p.party_key != key) {
+            parties.push(Party {
+                party_key: key,
+                name: row.get(1)?,
+                revision: row.get(2)?,
+                members: vec![],
+            });
+        }
+        if let Some(character_key) = row.get::<_, Option<String>>(3)? {
+            parties
+                .last_mut()
+                .expect("current party")
+                .members
+                .push(PartyMember {
+                    character_key,
+                    name: row.get(4)?,
+                    level: row.get(5)?,
+                    revision: row.get(6)?,
+                    imported: row.get(7)?,
+                });
+        }
+    }
+    Ok(parties)
 }
 
 pub(super) fn replace_members(

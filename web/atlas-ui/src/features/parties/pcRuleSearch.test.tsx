@@ -71,6 +71,7 @@ function page(count = 1): SearchResultsPage {
     sort: { kind: "relevance" },
     mode: { kind: "text_search", query: ability.label, mode: "lexical" },
     coverage: null,
+    result_detail: "records" as const,
     relationship_clauses: [],
     rows: count
       ? [

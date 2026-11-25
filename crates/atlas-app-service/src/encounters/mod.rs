@@ -16,6 +16,7 @@ mod manual_trackers;
 pub(crate) mod mechanics;
 mod outgoing_turns;
 mod projection;
+pub use projection::EncounterReadDetail;
 mod record_addition;
 #[cfg(test)]
 mod record_addition_tests;

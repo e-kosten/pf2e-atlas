@@ -65,6 +65,7 @@ type ReadingFrame = {
   help?: ReferenceHelpView;
   generation?: string;
   selection?: RecordNavigationView;
+  fields?: string[];
   landing?: RecordNavigationView;
   context?: { identity: string; generation: string | null; conditionId?: number };
 };
@@ -88,6 +89,7 @@ function sameDocument(current: ReadingFrame, next: ReadingFrame) {
       next.destination.navigation.record_key &&
     JSON.stringify(current.help) === JSON.stringify(next.help) &&
     JSON.stringify(current.selection) === JSON.stringify(next.selection) &&
+    JSON.stringify(current.fields) === JSON.stringify(next.fields) &&
     JSON.stringify(current.landing) === JSON.stringify(next.landing) &&
     current.context?.conditionId === next.context?.conditionId &&
     current.context?.identity === next.context?.identity
@@ -202,6 +204,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     requestedContext || reloadState?.kind === "loading" ? null : recordKey,
     selection,
     generation,
+    frame?.fields,
   );
   const definition = useDefinitionDetail(
     reloadState?.kind === "loading"
@@ -257,11 +260,21 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         }
       } else if (recordKey) {
         const current = await queryClient.fetchQuery(
-          recordDetailQueryOptions(recordKey, selection),
+          recordDetailQueryOptions(
+            recordKey,
+            selection ?? detail.data?.selected,
+            undefined,
+            detail.data?.selected_fields ?? frame?.fields,
+          ),
         );
         if (session.current !== currentSession) return;
         setFrame(
-          (prior) => prior && { ...prior, generation: current.artifact_generation },
+          (prior) =>
+            prior && {
+              ...prior,
+              generation: current.artifact_generation,
+              fields: current.selected_fields,
+            },
         );
       }
       setReloadState(null);
@@ -500,7 +513,12 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         (requestedContext ? contextual.data?.selected : detail.data?.selected);
       if (current)
         setFrame(
-          (prior) => prior && { ...prior, selection: { ...current, spell_rank } },
+          (prior) =>
+            prior && {
+              ...prior,
+              selection: { ...current, spell_rank },
+              fields: detail.data?.selected_fields ?? prior.fields,
+            },
         );
     },
     selection,

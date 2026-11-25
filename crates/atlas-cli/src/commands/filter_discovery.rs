@@ -18,6 +18,17 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
         Err(error) => return crate::commands::product::report_app_error(error, o.json),
     };
     if o.field.is_none() && !o.all && o.text.is_none() {
+        if !o.json && o.group.is_none() {
+            let groups = match app_result(s.discover_filter_group_names(), false)? {
+                std::ops::ControlFlow::Continue(groups) => groups,
+                std::ops::ControlFlow::Break(exit) => return Ok(exit),
+            };
+            for (id, label) in groups {
+                println!("{id}\t{label}");
+            }
+            print_group_help();
+            return Ok(ExitCode::SUCCESS);
+        }
         let mut editor = match app_result(
             s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 filter: None,
@@ -61,9 +72,7 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
                     // Embedded members are discovered through their collection, not duplicated here.
                 }
             }
-            println!(
-                "\nUse --group ID to browse, --field ID to inspect, or --text QUERY to search all fields."
-            );
+            print_group_help();
         }
         return Ok(ExitCode::SUCCESS);
     }
@@ -161,6 +170,12 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
     }
     Ok(ExitCode::SUCCESS)
 }
+fn print_group_help() {
+    println!(
+        "\nUse --group ID to browse, --field ID to inspect, or --text QUERY to search all fields."
+    );
+}
+
 pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, String> {
     let s = match connect(ClientOptions {
         search_profile: None,

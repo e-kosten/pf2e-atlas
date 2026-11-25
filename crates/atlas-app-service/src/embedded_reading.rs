@@ -63,6 +63,13 @@ impl AtlasAppService {
                 &detail.source,
                 node,
                 r.source_fingerprint(),
+                match &request.selection {
+                    EmbeddedReadingSelection::Abilities { .. } => {
+                        Some(&[crate::RecordReadSection::Abilities])
+                    }
+                    EmbeddedReadingSelection::Activity { .. } => None,
+                    _ => Some(&[]),
+                },
             );
             let actor_content = matches!(request.selection, EmbeddedReadingSelection::ActorContent);
             let availability = if actor_content {
@@ -238,7 +245,7 @@ impl AtlasAppService {
                     r.read_non_content_relationships(&atlas_search::SourceRelationshipRequest {
                         record: key.clone(),
                         owners: Some(navigation.owners.clone()),
-                        field: None,
+                        fields: vec![],
                         direction: atlas_search::SourceRelationshipDirection::Outgoing,
                         limit: 1024,
                     })?

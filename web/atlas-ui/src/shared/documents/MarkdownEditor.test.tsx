@@ -189,6 +189,7 @@ function inlinePage(query: string, title: string): SearchResultsPage {
     ranking: "score",
     search_profile: "bge-base",
     artifact_generation: "reference-a",
+    result_detail: "records" as const,
     relationship_clauses: [],
     coverage: null,
     mode: { kind: "text_search", mode: "lexical", query },

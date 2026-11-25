@@ -813,7 +813,9 @@ export function useSearchWorkspace({
       hasExecutableSearch(activeSearch));
   const result = resultsQuery.data ?? heldPage;
   const evidencePending =
-    visible && (!resultsQuery.data || resultsQuery.isPlaceholderData);
+    visible &&
+    (resultsQuery.data?.page.result_detail !== "evidence" ||
+      resultsQuery.isPlaceholderData);
   const searchInputError =
     activeSearchExecutionToken === searchExecutionToken
       ? lexicalInputExplanation(resultsError)

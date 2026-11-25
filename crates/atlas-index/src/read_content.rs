@@ -107,7 +107,7 @@ pub enum SourceRelationshipDirection {
 pub struct SourceRelationshipRequest {
     pub record: RecordKey,
     pub owners: Option<Vec<OwnedContentLocator>>,
-    pub field: Option<String>,
+    pub fields: Vec<String>,
     pub direction: SourceRelationshipDirection,
     pub limit: usize,
 }
@@ -441,6 +441,31 @@ impl SqliteIndexReader {
             truncated,
         })
     }
+    /// External and unavailable destinations attached to this exact document.
+    pub fn additional_outgoing(
+        &self,
+        selection: &atlas_domain::QueryRecordSelection,
+        limit: usize,
+    ) -> Result<Vec<SourceStoredRelationship>, IndexError> {
+        let sql = format!(
+            "{RELATIONSHIP_SELECT} WHERE r.key=?1 AND r.document_kind<>'Macro'
+            AND o.owners_json=?2 AND (?3 IS NULL OR o.field_path=?3) AND o.target_record_id IS NULL
+            ORDER BY o.occurrence_id LIMIT ?4"
+        );
+        self.count_statement();
+        let mut statement = self.native()?.prepare(&sql)?;
+        Ok(statement
+            .query_map(
+                rusqlite::params![
+                    selection.record_key.to_string(),
+                    serde_json::to_string(&selection.owners)?,
+                    selection.field.as_deref(),
+                    limit
+                ],
+                relationship_row,
+            )?
+            .collect::<Result<Vec<_>, _>>()?)
+    }
     pub fn read_relationships(
         &self,
         request: &SourceRelationshipRequest,
@@ -451,6 +476,8 @@ impl SqliteIndexReader {
         &self,
         request: &SourceRelationshipRequest,
     ) -> Result<SourceRelationshipBundle, IndexError> {
+        #[cfg(any(test, feature = "test-support"))]
+        self.count_non_content_relationship_query();
         self.relationships(request, true)
     }
     fn relationships(
@@ -480,14 +507,14 @@ impl SqliteIndexReader {
             });
             params.push(Value::Text(serde_json::to_string(chain)?));
         }
-        if let Some(field) = &request.field {
+        if !request.fields.is_empty() {
             if request.direction == SourceRelationshipDirection::Incoming {
                 return Err(IndexError::Invalid(
                     "incoming edges have no target field selector".into(),
                 ));
             }
-            sql.push_str(" AND o.field_path=?");
-            params.push(Value::Text(field.clone()));
+            sql.push_str(" AND o.field_path IN (SELECT value FROM json_each(?))");
+            params.push(Value::Text(serde_json::to_string(&request.fields)?));
         }
         if exclude_content {
             sql.push_str(" AND o.origin!='content'");
@@ -637,6 +664,14 @@ impl SqliteIndexReader {
     ) -> Result<atlas_domain::QueryFacetOutcome<atlas_domain::QueryFieldCounts>, IndexError> {
         crate::discovery::field_counts(self.native()?, request)
     }
+    pub fn matching_field_values(
+        &self,
+        field: &str,
+        query: &crate::ValidatedQuery,
+    ) -> Result<Vec<atlas_domain::QueryLiteral>, IndexError> {
+        crate::discovery::matching_field_values(self.native()?, field, query)
+    }
+
     pub fn field_values(
         &self,
         request: &crate::QueryValuesRequest,

@@ -2,7 +2,7 @@
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
     ContentControlKindView, ContentRollComponentResultView, ContentRollOffer,
-    ContentRollResultView, PreparedFieldBodyView, RecordAddress, RecordSelection,
+    ContentRollResultView, RecordAddress, RecordSelection,
 };
 
 impl AtlasAppService {
@@ -26,36 +26,17 @@ impl AtlasAppService {
                 passage: None,
                 spell_rank: request.spell_rank,
             };
-            let detail = if let Some(binding) = &request.encounter {
-                crate::encounters::reference::read_encounter_reference(
+            let control = if let Some(binding) = &request.encounter {
+                crate::encounters::reference::roll_control(
                     workspace,
-                    &binding.encounter_ref,
-                    &binding.participant_key,
-                    atlas_app_model::EncounterReferenceRequest {
-                        artifact_generation: binding.artifact_generation.clone(),
-                        selection,
-                        condition_id: binding.condition_id,
-                    },
+                    binding,
+                    selection,
+                    request.ordinal,
                 )?
             } else {
-                crate::records::read_record_detail(workspace.retrieval_mut(), selection, None)?.1
+                crate::records::LoadedRecordDetail::load(workspace.retrieval_mut(), &selection)?
+                    .roll_control(&selection, request.ordinal, None)?
             };
-            let control = detail
-                .presentation
-                .content
-                .iter()
-                .find(|field| field.locator == request.source)
-                .and_then(|field| match &field.body {
-                    PreparedFieldBodyView::Html { controls, .. } => {
-                        controls.iter().find(|c| c.ordinal == request.ordinal)
-                    }
-                    _ => None,
-                })
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request(
-                        "This roll expression is unavailable. Reopen the record.",
-                    )
-                })?;
             let (current, parts) = match &control.control {
                 ContentControlKindView::Damage {
                     roll: Some(current),
@@ -103,9 +84,9 @@ impl AtlasAppService {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
     use atlas_app_model::ContentControlKindView;
+    use atlas_app_model::PreparedFieldBodyView;
     use atlas_search::test_support::{open_source_fixture, record};
     use serde_json::json;
 

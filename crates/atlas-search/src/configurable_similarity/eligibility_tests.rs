@@ -77,7 +77,7 @@ fn request<'a>(
     options: &'a SimilarityOptions,
 ) -> ConfigurableSimilarRequest<'a> {
     ConfigurableSimilarRequest {
-        include_evidence: true,
+        result_detail: atlas_domain::SearchResultDetail::Evidence,
         seed,
         options,
         source_sections: None,

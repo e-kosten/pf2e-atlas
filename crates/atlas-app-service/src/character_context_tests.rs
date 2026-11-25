@@ -301,7 +301,7 @@ fn metadata_edits_preserve_import_bytes_and_distinguish_omitted_and_cleared_leve
             UpdateCharacterRequest {
                 expected_revision: cleared.character_revision,
                 name: cleared.name.clone(),
-                level: cleared.level,
+                level: Some(cleared.level),
             },
         )
         .unwrap();
@@ -434,12 +434,11 @@ fn discovery_rejects_duplicate_names_and_stale_roster_edits_preserve_state() {
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, atlas_app_model::AppErrorCode::InvalidRequest);
+    let mut keys = [&first.character_key, &second.character_key];
+    keys.sort();
     assert_eq!(
-        error.details.unwrap()["candidates"]
-            .as_array()
-            .unwrap()
-            .len(),
-        2
+        error.details.unwrap()["candidates"],
+        json!([{"key":keys[0],"name":"Same name"},{"key":keys[1],"name":"Same name"}])
     );
     let party = party(&service, "Party", &[&first, &second]);
     let changed = service
@@ -575,6 +574,36 @@ fn every_typed_source_field_has_a_selected_section_and_round_trips() {
     let json = serde_json::to_value(&view).unwrap();
     let decoded: CharacterContextView = serde_json::from_value(json.clone()).unwrap();
     assert_eq!(serde_json::to_value(decoded).unwrap(), json);
+}
+
+#[test]
+fn character_lookup_honors_legacy_keys_exact_names_and_owner_scope() {
+    let (_directory, service) = service();
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO characters(character_key,owner_id,name) VALUES('member_legacy',1,'Legacy');
+         INSERT INTO principals(principal_key,name) VALUES('other-legacy-owner','Another owner');
+         INSERT INTO characters(character_key,owner_id,name)
+         SELECT 'other-member',id,'member_legacy' FROM principals WHERE principal_key='other-legacy-owner';",
+    ).unwrap();
+    write.commit().unwrap();
+    let namesake = character(&service, "member_legacy", None);
+    let lookup = |query| service.character_context(query, CharacterContextRequest::default());
+    assert_eq!(
+        lookup("member_legacy").unwrap().character.character_key,
+        "member_legacy"
+    );
+    assert_eq!(
+        lookup(" member_legacy ").unwrap().character.character_key,
+        namesake.character_key
+    );
+    assert_eq!(
+        lookup("MEMBER_LEGACY").unwrap_err().into_app_error().code,
+        AppErrorCode::CharacterNotFound
+    );
 }
 
 #[test]

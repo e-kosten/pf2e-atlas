@@ -22,6 +22,12 @@ export type EncounterRecordAddForm = {
   adjustment?: EncounterParticipantVariantView;
 };
 
+export type ReviewedAddition = {
+  basis: string;
+  request: EncounterDifficultyAddition;
+  generation: string;
+};
+
 export type PreparedCreatureAddition = {
   request: EncounterDifficultyAddition;
   choice: PreparedCreatureChoice;
@@ -90,6 +96,8 @@ export function EncounterAddDifficulty({
   recordName,
   scenario: creatureScenario,
   onPreparedCreature,
+  onReviewed,
+  refreshBasis,
   disabled,
 }: Pick<
   EncounterDifficultyProps,
@@ -105,6 +113,8 @@ export function EncounterAddDifficulty({
   creature: boolean;
   recordName: string;
   scenario?: CreatureScenarioContext;
+  onReviewed?: (review: ReviewedAddition | null) => void;
+  refreshBasis?: () => Promise<void>;
   onPreparedCreature?: (prepared: PreparedCreatureAddition | null) => void;
 }) {
   const { token } = theme.useToken();
@@ -191,6 +201,14 @@ export function EncounterAddDifficulty({
   const received = valid && settled ? preview.data : undefined;
   const preparedBasis = encounterPreviewBasis(encounterKey, revision);
   useEffect(() => {
+    const generation = received?.value.addition_generation;
+    onReviewed?.(
+      generation && received && !preview.error && !preview.isFetching
+        ? { basis: preparedBasis, request: received.addition, generation }
+        : null,
+    );
+  }, [onReviewed, preparedBasis, received, preview.error, preview.isFetching]);
+  useEffect(() => {
     const choice = received?.value.prepared_creature_choice;
     onPreparedCreature?.(
       received?.addition && choice
@@ -268,7 +286,10 @@ export function EncounterAddDifficulty({
           </span>
         )}
         {error && !isSharedFailure(error) && (
-          <Button size="small" onClick={() => void preview.refetch()}>
+          <Button
+            size="small"
+            onClick={() => void (refreshBasis ? refreshBasis() : preview.refetch())}
+          >
             Retry
           </Button>
         )}

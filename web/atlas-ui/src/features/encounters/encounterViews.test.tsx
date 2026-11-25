@@ -82,7 +82,7 @@ const apiMocks = vi.hoisted(() => ({
   getEncounterConditionConsequences: vi.fn(),
   encounterCastingReminders: vi.fn(),
   getEncounters: vi.fn(),
-  getParties: vi.fn(),
+  getPartyRosters: vi.fn(),
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
   getEmbeddedReading: vi.fn(),
@@ -123,7 +123,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   getEncounterConditionConsequences: apiMocks.getEncounterConditionConsequences,
   encounterCastingReminders: apiMocks.encounterCastingReminders,
   getEncounters: apiMocks.getEncounters,
-  getParties: apiMocks.getParties,
+  getPartyRosters: apiMocks.getPartyRosters,
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
   getEmbeddedReading: apiMocks.getEmbeddedReading,
@@ -331,7 +331,7 @@ describe("encounter views", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.clearAllMocks();
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
-    apiMocks.getParties.mockResolvedValue({ parties: [] });
+    apiMocks.getPartyRosters.mockResolvedValue({ parties: [] });
     apiMocks.addEncounterCharacter.mockResolvedValue({
       encounter_key: "encounter_ambush",
       character_key: "character_new",
@@ -4074,6 +4074,7 @@ function participantFixture(
 function searchResultsFixture(): SearchResultsPage {
   return {
     search_content: "all",
+    result_detail: "records" as const,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

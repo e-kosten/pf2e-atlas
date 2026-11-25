@@ -266,10 +266,14 @@ Existing characters receive no synthesized export. The complete source describes
 the imported build and retains unfamiliar fields. App-service reads verified
 facts on demand, independently of the current character name and level.
 
-New Pathbuilder creation and encounter-addition receipts bind the exact accepted
+New Pathbuilder creation, refresh and encounter-addition receipts bind the exact accepted
 export text through a digest. A version marker selects the full import intent
 for new receipts and the original intent for legacy receipts. Both recover the
-original outcome without applying the import again.
+original outcome without applying the import again. A refresh records its
+request ID and digest in the same transaction as the character update. Multiple
+refresh receipts can identify one character. A replay authenticates the owner,
+checks the original intent and reports whether the target still exists. The
+existing receipt table and archive represent these operations.
 
 Schema 49 extends encounter command receipts with `record_addition`. Its
 encounter-owned row acknowledges the batch independently of the participants'

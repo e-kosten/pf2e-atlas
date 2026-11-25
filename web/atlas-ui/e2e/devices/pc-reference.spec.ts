@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 import type {
   EncounterCreateView,
-  PartyIndexView,
+  PartyDirectoryView,
   PartyView,
   PcReferenceView,
 } from "../../src/generated/atlas";
@@ -60,7 +60,7 @@ async function deleteCharacters(request: APIRequestContext, keys: string[]) {
 async function deleteParties(request: APIRequestContext, ...keys: string[]) {
   const { parties } = (await (
     await request.get("/api/parties")
-  ).json()) as PartyIndexView;
+  ).json()) as PartyDirectoryView;
   for (const { party_key, revision } of parties) {
     if (keys.includes(party_key))
       await request.delete(`/api/parties/${party_key}`, {
@@ -661,6 +661,63 @@ test("Characters imports and manual PCs can be used in encounters", async ({
   }
 });
 
+for (const route of ["slug", "encounter_key"] as const) {
+  test(`the mounted ${route} runner adopts a saved character and its new revision`, async ({
+    page,
+  }, info) => {
+    const name = `Picker ${route} ${info.project.name} ${Date.now()}`;
+    const encounter = await createEncounter(page.request, name);
+    const keys: string[] = [];
+    try {
+      const created = await page.request.post("/api/characters", {
+        data: { request_id: crypto.randomUUID(), name, level: 5 },
+      });
+      expect(created.ok()).toBe(true);
+      const { character_key } = await created.json();
+      keys.push(character_key);
+      const api = `/api/encounters/${encounter.encounter_key}`;
+      const revision = async () => {
+        const response = await page.request.get(`${api}/revision`);
+        expect(response.ok()).toBe(true);
+        return (await response.json()).revision as number;
+      };
+      let expected = await revision();
+      await page.goto(`/encounters/${encounter[route]}`);
+      for (const count of [1, 2]) {
+        await activate(page.getByRole("button", { name: "Add participants" }), info);
+        await activate(
+          page.getByRole("menuitem", { name: "Existing character" }),
+          info,
+        );
+        const picker = page.getByRole("dialog", { name: "Choose a character" });
+        await picker.getByRole("textbox", { name: "Find a character" }).fill(name);
+        const committed = page.waitForResponse(
+          (response) =>
+            response.request().method() === "POST" &&
+            new URL(response.url()).pathname === `${api}/participants/character`,
+        );
+        await activate(picker.getByRole("button", { name: /^Add / }), info);
+        const response = await committed;
+        expect(response.request().postDataJSON().expected_encounter_revision).toBe(
+          expected,
+        );
+        expect(response.ok()).toBe(true);
+        await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
+        await expect(picker).toBeHidden();
+        await expect(
+          page.locator("[data-participant-key]").filter({ hasText: name }),
+        ).toHaveCount(count);
+        const current = await revision();
+        expect(current).toBeGreaterThan(expected);
+        expected = current;
+      }
+    } finally {
+      await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+      await deleteCharacters(page.request, keys);
+    }
+  });
+}
+
 test("party drag tracks the pointer and shows the reordered row on release @engine", async ({
   page,
 }) => {
@@ -870,17 +927,16 @@ test("party edit tasks preserve keyboard drafts and update shared characters exp
       info,
     );
     await expect(levels).toBeHidden();
-    const index = await (await page.request.get("/api/parties")).json();
-    const saved = (index.parties as PartyView[]).find(
-      (p) => p.party_key === first.party_key,
-    )!;
+    const saved: PartyView = await (
+      await page.request.get(`/api/parties/${first.party_key}`)
+    ).json();
     expect(saved.members.map((m) => [m.name, m.level])).toEqual([
       ["Aster", 8],
       ["Bram", 7],
     ]);
-    const shared = (index.parties as PartyView[]).find(
-      (p) => p.party_key === second.party_key,
-    )!;
+    const shared: PartyView = await (
+      await page.request.get(`/api/parties/${second.party_key}`)
+    ).json();
     expect(shared.members[0].level).toBe(8);
     await activate(actions, info);
     await activate(

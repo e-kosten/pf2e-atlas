@@ -741,6 +741,20 @@ pub(crate) fn field_values(
     })
 }
 
+pub(crate) fn matching_field_values(
+    connection: &Connection,
+    field_id: &str,
+    query: &ValidatedQuery,
+) -> Result<Vec<QueryLiteral>, IndexError> {
+    enumerate_values(
+        connection,
+        field(field_id)?,
+        query,
+        &QueryFacetContext::default(),
+        None,
+    )
+}
+
 fn enumerate_values(
     connection: &Connection,
     d: &crate::query::catalog::Descriptor,

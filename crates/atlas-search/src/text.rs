@@ -32,7 +32,7 @@ impl RetrievalMode {
 }
 pub struct TextSearchRequest<'a> {
     pub lexical: atlas_domain::LexicalOptions,
-    pub include_evidence: bool,
+    pub result_detail: atlas_domain::SearchResultDetail,
     pub content_scope: atlas_domain::SearchContentScope,
     pub sort: atlas_domain::ResultSort,
     pub ranking: atlas_domain::SearchRanking,
@@ -47,7 +47,7 @@ impl<'a> TextSearchRequest<'a> {
     pub fn new(query: &'a str, page: SearchPage) -> Self {
         Self {
             lexical: Default::default(),
-            include_evidence: true,
+            result_detail: atlas_domain::SearchResultDetail::Evidence,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
@@ -117,7 +117,7 @@ pub(crate) struct RankedRoot {
     pub witnesses: Vec<SearchWitness>,
 }
 pub(crate) struct CandidateRequest<'a> {
-    pub include_evidence: bool,
+    pub result_detail: atlas_domain::SearchResultDetail,
     pub lexical: atlas_domain::LexicalOptions,
     pub content_scope: atlas_domain::SearchContentScope,
     pub ranking: atlas_domain::SearchRanking,
@@ -218,7 +218,7 @@ impl AtlasRetrievalService {
             None
         };
         let (roots, window) = self.rank_candidates(CandidateRequest {
-            include_evidence: request.include_evidence,
+            result_detail: request.result_detail,
             lexical: request.lexical,
             content_scope: request.content_scope,
             ranking: request.ranking,
@@ -231,7 +231,14 @@ impl AtlasRetrievalService {
             vector: vector.as_deref(),
             exclude: None,
         })?;
-        self.finish_results(&search_profile, roots, request.page, window, request.sort)
+        self.finish_results(
+            &search_profile,
+            roots,
+            request.page,
+            window,
+            request.sort,
+            request.result_detail,
+        )
     }
     fn native_vector_candidates(
         &self,
@@ -277,7 +284,7 @@ impl AtlasRetrievalService {
             };
             let hits = self.native_vector_candidates(input, request.text)?;
             let exhausted = hits.len() < window;
-            let roots = semantic_roots(hits, request.include_evidence);
+            let roots = semantic_roots(hits, request.result_detail.includes_evidence());
             if exhausted || roots.len() >= TARGET_ROOTS || window == 4096 {
                 return Ok((roots, window));
             }
@@ -322,7 +329,7 @@ impl AtlasRetrievalService {
                 scope.keys(),
                 content_scope,
                 options,
-                request.include_evidence,
+                request.result_detail.includes_evidence(),
             )?;
             let tier = |key: &RecordKey, name_starts_with_query: bool| {
                 if identities
@@ -449,6 +456,7 @@ impl AtlasRetrievalService {
         page: SearchPage,
         window: Option<usize>,
         sort: atlas_domain::ResultSort,
+        detail: atlas_domain::SearchResultDetail,
     ) -> Result<TextSearchResult, SearchError> {
         let roots = self.order_ranked_roots(roots, sort.clone())?;
         let total = roots.len();
@@ -471,7 +479,7 @@ impl AtlasRetrievalService {
             })
             .collect::<Vec<_>>();
         if records.iter().any(|record| !record.matches.is_empty()) {
-            self.hydrate_text_matches(&mut records)?;
+            self.hydrate_text_matches(&mut records, detail)?;
         }
         let info = SearchPageInfo::from_page(page, records.len(), total as u64)?;
         Ok(TextSearchResult {
@@ -493,7 +501,31 @@ impl AtlasRetrievalService {
             },
         })
     }
-    fn hydrate_text_matches(&self, records: &mut [TextSearchRecord]) -> Result<(), SearchError> {
+    fn hydrate_text_matches(
+        &self,
+        records: &mut [TextSearchRecord],
+        detail: atlas_domain::SearchResultDetail,
+    ) -> Result<(), SearchError> {
+        if detail == atlas_domain::SearchResultDetail::Compact {
+            self.select_compact_matches(records)?;
+        } else {
+            let locations = records
+                .iter()
+                .flat_map(|r| &r.matches)
+                .map(|w| w.location.clone())
+                .collect::<Vec<_>>();
+            let previews = self.index.recover_match_previews(&locations)?;
+            for (witness, evidence) in records
+                .iter_mut()
+                .flat_map(|r| &mut r.matches)
+                .zip(previews)
+            {
+                if let Some(evidence) = evidence {
+                    witness.preview = evidence.preview;
+                    witness.parent_heading = evidence.parent_heading;
+                }
+            }
+        }
         let owned_locations = records
             .iter()
             .flat_map(|record| &record.matches)
@@ -504,13 +536,6 @@ impl AtlasRetrievalService {
         for batch in owned_locations.chunks(256) {
             owned_labels.extend(self.index.owned_search_labels(batch)?);
         }
-        let locations = records
-            .iter()
-            .flat_map(|record| &record.matches)
-            .map(|witness| witness.location.clone())
-            .collect::<Vec<_>>();
-        let previews = self.index.recover_match_previews(&locations)?;
-        let mut previews = previews.into_iter();
         for record in records {
             for witness in &mut record.matches {
                 if !witness.location.owners.is_empty()
@@ -530,11 +555,57 @@ impl AtlasRetrievalService {
                 if witness.label.is_none() && witness.location.owners.is_empty() {
                     witness.label = record.record.name.as_value().cloned();
                 }
-                if let Some(evidence) = previews.next().flatten() {
-                    witness.preview = evidence.preview;
-                    witness.parent_heading = evidence.parent_heading;
+            }
+        }
+        Ok(())
+    }
+    /// First witness with a displayable preview, falling back to the first witness.
+    /// Probe passages in batches; identity/name locations cannot supply excerpts.
+    fn select_compact_matches(&self, records: &mut [TextSearchRecord]) -> Result<(), SearchError> {
+        let mut positions = vec![0; records.len()];
+        loop {
+            let mut pending = Vec::new();
+            let mut locations = Vec::new();
+            for (row, record) in records.iter().enumerate() {
+                if let Some((index, witness)) = record
+                    .matches
+                    .iter()
+                    .enumerate()
+                    .skip(positions[row])
+                    .find(|(_, w)| {
+                        matches!(
+                            w.location.address,
+                            Some(
+                                SourcePassageAddress::HtmlSection { .. }
+                                    | SourcePassageAddress::PlainSection { .. }
+                            )
+                        )
+                    })
+                {
+                    pending.push((row, index));
+                    locations.push(witness.location.clone());
+                    positions[row] = index + 1;
                 }
             }
+            if pending.is_empty() {
+                break;
+            }
+            for ((row, index), evidence) in pending
+                .into_iter()
+                .zip(self.index.recover_match_previews(&locations)?)
+            {
+                let Some(evidence) = evidence else { continue };
+                let witness = &mut records[row].matches[index];
+                witness.preview = evidence.preview;
+                witness.parent_heading = evidence.parent_heading;
+                if witness.preview.is_some() {
+                    records[row].matches.swap(0, index);
+                    positions[row] = records[row].matches.len();
+                }
+            }
+        }
+        for record in records {
+            record.matches.truncate(1);
         }
         Ok(())
     }

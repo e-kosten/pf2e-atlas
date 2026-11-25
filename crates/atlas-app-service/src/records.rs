@@ -14,6 +14,47 @@ use atlas_search::{
     ResolveRecordRequest, SourceRelationshipDirection, SourceRelationshipRequest,
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecordReadSection {
+    Rules,
+    Defenses,
+    Strikes,
+    Abilities,
+    Spellcasting,
+}
+
+impl RecordReadSection {
+    pub fn includes_activity(self, kind: &atlas_app_model::ActorActivityKindView) -> bool {
+        use atlas_app_model::ActorActivityKindView as Activity;
+        matches!(
+            (self, kind),
+            (Self::Abilities, Activity::Ability)
+                | (Self::Strikes, Activity::Strike)
+                | (Self::Spellcasting, Activity::Spell | Activity::CastingEntry)
+        )
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum ReadingProjection<'a> {
+    Full,
+    Sections(&'a [RecordReadSection]),
+    Table,
+    TableMatch,
+}
+impl ReadingProjection<'_> {
+    fn includes_content(self, body: &atlas_app_model::RecordBodyView) -> bool {
+        match self {
+            Self::Full | Self::TableMatch => true,
+            Self::Table => false,
+            Self::Sections(sections) => {
+                sections.contains(&RecordReadSection::Rules)
+                    || matches!(body, atlas_app_model::RecordBodyView::Activity(activity) if sections.iter().any(|section| section.includes_activity(&activity.kind)))
+            }
+        }
+    }
+}
+
 impl AtlasAppService {
     /// Explicit source inspection bypasses presentation, using the checked codec.
     /// Product record eligibility still applies; tooling sources stay developer-only.
@@ -152,18 +193,42 @@ impl AtlasAppService {
     pub fn record_read_at(
         &self,
         request: RecordDetailRequest,
+        sections: Vec<RecordReadSection>,
     ) -> AppServiceResult<(RecordDetailView, Option<String>)> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let generation = request.expected_artifact_generation.clone();
-            crate::definitions::check_generation(generation.as_deref(), &r.artifact_generation()?)?;
-            if request.source_fingerprint.as_deref().is_some_and(|supplied| supplied != r.source_fingerprint()) {
-                return Err(AppServiceError::invalid_request("The selected source fingerprint has changed. Reopen the record or search result."));
-            }
+            check_retained_location(
+                r,
+                generation.as_deref(),
+                request.source_fingerprint.as_deref(),
+            )?;
             let selection = request.into_selection();
             let loaded = LoadedRecordDetail::load(r, &selection)?;
-            loaded.project_with_excerpt(selection, None)
+            loaded.project_with_excerpt(
+                selection,
+                None,
+                if sections.is_empty() {
+                    ReadingProjection::Full
+                } else {
+                    ReadingProjection::Sections(&sections)
+                },
+            )
         })
     }
+}
+
+pub(crate) fn check_retained_location(
+    retrieval: &atlas_search::AtlasRetrievalService,
+    generation: Option<&str>,
+    fingerprint: Option<&str>,
+) -> AppServiceResult<()> {
+    crate::definitions::check_generation(generation, &retrieval.artifact_generation()?)?;
+    if fingerprint.is_some_and(|supplied| supplied != retrieval.source_fingerprint()) {
+        return Err(AppServiceError::invalid_request(
+            "The selected source fingerprint has changed. Reopen the record or search result.",
+        ));
+    }
+    Ok(())
 }
 
 /// Decode the selected parent once, retaining it for workflows that compose runtime facts.
@@ -174,6 +239,14 @@ pub(crate) fn read_record_detail(
 ) -> AppServiceResult<(atlas_search::SourceRecordDetail, RecordDetailView)> {
     let (loaded, view) = LoadedRecordDetail::read(r, request, expected_artifact_generation)?;
     Ok((loaded.detail, view))
+}
+
+#[derive(Default)]
+struct SelectedContent {
+    fields: Vec<atlas_app_model::PreparedContentFieldView>,
+    relationships: Vec<atlas_search::SourceStoredRelationship>,
+    truncated: bool,
+    excerpt: Option<String>,
 }
 
 pub(crate) struct LoadedRecordDetail<'a> {
@@ -192,7 +265,7 @@ impl<'a> LoadedRecordDetail<'a> {
         Ok((loaded, view))
     }
 
-    fn load(
+    pub(crate) fn load(
         r: &'a atlas_search::AtlasRetrievalService,
         request: &RecordSelection,
     ) -> AppServiceResult<Self> {
@@ -214,69 +287,116 @@ impl<'a> LoadedRecordDetail<'a> {
         })
     }
 
-    pub(crate) fn project(
-        &self,
-        request: RecordSelection,
-        expected_artifact_generation: Option<&str>,
-    ) -> AppServiceResult<RecordDetailView> {
-        self.project_with_excerpt(request, expected_artifact_generation)
-            .map(|(view, _)| view)
+    pub(crate) fn source(&self) -> &atlas_record::source_record::SourceBackedRecord {
+        &self.detail.source
     }
 
-    fn project_with_excerpt(
+    /// Rebuild only the offered interaction under its source and optional live encounter context.
+    pub(crate) fn roll_control(
         &self,
-        request: RecordSelection,
-        expected_artifact_generation: Option<&str>,
-    ) -> AppServiceResult<(RecordDetailView, Option<String>)> {
-        let mut excerpt = None;
-        let r = self.retrieval;
-        let detail = &self.detail;
-        crate::definitions::check_generation(
-            expected_artifact_generation,
-            &r.artifact_generation()?,
-        )?;
-        let key = validate_selection(r, &request)?;
-        if &key != detail.source.key() {
-            return Err(AppServiceError::invalid_request(
-                "detail selection belongs to another loaded record",
-            ));
-        }
-        let whole_document = request.fields.is_empty() && request.passage.is_none();
-        let node = detail
-            .source
+        request: &RecordSelection,
+        ordinal: usize,
+        runtime: Option<crate::prepared_content::RuntimeContentContext>,
+    ) -> AppServiceResult<atlas_app_model::ContentControlView> {
+        let unavailable = || {
+            AppServiceError::invalid_request(
+                "This roll expression is unavailable. Reopen the record.",
+            )
+        };
+        let node = self
+            .source()
             .node_at(&request.address.owners)
             .ok_or_else(|| {
                 AppServiceError::invalid_request(
                     "selected document does not exist in this source snapshot",
                 )
             })?;
-        let selections = node.content_selections();
-        if request
-            .fields
-            .iter()
-            .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
-        {
-            return Err(AppServiceError::invalid_request(
-                "selected field is not declared content of the selected document",
-            ));
-        }
-        let selected: Vec<_> = selections
+        let field = node
+            .content_selections()
             .into_iter()
-            .filter(|s| {
-                if request.fields.is_empty() {
-                    s.role != SourceContentRole::Name
-                        && (matches!(s.text, SourceFieldView::Value(_))
-                            || s.role == SourceContentRole::Prerequisite)
-                } else {
-                    request.fields.iter().any(|f| f.as_str() == s.field)
-                }
+            .find(|f| {
+                request
+                    .fields
+                    .first()
+                    .is_some_and(|name| name.as_str() == f.field)
             })
-            .collect();
-        if selected.len() > 256 {
-            return Err(AppServiceError::invalid_request(
-                "select at most 256 content fields per detail request",
-            ));
+            .ok_or_else(|| {
+                AppServiceError::invalid_request(
+                    "selected field is not declared content of the selected document",
+                )
+            })?;
+        let rank =
+            crate::presentation::content_casting_rank(self.source(), node, request.spell_rank)?;
+        if !crate::prepared_content::field_visible(
+            &field,
+            self.retrieval.artifact_context().audience,
+        ) || !matches!(
+            (field.text, field.format),
+            (
+                SourceFieldView::Value(_),
+                SourceFieldView::Value(SourceContentFormat::Html)
+            )
+        ) {
+            return Err(unavailable());
         }
+        let locator = SourceContentLocator {
+            record: self.source().key().clone(),
+            owners: request.address.owners.clone(),
+            field: field.field.to_string(),
+        };
+        let content = self
+            .retrieval
+            .read_attributed_content(std::slice::from_ref(&locator))?;
+        if content.bounded.contains(&locator) {
+            return Err(unavailable());
+        }
+        let cached = content.content.fields.first().ok_or_else(|| {
+            AppServiceError::new(
+                AppErrorCode::ArtifactIncompatible,
+                "selected rich field has no prepared outcome",
+            )
+        })?;
+        let interaction = cached
+            .html
+            .as_ref()
+            .and_then(|_| {
+                cached
+                    .interactions
+                    .iter()
+                    .find(|control| control.ordinal == ordinal)
+            })
+            .ok_or_else(unavailable)?;
+        let mut context = crate::prepared_content::PreparedContentContext::source(
+            self.retrieval,
+            self.source(),
+            &request.address.owners,
+            rank,
+        );
+        if context.formula.item_is_spell {
+            context.spell_rank = rank;
+            context.formula.item_rank = rank;
+        }
+        if let Some(runtime) = runtime {
+            context.apply_runtime(&runtime, &cached.interactions);
+        }
+        crate::prepared_content::content_controls(
+            std::slice::from_ref(interaction),
+            Some((&locator, &context)),
+            self.retrieval,
+        )?
+        .pop()
+        .ok_or_else(unavailable)
+    }
+
+    fn read_fields(
+        &self,
+        key: &RecordKey,
+        request: &RecordSelection,
+        selected: &[atlas_record::source_record::SourceContentSelection<'_>],
+        spell_rank: Option<u8>,
+    ) -> AppServiceResult<SelectedContent> {
+        let r = self.retrieval;
+        let mut excerpt = None;
         let locators: Vec<_> = selected
             .iter()
             .filter(|s| {
@@ -290,26 +410,9 @@ impl<'a> LoadedRecordDetail<'a> {
             })
             .collect();
         let content = r.read_attributed_content(&locators)?;
-        let summary = crate::projection::localized_detail_summary_view(detail, r);
-        let mut presentation = crate::presentation::record_presentation(
-            &detail.source,
-            node,
-            &summary,
-            &request.address.owners,
-            vec![],
-            r,
-        )?;
-        let spell_rank = crate::presentation::apply_casting_rank(
-            &detail.source,
-            node,
-            request.spell_rank,
-            &mut presentation,
-            r,
-        )?;
-        crate::presentation::reference_help::annotate(&mut presentation, r)?;
         let mut context = crate::prepared_content::PreparedContentContext::source(
             r,
-            &detail.source,
+            self.source(),
             &request.address.owners,
             spell_rank,
         );
@@ -318,9 +421,9 @@ impl<'a> LoadedRecordDetail<'a> {
             context.spell_rank = spell_rank;
         }
         let mut fields = crate::prepared_content::prepared_fields(
-            &key,
+            key,
             &request.address.owners,
-            &selected,
+            selected,
             &content.content.fields,
             &content.bounded,
             r.artifact_context().audience,
@@ -421,20 +524,137 @@ impl<'a> LoadedRecordDetail<'a> {
             fields.iter_mut(),
             &content.relationships,
         )?;
-        presentation.content = fields;
-        let relationships = r.read_non_content_relationships(&SourceRelationshipRequest {
-            record: key.clone(),
-            owners: Some(request.address.owners.clone()),
-            field: if request.fields.len() == 1 {
-                Some(request.fields[0].clone())
-            } else {
-                None
+        Ok(SelectedContent {
+            fields,
+            relationships: content.relationships,
+            truncated: !content.bounded.is_empty(),
+            excerpt,
+        })
+    }
+
+    pub(crate) fn project(
+        &self,
+        request: RecordSelection,
+        expected_artifact_generation: Option<&str>,
+    ) -> AppServiceResult<RecordDetailView> {
+        self.project_with_excerpt(
+            request,
+            expected_artifact_generation,
+            ReadingProjection::Full,
+        )
+        .map(|(view, _)| view)
+    }
+
+    pub(crate) fn project_with_excerpt(
+        &self,
+        mut request: RecordSelection,
+        expected_artifact_generation: Option<&str>,
+        projection: ReadingProjection<'_>,
+    ) -> AppServiceResult<(RecordDetailView, Option<String>)> {
+        let r = self.retrieval;
+        let detail = &self.detail;
+        crate::definitions::check_generation(
+            expected_artifact_generation,
+            &r.artifact_generation()?,
+        )?;
+        let key = validate_selection(r, &request)?;
+        if &key != detail.source.key() {
+            return Err(AppServiceError::invalid_request(
+                "detail selection belongs to another loaded record",
+            ));
+        }
+        let whole_document = request.fields.is_empty() && request.passage.is_none();
+        let node = detail
+            .source
+            .node_at(&request.address.owners)
+            .ok_or_else(|| {
+                AppServiceError::invalid_request(
+                    "selected document does not exist in this source snapshot",
+                )
+            })?;
+        let selections = node.content_selections();
+        if request
+            .fields
+            .iter()
+            .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
+        {
+            return Err(AppServiceError::invalid_request(
+                "selected field is not declared content of the selected document",
+            ));
+        }
+        let selected: Vec<_> = selections
+            .into_iter()
+            .filter(|s| {
+                if request.fields.is_empty() {
+                    s.role != SourceContentRole::Name
+                        && (matches!(s.text, SourceFieldView::Value(_))
+                            || s.role == SourceContentRole::Prerequisite)
+                } else {
+                    request.fields.iter().any(|f| f.as_str() == s.field)
+                }
+            })
+            .collect();
+        if !request.fields.is_empty() {
+            request.fields = selected
+                .iter()
+                .map(|field| field.field.to_string())
+                .collect();
+        }
+        if selected.len() > 256 {
+            return Err(AppServiceError::invalid_request(
+                "select at most 256 content fields per detail request",
+            ));
+        }
+        let summary = crate::projection::localized_detail_summary_view(detail, r);
+        let mut presentation = crate::presentation::record_presentation(
+            &detail.source,
+            node,
+            &summary,
+            &request.address.owners,
+            match projection {
+                ReadingProjection::Sections(sections) => Some(sections),
+                _ => None,
             },
-            direction: SourceRelationshipDirection::Outgoing,
-            limit: 1024,
-        })?;
+            r,
+        )?;
+        let spell_rank = crate::presentation::apply_casting_rank(
+            &detail.source,
+            node,
+            request.spell_rank,
+            &mut presentation,
+            r,
+        )?;
+        if matches!(
+            projection,
+            ReadingProjection::Full | ReadingProjection::Sections(_)
+        ) {
+            crate::presentation::reference_help::annotate(&mut presentation, r)?;
+        }
+        let include_content =
+            request.passage.is_some() || projection.includes_content(&presentation.body);
+        let content = if include_content {
+            self.read_fields(&key, &request, &selected, spell_rank)?
+        } else {
+            SelectedContent::default()
+        };
+        presentation.content = content.fields;
+        let relationships = if include_content {
+            r.read_non_content_relationships(&SourceRelationshipRequest {
+                record: key.clone(),
+                owners: Some(request.address.owners.clone()),
+                fields: request.fields.clone(),
+                direction: SourceRelationshipDirection::Outgoing,
+                limit: 1024,
+            })?
+        } else {
+            atlas_search::SourceRelationshipBundle {
+                occurrences: vec![],
+                truncated: false,
+            }
+        };
+        let full = matches!(projection, ReadingProjection::Full);
         let grants_truncated = relationships.truncated;
-        let equipment_family = if request.address.owners.is_empty() {
+        let equipment_family = if full && request.address.owners.is_empty() {
             match r.verified_equipment_family_reference(detail) {
                 Ok(family) => {
                     family.map(|reference| atlas_app_model::EquipmentFamilyReferenceView {
@@ -450,7 +670,7 @@ impl<'a> LoadedRecordDetail<'a> {
         } else {
             None
         };
-        let creature_family = if request.address.owners.is_empty() {
+        let creature_family = if full && request.address.owners.is_empty() {
             r.creature_family_for(&detail.summary)?
         } else {
             None
@@ -471,14 +691,14 @@ impl<'a> LoadedRecordDetail<'a> {
                 title: record.title,
             }
         };
-        let canonical_record = if whole_document && request.address.owners.is_empty() {
+        let canonical_record = if full && whole_document && request.address.owners.is_empty() {
             r.canonical_creature_copy(&detail.summary)?
                 .as_ref()
                 .map(title_link)
         } else {
             None
         };
-        let named_creature_links = if request.address.owners.is_empty() {
+        let named_creature_links = if full && request.address.owners.is_empty() {
             let links = r.named_creature_links(&detail.summary)?;
             (links.base.is_some() || !links.named.is_empty()).then(|| {
                 atlas_app_model::NamedCreatureLinksView {
@@ -501,6 +721,12 @@ impl<'a> LoadedRecordDetail<'a> {
             None => (None, None),
         };
         let mut view = RecordDetailView {
+            selected_fields: if request.fields.len() > 1 {
+                request.fields.clone()
+            } else {
+                vec![]
+            },
+            has_remaster_versions: false,
             canonical_record,
             named_creature_links,
             creature_link_placement,
@@ -509,7 +735,8 @@ impl<'a> LoadedRecordDetail<'a> {
             equipment_family,
             remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
             source_remaster_context: None,
-            encounter_adjustment: (request.address.owners.is_empty()
+            encounter_adjustment: (full
+                && request.address.owners.is_empty()
                 && matches!(
                     detail.summary.record_kind.as_value(),
                     Some(atlas_domain::RecordKind::Creature)
@@ -565,16 +792,30 @@ impl<'a> LoadedRecordDetail<'a> {
                 relationship
             })
             .collect(),
-            relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
+            relationships_truncated: relationships.truncated || content.truncated,
         };
-        (view.remaster_relationships, view.source_remaster_context) =
-            crate::remaster::reading_context(&view.selected, r);
-        crate::contextual_references::attach_consumable_spell(&mut view, r)?;
-        crate::contextual_references::attach_ranked_effects(&mut view, r)?;
-        if whole_document {
-            crate::record_grants::attach(&detail.source, &mut view, r, grants_truncated)?;
+        if full {
+            (view.remaster_relationships, view.source_remaster_context) =
+                crate::remaster::reading_context(&view.selected, r);
+            view.has_remaster_versions = crate::related::remaster_versions(
+                &view.selected,
+                &view.remaster_relationships,
+                view.source_remaster_context.as_ref(),
+            );
         }
-        Ok((view, excerpt))
+        if include_content {
+            crate::contextual_references::attach_consumable_spell(
+                &mut view,
+                &detail.source,
+                node,
+                r,
+            )?;
+            crate::contextual_references::attach_ranked_effects(&mut view, node, r)?;
+            if full && whole_document {
+                crate::record_grants::attach(&detail.source, &mut view, r, grants_truncated)?;
+            }
+        }
+        Ok((view, content.excerpt))
     }
 }
 

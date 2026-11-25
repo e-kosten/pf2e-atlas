@@ -58,6 +58,7 @@ function result(
       kind: "attributes",
       rules: [{ field: "name", direction: "asc" }],
     } satisfies ResultSort,
+    result_detail: "records" as const,
     relationship_clauses: [],
     ranking: "score" as const,
     search_profile: profile,

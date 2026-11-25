@@ -53,6 +53,21 @@ fn occurrence_scope(
     }
     Ok(sql)
 }
+impl SqliteIndexReader {
+    /// Same eligible owners and record destinations as a relationship search, stopping at its first match.
+    pub fn has_related_records(
+        &self,
+        relationship: &QueryRelationship,
+    ) -> Result<bool, IndexError> {
+        let mut params = Vec::new();
+        let scope = occurrence_scope(relationship, "s", &mut params)?;
+        self.count_statement();
+        Ok(self.native()?.query_row(
+            &format!("SELECT EXISTS(SELECT 1 FROM relationship_occurrences o JOIN records s ON s.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id WHERE s.document_kind<>'Macro' AND t.document_kind<>'Macro' AND {scope})"),
+            params_from_iter(params), |row| row.get(0),
+        )?)
+    }
+}
 pub(crate) fn compile_relationship(
     relationship: &QueryRelationship,
     params: &mut Vec<Value>,

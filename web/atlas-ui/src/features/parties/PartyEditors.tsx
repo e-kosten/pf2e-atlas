@@ -2,8 +2,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Checkbox, Form, Input, InputNumber } from "antd";
 import type { InputRef } from "antd";
 import { useId, useRef, useState, type ReactNode } from "react";
-import { AtlasApiError, getParties, updateParty } from "../../api/atlasApi";
-import type { PartyView, UpdatePartyRequest } from "../../generated/atlas";
+import { AtlasApiError, getParty, renameParty, updateParty } from "../../api/atlasApi";
+import type {
+  PartyView,
+  RenamePartyRequest,
+  UpdatePartyRequest,
+} from "../../generated/atlas";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
@@ -26,7 +30,10 @@ function usePartyEdit(
   const paused = useSavedWritesPaused();
   const save = useMutation({
     retry: false,
-    mutationFn: (request: UpdatePartyRequest) => updateParty(party.party_key, request),
+    mutationFn: (request: UpdatePartyRequest | RenamePartyRequest) =>
+      "members" in request
+        ? updateParty(party.party_key, request)
+        : renameParty(party.party_key, request),
     onSuccess: async () => {
       await refreshCharacters(client);
       setClosing(true);
@@ -34,12 +41,7 @@ function usePartyEdit(
   });
   const review = useMutation({
     retry: false,
-    mutationFn: async () => {
-      const index = await getParties();
-      const latest = index.parties.find((item) => item.party_key === party.party_key);
-      if (!latest) throw new Error("This party was deleted. You can close this form.");
-      return latest;
-    },
+    mutationFn: () => getParty(party.party_key),
     onSuccess: (latest) => {
       onReviewed(latest, party);
       setParty(latest);
@@ -172,8 +174,6 @@ export function RenameParty({
             edit.save.mutate({
               name: nextName,
               expected_revision: edit.party.revision,
-              members: partyMemberships(edit.party),
-              level_updates: [],
             });
         }}
       >

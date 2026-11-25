@@ -24,14 +24,14 @@ pub struct CharactersRead<'a> {
 pub struct CharactersWrite<'a> {
     read: CharactersRead<'a>,
 }
-/// A creation request may match a legacy receipt or one bound to the complete import.
+/// A character save may match a legacy receipt or one bound to the complete import.
 #[derive(Clone, Copy)]
-pub enum CharacterCreationIntent<'a> {
+pub enum CharacterSaveIntent<'a> {
     Legacy(&'a str),
     Pathbuilder { legacy: &'a str, full: &'a str },
 }
 
-impl<'a> CharacterCreationIntent<'a> {
+impl<'a> CharacterSaveIntent<'a> {
     fn digest_at(self, version: i64) -> Option<&'a str> {
         match (version, self) {
             (1, Self::Legacy(digest) | Self::Pathbuilder { legacy: digest, .. }) => Some(digest),
@@ -60,6 +60,24 @@ impl<'a> CharactersRead<'a> {
             connection,
             owner_id,
         }
+    }
+    pub fn candidates(&self, reference: &str) -> LocalStateResult<Vec<(String, String)>> {
+        let identity = |row: &rusqlite::Row<'_>| Ok((row.get(0)?, row.get(1)?));
+        if let Some(found) = self
+            .connection
+            .query_row(
+                "SELECT character_key,name FROM characters WHERE owner_id=?1 AND character_key=?2",
+                params![self.owner_id, reference],
+                identity,
+            )
+            .optional()?
+        {
+            return Ok(vec![found]);
+        }
+        let mut statement = self.connection.prepare("SELECT character_key,name FROM characters WHERE owner_id=?1 AND name=?2 ORDER BY character_key")?;
+        Ok(statement
+            .query_map(params![self.owner_id, reference.trim()], identity)?
+            .collect::<Result<_, _>>()?)
     }
     pub fn list(&self) -> LocalStateResult<Vec<CharacterSummary>> {
         let mut statement=self.connection.prepare(
@@ -153,10 +171,10 @@ impl<'a> CharactersRead<'a> {
             .ok_or_else(|| LocalStateError::CharacterNotFound(key.into()))?;
         source.map(PathbuilderSource::new).transpose()
     }
-    pub fn creation_receipt(
+    pub fn save_receipt(
         &self,
         request_id: &str,
-        intent: CharacterCreationIntent<'_>,
+        intent: CharacterSaveIntent<'_>,
     ) -> LocalStateResult<Option<String>> {
         validate_request(request_id, intent.latest().1)?;
         let result: Option<(i64, String, String)> = self.connection.query_row(
@@ -168,7 +186,7 @@ impl<'a> CharactersRead<'a> {
             .map(|(version, digest, key)| {
                 if intent.digest_at(version) != Some(digest.as_str()) {
                     return Err(LocalStateError::InvalidParty(
-                        "This creation request was already used with different details.",
+                        "This character request was already used with different details.",
                     ));
                 }
                 Ok(key)
@@ -227,10 +245,10 @@ impl<'a> CharactersWrite<'a> {
             self.get(&key)
         })
     }
-    pub fn record_creation(
+    pub fn record_save(
         &self,
         request: &str,
-        intent: CharacterCreationIntent<'_>,
+        intent: CharacterSaveIntent<'_>,
         key: &str,
     ) -> LocalStateResult<()> {
         let (version, digest) = intent.latest();
@@ -404,7 +422,7 @@ fn validate_request(id: &str, digest: &str) -> LocalStateResult<()> {
         || !digest.bytes().all(|b| b.is_ascii_hexdigit())
     {
         return Err(LocalStateError::InvalidParty(
-            "Invalid character creation request.",
+            "Invalid character save request.",
         ));
     }
     Ok(())

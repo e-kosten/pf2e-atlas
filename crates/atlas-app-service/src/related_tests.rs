@@ -58,16 +58,18 @@ fn declared_grants_appear_in_explore_and_reference_search_without_duplicate_resu
     let RelatedCategoryView::Content { content } = related.references else {
         panic!("declared references");
     };
-    assert_eq!(content.outgoing.occurrences.len(), 3);
-    assert_eq!(
-        content
-            .outgoing
-            .occurrences
-            .iter()
-            .filter(|o| o.kind == "DeclaredGrant")
-            .count(),
-        2
-    );
+    assert!(content.outgoing);
+    assert!(!content.incoming);
+    assert!(content.additional_outgoing.is_empty());
+    let mut filter =
+        atlas_domain::QueryPredicate::new(atlas_domain::QueryExpression::Relationship {
+            relationship: atlas_domain::QueryRelationship {
+                direction: atlas_domain::QueryRelationshipDirection::Outgoing,
+                selection: crate::relationship_search::query_selection(&related.selection).unwrap(),
+                include_contents: true,
+            },
+        });
+    atlas_domain::assign_relationship_clause_ids(&mut filter).unwrap();
     let page = f
         .worker
         .search_page(
@@ -78,7 +80,7 @@ fn declared_grants_appear_in_explore_and_reference_search_without_duplicate_resu
                 ranking: None,
                 search_profile: None,
                 criteria: SearchCriteria::ListRecords {
-                    filter: content.outgoing.filter,
+                    filter: Some(filter),
                 },
                 page: SearchPageRequest { number: 1, size: 5 },
                 expected_artifact_generation: Some(detail.artifact_generation),
@@ -108,14 +110,9 @@ fn declared_grants_appear_in_explore_and_reference_search_without_duplicate_resu
     let RelatedCategoryView::Content { content } = incoming.references else {
         panic!("incoming declared references");
     };
-    assert_eq!(content.backlinks.occurrences.len(), 2);
-    assert!(
-        content
-            .backlinks
-            .occurrences
-            .iter()
-            .all(|o| o.source_navigation.record_key == "backgrounds:aaaaaaaaaaaaaaaa")
-    );
+    assert!(content.incoming);
+    assert!(!content.outgoing);
+    assert!(content.additional_outgoing.is_empty());
 }
 
 #[test]
@@ -239,16 +236,9 @@ fn related_availability_is_exact_owner_scoped_generation_checked_and_nonempty() 
     let RelatedCategoryView::Content { content } = result.references else {
         panic!("root references");
     };
-    assert_eq!(
-        content.outgoing.occurrences.len(),
-        1,
-        "must not broaden root to child references"
-    );
-    assert!(content.outgoing.occurrences[0].source.owners.is_empty());
-    assert!(matches!(
-        result.remaster_relationships,
-        RelatedCategoryView::Empty
-    ));
+    assert!(content.outgoing);
+    assert!(!content.incoming);
+    assert!(content.additional_outgoing.is_empty());
     let mut owned = request.clone();
     owned.selection.owners = vec![atlas_domain::OwnedContentLocator {
         collection: "/items".into(),
@@ -258,15 +248,8 @@ fn related_availability_is_exact_owner_scoped_generation_checked_and_nonempty() 
     let RelatedCategoryView::Content { content } = result.references else {
         panic!("owned references");
     };
-    assert_eq!(content.outgoing.occurrences.len(), 1);
-    assert_eq!(
-        content.outgoing.occurrences[0].source.owners,
-        owned.selection.owners
-    );
-    assert!(matches!(
-        result.remaster_relationships,
-        RelatedCategoryView::Empty
-    ));
+    assert!(content.outgoing);
+    assert!(!content.incoming);
     assert!(matches!(
         result.variants,
         RelatedCategoryView::Unavailable { .. }
@@ -317,4 +300,66 @@ fn related_availability_is_exact_owner_scoped_generation_checked_and_nonempty() 
         result.variants,
         RelatedCategoryView::Unavailable { .. }
     ));
+}
+
+#[test]
+fn additional_links_are_filtered_before_the_preview_limit() {
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            let mut html = "@UUID[Compendium.pf2e.items.Item.target0000000000] ".repeat(105);
+            for i in 0..7 {
+                html.push_str(&format!(
+                    "<a href='https://example.com/link{i}'>External {i}</a> "
+                ));
+            }
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actions",
+                        "Item",
+                        json!({"_id":"reader0000000000","name":"Reader","type":"action","system":{"description":{"value":html}}}),
+                    ),
+                    record(
+                        "items",
+                        "Item",
+                        json!({"_id":"target0000000000","name":"Target","type":"effect"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = fixture
+        .worker
+        .record_detail("actions:reader0000000000")
+        .unwrap();
+    let view = fixture
+        .worker
+        .related_records(RelatedRecordsRequest {
+            selection: detail.selected,
+            artifact_generation: detail.artifact_generation,
+        })
+        .unwrap();
+    let RelatedCategoryView::Content { content } = view.references else {
+        panic!("reference preview");
+    };
+    assert!(content.outgoing);
+    assert!(!content.incoming);
+    let targets: Vec<_> = content
+        .additional_outgoing
+        .iter()
+        .map(|entry| match &entry.destination {
+            RecordReferenceDestinationView::ResolvedUrl { url }
+            | RecordReferenceDestinationView::UnverifiedUrl { url } => url.as_str(),
+            other => panic!("unexpected additional destination {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        targets,
+        (0..5)
+            .map(|i| format!("https://example.com/link{i}"))
+            .collect::<Vec<_>>()
+    );
 }

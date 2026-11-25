@@ -40,6 +40,11 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
         tags: vec![],
     })?;
     assert_eq!(own.slug, original.list.slug);
+    assert!(second.item_note(&own.slug, "actions:first")?.is_none());
+    assert!(matches!(
+        second.item_note(&original.list.list_key, "actions:first"),
+        Err(LocalStateError::ListNotFound(_))
+    ));
     assert!(second.get_with_items(&original.list.list_key)?.is_none());
     assert!(matches!(
         second.update_item_note(&original.list.list_key, "actions:first", Some("Changed")),
@@ -81,6 +86,44 @@ fn list_slugs_replacements_and_membership_stay_within_the_owner()
         |row| row.get(0),
     )?;
     assert_eq!(count, 0);
+    Ok(())
+}
+
+#[test]
+fn item_note_reads_only_the_selected_membership() -> Result<(), Box<dyn std::error::Error>> {
+    let store = TestStore::open(temp_path("single-item-note"))?;
+    let mut connection = store.connection()?;
+    let transaction = connection.transaction()?;
+    let lists = SavedListsWrite::from_connection(&transaction, 1);
+    let items = (0..25)
+        .map(|n| ImportSavedListItem {
+            record_key: format!("actions:item{n}"),
+            note: Some(format!("Note {n}")),
+            record_title_snapshot: format!("Item {n}"),
+            record_kind_snapshot: None,
+        })
+        .collect();
+    let imported = lists.import(ImportSavedList {
+        slug: "prepare".into(),
+        name: "Prepare".into(),
+        description: None,
+        tags: vec![],
+        replace: false,
+        items,
+    })?;
+    // Decoding any unselected sibling as a full item would now fail.
+    assert_eq!(transaction.execute(
+        "UPDATE saved_list_items SET record_title_snapshot=x'FF' WHERE record_key!='actions:item7'",
+        [],
+    )?, 24);
+    assert_eq!(
+        lists
+            .item_note(&imported.list.list_key, "actions:item7")?
+            .unwrap()
+            .note
+            .as_deref(),
+        Some("Note 7"),
+    );
     Ok(())
 }
 

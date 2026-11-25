@@ -1739,11 +1739,9 @@ test("named parties add everyone directly and archive views stay separate", asyn
   } finally {
     await page.request.delete(path);
     if (partyKey) {
-      const index = await (await page.request.get("/api/parties")).json();
-      const party = index.parties.find(
-        (p: { party_key: string }) => p.party_key === partyKey,
-      );
-      if (party) {
+      const response = await page.request.get(`/api/parties/${partyKey}`);
+      if (response.ok()) {
+        const party = await response.json();
         for (const member of party.members) {
           await page.request.delete(`/api/characters/${member.character_key}`, {
             data: { expected_revision: member.character_revision },

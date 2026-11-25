@@ -43,7 +43,7 @@ mod lexical;
 pub use lexical::{LexicalFields, LexicalMatch, LexicalOptions};
 
 mod search_ranking;
-pub use search_ranking::SearchRanking;
+pub use search_ranking::{SearchRanking, SearchResultDetail};
 
 mod trait_key;
 pub use trait_key::{TraitKey, TraitKeyParseError};

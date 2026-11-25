@@ -6,8 +6,8 @@ use super::{
     terminal::TerminalLayout,
 };
 use atlas_app_model::{
-    ActorActivityKindView, ActorActivityView, ActorPresentationView, EmbeddedReadingEntryView,
-    RecordBodyView, RecordDetailView,
+    ActorActivityView, ActorPresentationView, EmbeddedReadingEntryView, RecordBodyView,
+    RecordDetailView,
 };
 use serde_json::{Value, json};
 
@@ -27,15 +27,7 @@ fn hazard(body: &RecordBodyView) -> Option<&atlas_app_model::HazardPresentationV
 }
 
 fn applies(section: RecordSection, a: &ActorActivityView) -> bool {
-    match section {
-        RecordSection::Strikes => a.kind == ActorActivityKindView::Strike,
-        RecordSection::Abilities => a.kind == ActorActivityKindView::Ability,
-        RecordSection::Spellcasting => matches!(
-            a.kind,
-            ActorActivityKindView::Spell | ActorActivityKindView::CastingEntry
-        ),
-        _ => false,
-    }
+    section.read_section().includes_activity(&a.kind)
 }
 
 fn activity(section: RecordSection, a: &ActorActivityView, generation: &str) -> Value {

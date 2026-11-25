@@ -1,4 +1,4 @@
-import { isUnconfirmedMutation } from "../../api/apiError";
+import { AtlasApiError, isUnconfirmedMutation } from "../../api/apiError";
 import {
   MarkdownEditor,
   type MarkdownEditorHandle,
@@ -13,12 +13,12 @@ import {
   recordAdditionRequest,
   encounterPreviewBasis,
   type PreparedCreatureAddition,
+  type ReviewedAddition,
   type EncounterRecordAddForm,
 } from "../encounters/EncounterAddDifficulty";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { difficultySummary } from "../encounters/EncounterDifficulty";
 import { EncounterRecordAdjustment } from "../encounters/EncounterRecordAdjustment";
-import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,7 +43,8 @@ import {
   createEncounterWithAddition,
   previewDraftEncounterAddition,
   createSavedList,
-  getEncounter,
+  getEncounterAdditionContext,
+  getCreatureAdditionContext,
   getEncounters,
   previewEncounterDifficulty,
 } from "../../api/atlasApi";
@@ -54,7 +55,6 @@ import {
   navigateDestination,
 } from "../../app/navigation";
 import type {
-  AddEncounterRecordParticipantRequest,
   CreateEncounterWithAdditionRequest,
   RecordSummaryView,
 } from "../../generated/atlas";
@@ -197,7 +197,7 @@ function AddToRecordModal({
   const inFlight = useRef(false);
   const [unconfirmed, setUnconfirmed] = useState<{
     destination: Destination;
-    request: AddEncounterRecordParticipantRequest;
+    request: Parameters<typeof addEncounterRecordParticipant>[1];
   } | null>(null);
   const [unconfirmedCreation, setUnconfirmedCreation] =
     useState<CreateEncounterWithAdditionRequest | null>(null);
@@ -228,20 +228,24 @@ function AddToRecordModal({
   const encounterKey =
     open && kind === "encounter" && !creating ? selected?.key : undefined;
   const encounter = useQuery({
-    queryKey: ["encounter", encounterKey],
-    queryFn: () => getEncounter(encounterKey!),
+    queryKey: ["encounter", encounterKey, "addition-context"],
+    queryFn: () => getEncounterAdditionContext(encounterKey!),
     enabled: Boolean(encounterKey),
   });
   const creature = record?.kind === "creature";
-  const detail = useQuery(
-    recordDetailQueryOptions(
-      open && kind === "encounter" && creature ? recordKey : null,
-    ),
-  );
+  const detail = useQuery({
+    queryKey: ["creature-addition-context", recordKey],
+    meta: referenceQueryMeta,
+    queryFn: ({ signal }) => getCreatureAdditionContext(recordKey, { signal }),
+    enabled: open && kind === "encounter" && creature,
+  });
   const { useId } = useCreatureScenario(recordKey);
+  const [reviewedAddition, setReviewedAddition] = useState<ReviewedAddition | null>(
+    null,
+  );
   const [preparedCreature, setPreparedCreature] =
     useState<PreparedCreatureAddition | null>(null);
-  const scenario = detail.data?.record.creature_display?.uses.length
+  const scenario = detail.data?.has_scenario_uses
     ? {
         artifact_generation: detail.data.artifact_generation,
         ...(useId === undefined ? {} : { use_id: useId }),
@@ -266,9 +270,7 @@ function AddToRecordModal({
     encounterKey && scenario && !currentAddition().creature_scenario?.expected,
   );
   const resolvedAdjustment =
-    detail.data?.record.record_key === recordKey
-      ? detail.data.encounter_adjustment
-      : undefined;
+    detail.data?.record_key === recordKey ? detail.data.adjustment : undefined;
   const adjustmentBlocked = kind === "encounter" && creature && !resolvedAdjustment;
   useLayoutEffect(() => {
     if (
@@ -284,6 +286,17 @@ function AddToRecordModal({
   }, [open, kind, creature, form, resolvedAdjustment]);
   const newEncounter = open && creating && kind === "encounter";
   const draftAddition = encounterRecordAddition(recordKey, creature, form, scenario);
+  const reviewMatches =
+    reviewedAddition &&
+    reviewedAddition.basis === previewBasis &&
+    JSON.stringify(reviewedAddition.request) === JSON.stringify(draftAddition);
+  async function refreshAdditionBasis() {
+    setReviewedAddition(null);
+    await Promise.all([encounter.refetch(), ...(creature ? [detail.refetch()] : [])]);
+    await queryClient.invalidateQueries({
+      queryKey: ["encounter-add-difficulty", encounterKey],
+    });
+  }
   const draftValid =
     Number.isInteger(draftAddition.quantity) &&
     draftAddition.quantity >= 1 &&
@@ -403,12 +416,22 @@ function AddToRecordModal({
           deleted: false,
         };
       }
-      const request = unconfirmed?.request ?? recordAdditionRequest(currentAddition());
+      if (!unconfirmed && (!reviewMatches || !encounter.data)) {
+        throw new Error("Review the updated addition first.");
+      }
+      const request = unconfirmed?.request ?? {
+        ...recordAdditionRequest(currentAddition()),
+        expected_revision: encounter.data!.revision,
+        expected_artifact_generation: reviewedAddition!.generation,
+      };
       let receipt;
       try {
         receipt = await addEncounterRecordParticipant(destination.key, request);
       } catch (error) {
         setUnconfirmed(isUnconfirmedMutation(error) ? { destination, request } : null);
+        if (error instanceof AtlasApiError && error.status === 409 && error.appError) {
+          await refreshAdditionBasis();
+        }
         throw error;
       }
       setUnconfirmed(null);
@@ -527,6 +550,7 @@ function AddToRecordModal({
               waitingForDraft ||
               adjustmentBlocked ||
               waitingForCreaturePreview ||
+              (Boolean(encounterKey) && !reviewMatches) ||
               (!creating && !selected))),
       }}
       closable={
@@ -831,6 +855,8 @@ function AddToRecordModal({
             creature={creature}
             scenario={scenario}
             onPreparedCreature={setPreparedCreature}
+            onReviewed={setReviewedAddition}
+            refreshBasis={refreshAdditionBasis}
             recordName={record?.title ?? recordKey}
             disabled={submit.isPending || adjustmentBlocked || frozen}
           />
@@ -888,7 +914,10 @@ function AddToRecordModal({
             description={
               listCreateUncertain
                 ? "Check the list directory before creating another list."
-                : undefined
+                : submit.error instanceof AtlasApiError &&
+                    submit.error.appError?.code === "encounter_turn_conflict"
+                  ? "The encounter changed. Review the updated addition before trying again."
+                  : undefined
             }
             action={
               listCreateUncertain && (

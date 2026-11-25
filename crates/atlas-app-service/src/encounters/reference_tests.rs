@@ -596,7 +596,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
                     record(
                         "actors",
                         "Actor",
-                        json!({"_id":"contextActor0001","name":"Context creature","type":"npc","system":{"details":{"level":{"value":7},"publicNotes":"<p>@Damage[(ceil(@actor.level/2))d6[untyped]]</p>"},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}},"traits":{"value":[],"rarity":"common"}}}),
+                        json!({"_id":"contextActor0001","name":"Context creature","type":"npc","system":{"details":{"level":{"value":7},"publicNotes":"<p>@Damage[(ceil(@actor.level/2))d6[untyped]]</p>"},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}},"traits":{"value":[],"rarity":"common"}},"items":[{"_id":"consumable000001","type":"consumable","name":"Scroll","system":{"description":{"value":"<p>@Damage[1d4[fire]]</p>"},"spell":{"_id":"nestedspell00001","type":"spell","name":"Stored spell","system":{"level":{"value":1},"description":{"value":"<p>@Damage[(@item.rank + 1d6)[fire]]</p>"}}}}}]}),
                     ),
                     record(
                         "actors",
@@ -677,6 +677,50 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     let old = get_roll(&selected);
     assert!(old.encounter.is_some());
     assert!(f.worker.roll_content(old.clone()).is_ok());
+    let owner = |collection: &str, id: &str| atlas_domain::OwnedContentLocator {
+        collection: collection.into(),
+        identity: atlas_domain::OwnedContentIdentity::Stable(id.into()),
+    };
+    let mut item = request.clone();
+    item.selection.address.owners = vec![owner("/items", "consumable000001")];
+    let literal = f
+        .worker
+        .encounter_reference(&encounter.slug, &participant.participant_key, item.clone())
+        .unwrap();
+    let mut forged = get_roll(&literal);
+    assert!(forged.encounter.is_none());
+    assert!(f.worker.roll_content(forged.clone()).is_ok());
+    forged.encounter = old.encounter.clone();
+    assert!(f.worker.roll_content(forged).is_err());
+
+    item.selection
+        .address
+        .owners
+        .push(owner("/system/spell", "nestedspell00001"));
+    item.selection.spell_rank = Some(1);
+    let stored = f
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            record_key: item.selection.address.record_key.clone(),
+            owners: item.selection.address.owners.clone(),
+            fields: vec![],
+            passage: None,
+            spell_rank: Some(1),
+            source_fingerprint: None,
+            expected_artifact_generation: None,
+        })
+        .unwrap();
+    let mut nested = get_roll(&stored);
+    assert!(f.worker.roll_content(nested.clone()).is_ok());
+    nested.encounter = old.encounter.clone();
+    let rejected = f.worker.roll_content(nested).unwrap_err().into_app_error();
+    let reader_error = f
+        .worker
+        .encounter_reference(&encounter.slug, &participant.participant_key, item)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(rejected.message, reader_error.message);
+    assert!(rejected.message.contains("selected spell"));
     let canonical = f
         .worker
         .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {

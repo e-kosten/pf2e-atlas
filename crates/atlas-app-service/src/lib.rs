@@ -66,11 +66,14 @@ mod test_support;
 pub use completions::{
     complete_character_keys, complete_party_keys, complete_record_keys, complete_saved_list_slugs,
 };
+pub use encounters::EncounterReadDetail;
 pub use encounters::portability::EncounterImportReport;
 pub use error::{AppServiceError, AppServiceResult};
 pub use filters::{CliFilterValuesRequest, RawFilterCountsRequest};
 pub use read_execution::ReadExecutionContext;
+pub use records::RecordReadSection;
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
+pub use table_roll::RolledTable;
 
 #[cfg(test)]
 mod relationship_discovery_tests;
