@@ -243,6 +243,7 @@ pub(crate) fn graph_section_view(
 }
 pub(crate) fn search_results_view(
     result: atlas_search::TextSearchResult,
+    detail: atlas_domain::SearchResultDetail,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::SearchResultsView {
     atlas_app_model::SearchResultsView {
@@ -268,10 +269,11 @@ pub(crate) fn search_results_view(
                     similarity: None,
                     relationship_evidence: vec![],
                     record: localized_summary_view(&r.record, retrieval),
-                    matching_sections: crate::search_match_sections::matching_sections(
-                        &matches,
-                        &parent_headings,
-                    ),
+                    matching_sections: if detail == atlas_domain::SearchResultDetail::Evidence {
+                        crate::search_match_sections::matching_sections(&matches, &parent_headings)
+                    } else {
+                        None
+                    },
                     matches,
                 }
             })

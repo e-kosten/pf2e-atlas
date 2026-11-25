@@ -45,6 +45,9 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::apply_condition_lifecycle))
         .routes(routes!(crate::handlers::condition_lifecycle_actions))
         .routes(routes!(crate::handlers::pending_condition_recoveries))
+        .routes(routes!(crate::handlers::encounter_revision))
+        .routes(routes!(crate::handlers::encounter_addition_context))
+        .routes(routes!(crate::handlers::creature_addition_context))
         .routes(routes!(crate::handlers::set_encounter_difficulty))
         .routes(routes!(crate::handlers::preview_encounter_difficulty))
         .routes(routes!(crate::handlers::preview_draft_encounter_addition))
@@ -110,6 +113,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
             crate::handlers::saved_list,
             crate::handlers::update_saved_list
         ))
+        .routes(routes!(crate::handlers::saved_list_header))
         .routes(routes!(crate::handlers::filter_saved_list))
         .routes(routes!(
             crate::handlers::remove_saved_list_item,
@@ -125,9 +129,12 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
             crate::parties::create_party
         ))
         .routes(routes!(
+            crate::parties::party_roster,
             crate::parties::delete_party,
             crate::parties::update_party
         ))
+        .routes(routes!(crate::parties::party_rosters))
+        .routes(routes!(crate::parties::rename_party))
         .routes(routes!(crate::pc_reference::preview_pathbuilder_pc))
         .routes(routes!(crate::pc_reference::save_pathbuilder_pc))
         .routes(routes!(crate::characters::characters))

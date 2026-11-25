@@ -23,6 +23,28 @@ pub struct PartyView {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PartyDirectoryView {
+    pub parties: Vec<PartySummaryView>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PartySummaryView {
+    pub party_key: String,
+    pub name: String,
+    pub revision: i64,
+    pub member_count: u32,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RenamePartyRequest {
+    pub expected_revision: i64,
+    pub name: String,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PartyIndexView {
     pub parties: Vec<PartyView>,
 }

@@ -1,8 +1,5 @@
 import { useAtlasRouter } from "../../app/router";
-import {
-  referenceExternalUrl,
-  referenceRecordTarget,
-} from "./recordReferenceDestination";
+import { referenceExternalUrl } from "./recordReferenceDestination";
 import { useReferenceRecordNavigation as useContextualReference } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { similarityPartsQueryOptions } from "../search/similarityQueries";
@@ -67,8 +64,6 @@ type ExploreProps = {
 };
 
 export function RelatedRecords(props: ExploreProps) {
-  const incoming = useReferencePreview(props.detail, true);
-  const outgoing = useReferencePreview(props.detail, false);
   const related = useRelated(props.detail);
   const {
     mode,
@@ -77,23 +72,12 @@ export function RelatedRecords(props: ExploreProps) {
     resetUnavailableVersions,
   } = useRecordExploreLocation();
   const graph = related.data?.references;
-  const otherReferences =
-    graph?.kind === "content" &&
-    graph.content.outgoing.occurrences.some(
-      (entry) => !referenceRecordTarget(entry.destination),
-    );
-  const hasIncoming =
-    !!incoming.query.error ||
-    !incoming.query.data ||
-    incoming.query.data.rows.length > 0;
+  const unknown = !graph || graph.kind === "error" || graph.kind === "unavailable";
+  const hasIncoming = unknown || (graph.kind === "content" && graph.content.incoming);
   const hasOutgoing =
-    !!outgoing.query.error ||
-    !outgoing.query.data ||
-    outgoing.query.data.rows.length > 0 ||
-    otherReferences ||
-    !!related.error ||
-    graph?.kind === "error" ||
-    graph?.kind === "unavailable";
+    unknown ||
+    (graph.kind === "content" &&
+      (graph.content.outgoing || graph.content.additional_outgoing.length > 0));
   const creatureFamily = props.detail.creature_family;
   const currentCreature = props.detail.record.record_key;
   const namedCreature = creatureFamily?.named_creatures.some(
@@ -105,6 +89,7 @@ export function RelatedRecords(props: ExploreProps) {
   const versions =
     creatureVersions ||
     Boolean(props.detail.creature_link_placement?.version_record_keys.length) ||
+    props.detail.has_remaster_versions ||
     related.data?.show_versions;
   useEffect(() => {
     if (
@@ -139,7 +124,7 @@ export function RelatedRecords(props: ExploreProps) {
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
   ];
-  const waitingForDefault = active === undefined && related.isPending && !versions;
+  const waitingForDefault = related.isPending && !versions && active === undefined;
   return (
     <section className="record-explore" aria-label="Explore record">
       {waitingForDefault ? (
@@ -315,12 +300,7 @@ function useRelated(detail: RecordDetailView) {
 function OtherReferences({ detail, onReload, reloadLabel }: ExploreProps) {
   const related = useRelated(detail);
   const graph = related.data?.references;
-  const other =
-    graph?.kind === "content"
-      ? graph.content.outgoing.occurrences.filter(
-          (entry) => !referenceRecordTarget(entry.destination),
-        )
-      : [];
+  const other = graph?.kind === "content" ? graph.content.additional_outgoing : [];
   if (related.error)
     return (
       <QueryError
@@ -343,7 +323,7 @@ function OtherReferences({ detail, onReload, reloadLabel }: ExploreProps) {
     <div className="record-explore__other">
       <h3>Other references</h3>
       <ul>
-        {other.slice(0, 5).map((entry, index) => {
+        {other.map((entry, index) => {
           const url = referenceExternalUrl(entry.destination);
           return (
             <li key={index}>
@@ -481,11 +461,12 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
   const comparableRoot = (target: RecordNavigationView) =>
     !detail.selected.embedded_path.length &&
     !detail.selected.field &&
+    !detail.selected_fields?.length &&
     !target.embedded_path.length &&
     !target.field &&
     target.record_key !== detail.selected.record_key;
-  const direct = related.data?.remaster_relationships;
-  const source = related.data?.source_remaster_context;
+  const direct = related.data ? detail.remaster_relationships : undefined;
+  const source = related.data ? detail.source_remaster_context : undefined;
   const sourceRelationships =
     source?.kind === "content" ? source.content.relationships : undefined;
   const comparisonTargets = [direct, sourceRelationships]
@@ -510,7 +491,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       </Button>
     ));
   };
-  const relationships = related.data?.remaster_relationships;
+  const relationships = direct;
   const variants = related.data?.variants;
   const family = related.data?.family_context;
   const creatureFamily = detail.creature_family;
@@ -571,15 +552,15 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         <RemasterInformation
           category={relationships}
           onReference={onReference}
-          onReload={() => void related.refetch()}
+          onReload={onReload}
           referenceActions={compareReferences}
           showExplanations={false}
         />
       )}
       <SourceRemasterInformation
-        category={related.data?.source_remaster_context}
+        category={source}
         onReference={onReference}
-        onReload={() => void related.refetch()}
+        onReload={onReload}
         referenceActions={compareReferences}
         showExplanations={false}
       />
@@ -668,8 +649,8 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         !detail.creature_family &&
         relationships?.kind === "empty" &&
         variants?.kind === "empty" &&
-        (!related.data?.source_remaster_context ||
-          related.data.source_remaster_context.kind === "empty") && (
+        (!detail.source_remaster_context ||
+          detail.source_remaster_context.kind === "empty") && (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description="No other editions or variants found."

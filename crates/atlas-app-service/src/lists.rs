@@ -16,7 +16,7 @@ use atlas_domain::RecordKey;
 use atlas_local_state::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
     NewSavedList, ReorderSavedListItem, ResolvedSavedListItem, SavedList, SavedListItem,
-    SavedListItemStatus, SavedListWithItems, UpdateSavedList, hydrate_saved_list_item,
+    SavedListItemStatus, UpdateSavedList, hydrate_saved_list_item,
 };
 use atlas_search::{GetRecordsRequest, RecordRefResolutionResult, ResolveRecordRefRequest};
 use serde_json::json;
@@ -35,6 +35,17 @@ impl AtlasAppService {
             Ok(SavedListIndexView {
                 lists: lists.into_iter().map(saved_list_summary).collect(),
             })
+        })
+    }
+
+    pub fn saved_list_header(&self, list_ref: &str) -> AppServiceResult<SavedListSummaryView> {
+        self.with_state(|session| {
+            session
+                .local_state()?
+                .saved_lists()
+                .get(list_ref)?
+                .map(saved_list_summary)
+                .ok_or_else(|| saved_list_not_found(list_ref))
         })
     }
 
@@ -159,12 +170,7 @@ impl AtlasAppService {
         record_key: &str,
     ) -> AppServiceResult<SavedListItemNoteView> {
         self.with_state(|session| {
-            let saved = session
-                .local_state()?
-                .saved_lists()
-                .get_with_items(list_ref)?
-                .ok_or_else(|| saved_list_not_found(list_ref))?;
-            saved_list_note_view(saved, record_key)
+            saved_list_note_view(&session.local_state()?.saved_lists(), list_ref, record_key)
         })
     }
 
@@ -206,10 +212,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<SavedListItemNoteView> {
         self.with_write(|session| {
             let lists = session.local_state()?.saved_lists();
-            let saved = lists
-                .get_with_items(list_ref)?
-                .ok_or_else(|| saved_list_not_found(list_ref))?;
-            let mut view = saved_list_note_view(saved, record_key)?;
+            let mut view = saved_list_note_view(&lists, list_ref, record_key)?;
             let next = value(&view.note)?;
             if next != view.note {
                 lists.update_item_note(&view.list_key, record_key, next.as_deref())?;
@@ -1018,24 +1021,21 @@ struct ListMetadataEdit {
 }
 
 fn saved_list_note_view(
-    saved: SavedListWithItems,
+    lists: &atlas_local_state::SavedListsRead<'_>,
+    list_ref: &str,
     record_key: &str,
 ) -> AppServiceResult<SavedListItemNoteView> {
-    let item = saved
-        .items
-        .into_iter()
-        .find(|item| item.record_key == record_key)
-        .ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::SavedListItemNotFound,
-                "This record is no longer in the saved list.",
-            )
-        })?;
+    let item = lists.item_note(list_ref, record_key)?.ok_or_else(|| {
+        AppServiceError::new(
+            AppErrorCode::SavedListItemNotFound,
+            "This record is no longer in the saved list.",
+        )
+    })?;
     Ok(SavedListItemNoteView {
-        list_key: saved.list.list_key,
-        slug: saved.list.slug,
+        list_key: item.list_key,
+        slug: item.slug,
         record_key: item.record_key,
-        title: item.record_title_snapshot,
+        title: item.title,
         note: item.note,
     })
 }

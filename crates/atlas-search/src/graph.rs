@@ -42,6 +42,19 @@ use atlas_index::{SourceRelationshipDirection, SourceRelationshipRequest};
 use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
 use std::collections::BTreeSet;
 impl AtlasRetrievalService {
+    pub fn has_related_records(
+        &self,
+        relationship: &atlas_domain::QueryRelationship,
+    ) -> Result<bool, SearchError> {
+        Ok(self.index.has_related_records(relationship)?)
+    }
+    pub fn additional_outgoing(
+        &self,
+        selection: &atlas_domain::QueryRecordSelection,
+        limit: usize,
+    ) -> Result<Vec<atlas_index::SourceStoredRelationship>, SearchError> {
+        Ok(self.index.additional_outgoing(selection, limit)?)
+    }
     pub fn read_relationships(
         &self,
         request: &atlas_index::SourceRelationshipRequest,
@@ -77,7 +90,7 @@ impl AtlasRetrievalService {
             let bundle = self.index.read_relationships(&SourceRelationshipRequest {
                 record: request.seed.clone(),
                 owners: request.owners.clone(),
-                field: None,
+                fields: vec![],
                 direction,
                 limit,
             })?;

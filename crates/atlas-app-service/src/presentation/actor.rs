@@ -22,6 +22,7 @@ pub(crate) fn authored_actor(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
     fingerprint: &str,
+    sections: Option<&[RecordReadSection]>,
 ) -> ActorPresentationView {
     #[cfg(test)]
     AUTHORED_PROJECTIONS.with(|count| count.set(count.get() + 1));
@@ -39,52 +40,61 @@ pub(crate) fn authored_actor(
             _ => a.save(save),
         })
     };
+    let full = sections.is_none();
+    let defenses = sections.is_none_or(|s| s.contains(&RecordReadSection::Defenses));
     let mut abilities = vec![];
-    a.visit_abilities(|key, v| {
-        abilities.push(ActorModifierView {
-            help: None,
-            key: key.into(),
-            label: key.to_uppercase(),
-            modifier: number(v),
-        })
-    });
     let mut skills = vec![];
-    a.visit_skills(|key, v| {
-        if matches!(v, SourceFieldView::Missing) {
-            return;
-        }
-        skills.push(ActorSkillView {
-            help: None,
-            key: key.into(),
-            label: key.into(),
-            modifier: number(v.and_then(|s| (&s.base).into())),
-            note: text(v.and_then(|s| (&s.note).into())),
-            conditional: fact(v.and_then(|s| (&s.special).into()).map(|entries| {
-                entries
-                    .iter()
-                    .map(|e| ConditionalSkillView {
-                        qualification: super::skill_qualification::project((&e.predicate).into()),
-                        label: text((&e.label).into()),
-                        modifier: number((&e.base).into()),
+    if full {
+        a.visit_abilities(|key, v| {
+            abilities.push(ActorModifierView {
+                help: None,
+                key: key.into(),
+                label: key.to_uppercase(),
+                modifier: number(v),
+            })
+        });
+        a.visit_skills(|key, v| {
+            if matches!(v, SourceFieldView::Missing) {
+                return;
+            }
+            skills.push(ActorSkillView {
+                help: None,
+                key: key.into(),
+                label: key.into(),
+                modifier: number(v.and_then(|s| (&s.base).into())),
+                note: text(v.and_then(|s| (&s.note).into())),
+                conditional: fact(v.and_then(|s| (&s.special).into()).map(|entries| {
+                    entries
+                        .iter()
+                        .map(|e| ConditionalSkillView {
+                            qualification: super::skill_qualification::project(
+                                (&e.predicate).into(),
+                            ),
+                            label: text((&e.label).into()),
+                            modifier: number((&e.base).into()),
+                        })
+                        .collect()
+                })),
+            });
+        });
+    }
+    let movement = if full {
+        a.speeds()
+            .value()
+            .map(|s| {
+                s.iter()
+                    .map(|v| ActorMovementView {
+                        movement_type: identifier(v.speed_type()),
+                        feet: number(v.value()),
                     })
                     .collect()
-            })),
-        });
-    });
-    let movement = a
-        .speeds()
-        .value()
-        .map(|s| {
-            s.iter()
-                .map(|v| ActorMovementView {
-                    movement_type: identifier(v.speed_type()),
-                    feet: number(v.value()),
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+            })
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
     let (senses, perception_details, language_details) = match node {
-        SourceNodeView::Actor(ActorSourcePF2e::NPCSource(s)) => {
+        SourceNodeView::Actor(ActorSourcePF2e::NPCSource(s)) if full => {
             let sys = SourceFieldView::from(&s.system);
             let p = sys.and_then(|s| (&s.perception).into());
             let l = sys
@@ -107,7 +117,11 @@ pub(crate) fn authored_actor(
         _ => (unavailable(), unavailable(), unavailable()),
     };
     ActorPresentationView {
-        size: reference_size(a.size()),
+        size: if full {
+            reference_size(a.size())
+        } else {
+            unavailable()
+        },
         hardness: number(a.creature_hardness()),
         ritual_difficulty_class: number(a.ritual_difficulty_class()),
         defense_notes: ActorDefenseNotesView {
@@ -132,23 +146,40 @@ pub(crate) fn authored_actor(
         movement: fact(a.speeds().map(|_| movement)),
         movement_details: fact(a.movement_details().map(str::to_owned)),
         land_speed: number(a.land_speed()),
-        immunities: iwr(a.iwr(ActorIwrKind::Immunity)),
-        weaknesses: iwr(a.iwr(ActorIwrKind::Weakness)),
-        resistances: iwr(a.iwr(ActorIwrKind::Resistance)),
+        immunities: if defenses {
+            iwr(a.iwr(ActorIwrKind::Immunity))
+        } else {
+            unavailable()
+        },
+        weaknesses: if defenses {
+            iwr(a.iwr(ActorIwrKind::Weakness))
+        } else {
+            unavailable()
+        },
+        resistances: if defenses {
+            iwr(a.iwr(ActorIwrKind::Resistance))
+        } else {
+            unavailable()
+        },
         senses,
         perception_details,
-        languages: fact(
-            a.languages()
-                .map(|languages| languages.iter().filter_map(token).map(Into::into).collect()),
-        ),
+        languages: if full {
+            fact(
+                a.languages()
+                    .map(|languages| languages.iter().filter_map(token).map(Into::into).collect()),
+            )
+        } else {
+            unavailable()
+        },
         language_details,
-        embedded_conditions: if matches!(node, SourceNodeView::Actor(ActorSourcePF2e::NPCSource(_)))
+        embedded_conditions: if full
+            && matches!(node, SourceNodeView::Actor(ActorSourcePF2e::NPCSource(_)))
         {
             authored_embedded_conditions(record, fingerprint)
         } else {
             vec![]
         },
-        activities: authored_activities(record, node, fingerprint),
+        activities: authored_activities(record, node, fingerprint, sections),
         runtime: None,
     }
 }
@@ -177,30 +208,49 @@ pub(crate) fn authored_activities(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
     fingerprint: &str,
+    sections: Option<&[RecordReadSection]>,
 ) -> FactView<Vec<ActorActivityView>> {
+    if sections.is_some_and(|s| {
+        s.iter().all(|section| {
+            matches!(
+                section,
+                RecordReadSection::Rules | RecordReadSection::Defenses
+            )
+        })
+    }) {
+        return unavailable();
+    }
     let mut casting = std::collections::BTreeMap::<String, Option<RecordNavigationView>>::new();
-    record.visit_immediate_actor_items(|_, owner, item| {
-        if item.family() == "spellcastingEntry"
-            && let Some(id) = SourceNodeView::Item(item).id().value()
-        {
-            let owners = vec![owner.clone()];
-            let n = RecordNavigationView {
-                spell_rank: None,
-                record_key: record.key().to_string(),
-                source_fingerprint: navigation_fingerprint(&owners, fingerprint),
-                owners,
-                field: None,
-                passage: None,
-            };
-            casting
-                .entry(id.clone())
-                .and_modify(|v| *v = None)
-                .or_insert(Some(n));
-        }
-    });
+    if sections.is_none_or(|s| s.contains(&RecordReadSection::Spellcasting)) {
+        record.visit_immediate_actor_items(|_, owner, item| {
+            if item.family() == "spellcastingEntry"
+                && let Some(id) = SourceNodeView::Item(item).id().value()
+            {
+                let owners = vec![owner.clone()];
+                let n = RecordNavigationView {
+                    spell_rank: None,
+                    record_key: record.key().to_string(),
+                    source_fingerprint: navigation_fingerprint(&owners, fingerprint),
+                    owners,
+                    field: None,
+                    passage: None,
+                };
+                casting
+                    .entry(id.clone())
+                    .and_modify(|v| *v = None)
+                    .or_insert(Some(n));
+            }
+        });
+    }
     let mut activities = vec![];
     let mut primary_order = vec![];
-    record.visit_immediate_actor_items(|_, o, i| {
+    record.visit_immediate_actor_items(|source_order, o, i| {
+        if sections.is_some_and(|s| {
+            !s.iter()
+                .any(|section| section.includes_activity(&activity_kind(i.family())))
+        }) {
+            return;
+        }
         let owners = vec![o.clone()];
         let navigation = RecordNavigationView {
             spell_rank: None,
@@ -251,7 +301,7 @@ pub(crate) fn authored_activities(
                 }
             }
         }
-        activity.reading_order = activities.len();
+        activity.reading_order = source_order;
         if activity.ability_group == Some(ActorAbilityGroupView::Primary) {
             let passive = item_is_passive(i);
             primary_order.push((passive, activities.len()));
@@ -412,6 +462,19 @@ fn ability_group(item: ItemSourceView<'_>) -> Option<ActorAbilityGroupView> {
     })
 }
 
+pub(super) fn activity_kind(family: &str) -> ActorActivityKindView {
+    match family {
+        "melee" => ActorActivityKindView::Strike,
+        "spell" => ActorActivityKindView::Spell,
+        "spellcastingEntry" => ActorActivityKindView::CastingEntry,
+        "lore" => ActorActivityKindView::Lore,
+        "action" | "effect" | "feat" => ActorActivityKindView::Ability,
+        "ammo" | "weapon" | "armor" | "shield" | "equipment" | "consumable" | "backpack"
+        | "treasure" => ActorActivityKindView::Gear,
+        _ => ActorActivityKindView::Other,
+    }
+}
+
 pub(super) fn authored_activity(
     item: ItemSourceView<'_>,
     navigation: RecordNavigationView,
@@ -549,16 +612,7 @@ pub(super) fn authored_activity(
         has_reference_details: has_reference_details(item),
         title: node_title(SourceNodeView::Item(item)),
         family: family.into(),
-        kind: match family {
-            "melee" => ActorActivityKindView::Strike,
-            "spell" => ActorActivityKindView::Spell,
-            "spellcastingEntry" => ActorActivityKindView::CastingEntry,
-            "lore" => ActorActivityKindView::Lore,
-            "action" | "effect" | "feat" => ActorActivityKindView::Ability,
-            "ammo" | "weapon" | "armor" | "shield" | "equipment" | "consumable" | "backpack"
-            | "treasure" => ActorActivityKindView::Gear,
-            _ => ActorActivityKindView::Other,
-        },
+        kind: activity_kind(family),
         navigation,
         usage: item_usage(item),
         action_cost: item_action_cost(item),

@@ -46,8 +46,14 @@ pub struct CreateCharacterRequest {
 pub struct UpdateCharacterRequest {
     pub expected_revision: i64,
     pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub level: Option<i64>,
+    /// Omit to keep the current level, or send null to clear it.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::present_nullable"
+    )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<i64>))]
+    pub level: Option<Option<i64>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

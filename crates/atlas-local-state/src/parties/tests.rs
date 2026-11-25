@@ -199,6 +199,9 @@ fn party_identity_queries_do_not_fetch_unrelated_rosters() {
     let party = PartiesWrite::from_connection(&tx, 1)
         .create("Heroes", &[member(&tx, 1, "Hero", None)])
         .unwrap();
+    PartiesWrite::from_connection(&tx, 1)
+        .create("Empty", &[])
+        .unwrap();
     tx.commit().unwrap();
     for extra in [0, 32] {
         let tx = connection.transaction().unwrap();
@@ -223,13 +226,28 @@ fn party_identity_queries_do_not_fetch_unrelated_rosters() {
         let matches = reader.candidates(&party.party_key).unwrap();
         assert_eq!(matches.len(), 1);
         assert_eq!(reader.get(&matches[0].party_key).unwrap(), party);
-        connection
-            .trace_v2(TraceEventCodes::empty(), None::<fn(TraceEvent<'_>)>)
-            .unwrap();
         assert_eq!(
             STATEMENTS.get(),
             3,
             "one identity read, one party read and one roster read"
         );
+        STATEMENTS.set(0);
+        let summaries = reader.directory().unwrap();
+        assert_eq!(
+            STATEMENTS.get(),
+            1,
+            "one directory read for every party count"
+        );
+        STATEMENTS.set(0);
+        let rosters = reader.list().unwrap();
+        assert_eq!(STATEMENTS.get(), 1, "one bulk roster read");
+        assert_eq!(summaries.len(), rosters.len());
+        for (summary, roster) in summaries.iter().zip(rosters) {
+            assert_eq!(summary.party_key, roster.party_key);
+            assert_eq!(summary.member_count as usize, roster.members.len());
+        }
+        connection
+            .trace_v2(TraceEventCodes::empty(), None::<fn(TraceEvent<'_>)>)
+            .unwrap();
     }
 }

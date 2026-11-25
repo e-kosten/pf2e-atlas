@@ -226,6 +226,124 @@ test("roster confirms the original previewed batch after its response is lost", 
   }
 });
 
+test("record reader preserves a stale encounter addition until the refreshed preview is reviewed", async ({
+  page,
+}, info) => {
+  const recordKey = "pathfinder-bestiary:LHHgGSs0ELCR4CYK";
+  const name = `Reader revision conflict ${Date.now()}`;
+  const created = await page.request.post("/api/encounters", { data: { name } });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  const revision = async () => {
+    const response = await page.request.get(`${path}/addition-context`);
+    expect(response.ok()).toBeTruthy();
+    return (await response.json()).revision as number;
+  };
+  const setLevel = async (revision: number, level: number) => {
+    const result = await page.request.patch(`${path}/difficulty`, {
+      data: {
+        expected_revision: revision,
+        reference: { party_level: level, party_size: 4 },
+      },
+    });
+    expect(result.ok()).toBeTruthy();
+  };
+  const previewFor = (revision: number) =>
+    page.waitForResponse((response) => {
+      if (!response.url().endsWith(`${path}/difficulty/preview`) || !response.ok())
+        return false;
+      const request = response.request().postDataJSON();
+      return request.expected_revision === revision && request.addition?.quantity === 2;
+    });
+  const commit = () =>
+    page.waitForResponse(
+      (response) => new URL(response.url()).pathname === `${path}/participants/record`,
+    );
+  try {
+    await setLevel(await revision(), 2);
+    const originalRevision = await revision();
+    await page.goto(`/records/${encodeURIComponent(recordKey)}`);
+    await page
+      .getByRole("button", { name: "Add to list or encounter", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Add to…", exact: true });
+    await dialog.getByRole("tab", { name: "Encounters" }).click();
+    const selector = dialog.getByRole("combobox", { name: "Encounter", exact: true });
+    await selector.click();
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText(name, { exact: true })
+      .click();
+    const quantity = dialog.getByRole("spinbutton", { name: "Quantity" });
+    const preview = dialog.getByRole("region", {
+      name: "Encounter difficulty preview",
+    });
+    const add = dialog.getByRole("button", { name: "Add", exact: true });
+    const initial = previewFor(originalRevision);
+    await quantity.fill("2");
+    const first = await (await initial).json();
+    await expect(preview).toContainText(`${first.total_xp} XP`);
+    await expect(add).toBeEnabled();
+
+    await setLevel(originalRevision, 3);
+    const currentRevision = await revision();
+    expect(currentRevision).toBeGreaterThan(originalRevision);
+    const staleCommit = commit();
+    const revised = previewFor(currentRevision);
+    await add.click();
+    const rejected = await staleCommit;
+    expect(rejected.status()).toBe(409);
+    expect((await rejected.json()).code).toBe("encounter_turn_conflict");
+    const rejectedGuards = new URL(rejected.url()).searchParams;
+    expect(rejectedGuards.get("expected_revision")).toBe(String(originalRevision));
+    expect(rejectedGuards.get("expected_artifact_generation")).toBe(
+      first.addition_generation,
+    );
+    expect(rejected.request().postDataJSON()).toMatchObject({
+      record_ref: recordKey,
+      quantity: 2,
+    });
+    expect((await (await page.request.get(path)).json()).participants).toHaveLength(0);
+    const latest = await (await revised).json();
+    expect(latest.total_xp).not.toEqual(first.total_xp);
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("alert")).toContainText(
+      "Review the updated addition",
+    );
+    await expect(quantity).toHaveValue("2");
+    await expect(preview).toContainText(`${latest.total_xp} XP`);
+    await expect(add).toBeEnabled();
+    await info.attach("Revised addition preview", {
+      body: await dialog.screenshot(),
+      contentType: "image/png",
+    });
+
+    const retry = commit();
+    await add.click();
+    const accepted = await retry;
+    expect(accepted.ok()).toBeTruthy();
+    const acceptedGuards = new URL(accepted.url()).searchParams;
+    expect(acceptedGuards.get("expected_revision")).toBe(String(currentRevision));
+    expect(acceptedGuards.get("expected_artifact_generation")).toBe(
+      latest.addition_generation,
+    );
+    expect(accepted.request().postDataJSON()).toMatchObject({
+      record_ref: recordKey,
+      quantity: 2,
+    });
+    await expect(dialog).toBeHidden();
+    const result = await (await page.request.get(path)).json();
+    expect(
+      result.participants.map(
+        (participant: { record_key: string }) => participant.record_key,
+      ),
+    ).toEqual([recordKey, recordKey]);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
 test("record reader creates an encounter, previews its creature and confirms the same addition", async ({
   page,
 }, info) => {

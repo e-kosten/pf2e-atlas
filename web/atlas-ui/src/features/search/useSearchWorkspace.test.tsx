@@ -210,8 +210,10 @@ describe("useSearchWorkspace", () => {
     expect(result.current.resultPage).toEqual(page);
     expect(result.current.rerunSemantic).toBeDefined();
     rerender({ matchDisplay: "detailed" });
-    await act(async () => pending.resolve(page));
+    const evidencePage: SearchResultsPage = { ...page, result_detail: "evidence" };
+    await act(async () => pending.resolve(evidencePage));
     await waitFor(() => expect(result.current.evidencePending).toBe(false));
+    expect(result.current.resultPage).toEqual(evidencePage);
     rerender({ matchDisplay: "hidden" });
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(2);
     apiMocks.searchPage.mockRejectedValueOnce(new Error("temporarily unavailable"));
@@ -2362,6 +2364,7 @@ function searchResultsPage(
     ...(options.similarity
       ? { similarity: similarityConfigurationFixture(options.similarity) }
       : {}),
+    result_detail: "records" as const,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

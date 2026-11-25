@@ -42,6 +42,7 @@ export function parentShowsActivity(
 
 export type ReadingRequest = {
   navigation: RecordNavigationView;
+  fields?: string[];
   match?: RecordNavigationView;
   landing?: RecordNavigationView;
 };
@@ -111,6 +112,7 @@ export function useReferenceReading(
     request?.navigation.record_key ?? null,
     request?.navigation,
     generation,
+    request?.fields,
   );
   const parentQuery = useQuery({
     ...parentOptions,
@@ -150,6 +152,7 @@ export function useReferenceReading(
     JSON.stringify([
       identity,
       request?.landing,
+      request?.fields,
       epoch,
       readingGeneration,
       parentRetirement,
@@ -160,7 +163,14 @@ export function useReferenceReading(
   );
   return {
     changeRank: (navigation: RecordNavigationView) =>
-      dispatch({ kind: "rank", request: { navigation, landing: request?.landing } }),
+      dispatch({
+        kind: "rank",
+        request: {
+          navigation,
+          landing: request?.landing,
+          fields: detail?.selected_fields ?? request?.fields,
+        },
+      }),
     request,
     restoringHistory: session.restoringHistory,
     inspect,

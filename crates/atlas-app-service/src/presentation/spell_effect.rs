@@ -33,30 +33,16 @@ pub(super) fn apply_rank(
     presentation: &mut RecordPresentationView,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> crate::AppServiceResult<Option<u8>> {
-    let item = ItemSourceView::EffectSource(source);
-    if !supports(item) {
-        if requested.is_some() {
-            return Err(crate::AppServiceError::invalid_request(
-                "This effect has no rank preview.",
-            ));
-        }
-        return Ok(None);
-    }
-    let base = base_rank(source);
-    let Some(base_rank) = base else {
-        if requested.is_some() {
-            return Err(crate::AppServiceError::invalid_request(
-                "The effect's base rank is unavailable.",
-            ));
-        }
+    let Some((base_rank, rank)) = selected_rank(source, requested)? else {
         return Ok(None);
     };
-    let rank = requested.unwrap_or(base_rank);
-    if !(base_rank..=10).contains(&rank) {
-        return Err(crate::AppServiceError::invalid_request(
-            "Choose a rank from the effect's base rank through 10.",
-        ));
-    }
+    presentation.classification = format!("Effect · Rank {rank}");
+    presentation.identity.level_label = Some(format!("Rank {rank}"));
+    let RecordBodyView::Activity(activity) = &mut presentation.body else {
+        return Ok(Some(rank));
+    };
+    activity.navigation.spell_rank = Some(rank);
+    let item = ItemSourceView::EffectSource(source);
     let mut preview = SpellEffectPreviewView {
         rank,
         base_rank,
@@ -110,12 +96,7 @@ pub(super) fn apply_rank(
         preview.choices.clear();
         preview.unavailable = Some(reason);
     }
-    if let RecordBodyView::Activity(activity) = &mut presentation.body {
-        activity.spell_effect = Some(preview);
-        activity.navigation.spell_rank = Some(rank);
-        presentation.classification = format!("Effect · Rank {rank}");
-        presentation.identity.level_label = Some(format!("Rank {rank}"));
-    }
+    activity.spell_effect = Some(preview);
     Ok(Some(rank))
 }
 
@@ -176,3 +157,34 @@ pub(super) fn modifier(source: &SourcePresence<StringOrNumber>) -> FactView<Stri
 
 #[cfg(test)]
 mod tests;
+
+pub(super) fn selected_rank(
+    source: &EffectSource,
+    requested: Option<u8>,
+) -> crate::AppServiceResult<Option<(u8, u8)>> {
+    let item = ItemSourceView::EffectSource(source);
+    if !supports(item) {
+        if requested.is_some() {
+            return Err(crate::AppServiceError::invalid_request(
+                "This effect has no rank preview.",
+            ));
+        }
+        return Ok(None);
+    }
+    let base = base_rank(source);
+    let Some(base_rank) = base else {
+        if requested.is_some() {
+            return Err(crate::AppServiceError::invalid_request(
+                "The effect's base rank is unavailable.",
+            ));
+        }
+        return Ok(None);
+    };
+    let rank = requested.unwrap_or(base_rank);
+    if !(base_rank..=10).contains(&rank) {
+        return Err(crate::AppServiceError::invalid_request(
+            "Choose a rank from the effect's base rank through 10.",
+        ));
+    }
+    Ok(Some((base_rank, rank)))
+}

@@ -136,23 +136,19 @@ impl AtlasAppService {
         encounter_ref: &str,
         overrides: atlas_app_model::EncounterDifficultyReferenceInput,
     ) -> AppServiceResult<EncounterDetailView> {
+        self.encounter_projected(encounter_ref, overrides, super::EncounterReadDetail::Full)
+    }
+
+    pub fn encounter_projected(
+        &self,
+        encounter_ref: &str,
+        overrides: atlas_app_model::EncounterDifficultyReferenceInput,
+        scope: super::EncounterReadDetail,
+    ) -> AppServiceResult<EncounterDetailView> {
         let encounter_ref = encounter_ref.to_owned();
         self.with_saved_detail(
             atlas_runtime::AtlasRuntime::record_detail_read,
-            move |state| {
-                let detail = state
-                    .local_state()?
-                    .encounters()
-                    .get_with_participants(&encounter_ref)?
-                    .ok_or_else(|| encounter_not_found(&encounter_ref))?;
-                let linked = detail.participants.iter().any(|participant| {
-                    participant
-                        .record_key
-                        .as_deref()
-                        .is_some_and(|key| atlas_domain::RecordKey::parse(key).is_ok())
-                });
-                Ok((detail, linked))
-            },
+            move |state| encounter_roster(state, &encounter_ref),
             move |mut detail, reference| {
                 detail.encounter.difficulty_reference = super::difficulty::with_overrides(
                     detail.encounter.difficulty_reference,
@@ -164,6 +160,7 @@ impl AtlasAppService {
                             session.retrieval_mut(),
                             detail.encounter,
                             detail.participants,
+                            &scope,
                         );
                     }
                     Ok(None) => None,
@@ -178,12 +175,10 @@ impl AtlasAppService {
                     None,
                     Default::default(),
                     Default::default(),
+                    &scope,
                 );
                 if reference_error.is_some() {
-                    view.difficulty.total_xp = None;
-                    view.difficulty.xp_per_pc = None;
-                    view.difficulty.rating = None;
-                    view.difficulty.award_note = None;
+                    clear_unavailable_budget(&mut view.difficulty);
                     for participant in &mut view.participants {
                         if participant
                             .record_key
@@ -1409,4 +1404,126 @@ pub(super) fn condition_sources_context(
             }
         }
     }
+}
+
+fn encounter_roster(
+    state: &atlas_runtime::StateRead,
+    encounter_ref: &str,
+) -> AppServiceResult<(atlas_local_state::EncounterWithParticipants, bool)> {
+    let detail = state
+        .local_state()?
+        .encounters()
+        .get_with_participants(encounter_ref)?
+        .ok_or_else(|| encounter_not_found(encounter_ref))?;
+    let linked = detail.participants.iter().any(|participant| {
+        participant
+            .record_key
+            .as_deref()
+            .is_some_and(|key| atlas_domain::RecordKey::parse(key).is_ok())
+    });
+    Ok((detail, linked))
+}
+
+impl AtlasAppService {
+    pub fn encounter_revision(
+        &self,
+        encounter_ref: &str,
+    ) -> AppServiceResult<atlas_app_model::EncounterRevisionView> {
+        self.with_state(|state| {
+            let encounter = state
+                .local_state()?
+                .encounters()
+                .get(encounter_ref)?
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+            Ok(atlas_app_model::EncounterRevisionView {
+                revision: encounter.revision,
+            })
+        })
+    }
+
+    pub fn encounter_addition_context(
+        &self,
+        encounter_ref: &str,
+    ) -> AppServiceResult<atlas_app_model::EncounterAdditionContextView> {
+        let encounter_ref = encounter_ref.to_owned();
+        self.with_saved_detail(
+            atlas_runtime::AtlasRuntime::record_detail_read,
+            move |state| encounter_roster(state, &encounter_ref),
+            |detail, reference| {
+                let mut records = Default::default();
+                let unavailable = reference
+                    .as_ref()
+                    .is_err_and(|error| error.reference_unavailable());
+                let generation = match reference {
+                    Ok(Some(session)) => super::hydration::load_participant_sources(
+                        session.retrieval_mut(),
+                        &detail.participants,
+                        &mut records,
+                    )?,
+                    Ok(None) => None,
+                    Err(_) if unavailable => None,
+                    Err(error) => return Err(error.into()),
+                };
+                let mut difficulty = super::difficulty::project(
+                    detail.encounter.difficulty_reference,
+                    &detail.participants,
+                    |key| records.get(key),
+                );
+                if unavailable {
+                    clear_unavailable_budget(&mut difficulty);
+                }
+                Ok(atlas_app_model::EncounterAdditionContextView {
+                    revision: detail.encounter.revision,
+                    artifact_generation: generation,
+                    difficulty,
+                })
+            },
+        )
+    }
+
+    pub fn creature_addition_context(
+        &self,
+        record_key: &str,
+    ) -> AppServiceResult<atlas_app_model::CreatureAdditionContextView> {
+        let key = atlas_domain::RecordKey::parse(record_key).map_err(|error| {
+            AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
+        })?;
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            let detail = r
+                .get_record(atlas_search::GetRecordRequest {
+                    record_key: &key,
+                    selected_content: &[],
+                })?
+                .ok_or_else(|| {
+                    AppServiceError::new(
+                        AppErrorCode::RecordNotFound,
+                        format!("record `{key}` was not found"),
+                    )
+                })?;
+            if detail.summary.record_kind.as_value() != Some(&atlas_domain::RecordKind::Creature) {
+                return Err(AppServiceError::invalid_request(
+                    "Choose a creature for this addition.",
+                ));
+            }
+            let adjustment = super::projection::participant_variant_view(
+                super::mechanics::record_add_variant(&detail.source).0,
+            );
+            let has_scenario_uses = r
+                .creature_display(&detail.summary, Some(&detail.source))
+                .is_some_and(|display| !display.scenario_uses.is_empty());
+            Ok(atlas_app_model::CreatureAdditionContextView {
+                record_key: key.to_string(),
+                artifact_generation: r.artifact_generation()?,
+                adjustment,
+                has_scenario_uses,
+            })
+        })
+    }
+}
+
+fn clear_unavailable_budget(difficulty: &mut atlas_app_model::EncounterDifficultyView) {
+    difficulty.total_xp = None;
+    difficulty.xp_per_pc = None;
+    difficulty.rating = None;
+    difficulty.award_note = None;
 }

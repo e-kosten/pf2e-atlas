@@ -5,6 +5,17 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Combined action spacing and quiet encounter sections
+
+These frames preserve both the action group spacing from PR #421 and the empty
+Conditions and Trackers sections from PR #424. The macOS frames were captured
+from the combined application at `5a1ec53ae`. The Ubuntu frames came from the
+verified fixture at `efdc24efa`, which also includes main's 0.1.0 API update.
+All 12 capture scenarios passed on each platform. Review covered all 40 frames
+per platform against both parent sets, including the changed scroll position
+in the phone WebKit precedence views.
+[Ubuntu capture](https://github.com/e-kosten/pf2e-atlas/actions/runs/45559091471).
+
 ## Action group spacing
 
 The Theme button has a visible outline. The encounter badge, reference button,

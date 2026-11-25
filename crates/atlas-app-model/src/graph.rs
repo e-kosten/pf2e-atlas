@@ -121,16 +121,19 @@ pub struct RelatedRecordsRequest {
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RelatedReferencesView {
+    pub incoming: bool,
+    pub outgoing: bool,
+    pub additional_outgoing: Vec<RecordRelationshipView>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RelatedRecordsView {
     pub show_versions: bool,
     pub selection: crate::RecordNavigationView,
     pub artifact_generation: String,
-    pub seed: RecordSummaryView,
-    pub references: RelatedCategoryView<GraphContextView>,
-    pub remaster_relationships: RelatedCategoryView<crate::RemasterRelationshipsView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
-    pub source_remaster_context: Option<RelatedCategoryView<crate::RemasterSourceContextView>>,
+    pub references: RelatedCategoryView<RelatedReferencesView>,
     pub variants: RelatedCategoryView<VariantGroupView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]

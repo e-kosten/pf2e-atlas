@@ -230,7 +230,14 @@ async fn removed_generic_reference_conditions_are_rejected() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(
+        response.status(),
+        if cfg!(feature = "embedded-ui") {
+            StatusCode::METHOD_NOT_ALLOWED
+        } else {
+            StatusCode::NOT_FOUND
+        }
+    );
     let (status, error) = fixture
         .json(
             Method::POST,

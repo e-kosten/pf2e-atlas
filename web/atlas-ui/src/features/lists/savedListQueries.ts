@@ -13,6 +13,7 @@ export function invalidateSavedListQueries(
       if (kind === "saved-lists") return true;
       if (
         kind === "saved-list" ||
+        kind === "saved-list-header" ||
         kind === "saved-list-item-note" ||
         kind === "saved-list-filter-discovery"
       )

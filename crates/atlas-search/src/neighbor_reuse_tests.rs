@@ -72,7 +72,7 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                 };
                 let request = || TextSearchRequest {
                     lexical: Default::default(),
-                    include_evidence: true,
+                    result_detail: atlas_domain::SearchResultDetail::Evidence,
                     query: "Ember",
                     mode: if i == 5 {
                         RetrievalMode::Vector
@@ -97,7 +97,7 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                 );
                 if i == 0 || i == 5 {
                     let mut compact_request = request();
-                    compact_request.include_evidence = false;
+                    compact_request.result_detail = atlas_domain::SearchResultDetail::Records;
                     let compact = cached.search_text(compact_request).unwrap();
                     let mut expected = expected;
                     for row in &mut expected.records {
@@ -144,6 +144,7 @@ fn a_short_semantic_window_keeps_the_prior_final_windows_members_and_witnesses()
             SearchPage::default(),
             Some(4096),
             ResultSort::Relevance {},
+            atlas_domain::SearchResultDetail::Evidence,
         )
         .unwrap();
     let mut prior = signature(&expected);

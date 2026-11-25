@@ -222,6 +222,12 @@ HTML remains `no-cache` so page loads validate the entry document. Content-hashe
 JavaScript/CSS/font assets retain long-lived immutable caching; recovery does not
 clear browser storage or require a cache purge.
 
+A saved encounter's record-addition preview returns the reference generation
+that supplied its difficulty. The browser submits that generation and the
+reviewed encounter revision with the write. A confirmed conflict refreshes
+the preview while preserving the draft. An uncertain response retries the
+original request ID, guards and addition.
+
 ## Browser error presentation
 
 The thin API client preserves structured app errors and diagnostic messages. Browser

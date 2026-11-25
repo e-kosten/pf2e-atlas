@@ -147,10 +147,17 @@ it.each([false, true])(
   },
 );
 
-it("converts nested table details using the shared serialized DTO and retains numeric dice", async () => {
+it("preserves compact table match content and numeric dice", async () => {
   respond({
     outcome: wire.flat_check_serialization_control.outcome,
-    matches: [wire.record_detail],
+    matches: [
+      {
+        title: wire.record_detail.presentation.identity.title,
+        navigation: wire.record_detail.selected,
+        content: wire.record_detail.presentation.content,
+        relationships: wire.record_detail.relationships,
+      },
+    ],
     invalid_ranges: [],
   });
   const request = {
@@ -165,7 +172,8 @@ it("converts nested table details using the shared serialized DTO and retains nu
   };
   const actual = await rollTable(request);
   expect(actual.outcome.total).toBe(11);
-  expectRuntimePresentation(actual.matches[0].presentation);
+  expect(actual.matches[0].navigation.record_key).toBe(actorKey);
+  expect(actual.matches[0].content).toEqual(wire.record_detail.presentation.content);
 });
 
 it("preserves recovery null/zero and decodes flat DC without altering dice outcomes", async () => {

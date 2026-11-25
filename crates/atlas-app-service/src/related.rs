@@ -5,11 +5,10 @@ use atlas_app_model::{
 };
 use atlas_domain::RecordKey;
 use atlas_search::{
-    GetRecordRequest, GetRecordsRequest, GraphContextRequest, VariantFamilyContext,
-    VariantGroupRequest,
+    GetRecordRequest, GetRecordsRequest, VariantFamilyContext, VariantGroupRequest,
 };
 
-const RELATED_OCCURRENCE_LIMIT: usize = 100;
+const ADDITIONAL_REFERENCE_LIMIT: usize = 5;
 
 impl AtlasAppService {
     /// One bounded secondary workflow. It never runs similarity ranking to discover categories.
@@ -62,9 +61,8 @@ impl AtlasAppService {
                         "related selection field is unavailable",
                     ));
                 }
-            }
-            let seed = r
-                .get_records(GetRecordsRequest {
+            } else {
+                r.get_records(GetRecordsRequest {
                     record_keys: std::slice::from_ref(&key),
                 })?
                 .records
@@ -73,45 +71,34 @@ impl AtlasAppService {
                 .ok_or_else(|| {
                     AppServiceError::new(AppErrorCode::RecordNotFound, "related seed not found")
                 })?;
-            let references = category(
-                r.graph_context(GraphContextRequest {
-                    seed: key.clone(),
-                    owners: Some(selection.owners.clone()),
-                    outgoing_limit: RELATED_OCCURRENCE_LIMIT,
-                    backlink_limit: RELATED_OCCURRENCE_LIMIT,
-                })
-                .map_err(AppServiceError::from)
-                .and_then(|result| {
-                    let g = result.ok_or_else(|| {
-                        AppServiceError::new(AppErrorCode::RecordNotFound, "related seed not found")
-                    })?;
-                    Ok(
-                        if g.outgoing.occurrences.is_empty() && g.backlinks.occurrences.is_empty() {
-                            RelatedCategoryView::Empty
-                        } else {
-                            RelatedCategoryView::Content {
-                                content: atlas_app_model::GraphContextView {
-                                    seed: crate::projection::localized_summary_view(&g.seed, r),
-                                    outgoing: scoped_section(
-                                        crate::projection::graph_section_view(g.outgoing, r),
-                                        &selection,
-                                        atlas_domain::QueryRelationshipDirection::Outgoing,
-                                        false,
-                                    )?,
-                                    backlinks: scoped_section(
-                                        crate::projection::graph_section_view(g.backlinks, r),
-                                        &selection,
-                                        atlas_domain::QueryRelationshipDirection::Incoming,
-                                        true,
-                                    )?,
-                                },
-                            }
+            }
+            let references = category((|| {
+                let selected = crate::relationship_search::query_selection(&selection)?;
+                let contains = |direction| {
+                    r.has_related_records(&atlas_domain::QueryRelationship {
+                        direction,
+                        selection: selected.clone(),
+                        include_contents: selected.owners.is_empty(),
+                    })
+                };
+                let incoming = contains(atlas_domain::QueryRelationshipDirection::Incoming)?;
+                let outgoing = contains(atlas_domain::QueryRelationshipDirection::Outgoing)?;
+                let additional_outgoing = crate::projection::relationship_views(
+                    r.additional_outgoing(&selected, ADDITIONAL_REFERENCE_LIMIT)?,
+                    r.source_fingerprint(),
+                );
+                Ok(if incoming || outgoing || !additional_outgoing.is_empty() {
+                    RelatedCategoryView::Content {
+                        content: atlas_app_model::RelatedReferencesView {
+                            incoming,
+                            outgoing,
+                            additional_outgoing,
                         },
-                    )
-                }),
-            );
-            let (remaster_relationships, source_remaster_context) =
-                crate::remaster::reading_context(&selection, r);
+                    }
+                } else {
+                    RelatedCategoryView::Empty
+                })
+            })());
             let (variants, family_context) = if selection.owners.is_empty() {
                 match r.variant_exploration(VariantGroupRequest { record_key: &key }) {
                     Ok(exploration) => (
@@ -131,21 +118,12 @@ impl AtlasAppService {
                     None,
                 )
             };
-            let show_versions = family_context.is_some()
-                || show_versions(
-                    &selection,
-                    &remaster_relationships,
-                    source_remaster_context.as_ref(),
-                    &variants,
-                );
+            let show_versions = family_context.is_some() || variant_versions(&selection, &variants);
             Ok(RelatedRecordsView {
                 show_versions,
                 selection,
                 artifact_generation: generation,
-                seed: crate::projection::localized_summary_view(&seed, r),
                 references,
-                remaster_relationships,
-                source_remaster_context,
                 variants,
                 family_context,
             })
@@ -195,11 +173,10 @@ fn relationship_versions(
         RelatedCategoryView::Empty=>false,
     }
 }
-fn show_versions(
+pub(crate) fn remaster_versions(
     selection: &atlas_app_model::RecordNavigationView,
     direct: &RelatedCategoryView<atlas_app_model::RemasterRelationshipsView>,
     source: Option<&RelatedCategoryView<atlas_app_model::RemasterSourceContextView>>,
-    variants: &RelatedCategoryView<atlas_app_model::VariantGroupView>,
 ) -> bool {
     if relationship_versions(direct, selection) {
         return true;
@@ -215,6 +192,12 @@ fn show_versions(
         // An unidentified/conflicting origin is not a temporarily failed remaster lookup.
         Some(RelatedCategoryView::Unavailable { .. } | RelatedCategoryView::Empty) | None => {}
     }
+    false
+}
+fn variant_versions(
+    selection: &atlas_app_model::RecordNavigationView,
+    variants: &RelatedCategoryView<atlas_app_model::VariantGroupView>,
+) -> bool {
     if !selection.owners.is_empty() {
         return false;
     }
@@ -232,28 +215,6 @@ fn category<T>(result: AppServiceResult<RelatedCategoryView<T>>) -> RelatedCateg
     result.unwrap_or_else(|error| RelatedCategoryView::Error {
         error: error.into_app_error(),
     })
-}
-
-fn scoped_section(
-    mut section: atlas_app_model::GraphSectionView,
-    selection: &atlas_app_model::RecordNavigationView,
-    direction: atlas_domain::QueryRelationshipDirection,
-    include_contents: bool,
-) -> AppServiceResult<atlas_app_model::GraphSectionView> {
-    let mut selection = crate::relationship_search::query_selection(selection)?;
-    selection.field = None;
-    selection.passage = None;
-    let mut filter =
-        atlas_domain::QueryPredicate::new(atlas_domain::QueryExpression::Relationship {
-            relationship: atlas_domain::QueryRelationship {
-                direction,
-                selection,
-                include_contents,
-            },
-        });
-    atlas_domain::assign_relationship_clause_ids(&mut filter)?;
-    section.filter = Some(filter);
-    Ok(section)
 }
 
 #[cfg(test)]
@@ -288,13 +249,12 @@ mod versions_tests {
             }],
             truncated: false,
         };
-        assert!(!show_versions(
+        assert!(!remaster_versions(
             &selection,
             &RelatedCategoryView::Content {
                 content: content.clone()
             },
-            None,
-            &RelatedCategoryView::Empty
+            None
         ));
         content.relationships[0].parts = vec![RemasterInlinePartView::Reference {
             label: "Other record".into(),
@@ -303,11 +263,10 @@ mod versions_tests {
                 ..selection.clone()
             }),
         }];
-        assert!(show_versions(
+        assert!(remaster_versions(
             &selection,
             &RelatedCategoryView::Content { content },
-            None,
-            &RelatedCategoryView::Empty
+            None
         ));
     }
 }

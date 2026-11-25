@@ -180,22 +180,20 @@ pub(crate) fn run(args: CharactersArgs) -> Result<ExitCode, String> {
             input,
             expected_revision,
             review,
-        } => {
-            // Refresh is revision guarded; the existing service does not write creation receipts here.
-            import(
-                &service,
-                match read_export(&input) {
-                    Ok(source) => source,
-                    Err(error) => return file_error(json, error),
-                },
-                review,
-                String::new(),
-                Some(character),
-                Some(expected_revision),
-                None,
-                json,
-            )
-        }
+            request_id,
+        } => import(
+            &service,
+            match read_export(&input) {
+                Ok(source) => source,
+                Err(error) => return file_error(json, error),
+            },
+            review,
+            request_id.unwrap_or_else(|| format!("{:032x}", rand::random::<u128>())),
+            Some(character),
+            Some(expected_revision),
+            None,
+            json,
+        ),
         CharacterCommand::Link(options) => {
             let selection = match (options.record, options.expected_generation) {
                 (Some(record_key), Some(expected_artifact_generation)) => {

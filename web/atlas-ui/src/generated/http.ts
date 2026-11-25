@@ -2254,6 +2254,13 @@ export interface CreatedEncounterAdditionView {
   encounter_key: string;
 }
 
+export interface CreatureAdditionContextView {
+  adjustment: EncounterParticipantVariantView;
+  artifact_generation: string;
+  has_scenario_uses: boolean;
+  record_key: string;
+}
+
 export interface CreatureScenarioUseView {
   id: string;
   label: string;
@@ -2859,6 +2866,8 @@ export interface EncounterDifficultyRuleView {
 }
 
 export interface EncounterDifficultyView {
+  /** Reference generation used to preview a record addition to a saved encounter. */
+  addition_generation?: string;
   /** @nullable */
   award_note: string | null;
   basis: string;
@@ -3045,6 +3054,13 @@ export interface EncounterActionCheckSourceView {
 export interface EncounterActionCheckView {
   dc: number;
   sources: EncounterActionCheckSourceView[];
+}
+
+export interface EncounterAdditionContextView {
+  /** @nullable */
+  artifact_generation: string | null;
+  difficulty: EncounterDifficultyView;
+  revision: number;
 }
 
 export interface EncounterAdjustmentTimingInput {
@@ -4157,6 +4173,10 @@ export interface EncounterReferenceRequest {
   selection: RecordSelection;
 }
 
+export interface EncounterRevisionView {
+  revision: number;
+}
+
 export interface EncounterTargetingRequirementsView {
   check_senses: boolean;
   prevents_effect: boolean;
@@ -4728,13 +4748,6 @@ export interface FlatCheckRollView {
   success: boolean;
 }
 
-export interface GraphSectionView {
-  filter?: QueryPredicate;
-  occurrences: RecordRelationshipView[];
-  records: RecordSummaryView[];
-  truncated: boolean;
-}
-
 export type HpLifecycleRequiredFactView = typeof HpLifecycleRequiredFactView[keyof typeof HpLifecycleRequiredFactView];
 
 
@@ -4898,6 +4911,18 @@ export interface RecordTitleLinkView {
 export interface NamedCreatureLinksView {
   base?: RecordTitleLinkView;
   named: RecordTitleLinkView[];
+}
+
+export interface PartySummaryView {
+  /** @minimum 0 */
+  member_count: number;
+  name: string;
+  party_key: string;
+  revision: number;
+}
+
+export interface PartyDirectoryView {
+  parties: PartySummaryView[];
 }
 
 export interface PartyMemberView {
@@ -5227,6 +5252,7 @@ export interface RecordDetailView {
   /** Default adjustment for adding this root creature to an encounter. */
   encounter_adjustment?: EncounterParticipantVariantView;
   equipment_family?: EquipmentFamilyReferenceView;
+  has_remaster_versions?: boolean;
   named_creature_links?: NamedCreatureLinksView;
   presentation: RecordPresentationView;
   record: RecordSummaryView;
@@ -5235,6 +5261,8 @@ export interface RecordDetailView {
   /** Change statements associated with the exact selected document. */
   remaster_relationships: RelatedCategoryViewRemasterRelationshipsView;
   selected: RecordNavigationView;
+  /** Explicit multi-field projection in declared order. Reapply it when reopening the anchor. */
+  selected_fields?: string[];
   source_remaster_context?: RelatedCategoryViewRemasterSourceContextView;
 }
 
@@ -5257,11 +5285,11 @@ export interface RecoverPersistentDamageRequest {
 /**
  * Loading belongs to the client request lifecycle; errors and unavailable evidence are not empty.
  */
-export type RelatedCategoryViewGraphContextView = {
+export type RelatedCategoryViewRelatedReferencesView = {
   content: {
-  backlinks: GraphSectionView;
-  outgoing: GraphSectionView;
-  seed: RecordSummaryView;
+  additional_outgoing: RecordRelationshipView[];
+  incoming: boolean;
+  outgoing: boolean;
 };
   kind: 'content';
 } | {
@@ -5313,12 +5341,9 @@ export interface RelatedRecordsRequest {
 export interface RelatedRecordsView {
   artifact_generation: string;
   family_context?: VariantFamilyView;
-  references: RelatedCategoryViewGraphContextView;
-  remaster_relationships: RelatedCategoryViewRemasterRelationshipsView;
-  seed: RecordSummaryView;
+  references: RelatedCategoryViewRelatedReferencesView;
   selection: RecordNavigationView;
   show_versions: boolean;
-  source_remaster_context?: RelatedCategoryViewRemasterSourceContextView;
   variants: RelatedCategoryViewVariantGroupView;
 }
 
@@ -5361,9 +5386,12 @@ export interface RelationshipOccurrencesPage {
 }
 
 export interface SearchPageRequest {
-  /** @minimum 0 */
+  /** @minimum 1 */
   number: number;
-  /** @minimum 0 */
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
   size: number;
 }
 
@@ -5383,6 +5411,11 @@ export interface RemoveEncounterParticipantConditionRequest {
 
 export interface RemoveSavedListItemRequest {
   record_ref: string;
+}
+
+export interface RenamePartyRequest {
+  expected_revision: number;
+  name: string;
 }
 
 /**
@@ -5600,6 +5633,10 @@ export const SimilarityCandidateParts = {
 
 export type SimilarityOptionsInputSchema = {
   candidate_parts?: SimilarityCandidateParts;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
   decay?: number;
   method: 'passages';
   /** @nullable */
@@ -5635,7 +5672,7 @@ export type SearchCriteria = {
 } | {
   filter?: QueryPredicateInputSchema | null;
   kind: 'text_search';
-  lexical?: LexicalOptions;
+  lexical?: LexicalOptions | null;
   mode: RetrievalModeView;
   query: string;
   search_content?: SearchContentScope | null;
@@ -5674,11 +5711,15 @@ export const SearchRanking = {
   score: 'score',
 } as const;
 
+/**
+ * Amount of evidence to materialize after ranking a result page.
+ */
 export type SearchResultDetail = typeof SearchResultDetail[keyof typeof SearchResultDetail];
 
 
 export const SearchResultDetail = {
   records: 'records',
+  compact: 'compact',
   evidence: 'evidence',
 } as const;
 
@@ -5807,6 +5848,10 @@ export interface SimilarityDiagnosticsView {
 
 export type SimilarityOptions = {
   candidate_parts: SimilarityCandidateParts;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
   decay: number;
   method: 'passages';
   /** @nullable */
@@ -5841,8 +5886,11 @@ export interface SearchResultsPage {
   coverage: SearchCoverageView | null;
   mode: SearchModeSummary;
   page: SearchPageView;
+  /** Fusion method used by hybrid text retrieval. Other retrieval modes do not apply it. */
   ranking: SearchRanking;
   relationship_clauses: RelationshipClauseSummaryView[];
+  /** Effective post-ranking projection for this page. */
+  result_detail: SearchResultDetail;
   rows: SearchResultRow[];
   search_content: SearchContentScope;
   search_profile: SearchProfileId;
@@ -5910,9 +5958,16 @@ export interface SimilarityPartsView {
   supports_corresponding_parts: boolean;
 }
 
+export interface TableRollMatchView {
+  content: PreparedContentFieldView[];
+  navigation: RecordNavigationView;
+  relationships: RecordRelationshipView[];
+  title: string;
+}
+
 export interface TableRollView {
   invalid_ranges: RecordNavigationView[];
-  matches: RecordDetailView[];
+  matches: TableRollMatchView[];
   outcome: RollOutcome;
 }
 
@@ -5981,7 +6036,10 @@ export type TurnResourceAction = {
 
 export interface UpdateCharacterRequest {
   expected_revision: number;
-  /** @nullable */
+  /**
+     * Omit to keep the current level, or send null to clear it.
+     * @nullable
+     */
   level?: number | null;
   name: string;
 }
@@ -6091,6 +6149,13 @@ export type CharacterImportDetailsParams = {
 export type ConditionLifecycleActionsParams = {
   participant_key?: string;
   boundary_key?: string;
+};
+
+export type AddEncounterRecordParticipantParams = {
+  /** Encounter revision used for the reviewed addition. */
+  expected_revision?: number;
+  /** Reference generation returned by the addition preview. */
+  expected_artifact_generation?: string;
 };
 
 export type PersistentDamageReviewParams = {
@@ -6727,6 +6792,27 @@ return fetchGenerated<EncounterMutationView>(getUpdateEncounterUrl(encounterRef)
 
 
 
+export const getEncounterAdditionContextUrl = (encounterRef: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/addition-context`
+}
+
+export const encounterAdditionContext = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterAdditionContextView> => {
+
+  return fetchGenerated<EncounterAdditionContextView>(getEncounterAdditionContextUrl(encounterRef),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getAdvanceEncounterTurnUrl = (encounterRef: string,) => {
 
 
@@ -7345,16 +7431,25 @@ return fetchGenerated<EncounterMutationView>(getAddEncounterPartyUrl(encounterRe
 
 
 
-export const getAddEncounterRecordParticipantUrl = (encounterRef: string,) => {
+export const getAddEncounterRecordParticipantUrl = (encounterRef: string,
+    params?: AddEncounterRecordParticipantParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/record`
+  return stringifiedParams.length > 0 ? `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/record?${stringifiedParams}` : `/api/encounters/${encodeURIComponent(String(encounterRef))}/participants/record`
 }
 
 export const addEncounterRecordParticipant = async (encounterRef: string,
-    addEncounterRecordParticipantRequest: AddEncounterRecordParticipantRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterMutationView> => {
+    addEncounterRecordParticipantRequest: AddEncounterRecordParticipantRequest,
+    params?: AddEncounterRecordParticipantParams, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterMutationView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7370,7 +7465,7 @@ export const addEncounterRecordParticipant = async (encounterRef: string,
     }
     return headers;
   };
-return fetchGenerated<EncounterMutationView>(getAddEncounterRecordParticipantUrl(encounterRef),
+return fetchGenerated<EncounterMutationView>(getAddEncounterRecordParticipantUrl(encounterRef,params),
   {
     ...options,
     method: 'POST',
@@ -8310,6 +8405,27 @@ return fetchGenerated<EncounterRecoveryPreviewView>(getPreviewEncounterRecoveryU
 
 
 
+export const getEncounterRevisionUrl = (encounterRef: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}/revision`
+}
+
+export const encounterRevision = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterRevisionView> => {
+
+  return fetchGenerated<EncounterRevisionView>(getEncounterRevisionUrl(encounterRef),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getPreviewEncounterStrikeContextUrl = (encounterRef: string,) => {
 
 
@@ -8834,6 +8950,27 @@ return fetchGenerated<SavedListDetailView>(getFilterSavedListUrl(listRef),
 
 
 
+export const getSavedListHeaderUrl = (listRef: string,) => {
+
+
+
+
+  return `/api/lists/${encodeURIComponent(String(listRef))}/header`
+}
+
+export const savedListHeader = async (listRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListSummaryView> => {
+
+  return fetchGenerated<SavedListSummaryView>(getSavedListHeaderUrl(listRef),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getRemoveSavedListItemUrl = (listRef: string,) => {
 
 
@@ -9011,9 +9148,9 @@ export const getPartiesUrl = () => {
   return `/api/parties`
 }
 
-export const parties = async ( options?: Parameters<typeof fetchGenerated>[1]): Promise<PartyIndexView> => {
+export const parties = async ( options?: Parameters<typeof fetchGenerated>[1]): Promise<PartyDirectoryView> => {
 
-  return fetchGenerated<PartyIndexView>(getPartiesUrl(),
+  return fetchGenerated<PartyDirectoryView>(getPartiesUrl(),
   {
     ...options,
     method: 'GET'
@@ -9059,6 +9196,27 @@ return fetchGenerated<PartyView>(getCreatePartyUrl(),
 
 
 
+export const getPartyRostersUrl = () => {
+
+
+
+
+  return `/api/parties/rosters`
+}
+
+export const partyRosters = async ( options?: Parameters<typeof fetchGenerated>[1]): Promise<PartyIndexView> => {
+
+  return fetchGenerated<PartyIndexView>(getPartyRostersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getDeletePartyUrl = (partyKey: string,) => {
 
 
@@ -9095,6 +9253,27 @@ return fetchGenerated<PartyMutationView>(getDeletePartyUrl(partyKey),
 
 
 
+export const getPartyRosterUrl = (partyKey: string,) => {
+
+
+
+
+  return `/api/parties/${encodeURIComponent(String(partyKey))}`
+}
+
+export const partyRoster = async (partyKey: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<PartyView> => {
+
+  return fetchGenerated<PartyView>(getPartyRosterUrl(partyKey),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getUpdatePartyUrl = (partyKey: string,) => {
 
 
@@ -9126,6 +9305,42 @@ return fetchGenerated<PartyView>(getUpdatePartyUrl(partyKey),
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updatePartyRequest)
+  }
+);}
+
+
+
+export const getRenamePartyUrl = (partyKey: string,) => {
+
+
+
+
+  return `/api/parties/${encodeURIComponent(String(partyKey))}/name`
+}
+
+export const renameParty = async (partyKey: string,
+    renamePartyRequest: RenamePartyRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<PartyView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<PartyView>(getRenamePartyUrl(partyKey),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(renamePartyRequest)
   }
 );}
 
@@ -9233,6 +9448,27 @@ export const getGetRecordDetailUrl = (recordKey: string,) => {
 export const getRecordDetail = async (recordKey: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<RecordDetailView> => {
 
   return fetchGenerated<RecordDetailView>(getGetRecordDetailUrl(recordKey),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getCreatureAdditionContextUrl = (recordKey: string,) => {
+
+
+
+
+  return `/api/records/${encodeURIComponent(String(recordKey))}/creature-addition`
+}
+
+export const creatureAdditionContext = async (recordKey: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<CreatureAdditionContextView> => {
+
+  return fetchGenerated<CreatureAdditionContextView>(getCreatureAdditionContextUrl(recordKey),
   {
     ...options,
     method: 'GET'

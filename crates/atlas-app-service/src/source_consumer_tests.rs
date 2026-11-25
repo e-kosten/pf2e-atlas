@@ -1405,3 +1405,184 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
         "Equipment"
     );
 }
+
+#[test]
+fn multi_field_projection_reopens_without_record_wide_edges_or_duplicate_fields() {
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            let action = json!({"_id":"action0000000000","type":"action","name":"Field selection","system":{
+                "description":{"value":"<p>Main text</p>","gm":"<p>Hidden text</p>"},
+                "rules":[{"key":"GrantItem","uuid":"Compendium.pf2e.actions.Item.target0000000000"}]
+            }});
+            Ok(open_source_fixture(
+                vec![
+                    record("actions", "Item", action.clone()),
+                    record(
+                        "actions",
+                        "Item",
+                        json!({"_id":"target0000000000","type":"action","name":"Target"}),
+                    ),
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"reader0000000000","name":"Reader","type":"npc","items":[action]}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let value = "/system/description/value".to_owned();
+    let gm = "/system/description/gm".to_owned();
+    for (key, owners) in [
+        ("actions:action0000000000", vec![]),
+        (
+            "actors:reader0000000000",
+            vec![atlas_domain::OwnedContentLocator {
+                collection: "/items".into(),
+                identity: atlas_domain::OwnedContentIdentity::Stable("action0000000000".into()),
+            }],
+        ),
+    ] {
+        let mut request = RecordDetailRequest {
+            record_key: key.into(),
+            owners,
+            fields: vec![],
+            spell_rank: None,
+            expected_artifact_generation: None,
+            source_fingerprint: None,
+            passage: None,
+        };
+        let full = fixture.worker.record_detail_at(request.clone()).unwrap();
+        assert!(
+            full.relationships
+                .iter()
+                .any(|edge| edge.kind == "DeclaredGrant")
+        );
+        request.fields = vec![gm.clone(), value.clone(), gm.clone()];
+        let view = fixture.worker.record_detail_at(request.clone()).unwrap();
+        assert!(
+            view.relationships
+                .iter()
+                .all(|edge| edge.kind != "DeclaredGrant")
+        );
+        assert!(view.selected.field.is_none());
+        assert_eq!(
+            view.selected_fields
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>(),
+            [&gm, &value].into_iter().collect()
+        );
+        assert_eq!(view.selected_fields.len(), 2);
+        request.fields = view.selected_fields.clone();
+        request.expected_artifact_generation = Some(view.artifact_generation.clone());
+        assert_eq!(
+            fixture.worker.record_detail_at(request.clone()).unwrap(),
+            view
+        );
+        request.fields = vec![gm.clone(), gm.clone()];
+        let single = fixture.worker.record_detail_at(request.clone()).unwrap();
+        assert_eq!(single.selected.field.as_deref(), Some(gm.as_str()));
+        assert!(single.selected_fields.is_empty());
+        request.expected_artifact_generation = Some("old".into());
+        assert!(fixture.worker.record_detail_at(request).is_err());
+    }
+}
+
+#[test]
+fn defenses_only_skips_unrelated_activities_and_edges_and_retains_defense_facts() {
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"defender00000001","name":"Defender","type":"npc","system":{"details":{"publicNotes":"<p>Authored rules.</p>"},"attributes":{"ac":{"value":22},"hp":{"max":44},"immunities":[{"type":"fire"}]}},"items":[
+                            {"_id":"action0000000001","type":"action","name":"Ward","system":{"selfEffect":{"name":"Ward","uuid":"Compendium.pf2e.effects.Item.effect0000000001"}}},
+                            {"_id":"strike0000000001","type":"melee","name":"Claw","system":{"attackEffects":{"value":["unresolved-poison"]}}}
+                        ]}),
+                    ),
+                    record(
+                        "effects",
+                        "Item",
+                        json!({"_id":"effect0000000001","type":"effect","name":"Ward"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let request = RecordDetailRequest {
+        record_key: "actors:defender00000001".into(),
+        owners: vec![],
+        fields: vec![],
+        passage: None,
+        spell_rank: None,
+        source_fingerprint: None,
+        expected_artifact_generation: None,
+    };
+    let full = fixture.worker.record_detail_at(request.clone()).unwrap();
+    assert!(!full.presentation.content.is_empty());
+    assert!(
+        fixture
+            .worker
+            .last_read_metrics()
+            .non_content_relationship_queries
+            >= 2
+    );
+    let (section, _) = fixture
+        .worker
+        .record_read_at(request, vec![crate::RecordReadSection::Defenses])
+        .unwrap();
+    let work = fixture.worker.last_read_metrics();
+    assert_eq!(
+        (
+            work.source_body_decodes,
+            work.prepared_content_batches,
+            work.non_content_relationship_queries
+        ),
+        (1, 0, 0)
+    );
+    assert_eq!(section.presentation.identity, full.presentation.identity);
+    assert!(section.presentation.content.is_empty());
+    let (RecordBodyView::Creature(focused), RecordBodyView::Creature(full)) =
+        (section.presentation.body, full.presentation.body)
+    else {
+        panic!("expected creature");
+    };
+    assert!(
+        full.activities
+            .value
+            .unwrap()
+            .iter()
+            .any(|a| a.self_effect.value.is_some())
+    );
+    assert!(focused.activities.value.is_none());
+    assert_eq!(
+        (
+            focused.armor_class,
+            focused.maximum_hp,
+            focused.hardness,
+            focused.defense_notes,
+            focused.saves,
+            focused.immunities,
+            focused.weaknesses,
+            focused.resistances
+        ),
+        (
+            full.armor_class,
+            full.maximum_hp,
+            full.hardness,
+            full.defense_notes,
+            full.saves,
+            full.immunities,
+            full.weaknesses,
+            full.resistances
+        )
+    );
+}

@@ -1,6 +1,6 @@
 use super::storage;
 use crate::{LocalStateError, LocalStateResult, Party, PartyMemberInput};
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 use std::collections::HashSet;
 
 #[derive(Clone, Copy)]
@@ -26,6 +26,9 @@ impl<'a> PartiesRead<'a> {
     }
     pub fn list(&self) -> LocalStateResult<Vec<Party>> {
         storage::list(self.connection, self.owner_id)
+    }
+    pub fn directory(&self) -> LocalStateResult<Vec<crate::PartySummary>> {
+        storage::directory(self.connection, self.owner_id)
     }
     pub fn candidates(&self, reference: &str) -> LocalStateResult<Vec<crate::CharacterParty>> {
         storage::candidates(self.connection, self.owner_id, reference)
@@ -78,6 +81,28 @@ impl<'a> PartiesWrite<'a> {
             self.get(key)
         })
     }
+    pub fn rename(&self, key: &str, revision: i64, name: &str) -> LocalStateResult<Party> {
+        crate::atomic_action::run(self.connection, || {
+            let actual: i64 = self
+                .connection
+                .query_row(
+                    "SELECT revision FROM parties WHERE owner_id=?1 AND party_key=?2",
+                    params![self.owner_id, key],
+                    |row| row.get(0),
+                )
+                .optional()?
+                .ok_or_else(|| LocalStateError::PartyNotFound(key.into()))?;
+            if actual != revision {
+                return Err(LocalStateError::PartyConflict);
+            }
+            validate_name(name)?;
+            self.connection.execute(
+                "UPDATE parties SET name=?1,revision=revision+1 WHERE owner_id=?2 AND party_key=?3",
+                params![name.trim(), self.owner_id, key],
+            )?;
+            self.get(key)
+        })
+    }
     pub fn delete(&self, key: &str, revision: i64) -> LocalStateResult<()> {
         crate::atomic_action::run(self.connection, || {
             self.get_at_revision(key, revision)?;
@@ -89,13 +114,16 @@ impl<'a> PartiesWrite<'a> {
         })
     }
 }
-fn validate(name: &str, members: &[PartyMemberInput]) -> LocalStateResult<()> {
-    let valid_name = |s: &str| !s.trim().is_empty() && s.trim().chars().count() <= 255;
-    if !valid_name(name) {
+fn validate_name(name: &str) -> LocalStateResult<()> {
+    if name.trim().is_empty() || name.trim().chars().count() > 255 {
         return Err(LocalStateError::InvalidParty(
             "Enter a party name of 1 to 255 characters.",
         ));
     }
+    Ok(())
+}
+fn validate(name: &str, members: &[PartyMemberInput]) -> LocalStateResult<()> {
+    validate_name(name)?;
     validate_member_count(members.len())?;
     let mut keys = HashSet::new();
     for member in members {

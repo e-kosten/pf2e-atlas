@@ -382,7 +382,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
         {editing.data && editing.ref && (
           <EditListModal
             listRef={editing.ref}
-            initialDetail={editing.data}
+            initialList={editing.data}
             open={editing.open}
             onClose={(slug) => {
               editing.close();

@@ -23,7 +23,7 @@ pub(super) fn resolve_self_effects(
         retrieval.read_non_content_relationships(&atlas_search::SourceRelationshipRequest {
             record: key.clone(),
             owners: None,
-            field: Some("/system/selfEffect/uuid".into()),
+            fields: vec!["/system/selfEffect/uuid".into()],
             direction: atlas_search::SourceRelationshipDirection::Outgoing,
             limit: 1024,
         })?;

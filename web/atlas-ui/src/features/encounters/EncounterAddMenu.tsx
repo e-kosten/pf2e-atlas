@@ -6,7 +6,8 @@ import { useRef, useState, type SyntheticEvent } from "react";
 import type { AddEncounterPartyRequest, PartyView } from "../../generated/atlas";
 import { AtlasLink } from "../../app/AtlasLink";
 import { partiesDestination } from "../../app/destinations";
-import { useParties } from "../parties/useParties";
+import { useQuery } from "@tanstack/react-query";
+import { getPartyRosters } from "../../api/atlasApi";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 
 export type EncounterPcAddMode = "existing" | "manual";
@@ -28,7 +29,12 @@ export function EncounterAddMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
-  const parties = useParties(open);
+  const parties = useQuery({
+    queryKey: ["parties", "rosters"],
+    queryFn: getPartyRosters,
+    enabled: open,
+    retry: false,
+  });
   const inFlight = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
   const pendingRequest = useRef<AddEncounterPartyRequest | null>(null);

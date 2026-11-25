@@ -100,7 +100,7 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
             let result = service
                 .search_text(TextSearchRequest {
                     lexical: Default::default(),
-                    include_evidence: true,
+                    result_detail: atlas_domain::SearchResultDetail::Evidence,
                     content_scope: atlas_domain::SearchContentScope::All,
                     sort: atlas_domain::ResultSort::Relevance {},
                     ranking: Default::default(),
@@ -132,7 +132,7 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
     let lexical = service
         .search_text(TextSearchRequest {
             lexical: Default::default(),
-            include_evidence: true,
+            result_detail: atlas_domain::SearchResultDetail::Evidence,
             content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),

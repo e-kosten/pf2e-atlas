@@ -2089,7 +2089,7 @@ fn incremental_preparation_reuses_admission_and_replays_missing_and_renamed_targ
             .read_relationships(&atlas_index::SourceRelationshipRequest {
                 record: "items:aaaaaaaaaaaaaaaa".parse().unwrap(),
                 owners: Some(vec![]),
-                field: Some("/system/description/value".into()),
+                fields: vec!["/system/description/value".into()],
                 direction: atlas_index::SourceRelationshipDirection::Outgoing,
                 limit: 8,
             })

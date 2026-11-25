@@ -838,7 +838,7 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
             .read_relationships(&SourceRelationshipRequest {
                 record: locator.record.clone(),
                 owners: None,
-                field: None,
+                fields: vec![],
                 direction: SourceRelationshipDirection::Outgoing,
                 limit: 10,
             })
@@ -1184,7 +1184,7 @@ fn relationships_keep_source_owner_and_validate_owned_targets() {
     let request = SourceRelationshipRequest {
         record: input.records[0].record.key().clone(),
         owners: None,
-        field: None,
+        fields: vec![],
         direction: SourceRelationshipDirection::Outgoing,
         limit: 100,
     };
@@ -1205,7 +1205,7 @@ fn relationships_keep_source_owner_and_validate_owned_targets() {
         .read_relationships(&SourceRelationshipRequest {
             record: input.records[1].record.key().clone(),
             owners: None,
-            field: None,
+            fields: vec![],
             direction: SourceRelationshipDirection::Incoming,
             limit: 100,
         })

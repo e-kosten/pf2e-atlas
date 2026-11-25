@@ -73,13 +73,16 @@ pub fn default_similarity_decay() -> f64 {
 pub enum SimilarityOptions {
     Passages {
         #[serde(default = "default_similarity_decay")]
-        #[cfg_attr(feature = "openapi", schema(required))]
+        #[cfg_attr(
+            feature = "openapi",
+            schema(required, default = 0.5, minimum = 0, maximum = 1)
+        )]
         decay: f64,
         #[serde(default)]
         #[cfg_attr(feature = "openapi", schema(required))]
         parts: Option<Vec<SimilarityPartSelector>>,
         #[serde(default)]
-        #[cfg_attr(feature = "openapi", schema(required))]
+        #[cfg_attr(feature = "openapi", schema(required, default = "any"))]
         candidate_parts: SimilarityCandidateParts,
     },
     ContentAverage {
@@ -87,7 +90,7 @@ pub enum SimilarityOptions {
         #[cfg_attr(feature = "openapi", schema(required))]
         parts: Option<Vec<SimilarityPartSelector>>,
         #[serde(default)]
-        #[cfg_attr(feature = "openapi", schema(required))]
+        #[cfg_attr(feature = "openapi", schema(required, default = "any"))]
         candidate_parts: SimilarityCandidateParts,
     },
     Baseline {},

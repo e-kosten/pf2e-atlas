@@ -20,12 +20,7 @@ import {
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
-import type {
-  GraphContextView,
-  RecordNavigationView,
-  RecordRelationshipView,
-  SearchResultsPage,
-} from "../../generated/atlas";
+import type { RecordNavigationView, SearchResultsPage } from "../../generated/atlas";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { AtlasConnectionError } from "../../api/availability";
 import { similarityPartsFixture } from "../../test/similarityFixtures";
@@ -63,52 +58,12 @@ function navigation(key: string): RecordNavigationView {
     source_fingerprint: null,
   };
 }
-function graphFixture(): GraphContextView {
-  const seed = summaryFixture("actors:seed", "Viewed creature");
-  const source = {
-    record: "actors:referrer",
+function referringNavigation(): RecordNavigationView {
+  return {
+    ...navigation("actors:referrer"),
     embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
     field: "/system/description/value",
-  };
-  const incoming: RecordRelationshipView = {
-    effect_label: null,
-    source,
-    source_navigation: {
-      ...navigation(source.record),
-      embedded_path: source.embedded_path,
-      field: source.field,
-      source_fingerprint: "snapshot-current",
-    },
-    ordinal: 4,
-    origin: "prepared_content",
-    kind: "uuid",
-    authored_target: "Compendium.raw.internal.uuid",
-    occurrence_path: null,
-    audiences: [],
-    availability: null,
-    destination: { kind: "resolved_record", target: navigation(seed.record_key) },
-  };
-  const outgoing = {
-    ...incoming,
-    source: { record: seed.record_key, embedded_path: [], field: source.field },
-    source_navigation: { ...navigation(seed.record_key), field: source.field },
-    destination: {
-      kind: "resolved_record" as const,
-      target: navigation("spell:target"),
-    },
-  };
-  return {
-    seed,
-    outgoing: {
-      records: [summaryFixture("spell:target", "Referenced spell")],
-      occurrences: [outgoing],
-      truncated: false,
-    },
-    backlinks: {
-      records: [summaryFixture("actors:referrer", "Referring creature")],
-      occurrences: [incoming, { ...incoming, ordinal: 5 }],
-      truncated: true,
-    },
+    source_fingerprint: "snapshot-current",
   };
 }
 function renderRelated(
@@ -157,9 +112,10 @@ function relatedFixture() {
     show_versions: false,
     selection: detail.selected,
     artifact_generation: detail.artifact_generation,
-    seed: detail.record,
-    references: { kind: "content" as const, content: graphFixture() },
-    remaster_relationships: { kind: "empty" as const },
+    references: {
+      kind: "content" as const,
+      content: { incoming: true, outgoing: true, additional_outgoing: [] },
+    },
     variants: { kind: "empty" as const },
   };
 }
@@ -212,6 +168,7 @@ function page(
           }
         : { kind: "list_records" },
     rows,
+    result_detail: request.result_detail ?? "records",
     relationship_clauses: [],
     coverage: null,
     page: {
@@ -272,6 +229,7 @@ it("defers exploration until requested, previews five distinct roots, and leaves
     "actors:record4",
   ]);
   expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
+  expect(api.searchPage).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
   expect(screen.queryByText(/Showing a limited|See more|View all/i)).toBeNull();
   expect(screen.queryByRole("button", { name: /Next page/i })).toBeNull();
@@ -304,7 +262,7 @@ it("hides verified-empty reference and version tabs", async () => {
 });
 
 it("uses the shared Matches interaction and preserves precise native destinations", async () => {
-  const expected = graphFixture().backlinks.occurrences[0].source_navigation;
+  const expected = referringNavigation();
   api.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
     page(request, [
       {
@@ -892,7 +850,6 @@ it("keeps Read Info actions exact and leaves explanation context out of Versions
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
     show_versions: true,
-    remaster_relationships: { kind: "content", content },
   });
   const onReference = renderRelated(
     detail,
@@ -933,7 +890,6 @@ it("compares a logical relationship's available root without duplicating its nam
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
     show_versions: true,
-    remaster_relationships: { kind: "content", content },
   });
   api.getRecordDetail.mockImplementation(async (key: string) => {
     const isLegacy = key === "actors:seed";
@@ -960,7 +916,9 @@ it("compares a logical relationship's available root without duplicating its nam
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
-  const onReference = renderRelated(undefined, client);
+  const original = detailFixture("actors:seed", "Viewed creature");
+  original.remaster_relationships = { kind: "content", content };
+  const onReference = renderRelated(original, client);
   openRelated();
   await selectTab("Versions");
   const line = screen.getByText("Renamed to:").closest("p")!;
@@ -1045,8 +1003,8 @@ it.each([
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
     show_versions: true,
-    remaster_relationships: { kind: "content", content },
   });
+  detail.remaster_relationships = { kind: "content", content };
   renderRelated(detail);
   openRelated();
   await selectTab("Versions");
@@ -1094,7 +1052,9 @@ it("lands on the first Explore tab when Versions is available and preserves an e
   const versions = await screen.findByRole("tab", { name: "Versions", selected: true });
   expect(within(screen.getByRole("tablist")).getAllByRole("tab")[0]).toBe(versions);
   expect(router.latestLocation.search.record_tab).toBeUndefined();
+  expect(api.searchPage).not.toHaveBeenCalled();
   await selectTab("Referenced by");
+  await waitFor(() => expect(api.searchPage).toHaveBeenCalledTimes(1));
   await waitFor(() => expect(router.latestLocation.search.record_tab).toBe("incoming"));
   expect(
     screen.getByRole("tab", { name: "Referenced by", selected: true }),
@@ -1125,7 +1085,6 @@ it.each([
     api.getRelatedRecords.mockResolvedValue({
       ...relatedFixture(),
       show_versions: false,
-      remaster_relationships: { kind: "content", content },
     });
     renderRelated(
       detail,
@@ -1261,7 +1220,6 @@ it("retains one Versions relationship and its explanation through a background r
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
     show_versions: true,
-    remaster_relationships: { kind: "content", content },
   });
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -1311,7 +1269,6 @@ it("names multiple root comparison actions and keeps them below the relationship
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
     show_versions: true,
-    remaster_relationships: { kind: "content", content },
   });
   api.getRecordDetail.mockImplementation(async (key: string) =>
     detailFixture(
@@ -1323,7 +1280,9 @@ it("names multiple root comparison actions and keeps them below the relationship
           : "Second alternative",
     ),
   );
-  renderRelated();
+  const original = detailFixture("actors:seed", "Viewed creature");
+  original.remaster_relationships = { kind: "content", content };
+  renderRelated(original);
   openRelated();
   await selectTab("Versions");
   const line = screen.getByText("Renamed to:").closest("p")!;

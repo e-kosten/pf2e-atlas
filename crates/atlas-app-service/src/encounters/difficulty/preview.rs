@@ -107,8 +107,9 @@ fn read_preview(
         .ok_or_else(|| super::super::projection::encounter_not_found(encounter_ref))?;
     guard_revision(&snapshot.encounter, request.expected_revision)?;
     if let Some(addition) = request.addition {
-        let (_, _, projected) =
+        let (_, _, mut projected) =
             project_addition(session, &snapshot.participants, reference, addition)?;
+        projected.addition_generation = Some(session.generation()?);
         return Ok(projected);
     }
     let mut records = std::collections::BTreeMap::new();

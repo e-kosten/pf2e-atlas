@@ -17,6 +17,23 @@ use super::hydration::prepare_participant_records;
 use super::rules::participant_runtime_block;
 use super::rules::project_participant;
 
+#[derive(Debug, Default)]
+pub enum EncounterReadDetail {
+    #[default]
+    Full,
+    Compact,
+    Participant(String),
+}
+
+impl EncounterReadDetail {
+    fn includes(&self, participant: &EncounterParticipant) -> bool {
+        match self {
+            Self::Participant(key) => key == &participant.participant_key,
+            _ => true,
+        }
+    }
+}
+
 pub(super) struct ParticipantPresentation {
     summary: atlas_app_model::RecordSummaryView,
     presentation: atlas_app_model::RecordPresentationView,
@@ -26,11 +43,24 @@ pub(super) fn encounter_detail_view(
     retrieval: &mut atlas_search::AtlasRetrievalService,
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
+    scope: &EncounterReadDetail,
 ) -> AppServiceResult<EncounterDetailView> {
     let (artifact_generation, records_by_key) =
         prepare_participant_records(retrieval, &participants)?;
     let mut presentations = BTreeMap::new();
+    let selected_record = match scope {
+        EncounterReadDetail::Participant(key) => participants
+            .iter()
+            .find(|row| row.participant_key == *key)
+            .and_then(|row| row.record_key.as_ref()),
+        _ => None,
+    };
     for (key, record) in &records_by_key {
+        if matches!(scope, EncounterReadDetail::Compact)
+            || matches!(scope, EncounterReadDetail::Participant(_)) && selected_record != Some(key)
+        {
+            continue;
+        }
         let summary = crate::projection::localized_detail_summary_view(&record.detail, retrieval);
         let node = atlas_record::source_record::SourceQueryView::new(
             record.detail.source.source(),
@@ -43,7 +73,7 @@ pub(super) fn encounter_detail_view(
             node,
             &summary,
             &[],
-            vec![],
+            None,
             retrieval,
         )?;
         presentations.insert(
@@ -60,6 +90,7 @@ pub(super) fn encounter_detail_view(
         artifact_generation,
         records_by_key,
         presentations,
+        scope,
     );
     crate::presentation::reference_help::annotate_many(
         view.participants
@@ -76,6 +107,7 @@ pub(super) fn encounter_detail_from_records(
     artifact_generation: Option<String>,
     records_by_key: BTreeMap<String, super::hydration::PreparedParticipantRecord>,
     presentations: BTreeMap<String, ParticipantPresentation>,
+    scope: &EncounterReadDetail,
 ) -> EncounterDetailView {
     let condition_sources =
         super::hydration::roster_source_conditions(&participants, &records_by_key);
@@ -103,6 +135,7 @@ pub(super) fn encounter_detail_from_records(
         current_turn_participant_key: current_turn_participant_key.clone(),
         participants: participants
             .iter()
+            .filter(|participant| scope.includes(participant))
             .map(|participant| {
                 let mut view = participant_view(
                     participant.clone(),
@@ -111,12 +144,18 @@ pub(super) fn encounter_detail_from_records(
                     &participants,
                     &condition_sources,
                     round_seconds,
+                    !matches!(scope, EncounterReadDetail::Compact),
                 );
-                view.turn_resources = super::turn_resources::view(
-                    participant,
-                    current_turn_participant_key.as_deref(),
-                    &super::hydration::participant_source_conditions(participant, &records_by_key),
-                );
+                if !matches!(scope, EncounterReadDetail::Compact) {
+                    view.turn_resources = super::turn_resources::view(
+                        participant,
+                        current_turn_participant_key.as_deref(),
+                        &super::hydration::participant_source_conditions(
+                            participant,
+                            &records_by_key,
+                        ),
+                    );
+                }
                 view
             })
             .collect(),
@@ -150,6 +189,7 @@ fn participant_view(
     participants: &[EncounterParticipant],
     condition_sources: &BTreeMap<String, super::rules::source_conditions::SourceConditions>,
     round_seconds: i64,
+    present: bool,
 ) -> EncounterParticipantView {
     let relationship_causes = super::rules::relationships::observer_defense_causes(
         &participant.participant_key,
@@ -189,7 +229,7 @@ fn participant_view(
         ParticipantKind::Pc | ParticipantKind::InitiativeEntry
     ) {
         EncounterParticipantStatusView::Manual
-    } else if record.is_some() {
+    } else if record_detail.is_some() {
         EncounterParticipantStatusView::Active
     } else {
         EncounterParticipantStatusView::Unresolved
@@ -216,6 +256,7 @@ fn participant_view(
         .or_else(|| {
             stat_block
                 .as_ref()
+                .filter(|_| present)
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
     let has_casting_hint = presentation.as_ref().is_some_and(|presentation| {
@@ -267,69 +308,105 @@ fn participant_view(
                 }],
             }),
     });
-    let knockout_facts = record_detail
-        .map(|record| {
-            super::rules::source_applicability(
-                &record.detail.source,
-                participant.participant_kind == ParticipantKind::Hazard,
-            )
-        })
-        .unwrap_or_default();
-    let petrified_knockout = if participant.current_hp == Some(0) {
-        match super::rules::causes::condition_causes(&participant, None, sources)
-            .known_presence(super::conditions::ConditionRule::Petrified)
-        {
-            Ok(true) => Some("At 0 HP, a petrified statue is destroyed. Mark it dead.".into()),
-            Err(_) => {
-                Some("Check whether Petrified applies before choosing a knockout outcome.".into())
-            }
-            Ok(false) => None,
-        }
-    } else {
-        None
-    };
-    let mut knockout_unavailable_reason = petrified_knockout.or_else(|| {
-        super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Dying)
-            .and_then(|dying| {
-                match super::rules::condition_applicability(
-                    dying,
-                    &participant,
-                    &knockout_facts,
-                    sources,
-                ) {
-                    Some(atlas_app_model::EncounterConditionEligibilityView::Immune { reason }) => {
-                        Some(reason)
-                    }
-                    None => Some("Dying does not apply to this participant kind.".into()),
-                    _ => None,
-                }
+    let (knockout_options, knockout_unavailable_reason) = if present {
+        let knockout_facts = record_detail
+            .map(|record| {
+                super::rules::source_applicability(
+                    &record.detail.source,
+                    participant.participant_kind == ParticipantKind::Hazard,
+                )
             })
-    });
-    let knockout_options = if knockout_unavailable_reason.is_none() {
-        let choices = super::rules::hp_events::knockout_options(&participant, sources, None);
-        knockout_unavailable_reason = choices.unavailable_reason;
-        choices.options
+            .unwrap_or_default();
+        let petrified_knockout = if participant.current_hp == Some(0) {
+            match super::rules::causes::condition_causes(&participant, None, sources)
+                .known_presence(super::conditions::ConditionRule::Petrified)
+            {
+                Ok(true) => Some("At 0 HP, a petrified statue is destroyed. Mark it dead.".into()),
+                Err(_) => Some(
+                    "Check whether Petrified applies before choosing a knockout outcome.".into(),
+                ),
+                Ok(false) => None,
+            }
+        } else {
+            None
+        };
+        let mut knockout_unavailable_reason = petrified_knockout.or_else(|| {
+            super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Dying)
+                .and_then(|dying| {
+                    match super::rules::condition_applicability(
+                        dying,
+                        &participant,
+                        &knockout_facts,
+                        sources,
+                    ) {
+                        Some(atlas_app_model::EncounterConditionEligibilityView::Immune {
+                            reason,
+                        }) => Some(reason),
+                        None => Some("Dying does not apply to this participant kind.".into()),
+                        _ => None,
+                    }
+                })
+        });
+        let knockout_options = if knockout_unavailable_reason.is_none() {
+            let choices = super::rules::hp_events::knockout_options(&participant, sources, None);
+            knockout_unavailable_reason = choices.unavailable_reason;
+            choices.options
+        } else {
+            vec![]
+        };
+        (knockout_options, knockout_unavailable_reason)
     } else {
-        vec![]
+        Default::default()
     };
     let inherent_conditions =
         inherent_condition_view(&participant, sources, stat_block.as_ref(), has_casting_hint);
+    let (
+        gm_adjustments,
+        manual_trackers,
+        ability_states,
+        persistent_damage_groups,
+        cast_unavailable_reason,
+        spellcasting,
+    ) = if present {
+        (
+            super::gm_adjustments::view(
+                &participant,
+                stat_block.as_ref(),
+                participants,
+                round_seconds,
+            ),
+            super::manual_trackers::views(&participant, participants, round_seconds),
+            Some(super::ability_state::views(
+                &participant,
+                sources,
+                stat_block
+                    .as_ref()
+                    .and_then(|block| block.adjusted_level.as_ref())
+                    .and_then(serde_json::Number::as_i64),
+            )),
+            super::persistent_damage::group_views(
+                &participant,
+                &participant,
+                record_detail.map(|record| &record.detail.source),
+                sources,
+            ),
+            super::rules::capabilities::cannot_act_reason(&participant, sources).map(str::to_owned),
+            record_detail.map(|record| {
+                super::spell_catalog::catalog(
+                    &record.detail.source,
+                    &participant.spell_resources,
+                    &participant.expended_spells,
+                    Some(&record.source_fingerprint),
+                )
+            }),
+        )
+    } else {
+        Default::default()
+    };
     EncounterParticipantView {
-        gm_adjustments: super::gm_adjustments::view(
-            &participant,
-            stat_block.as_ref(),
-            participants,
-            round_seconds,
-        ),
-        manual_trackers: super::manual_trackers::views(&participant, participants, round_seconds),
-        ability_states: Some(super::ability_state::views(
-            &participant,
-            sources,
-            stat_block
-                .as_ref()
-                .and_then(|block| block.adjusted_level.as_ref())
-                .and_then(serde_json::Number::as_i64),
-        )),
+        gm_adjustments,
+        manual_trackers,
+        ability_states,
         turn_resources: None,
         knockout_options,
         knockout_unavailable_reason,
@@ -341,25 +418,9 @@ fn participant_view(
             atlas_local_state::MortalityState::Alive => atlas_app_model::MortalityStateView::Alive,
             atlas_local_state::MortalityState::Dead => atlas_app_model::MortalityStateView::Dead,
         },
-        persistent_damage_groups: super::persistent_damage::group_views(
-            &participant,
-            &participant,
-            record_detail.map(|record| &record.detail.source),
-            sources,
-        ),
-        cast_unavailable_reason: super::rules::capabilities::cannot_act_reason(
-            &participant,
-            sources,
-        )
-        .map(str::to_owned),
-        spellcasting: record_detail.map(|r| {
-            super::spell_catalog::catalog(
-                &r.detail.source,
-                &participant.spell_resources,
-                &participant.expended_spells,
-                Some(&r.source_fingerprint),
-            )
-        }),
+        persistent_damage_groups,
+        cast_unavailable_reason,
+        spellcasting,
         revision: participant.revision,
         hp_origin: match participant.hp_origin {
             atlas_local_state::ParticipantHpOrigin::DerivedPristine => "derived_pristine",

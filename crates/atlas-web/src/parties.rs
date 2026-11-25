@@ -1,3 +1,4 @@
+use crate::error::Path;
 use crate::{
     error::WebError,
     service::{AtlasWebState, call_service},
@@ -7,16 +8,47 @@ use atlas_app_model::{
 };
 use axum::{
     Json,
-    extract::{Path, State, rejection::JsonRejection},
+    extract::{State, rejection::JsonRejection},
     response::IntoResponse,
 };
 
-#[utoipa::path(get, path = "/api/parties", operation_id = "parties", responses((status = 200, description = "Successful response", body = atlas_app_model::PartyIndexView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(get, path = "/api/parties", operation_id = "parties", responses((status = 200, description = "Successful response", body = atlas_app_model::PartyDirectoryView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn parties(
     State(state): State<AtlasWebState>,
 ) -> Result<impl IntoResponse, WebError> {
     Ok(Json(
-        call_service(state, move |service| service.parties()).await?,
+        call_service(state, move |service| service.party_directory()).await?,
+    ))
+}
+#[utoipa::path(get, path = "/api/parties/rosters", operation_id = "partyRosters", responses((status = 200, description = "Successful response", body = atlas_app_model::PartyIndexView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn party_rosters(
+    State(state): State<AtlasWebState>,
+) -> Result<impl IntoResponse, WebError> {
+    Ok(Json(
+        call_service(state, |service| service.parties()).await?,
+    ))
+}
+#[utoipa::path(get, path = "/api/parties/{party_key}", operation_id = "partyRoster", params(("party_key" = String, Path, description = "Stable party key")), responses((status = 200, description = "Successful response", body = atlas_app_model::PartyView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn party_roster(
+    State(state): State<AtlasWebState>,
+    Path(key): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    Ok(Json(
+        call_service(state, move |service| service.party_roster(&key)).await?,
+    ))
+}
+#[utoipa::path(patch, path = "/api/parties/{party_key}/name", operation_id = "renameParty", params(("party_key" = String, Path, description = "Stable party key")), request_body = atlas_app_model::RenamePartyRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::PartyView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn rename_party(
+    State(state): State<AtlasWebState>,
+    Path(key): Path<String>,
+    payload: Result<Json<atlas_app_model::RenamePartyRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    Ok(Json(
+        call_service(state, move |service| {
+            service.edit_party_name(&key, request.expected_revision, request.name)
+        })
+        .await?,
     ))
 }
 #[utoipa::path(post, path = "/api/parties", operation_id = "createParty", request_body = CreatePartyRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::PartyView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]

@@ -56,7 +56,7 @@ function ListSettingsFixture({ route }: { route: { slug: string } }) {
       {editing.data && (
         <EditListModal
           listRef={route.slug}
-          initialDetail={editing.data}
+          initialList={editing.data}
           open={editing.open}
           onClose={editing.close}
           onDeleted={editing.close}
@@ -78,6 +78,7 @@ const apiMocks = vi.hoisted(() => ({
   filterSavedList: vi.fn(),
   getRecordDetail: vi.fn(),
   getSavedList: vi.fn(),
+  getSavedListHeader: vi.fn(),
   getSavedListItemNote: vi.fn(),
   updateSavedListItemNote: vi.fn(),
   getSavedLists: vi.fn(),
@@ -98,6 +99,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   filterSavedList: apiMocks.filterSavedList,
   getRecordDetail: apiMocks.getRecordDetail,
   getSavedList: apiMocks.getSavedList,
+  getSavedListHeader: apiMocks.getSavedListHeader,
   getSavedListItemNote: apiMocks.getSavedListItemNote,
   updateSavedListItemNote: apiMocks.updateSavedListItemNote,
   getSavedLists: apiMocks.getSavedLists,
@@ -113,6 +115,7 @@ describe("list views", () => {
     history.replaceState(null, "", "/lists");
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
     apiMocks.getSavedList.mockResolvedValue(savedListDetailFixture());
+    apiMocks.getSavedListHeader.mockResolvedValue(savedListDetailFixture().list);
     apiMocks.getSavedListItemNote.mockImplementation((_list, key) =>
       Promise.resolve({
         list_key: "list_research",
@@ -293,7 +296,7 @@ describe("list views", () => {
       const editor = render(
         <EditListModal
           listRef={detail.list.list_key}
-          initialDetail={detail}
+          initialList={detail.list}
           open
           onClose={onClose}
           onDeleted={vi.fn()}
@@ -1479,22 +1482,22 @@ describe("list views", () => {
   it("resolves the settings slug fresh before binding the form to a list", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const old = savedListDetailFixture();
-    client.setQueryData(["saved-list", "research"], old);
+    client.setQueryData(["saved-list-header", "research"], old.list);
     const replacement = {
       ...old,
       list: { ...old.list, list_key: "list_other", name: "Replacement list" },
     };
-    apiMocks.getSavedList.mockResolvedValue(replacement);
+    apiMocks.getSavedListHeader.mockResolvedValue(replacement.list);
     render(<ListSettingsFixture route={{ slug: "research" }} />, {
       wrapper: queryClientWrapper(client),
     });
     expect(screen.queryByDisplayValue("Research")).not.toBeInTheDocument();
     expect(await screen.findByDisplayValue("Replacement list")).toBeVisible();
     await act(async () =>
-      client.invalidateQueries({ queryKey: ["saved-list", "list_other"] }),
+      client.invalidateQueries({ queryKey: ["saved-list-header", "list_other"] }),
     );
-    expect(apiMocks.getSavedList).toHaveBeenCalledWith("list_other");
-    expect(apiMocks.getSavedList).not.toHaveBeenCalledWith("list_research");
+    expect(apiMocks.getSavedListHeader).toHaveBeenCalledWith("list_other");
+    expect(apiMocks.getSavedList).not.toHaveBeenCalled();
   });
 
   it("keeps a dirty setting's original value through refresh and reviews a conflict by key", async () => {
@@ -1515,9 +1518,9 @@ describe("list views", () => {
         slug: "renamed",
       },
     };
-    apiMocks.getSavedList.mockResolvedValue(fresh);
+    apiMocks.getSavedListHeader.mockResolvedValue(fresh.list);
     await act(async () => {
-      client.setQueryData(["saved-list", "list_research"], fresh);
+      client.setQueryData(["saved-list-header", "list_research"], fresh.list);
     });
     await waitFor(() =>
       expect(markdownSource(screen.getByLabelText("Description"))).toBe(
@@ -1544,7 +1547,7 @@ describe("list views", () => {
       "list_research",
       request,
     );
-    expect(apiMocks.getSavedList).toHaveBeenLastCalledWith("list_research");
+    expect(apiMocks.getSavedListHeader).toHaveBeenLastCalledWith("list_research");
     const review = screen.getByRole("group", { name: "Name" });
     expect(review).toHaveTextContent("Saved name");
     expect(review).toHaveTextContent("My name");
@@ -1839,16 +1842,13 @@ describe("list views", () => {
     client.setQueryData(oldDetail.queryKey, detailFixture("old"));
     await act(async () => retireReferenceQueries(client));
     expect(client.getQueryData(oldDetail.queryKey)).toBeUndefined();
-    expect(client.getQueryData(["saved-list", "list_research"])).toBeDefined();
+    expect(client.getQueryData(["saved-list-header", "list_research"])).toBeDefined();
     expect(name).toHaveValue("My list draft");
     act(() =>
-      client.setQueryData(["saved-list", "list_research"], {
-        ...savedListDetailFixture(),
-        list: {
-          ...savedListDetailFixture().list,
-          name: "Server name",
-          description: "Server description",
-        },
+      client.setQueryData(["saved-list-header", "list_research"], {
+        ...savedListDetailFixture().list,
+        name: "Server name",
+        description: "Server description",
       }),
     );
     expect(name).toHaveValue("My list draft");
@@ -1857,14 +1857,11 @@ describe("list views", () => {
         "Server description",
       ),
     );
-    apiMocks.getSavedList.mockResolvedValue({
-      ...savedListDetailFixture(),
-      list: {
-        ...savedListDetailFixture().list,
-        list_key: "other-list",
-        slug: "other",
-        name: "Other list",
-      },
+    apiMocks.getSavedListHeader.mockResolvedValue({
+      ...savedListDetailFixture().list,
+      list_key: "other-list",
+      slug: "other",
+      name: "Other list",
     });
     rerender(<ListSettingsFixture route={{ slug: "other" }} />);
     expect(await screen.findByLabelText("Name")).toHaveValue("Other list");
@@ -1872,16 +1869,16 @@ describe("list views", () => {
   it("retries a list settings read outside the dialog and opens with fresh values", async () => {
     const initial = savedListDetailFixture();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    client.setQueryData(["saved-list", "list_research"], initial);
-    apiMocks.getSavedList.mockRejectedValueOnce(new Error("List unavailable"));
+    client.setQueryData(["saved-list-header", "list_research"], initial.list);
+    apiMocks.getSavedListHeader.mockRejectedValueOnce(new Error("List unavailable"));
     render(<ListSettingsFixture route={{ slug: "list_research" }} />, {
       wrapper: queryClientWrapper(client),
     });
     const retry = await screen.findByRole("button", { name: "Retry" });
     expect(screen.queryByRole("dialog", { name: "Edit list" })).toBeNull();
-    apiMocks.getSavedList.mockResolvedValue({
-      ...initial,
-      list: { ...initial.list, name: "Fresh list name" },
+    apiMocks.getSavedListHeader.mockResolvedValue({
+      ...initial.list,
+      name: "Fresh list name",
     });
     fireEvent.click(retry);
     const editor = within(await screen.findByRole("dialog", { name: "Edit list" }));

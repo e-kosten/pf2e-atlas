@@ -110,6 +110,22 @@ pub(crate) fn get(
         .transpose()
 }
 
+pub(super) fn item_note(
+    connection: &Connection,
+    owner_id: i64,
+    list_ref: &str,
+    record_key: &str,
+) -> LocalStateResult<Option<crate::SavedListItemNote>> {
+    connection.query_row(
+        "SELECT l.list_key,l.slug,i.record_key,i.record_title_snapshot,i.note FROM saved_lists l
+         LEFT JOIN saved_list_items i ON i.list_id=l.id AND i.record_key=?3
+         WHERE l.owner_id=?1 AND (l.list_key=?2 OR l.slug=?2)", params![owner_id,list_ref,record_key], |row| {
+            let Some(record_key) = row.get::<_,Option<String>>(2)? else { return Ok(None) };
+            Ok(Some(crate::SavedListItemNote { list_key: row.get(0)?, slug: row.get(1)?, record_key, title: row.get(3)?, note: row.get(4)? }))
+        }
+    ).optional()?.ok_or_else(|| LocalStateError::ListNotFound(list_ref.into()))
+}
+
 pub(crate) fn get_with_items(
     connection: &Connection,
     owner_id: i64,

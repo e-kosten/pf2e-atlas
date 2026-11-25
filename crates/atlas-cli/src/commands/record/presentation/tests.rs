@@ -365,6 +365,8 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
+        has_remaster_versions: false,
+        selected_fields: vec![],
         canonical_record: None,
         named_creature_links: None,
         creature_link_placement: None,

@@ -10,6 +10,21 @@ pub(crate) mod args;
 use args::{BuildIndexOptions, CheckIndexOptions, RebuildIndexOptions, ValidateIndexOptions};
 
 pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
+    let json = options.json;
+    match build_index(options) {
+        Ok(report) => write_build_report(report, json),
+        Err(atlas_runtime::ReferenceBuildError::InvalidInput(message)) => {
+            super::product::command_error(json, "invalid_input", message, 2)
+        }
+        Err(atlas_runtime::ReferenceBuildError::Environment(message)) => {
+            super::product::command_error(json, "index_build_failed", message, 3)
+        }
+    }
+}
+
+fn build_index(
+    options: BuildIndexOptions,
+) -> Result<atlas_ingest::BuildArtifactReport, atlas_runtime::ReferenceBuildError> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: crate::cli::runtime_path_mode(options.path_mode),
@@ -37,6 +52,11 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         },
         options.manifest.as_deref(),
     )?;
+    if options.embedding_batch_size == 0 && !configuration.search_profiles.is_empty() {
+        return Err(atlas_runtime::ReferenceBuildError::InvalidInput(
+            "Embedding batch size must be greater than zero.".into(),
+        ));
+    }
     let paths = runtime.paths();
     let workspace =
         atlas_runtime::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
@@ -67,7 +87,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     )
     .map_err(|e| e.to_string())?;
     tracing::info!(target:"atlas_progress",complete=true,"Index build finished");
-    write_build_report(report, options.json)
+    Ok(report)
 }
 
 pub(crate) fn run_index_rebuild(options: RebuildIndexOptions) -> Result<ExitCode, String> {
