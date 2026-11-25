@@ -609,6 +609,9 @@ a card treatment. Verify the selected host in both appearances and at wide,
 intermediate and phone widths; inspect scroll ownership, divider alignment and
 resize/focus behavior as well as the static screenshot.
 
+Use `--document-measure` (78ch) as the maximum width for reading prose. Text
+wraps naturally in narrower panes. In mixed layouts, apply the measure to the
+reading block so controls and structured data can use the available space.
 Give single-column record pages one document width, including their toolbar,
 identity, traits, facts, prose, lists and horizontal rules. Bound the whole sheet
 instead of cutting the prose short inside a wider sheet. Search/list browsing
@@ -2431,7 +2434,7 @@ threshold and an Alive/Dead segmented control, not a general level override.
 The list feature supplies a footer to the shared browse reader. Show short
 Markdown notes under the rules. If the rendered note exceeds the footer's
 three-line preview budget, show an excerpt and **Read full note**. Measure the
-formatted document at the available width. Only the visible note exposes links
+formatted document at the same reading width as the visible excerpt. Only the visible note exposes links
 to keyboard and assistive technology.
 
 The full note and expanded editor use the shared document width inside the

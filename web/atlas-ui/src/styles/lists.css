@@ -104,7 +104,7 @@
 .list-about {
   display: grid;
   gap: var(--space-group);
-  max-inline-size: 70ch;
+  max-inline-size: var(--document-measure);
   margin-inline: auto;
 }
 
@@ -266,6 +266,7 @@
 }
 .list-entry-note__preview {
   position: relative;
+  max-inline-size: var(--document-measure);
 }
 .list-entry-note__preview[data-compact] {
   max-block-size: 4.8em;

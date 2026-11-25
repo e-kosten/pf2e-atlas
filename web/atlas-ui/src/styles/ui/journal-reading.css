@@ -42,13 +42,17 @@
   scroll-margin-block-start: var(--space-section);
 }
 
-/* The side outline earns extra page width; the prose keeps its accepted measure. */
-@media (min-width: 1120px) {
+/* The page and its outline use the same available width to switch layouts. */
+.record-view:has(> .record-view__pane--document .document-reading--outlined) {
+  container: journal-host / inline-size;
+}
+.record-reference:has(.document-reading--outlined):not(.record-view__pane--document *) {
+  container-name: record-pane journal-host;
+}
+@container journal-host (min-width: 66rem) {
   .record-view__pane--document:has(.document-reading--outlined) {
     max-width: calc(var(--document-measure) + 13rem + 3 * var(--space-section));
   }
-}
-@container record-pane (min-width: 62rem) {
   .document-reading--outlined {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 13rem;
