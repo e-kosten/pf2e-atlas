@@ -77,6 +77,9 @@ set_release_vars() {
     *) tag="release/$package_tag" ;;
   esac
   [ -n "$notes_file" ] || notes_file="docs/releases/$package_tag.md"
+  if [ "$prepare_pr" -eq 1 ] || [ "$open_pr" -eq 1 ]; then
+    notes_file=$(prep_state notes-path "$notes_file") || exit 1
+  fi
   release_branch="release-prep/$package_tag"
 }
 

@@ -113,11 +113,11 @@ reject() {
 branch=release-prep/v0.1.0
 reject scripts/prepare-release.sh --prepare-pr --version 0.1.0 --notes-file ../invalid.md
 [ "$(git branch --show-current)" = main ]
-prep 0.1.0
+scripts/prepare-release.sh --prepare-pr --version 0.1.0 --notes-file ./docs/releases/v0.1.0.md </dev/null
 git diff --exit-code -- docs/releases/v0.1.0.md
 [ "$(grep -c 'version = "0.1.0-rc.6"' Cargo.lock)" = 1 ]
 [ "$(grep -c 'version = "0.1.0-rc.6"' crates/atlas-cli/Cargo.toml)" = 1 ]
-open_pr --dry-run
+open_pr --notes-file ./docs/releases/v0.1.0.md --dry-run
 [ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ]
 [ -z "$(git ls-remote --heads origin "refs/heads/$branch")" ]
 printf 'extra\n' >> Cargo.lock
@@ -181,7 +181,7 @@ for pair in 'main wrong' 'release-prep/v0.1.0 different' 'OPEN CLOSED' 'false tr
   reject open_pr
 done
 cp "$fixture/good-pr" "$fixture/pr"
-open_pr | grep -F 'https://github.com/fixture/atlas/pull/1'
+open_pr --notes-file ./docs/releases/v0.1.0.md | grep -F 'https://github.com/fixture/atlas/pull/1'
 [ "$(git rev-parse HEAD)" = "$candidate" ]
 [ "$(wc -l < "$fixture/created" | tr -d ' ')" = 1 ]
 for check in scripts/release/validate-release-tooling.sh 'npm --prefix web/atlas-ui ci' 'npm --prefix web/atlas-ui run build' scripts/verify.sh; do
@@ -191,7 +191,7 @@ done
 git switch -q main
 mkdir -p web/atlas-ui/dist
 echo stale > web/atlas-ui/dist/index.html
-prep 0.2.0
+scripts/prepare-release.sh --prepare-pr --version 0.2.0 --notes-file ./docs/releases/v0.2.0.md </dev/null
 grep -q 'version = "0.2.0"' Cargo.lock
 grep -q 'version = "0.2.0"' crates/atlas-cli/Cargo.toml
 [ "$(cat web/atlas-ui/dist/index.html)" = stale ]
@@ -199,7 +199,7 @@ grep -q 'version = "0.2.0"' crates/atlas-cli/Cargo.toml
 git restore -- Cargo.lock
 scripts/prepare-release.sh --prepare-pr --version 0.2.0 --dry-run </dev/null
 git diff --exit-code -- Cargo.lock
-prep 0.2.0
+scripts/prepare-release.sh --prepare-pr --version 0.2.0 --notes-file ./docs/releases/v0.2.0.md </dev/null
 grep -q 'version = "0.2.0"' Cargo.lock
 printf '# v0.2.0\n\nAuthored notes.\n' > docs/releases/v0.2.0.md
 rm "$fixture/pr" "$fixture/create-lost"
@@ -209,7 +209,7 @@ if [ "$(git config --type=bool --default true --get core.filemode)" = true ]; th
   chmod -x docs/releases/v0.2.0.md
   [ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ]
 fi
-open_pr
+open_pr --notes-file ./docs/releases/v0.2.0.md
 [ "$(git rev-list --count main..HEAD)" = 1 ]
 [ "$(wc -l < "$fixture/created" | tr -d ' ')" = 2 ]
 git switch -q main

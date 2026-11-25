@@ -10,21 +10,30 @@ const read = file => readFileSync(file, 'utf8');
 
 // A user-supplied notes path must stay inside the checkout before the shell
 // creates a template or launches an editor (including on an interrupted prep).
-function checkNotesPath(notes) {
-  const parts = notes.split('/');
-  if (path.isAbsolute(notes) || [manifestPath, lockPath].includes(notes) || notes.startsWith(':')
-      || parts.some(part => !part || part === '.' || part === '..' || part.toLowerCase() === '.git')
-      || path.normalize(notes).split(path.sep).join('/') !== notes) {
-    throw new Error('Choose a separate repository-relative release notes file');
-  }
-  for (let i = 1; i <= parts.length; i++) {
-    const name = parts.slice(0, i).join('/');
+function notesPath(input) {
+  const invalid = () => new Error('Choose a separate repository-relative release notes file');
+  if (path.parse(input).root || /[\r\n]/.test(input)) throw invalid();
+  const parts = input.split(path.sep).join('/').split('/');
+  const normalized = [];
+  for (const [i, part] of parts.entries()) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      if (!normalized.length) throw invalid();
+      normalized.pop();
+      continue;
+    }
+    if (part.toLowerCase() === '.git') throw invalid();
+    normalized.push(part);
+    const name = normalized.join('/');
     const stat = lstatSync(name, { throwIfNoEntry: false });
-    if (!stat) break;
-    if (i === parts.length ? !stat.isFile() : !stat.isDirectory()) {
+    if (stat && (i === parts.length - 1 ? !stat.isFile() : !stat.isDirectory())) {
       throw new Error(`Invalid release notes path: ${name}`);
     }
   }
+  const file = normalized.join('/');
+  if (!file || path.parse(file).root || !parts.at(-1) || ['.', '..'].includes(parts.at(-1)) || file.startsWith(':')
+      || [manifestPath, lockPath].includes(file)) throw invalid();
+  return file;
 }
 
 function checkPaths(base, notes, committed) {
@@ -52,7 +61,7 @@ function checkPaths(base, notes, committed) {
   }
 }
 
-function prepState(mode, version, notes, main) {
+function prepState(mode, version, inputNotes, main) {
   const head = git('rev-parse', 'HEAD').trim();
   const base = git('merge-base', main, head).trim();
   const committed = head !== base;
@@ -60,7 +69,7 @@ function prepState(mode, version, notes, main) {
   if (committed && (resuming || git('show', '-s', '--format=%P', head).trim() !== base)) {
     throw new Error('Expected an uncommitted release prep or one preparation commit directly on its main branch point');
   }
-  checkNotesPath(notes);
+  const notes = notesPath(inputNotes);
   checkPaths(base, notes, committed);
   const fromBase = file => git('cat-file', '--filters', `--path=${file}`, `${base}:${file}`);
   const source = fromBase(manifestPath);
@@ -109,8 +118,10 @@ function matchingPR(branch, head, repository) {
 
 try {
   const [mode, ...args] = process.argv.slice(2);
-  if (mode === 'check' || mode === 'write') {
-    checkNotesPath(args[1]);
+  if (mode === 'notes-path') {
+    console.log(notesPath(args[0]));
+  } else if (mode === 'check' || mode === 'write') {
+    notesPath(args[1]);
     const files = versionFiles(read(manifestPath), read(lockPath), args[0]);
     if (mode === 'write') writeVersionFiles('.', files);
   } else if (mode === 'resume' || mode === 'resume-dry-run' || mode === 'candidate') {
