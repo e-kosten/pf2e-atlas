@@ -45,6 +45,7 @@
 }
 
 .markdown-editor {
+  container-type: inline-size;
   position: relative;
   min-inline-size: 0;
   border: 1px solid var(--line);
@@ -259,4 +260,32 @@
 .markdown-record-picker .markdown-record-full {
   min-height: 32px;
   border-block-start: 1px solid var(--line);
+}
+
+.markdown-editor__expand {
+  margin-inline-start: auto;
+}
+@container (max-width: 34rem) {
+  .markdown-editor__toolbar:has(.markdown-editor__expand:not([hidden]))
+    .markdown-editor__actions {
+    order: 1;
+    flex-basis: 100%;
+  }
+}
+
+.markdown-editor__expand[hidden] {
+  display: none;
+}
+
+/* Keep the original field mounted, including its form registration and undo history.
+   Flatten only its ancestors and remove their siblings from the focused layout. */
+.atlas-modal-fields[data-editor-expanded] :has([data-expanded-field]) {
+  display: contents !important;
+}
+.atlas-modal-fields[data-editor-expanded]
+  > :not([data-expanded-field], :has([data-expanded-field])),
+.atlas-modal-fields[data-editor-expanded]
+  :has([data-expanded-field])
+  > :not([data-expanded-field], :has([data-expanded-field])) {
+  display: none !important;
 }

@@ -60,18 +60,3 @@
   justify-content: space-between;
   margin-block-end: var(--space-control);
 }
-
-.record-destination-picker[data-document],
-.record-destination-picker[data-document] .record-destination-picker__form,
-.record-destination-picker[data-document] .record-destination-picker__note {
-  display: block;
-  block-size: 100%;
-  min-block-size: 0;
-}
-
-.record-destination-picker[data-document] > :not(.record-destination-picker__form),
-.record-destination-picker[data-document]
-  .record-destination-picker__form
-  > :not(.record-destination-picker__note) {
-  display: none;
-}
