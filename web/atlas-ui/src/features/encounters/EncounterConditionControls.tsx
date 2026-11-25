@@ -553,185 +553,177 @@ export function EncounterConditionControls({
           description={error}
         />
       )}
-      {current.conditions.length === 0 &&
-      !inherent?.unavailable_reason &&
-      inherentConditions.length === 0 &&
-      !recoveryGroup ? (
-        <p className="encounter-empty-note">No conditions</p>
-      ) : (
-        <div className="encounter-condition-list">
-          {inherentConditions.map((condition, index) => {
-            const ordinal = condition.editable_rule_ordinal;
-            const save =
-              ordinal == null || !onAbilityState
-                ? undefined
-                : (value: number | null) =>
-                    onAbilityState(
-                      { navigation: condition.source, rule_ordinal: ordinal },
-                      { kind: "set_condition_value", value },
-                    );
-            return (
-              <div
-                className={`encounter-condition-row encounter-condition-row--inherent${save ? " encounter-condition-row--valued" : ""}`}
-                key={`${condition.condition_ref}:${JSON.stringify(condition.source.embedded_path)}:${ordinal == null ? `row-${index}` : `rule-${ordinal}`}`}
+      <div className="encounter-condition-list">
+        {inherentConditions.map((condition, index) => {
+          const ordinal = condition.editable_rule_ordinal;
+          const save =
+            ordinal == null || !onAbilityState
+              ? undefined
+              : (value: number | null) =>
+                  onAbilityState(
+                    { navigation: condition.source, rule_ordinal: ordinal },
+                    { kind: "set_condition_value", value },
+                  );
+          return (
+            <div
+              className={`encounter-condition-row encounter-condition-row--inherent${save ? " encounter-condition-row--valued" : ""}`}
+              key={`${condition.condition_ref}:${JSON.stringify(condition.source.embedded_path)}:${ordinal == null ? `row-${index}` : `rule-${ordinal}`}`}
+            >
+              <Button
+                type="link"
+                className="encounter-condition-row__name"
+                styles={{
+                  root: {
+                    padding: 0,
+                    height: "auto",
+                    justifyContent: "flex-start",
+                    fontSize: "inherit",
+                  },
+                }}
+                href={destinationHref(
+                  recordDestination({ recordKey: condition.condition_ref }),
+                )}
+                onClick={(event) => {
+                  if (!isPrimaryActivation(event)) return;
+                  event.preventDefault();
+                  onReference(condition.condition_ref, event.currentTarget);
+                }}
               >
+                {condition.name}
+                {condition.has_value && !save ? ` ${condition.value ?? "—"}` : ""}
+              </Button>
+              {save && (
+                <span className="encounter-condition-row__value">
+                  <EncounterConditionValue
+                    name={`${condition.name} from ${condition.source_name}`}
+                    minimum={0}
+                    value={condition.value ?? undefined}
+                    disabled={disabled || pending}
+                    onCommit={save}
+                    onClear={() => save(null)}
+                  />
+                </span>
+              )}
+              <span className="encounter-condition-meta">
+                {ordinal != null
+                  ? condition.value === null
+                    ? "Activation tied to "
+                    : condition.value === 0
+                      ? "Inactive · Source: "
+                      : "Source: "
+                  : condition.unavailable_reason
+                    ? `${condition.unavailable_reason} · `
+                    : "Inherent · "}
                 <Button
                   type="link"
-                  className="encounter-condition-row__name"
                   styles={{
-                    root: {
-                      padding: 0,
-                      height: "auto",
-                      justifyContent: "flex-start",
-                      fontSize: "inherit",
-                    },
+                    root: { padding: 0, height: "auto", fontSize: "inherit" },
                   }}
                   href={destinationHref(
-                    recordDestination({ recordKey: condition.condition_ref }),
+                    recordDestination({
+                      recordKey: condition.source.record_key,
+                      selection: condition.source,
+                    }),
                   )}
                   onClick={(event) => {
                     if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
-                    onReference(condition.condition_ref, event.currentTarget);
+                    onReference(
+                      condition.source.record_key,
+                      event.currentTarget,
+                      condition.source,
+                    );
                   }}
                 >
-                  {condition.name}
-                  {condition.has_value && !save ? ` ${condition.value ?? "—"}` : ""}
+                  {condition.source_name || condition.name}
                 </Button>
-                {save && (
-                  <span className="encounter-condition-row__value">
-                    <EncounterConditionValue
-                      name={`${condition.name} from ${condition.source_name}`}
-                      minimum={0}
-                      value={condition.value ?? undefined}
-                      disabled={disabled || pending}
-                      onCommit={save}
-                      onClear={() => save(null)}
-                    />
-                  </span>
-                )}
-                <span className="encounter-condition-meta">
-                  {ordinal != null
-                    ? condition.value === null
-                      ? "Activation tied to "
-                      : condition.value === 0
-                        ? "Inactive · Source: "
-                        : "Source: "
-                    : condition.unavailable_reason
-                      ? `${condition.unavailable_reason} · `
-                      : "Inherent · "}
-                  <Button
-                    type="link"
-                    styles={{
-                      root: { padding: 0, height: "auto", fontSize: "inherit" },
-                    }}
-                    href={destinationHref(
-                      recordDestination({
-                        recordKey: condition.source.record_key,
-                        selection: condition.source,
-                      }),
-                    )}
-                    onClick={(event) => {
-                      if (!isPrimaryActivation(event)) return;
-                      event.preventDefault();
-                      onReference(
-                        condition.source.record_key,
-                        event.currentTarget,
-                        condition.source,
-                      );
-                    }}
-                  >
-                    {condition.source_name || condition.name}
-                  </Button>
-                </span>
-                {condition.guidance?.map((reason) => (
-                  <p className="encounter-condition-manual-note" key={reason}>
-                    {reason}
-                  </p>
-                ))}
-              </div>
+              </span>
+              {condition.guidance?.map((reason) => (
+                <p className="encounter-condition-manual-note" key={reason}>
+                  {reason}
+                </p>
+              ))}
+            </div>
+          );
+        })}
+        {visibleGroups.map((group) => {
+          const damageType =
+            damageTypes?.find((type) => type.value === group.damage_type)?.label ??
+            group.damage_type;
+          const recovery = onRecoverPersistent ? (
+            <EncounterPersistentRecovery
+              mode="explicit"
+              appearance="icon"
+              available={true}
+              group={group}
+              participantKey={current.participant_key}
+              encounterRevision={encounterRevision}
+              disabled={disabled}
+              pending={pending}
+              damageType={damageType}
+              onRecover={onRecoverPersistent}
+              onOpenChange={(open) =>
+                setRecoveryContext(
+                  open
+                    ? {
+                        group,
+                        condition: current.conditions.find(
+                          (condition) =>
+                            condition.condition_id === group.selected_source_id,
+                        ),
+                      }
+                    : null,
+                )
+              }
+            />
+          ) : undefined;
+          const anchor =
+            recoveryContext?.group.episode_id === group.episode_id
+              ? recoveryContext.condition
+              : undefined;
+          const sources = [...group.sources];
+          if (
+            anchor &&
+            !sources.some((source) => source.condition_id === anchor.condition_id)
+          ) {
+            const source = recoveryContext?.group.sources.find(
+              (source) => source.condition_id === anchor.condition_id,
             );
-          })}
-          {visibleGroups.map((group) => {
-            const damageType =
-              damageTypes?.find((type) => type.value === group.damage_type)?.label ??
-              group.damage_type;
-            const recovery = onRecoverPersistent ? (
-              <EncounterPersistentRecovery
-                mode="explicit"
-                appearance="icon"
-                available={true}
-                group={group}
-                participantKey={current.participant_key}
-                encounterRevision={encounterRevision}
-                disabled={disabled}
-                pending={pending}
-                damageType={damageType}
-                onRecover={onRecoverPersistent}
-                onOpenChange={(open) =>
-                  setRecoveryContext(
-                    open
-                      ? {
-                          group,
-                          condition: current.conditions.find(
-                            (condition) =>
-                              condition.condition_id === group.selected_source_id,
-                          ),
-                        }
-                      : null,
-                  )
-                }
-              />
-            ) : undefined;
-            const anchor =
-              recoveryContext?.group.episode_id === group.episode_id
-                ? recoveryContext.condition
-                : undefined;
-            const sources = [...group.sources];
-            if (
-              anchor &&
-              !sources.some((source) => source.condition_id === anchor.condition_id)
-            ) {
-              const source = recoveryContext?.group.sources.find(
-                (source) => source.condition_id === anchor.condition_id,
-              );
-              if (source) sources.push(source);
-            }
-            sources.sort(
-              (a, b) =>
-                Number(b.condition_id === group.selected_source_id) -
-                Number(a.condition_id === group.selected_source_id),
-            );
-            const conditions = sources.flatMap((source) => {
-              const condition =
-                current.conditions.find(
-                  (entry) => entry.condition_id === source.condition_id,
-                ) ??
-                (anchor?.condition_id === source.condition_id ? anchor : undefined);
-              return condition ? [{ condition, source }] : [];
-            });
-            return (
-              <div className="encounter-condition-group" key={group.episode_id}>
-                {conditions.map(({ condition, source }) =>
-                  renderCondition(condition, {
-                    immunityNote: group.immunity_note,
-                    label: `${condition.name} · ${source.formula}${source.multiplier === "normal" ? "" : source.multiplier === "double" ? " ×2" : " ×½"} ${damageType}`,
-                    recovery:
-                      source.condition_id ===
-                      (anchor?.condition_id ?? group.selected_source_id)
-                        ? recovery
-                        : undefined,
-                    superseded: source.condition_id !== group.selected_source_id,
-                  }),
-                )}
-              </div>
-            );
-          })}
-          {conditions
-            .filter((condition) => !groupedIds.has(condition.condition_id))
-            .map((condition) => renderCondition(condition))}
-        </div>
-      )}
+            if (source) sources.push(source);
+          }
+          sources.sort(
+            (a, b) =>
+              Number(b.condition_id === group.selected_source_id) -
+              Number(a.condition_id === group.selected_source_id),
+          );
+          const conditions = sources.flatMap((source) => {
+            const condition =
+              current.conditions.find(
+                (entry) => entry.condition_id === source.condition_id,
+              ) ?? (anchor?.condition_id === source.condition_id ? anchor : undefined);
+            return condition ? [{ condition, source }] : [];
+          });
+          return (
+            <div className="encounter-condition-group" key={group.episode_id}>
+              {conditions.map(({ condition, source }) =>
+                renderCondition(condition, {
+                  immunityNote: group.immunity_note,
+                  label: `${condition.name} · ${source.formula}${source.multiplier === "normal" ? "" : source.multiplier === "double" ? " ×2" : " ×½"} ${damageType}`,
+                  recovery:
+                    source.condition_id ===
+                    (anchor?.condition_id ?? group.selected_source_id)
+                      ? recovery
+                      : undefined,
+                  superseded: source.condition_id !== group.selected_source_id,
+                }),
+              )}
+            </div>
+          );
+        })}
+        {conditions
+          .filter((condition) => !groupedIds.has(condition.condition_id))
+          .map((condition) => renderCondition(condition))}
+      </div>
       <ConfigProvider theme={{ token: { motion: false } }}>
         <EncounterModal
           title={selected ? `Edit ${selected.name}` : "Add condition"}

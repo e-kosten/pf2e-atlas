@@ -406,7 +406,6 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
       onReference={onReference}
     />,
   );
-  expect(screen.queryByText("No conditions")).toBeNull();
   expect(screen.getByText(/^Inherent/)).toBeVisible();
   expect(screen.getByText("Test condition guidance.")).toBeVisible();
   expect(
