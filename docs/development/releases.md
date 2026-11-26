@@ -38,6 +38,34 @@ requires one asset per target/variant, with full entries first for older install
 Keep that ordering, archive naming and the installer's legacy-manifest behavior
 when changing packaging. See [ADR0064](../architecture/decisions/0064-optional-web-distribution.md).
 
+### Public release assets
+
+A stable or dated nightly release has 21 uploaded files. A release candidate
+has 15. GitHub also offers its own source archives. The table lists the files
+Atlas publishes for each channel.
+
+| Channel | Files | Purpose |
+| --- | --- | --- |
+| All three | Eight CLI archives | Full and CLI-only builds for each of the four supported targets |
+| All three | macOS `.dmg` and Windows `-setup.exe` | Desktop installation |
+| All three | `atlas-installer.sh`, `atlas-installer.ps1`, `atlas-release-manifest.json` | CLI installation and discovery by target and variant |
+| All three | `SHA256SUMS`, `THIRD-PARTY-NOTICES.md` | One SHA-256 entry per other public file, and third-party notices |
+| Stable and dated nightly | macOS `.app.tar.gz` and `atlas-desktop-update.json` | Desktop updates. Windows reuses the setup executable. |
+| Stable and dated nightly | `.transition.json` and `.transition.json.sig` for each desktop update package | Signed workspace compatibility information for channel switches |
+
+For scripts that used the separate archive `.sha256` files on 0.1.0, look up
+the archive name in `SHA256SUMS`. For a desktop update package's signature,
+read `platforms[target].signature` from `atlas-desktop-update.json`. For CLI
+archive names and digests, read `assets` in `atlas-release-manifest.json`.
+Full cargo-dist build metadata (`dist-manifest.json`), per-archive checksums
+and detached package signatures remain available in the assembled Actions artifact.
+
+Both publishers reject unexpected draft attachments before uploading. They
+then check the draft's complete public file list and each GitHub digest against
+the assembled bytes before publication. If verification fails, inspect the
+named discrepancy and retry with the original assembly. A retry of a published
+release verifies its assets in place.
+
 ### Nightly publication
 
 `.github/workflows/nightly.yml` runs daily at 09:23 UTC and can be dispatched
@@ -65,7 +93,7 @@ handwritten release notes are needed. The four-platform packaging checks run bot
 variants before upload. The publication job validates all assets, publishes a
 prerelease under `nightly/<UTC timestamp>.g<12-character commit>`, and smoke-tests
 its downloaded Linux installer and binary. Only then does it update
-`nightly-version.txt` in the `nightly/latest` installer-channel release. Installers resolve that pointer once and download all remaining assets
+the two installer scripts and `nightly-version.txt` on `nightly/latest`. Installers resolve that pointer once and download all remaining assets
 from the dated release. Dated releases remain available for rollback; the channel
 release's tag is only an installer entry point, not the source identity of a build.
 
@@ -160,10 +188,8 @@ outside rehearsals.
 Stable releases, release candidates, and nightlies require both the Apple Silicon
 DMG and the Windows x64 desktop installer. The full builds package and smoke-test
 each desktop app with its matching CLI archive. Assembly validates the desktop
-receipts against the archives and installer bytes. Both publication paths verify
-the uploaded desktop digests before publishing. Nightly checks them again before
-advancing the channel. Keep the original assembled artifact when retrying a
-partially published release.
+receipts against the archives and installer bytes. The installers and signed
+update packages also go through the [public release asset checks](#public-release-assets).
 
 For an unpublished rehearsal, dispatch **release build check** on the
 candidate ref. Use the checked-in CLI version for the official-style build.
@@ -283,7 +309,11 @@ Release notes use this template:
 ## Known Issues
 ```
 
-The helper creates an annotated tag and a draft GitHub release. The tag-triggered release workflow uses cargo-dist to build platform archives, then uploads Atlas installer scripts, checksums, cargo-dist metadata, the Atlas release manifest, and third-party notices. The publisher checks the draft for unexpected attachments before uploading, then verifies the complete asset list and SHA-256 digests against the assembly before publication. If it names an unexpected attachment, inspect it and resolve the discrepancy before retrying. If verification fails, the release stays in draft. Rerun with the original assembly to repair a partial upload.
+For the first release with the reduced asset set, include the script migration
+steps from [Public release assets](#public-release-assets) in **Install Notes**.
+
+The helper creates an annotated tag and a draft GitHub release. The tag-triggered
+workflow builds, verifies and publishes the public assets for that channel.
 
 If a tag was pushed and draft creation failed, use the tag and commit printed
 by the helper:

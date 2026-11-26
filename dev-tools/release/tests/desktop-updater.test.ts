@@ -1,40 +1,35 @@
-import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { generateDesktopUpdater, validateDesktopUpdater } from '../src/desktop-updater.js';
-import { windowsInstaller } from '../src/release-data.js';
+import { validateDesktopUpdater } from '../src/desktop-updater.js';
+import { writeUpdaterFixture } from './release-fixtures.js';
+import { publicAssetNames, sha256, windowsInstaller } from '../src/release-data.js';
 
-test('desktop update feeds bind both packages to the dated release before publication', () => {
+test('desktop update feeds bind both packages to the dated release before publication', async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'atlas-update-release-'));
   const version = '0.2.3-nightly.20261116092300.gabcdef123456';
   const tag = `v${version}`;
   const mac = 'atlas-desktop-aarch64-apple-darwin.app.tar.gz';
   try {
-    for (const name of [mac, windowsInstaller]) {
-      writeFileSync(path.join(directory, name), 'package fixture');
-      writeFileSync(path.join(directory, name + '.compatibility.json'), JSON.stringify({
-        version, workspaceSchema: 12, foundryCommit: '1'.repeat(40), foundryVersion: '8.7.0',
-      }));
-      const metadata = Buffer.from(`untrusted comment: fixture\nfixture\ntrusted comment: timestamp:1\tfile:${name}\tversion:${version}\nfixture\n`);
-      writeFileSync(path.join(directory, name + '.sig'), metadata.toString('base64'));
-      const descriptor = name + '.transition.json';
-      writeFileSync(path.join(directory, descriptor), JSON.stringify({
-        protocol: 2, channel: 'nightly', tag: 'nightly/20261116092300.gabcdef123456',
-        version, commit: 'abcdef123456' + '1'.repeat(28), asset: name,
-        sha256: createHash('sha256').update('package fixture').digest('hex'),
-        workspaceSchema: 12, foundryCommit: '1'.repeat(40), foundryVersion: '8.7.0',
-        migrationLedger: { applicationId: 1, entries: [{ version: 12, name: 'baseline', checksum: 'a'.repeat(64) }] },
-      }));
-      writeFileSync(path.join(directory, descriptor + '.sig'), metadata.toString('base64'));
-    }
-    generateDesktopUpdater(tag, directory);
+    writeFileSync(path.join(directory, windowsInstaller), 'package fixture');
+    await writeUpdaterFixture(directory, tag);
     const feed = JSON.parse(readFileSync(path.join(directory, 'atlas-desktop-update.json'), 'utf8'));
-    assert.equal(feed.platforms['darwin-aarch64'].url,
-      `https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/20261116092300.gabcdef123456/${mac}`);
     assert.equal(feed.atlasCompatibility.workspaceSchema, 12);
+    const published = new Set(publicAssetNames(tag));
+    assert.ok(published.has('atlas-desktop-update.json'));
+    for (const [platform, name] of [['darwin-aarch64', mac], ['windows-x86_64', windowsInstaller]]) {
+      const update = feed.platforms[platform];
+      assert.equal(update.url, `https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/20261116092300.gabcdef123456/${name}`);
+      assert.equal(update.signature, readFileSync(path.join(directory, name + '.sig'), 'utf8'));
+      assert.ok(!published.has(name + '.sig'));
+      const descriptor = name + '.transition.json';
+      for (const asset of [name, descriptor, descriptor + '.sig']) assert.ok(published.has(asset), asset);
+      const transition = JSON.parse(readFileSync(path.join(directory, descriptor), 'utf8'));
+      assert.equal(transition.sha256, await sha256(path.join(directory, name)));
+      assert.equal(transition.asset, name);
+    }
 
     writeFileSync(path.join(directory, windowsInstaller), 'other package');
     assert.throws(() => validateDesktopUpdater(tag, directory), /Invalid desktop transition descriptor/);

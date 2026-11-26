@@ -3,6 +3,6 @@ import { validateAssets } from '../validate-release-assets.js';
 
 cli(import.meta.url, async (args) => {
   if (args.length !== 2) { console.error('usage: npm --prefix dev-tools/release run validate -- <tag> <dist-dir>'); return 2; }
-  await validateAssets(argumentPath(args[1]));
+  await validateAssets(argumentPath(args[1]), args[0]);
   return 0;
 });

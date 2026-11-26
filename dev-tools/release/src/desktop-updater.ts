@@ -1,29 +1,16 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { isFile, nightlyTag, object, readJson, windowsInstaller, writeJson } from './release-data.js';
+import {
+  isFile, object, packageReleaseRef, publicUpdaterAssets, readJson, updaterManifest, updaterPlatforms, writeJson,
+} from './release-data.js';
 
-const manifest = 'atlas-desktop-update.json';
-const platforms = {
-  'darwin-aarch64': 'atlas-desktop-aarch64-apple-darwin.app.tar.gz',
-  'windows-x86_64': windowsInstaller,
-};
-const packages = Object.values(platforms);
-export const desktopUpdaterAssets = [
-  manifest, packages[0], ...packages.flatMap((name) => [
-    name + '.sig', name + '.transition.json', name + '.transition.json.sig',
-  ]),
-];
-
-function updaterRef(tag: string): string {
-  const nightly = nightlyTag.exec(tag);
-  if (nightly) return `nightly/${nightly[2]}.${tag.split('.').at(-1)}`;
-  if (/^v\d+\.\d+\.\d+$/.test(tag)) return `release/${tag}`;
-  throw new Error('Desktop updater manifests require an official stable or nightly version');
-}
+const packages = Object.values(updaterPlatforms);
+const assemblyFiles = [...publicUpdaterAssets, ...packages.map((name) => name + '.sig')];
 
 export function generateDesktopUpdater(tag: string, dist: string): void {
-  const ref = updaterRef(tag);
+  const ref = packageReleaseRef(tag);
+  if (ref.startsWith('rc/')) throw new Error('Release candidates do not have a desktop update feed');
   const readCompatibility = (name: string) => {
     const info = object(readJson(path.join(dist, name + '.compatibility.json')));
     if (info.version !== tag.slice(1)
@@ -36,10 +23,10 @@ export function generateDesktopUpdater(tag: string, dist: string): void {
   };
   const [mac, windows] = packages.map(readCompatibility);
   if (JSON.stringify(mac) !== JSON.stringify(windows)) throw new Error('Desktop update compatibility metadata disagrees between platforms');
-  writeJson(path.join(dist, manifest), {
+  writeJson(path.join(dist, updaterManifest), {
     version: tag.slice(1),
     atlasCompatibility: mac,
-    platforms: Object.fromEntries(Object.entries(platforms).map(([target, name]) => [target, {
+    platforms: Object.fromEntries(Object.entries(updaterPlatforms).map(([target, name]) => [target, {
       url: `https://github.com/e-kosten/pf2e-atlas/releases/download/${ref}/${name}`,
       signature: readFileSync(path.join(dist, name + '.sig'), 'utf8').trim(),
     }])),
@@ -47,19 +34,22 @@ export function generateDesktopUpdater(tag: string, dist: string): void {
   validateDesktopUpdater(tag, dist);
 }
 
-export function validateDesktopUpdater(tag: string, dist: string): string[] {
-  if (!desktopUpdaterAssets.some((name) => isFile(path.join(dist, name)))) return [];
-  const ref = updaterRef(tag);
-  for (const name of desktopUpdaterAssets) {
+export function validateDesktopUpdater(tag: string, dist: string): void {
+  const ref = packageReleaseRef(tag);
+  if (ref.startsWith('rc/')) {
+    if (assemblyFiles.some((name) => isFile(path.join(dist, name)))) throw new Error('Unexpected desktop update files for release candidate');
+    return;
+  }
+  for (const name of assemblyFiles) {
     const file = path.join(dist, name);
     if (!isFile(file) || statSync(file).size === 0) throw new Error(`Missing desktop update asset: ${name}`);
   }
-  const info = object(readJson(path.join(dist, manifest)));
+  const info = object(readJson(path.join(dist, updaterManifest)));
   if (info.version !== tag.slice(1)) throw new Error('Desktop update manifest version mismatch');
   const targets = object(info.platforms);
-  if (Object.keys(targets).length !== Object.keys(platforms).length) throw new Error('Unexpected desktop update targets');
+  if (Object.keys(targets).length !== Object.keys(updaterPlatforms).length) throw new Error('Unexpected desktop update targets');
   let previousDescriptor: string | undefined;
-  for (const [target, name] of Object.entries(platforms)) {
+  for (const [target, name] of Object.entries(updaterPlatforms)) {
     const asset = object(targets[target]);
     const signature = readFileSync(path.join(dist, name + '.sig'), 'utf8').trim();
     const signedComment = Buffer.from(signature, 'base64').toString('utf8').split(/\r?\n/)[2];
@@ -99,5 +89,4 @@ export function validateDesktopUpdater(tag: string, dist: string): string[] {
     }
     previousDescriptor = shared;
   }
-  return desktopUpdaterAssets;
 }
