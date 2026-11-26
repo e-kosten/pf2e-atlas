@@ -767,6 +767,9 @@ pub struct TableResultPresentationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RollTableRowView {
     pub link: EmbeddedRecordLinkView,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub authored_name: Option<String>,
     #[cfg_attr(feature = "openapi", schema(schema_with = roll_table_range_schema))]
     pub range: FactView<[f64; 2]>,
 }

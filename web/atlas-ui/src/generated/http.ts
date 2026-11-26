@@ -3773,6 +3773,7 @@ export interface VehicleReferenceView {
 }
 
 export type FactViewVecRollTableRowViewValue = ({
+  authored_name?: string;
   link: EmbeddedRecordLinkView;
   range: {
   state: QueryFieldState;

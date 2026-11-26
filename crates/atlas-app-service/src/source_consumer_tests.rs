@@ -227,6 +227,58 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
 }
 
 #[test]
+fn table_rows_serialize_only_meaningful_authored_names() {
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            let table = json!({
+                "_id": "table00000000000", "name": "Supplies", "formula": "1d6",
+                "results": [
+                    {"type": "document", "range": [1, 1], "name": "Field antidote",
+                     "documentUuid": "Compendium.pf2e.items.Item.item000000000000", "description": ""},
+                    {"type": "document", "range": [2, 2], "name": "", "description": "Potion of Resistance"},
+                    {"type": "text", "range": [3, 3], "name": "   "},
+                    {"type": "text", "range": [4, 4], "name": null},
+                    {"type": "text", "range": [5, 5], "name": 42},
+                    {"type": "text", "range": [6, 6]}
+                ]
+            });
+            Ok(open_source_fixture(
+                vec![
+                    record("tables", "RollTable", table),
+                    record(
+                        "items",
+                        "Item",
+                        json!({"_id": "item000000000000", "type": "consumable", "name": "Antidote (Greater)"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = fixture
+        .worker
+        .record_detail("tables:table00000000000")
+        .unwrap();
+    let RecordBodyView::RollTable(table) = detail.presentation.body else {
+        panic!("roll table")
+    };
+    let rows = table.results.value.unwrap();
+    assert_eq!(rows.len(), 6);
+    let first = serde_json::to_value(&rows[0]).unwrap();
+    assert_eq!(first["authored_name"], "Field antidote");
+    for row in &rows[1..] {
+        assert!(
+            serde_json::to_value(row)
+                .unwrap()
+                .get("authored_name")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn physical_details_do_not_require_an_applicable_usage_field() {
     let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
         1,

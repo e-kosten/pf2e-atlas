@@ -318,13 +318,23 @@ pub(crate) fn record_presentation(
                     std::mem::take(&mut owned)
                         .into_iter()
                         .map(|link| {
-                            let range = match record.node_at(&link.navigation.owners) {
-                                Some(SourceNodeView::Result(result)) => {
-                                    table_numeric_range((&result.range).into())
-                                }
-                                _ => unavailable(),
-                            };
-                            RollTableRowView { link, range }
+                            let (range, authored_name) =
+                                match record.node_at(&link.navigation.owners) {
+                                    Some(SourceNodeView::Result(result)) => (
+                                        table_numeric_range((&result.range).into()),
+                                        result
+                                            .name
+                                            .as_value()
+                                            .filter(|name| !name.trim().is_empty())
+                                            .cloned(),
+                                    ),
+                                    _ => (unavailable(), None),
+                                };
+                            RollTableRowView {
+                                link,
+                                range,
+                                authored_name,
+                            }
                         })
                         .collect()
                 })),

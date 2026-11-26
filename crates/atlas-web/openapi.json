@@ -10041,6 +10041,9 @@
               {
                 "items": {
                   "properties": {
+                    "authored_name": {
+                      "type": "string"
+                    },
                     "link": {
                       "$ref": "#/components/schemas/EmbeddedRecordLinkView"
                     },
