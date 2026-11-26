@@ -170,7 +170,12 @@ function openMatchDisplay() {
 function chooseMatchDisplay(label: string) {
   openMatchDisplay();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match display" }));
-  fireEvent.click(screen.getByText(label, { exact: true }));
+  fireEvent.click(
+    screen.getByText(label, {
+      exact: true,
+      selector: ".ant-select-item-option-content",
+    }),
+  );
 }
 
 it("defaults Similar to Matching sections and discards a canceled display change", async () => {
@@ -208,6 +213,19 @@ it("remembers a display-only change without submitting another search", async ()
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(remember).toHaveBeenCalledWith(
     expect.objectContaining({ matchDisplay: "detailed" }),
+  );
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("remembers an explicit selection of the contextual default", async () => {
+  const { remember, apply } = setup();
+  chooseMatchDisplay("Matching sections");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(remember).toHaveBeenCalledWith(
+    expect.objectContaining({ matchDisplay: "sections" }),
   );
   expect(apply).not.toHaveBeenCalled();
 });

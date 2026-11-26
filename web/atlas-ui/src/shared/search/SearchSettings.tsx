@@ -926,7 +926,7 @@ export function SearchSettings({
                                       { value: "sections", label: "Matching sections" },
                                       { value: "detailed", label: "Detailed" },
                                     ]}
-                                    onChange={(matchDisplay: MatchDisplay) =>
+                                    onSelect={(matchDisplay: MatchDisplay) =>
                                       setDraft({ ...draft, matchDisplay })
                                     }
                                   />
