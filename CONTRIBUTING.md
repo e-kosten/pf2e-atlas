@@ -97,6 +97,15 @@ PR. Do not merge, push directly to shared integration branches or `main`, publis
 releases, or modify the real installed Atlas workspace without explicit permission.
 Passing checks does not provide merge authorization.
 
+### Compatibility changes in pull requests
+
+When a PR changes compatibility, include a **Compatibility** section in its GitHub
+description. Name each affected contract, including changes that preserve support
+for older data or clients. Cover database migrations even when Atlas applies them
+automatically. Other examples include export and backup formats, API and CLI
+contracts, and supported platforms. State what earlier and current versions can
+read or use and what users or integrators need to do when upgrading or downgrading.
+
 ## Working plans
 
 For substantial changes, make scope, affected owners, dependencies and acceptance
