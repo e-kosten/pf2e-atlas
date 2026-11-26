@@ -9,7 +9,40 @@ pub const SIMILARITY_ROLE_RECIPE: &str = "typed-content-correspondence/v1";
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilaritySeed {
-    Record { record_key: RecordKey },
+    Record {
+        record_key: RecordKey,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        embedded_path: Vec<OwnedContentLocator>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_fingerprint: Option<String>,
+    },
+}
+
+impl SimilaritySeed {
+    pub fn root(record_key: RecordKey) -> Self {
+        Self::Record {
+            record_key,
+            embedded_path: Vec::new(),
+            source_fingerprint: None,
+        }
+    }
+
+    pub fn record_key(&self) -> &RecordKey {
+        let Self::Record { record_key, .. } = self;
+        record_key
+    }
+
+    pub fn embedded_path(&self) -> &[OwnedContentLocator] {
+        let Self::Record { embedded_path, .. } = self;
+        embedded_path
+    }
+
+    pub fn source_fingerprint(&self) -> Option<&str> {
+        let Self::Record {
+            source_fingerprint, ..
+        } = self;
+        source_fingerprint.as_deref()
+    }
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -154,7 +187,8 @@ pub struct SimilarityPart {
 pub struct SimilarityParts {
     pub seed: SimilaritySeed,
     pub parts: Vec<SimilarityComponent>,
-    pub core: CoreSectionSelection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub core: Option<CoreSectionSelection>,
     pub role_recipe: String,
 }
 

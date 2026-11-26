@@ -96,9 +96,7 @@ fn request<'a>(
 fn exact_complete_outputs_survive_profiles_roles_scopes_filters_paging_and_order() {
     let (service, artifact) = open_input_fixture(both_profiles(super::tests::fixture())).unwrap();
     drop(service);
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let keys: Vec<RecordKey> = ["spells:bbbbbbbbbbbbbbbb", "hazards:cccccccccccccccc"]
         .into_iter()
         .map(|key| key.parse().unwrap())
@@ -238,9 +236,7 @@ fn relationship_filter_membership_and_evidence_are_equal_on_both_paths() {
     let (service, artifact) = open_input_fixture(data).unwrap();
     drop(service);
     let seed_key: RecordKey = format!("items:{target}").parse().unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: seed_key.clone(),
-    };
+    let seed = SimilaritySeed::root(seed_key.clone());
     let filter = crate::relationship_tests::link_filter(
         None,
         &[crate::relationship_tests::criterion(
@@ -283,12 +279,8 @@ fn relationship_filter_membership_and_evidence_are_equal_on_both_paths() {
 fn stale_missing_and_invalid_requests_keep_complete_error_parity() {
     let (service, artifact) = open_input_fixture(both_profiles(super::tests::fixture())).unwrap();
     drop(service);
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
-    let missing = SimilaritySeed::Record {
-        record_key: "hazards:9999999999999999".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
+    let missing = SimilaritySeed::root("hazards:9999999999999999".parse().unwrap());
     let options = SimilarityOptions::default();
     let stale = SimilarityOptions::Passages {
         decay: 0.5,
@@ -347,9 +339,7 @@ fn oversized_seed_guard_and_selected_only_recovery_keep_exact_behavior() {
     }
     let (service, artifact) = open_input_fixture(data).unwrap();
     drop(service);
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     let all = SimilarityOptions::default();
     for name in ["bge-base", "embeddinggemma"] {
         let profile = SearchProfileId::new(name);
@@ -357,21 +347,21 @@ fn oversized_seed_guard_and_selected_only_recovery_keep_exact_behavior() {
             request(&seed, &profile, &all)
         });
         assert_eq!(failed["status"], "error");
-        assert_eq!(failed["kind"], "InvalidOptions");
+        assert_eq!(failed["kind"], "SimilaritySourceLimit");
         let inventory = open(&artifact.path(), &profile)
             .similarity_parts(&seed, Some(&profile))
             .unwrap();
-        let selector = inventory
+        let selectors: Vec<_> = inventory
             .parts
             .iter()
-            .find_map(|part| match part {
-                SimilarityComponent::Section { part } => Some(part.selector.clone()),
-                _ => None,
-            })
-            .unwrap();
+            .filter_map(SimilarityComponent::part)
+            .map(|part| part.selector.clone())
+            .take(128)
+            .collect();
+        assert_eq!(selectors.len(), 128);
         let selected = SimilarityOptions::Passages {
             decay: 0.5,
-            parts: Some(vec![selector]),
+            parts: Some(selectors),
             candidate_parts: SimilarityCandidateParts::Any,
         };
         let recovered = compare(&artifact.path(), &profile, || {
@@ -393,9 +383,7 @@ fn oversized_seed_guard_and_selected_only_recovery_keep_exact_behavior() {
 fn cancellation_keeps_typed_errors_and_stops_at_the_requested_check() {
     let (service, artifact) = open_input_fixture(both_profiles(super::tests::fixture())).unwrap();
     drop(service);
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::default();
     for name in ["bge-base", "embeddinggemma"] {
         let profile = SearchProfileId::new(name);

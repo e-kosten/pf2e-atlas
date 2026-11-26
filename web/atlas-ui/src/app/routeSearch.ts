@@ -4,6 +4,7 @@ import {
   decodeSearchStateFromParams,
   parseRandomSeed,
 } from "../shared/filters/searchState";
+import { decodeSimilarityLocation } from "../shared/search/similaritySource";
 import { encodeReadingAddress } from "./readingUrl";
 import {
   readingView,
@@ -191,9 +192,19 @@ export function canonicalRouteSearch(
       "similarity_sections",
       "similarity_decay",
       "similarity_generation",
+      "similar_at",
     ] as const) {
       const value = singleton(search, key);
       if (value !== undefined) result[key] = value;
+    }
+    if (result.similar_at !== undefined) {
+      const key = singleton(search, "similar")?.trim();
+      try {
+        if (!key) throw new Error();
+        decodeSimilarityLocation(result.similar_at as string, key);
+      } catch {
+        throw new RouteSearchError("comparison source");
+      }
     }
     const parts = search.similarity_part;
     if (parts !== undefined) result.similarity_part = parts;

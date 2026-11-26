@@ -126,6 +126,8 @@ impl AtlasAppService {
             let (mode, mut rows, page, coverage) = match request.criteria {
                 SearchCriteria::SimilarRecords {
                     seed_record_key,
+                    embedded_path,
+                    source_fingerprint,
                     filter,
                     similarity: options,
                     source_sections,
@@ -134,7 +136,11 @@ impl AtlasAppService {
                     let key = atlas_domain::RecordKey::parse(&seed_record_key).map_err(|e| {
                         AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string())
                     })?;
-                    let seed = atlas_domain::SimilaritySeed::Record { record_key: key };
+                    let seed = atlas_domain::SimilaritySeed::Record {
+                        record_key: key,
+                        embedded_path,
+                        source_fingerprint,
+                    };
                     let options = options.unwrap_or_default();
                     crate::similarity::validate_options(
                         &options,

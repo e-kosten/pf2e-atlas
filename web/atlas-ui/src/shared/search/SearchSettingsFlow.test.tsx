@@ -153,7 +153,7 @@ it("resets only the draft until Apply and preserves other family preferences", a
   );
   expect(remember).toHaveBeenCalledWith(
     expect.objectContaining({
-      matchDisplay: "hidden" as const,
+      matchDisplay: null,
       showSmallerWeights: false,
       sourceSectionsByFamily: { hazard: "all", npc: "core" },
     }),

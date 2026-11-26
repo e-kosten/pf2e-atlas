@@ -57,9 +57,13 @@ For **Base Type**, search with a readable name such as “Chain Mail,” or use
 
 ## Find similar options
 
-Open **Similar** from an entry you like to find alternatives. In **Search settings**,
-choose **Sections to compare** to use all of that entry's content, its main sections
-(Core), or sections you select yourself (Custom).
+Open the **Psychic** page in the **Classes** journal and choose **Similar** to
+find entries with passages like that page. **Search similar records** opens
+the same comparison in Search. To focus on part of the page, open **Search
+settings**, then choose **Custom** under **Source sections**. The choices come from
+Psychic. Opening an individual creature ability or roll-table result works the
+same way. Following a highlight within a document keeps the document as the
+comparison source.
 
 The default **Passage matches** method looks for matches to individual passages.
 **Content average** compares the selected content as a whole. **Name and identity**
@@ -68,8 +72,12 @@ select that trait in the Search filters.
 
 **Sections to compare** chooses content from the entry you started with.
 **Search content** chooses which parts of the other entries can match it.
-All and Core both include the name and basic details; Custom lets you select
-individual parts.
+For a whole record, All and Core include its name and basic details. For an
+embedded entry, All uses its own sections and Custom lets you select among them.
+Advanced filters narrow which records can appear in the results.
+
+If the source has too much text for one comparison, choose fewer sections.
+If scoring the candidates exceeds the limit, narrow the results with filters.
 
 ## Sort results
 
@@ -126,8 +134,7 @@ See [CLI reference searches](cli-examples.md#follow-references) for commands.
 Open **Search settings** to compare ways of finding results. Atlas remembers your
 browser preferences; opening a shared search link uses the settings in that link.
 
-Match explanations are hidden by default. Choose **Matching sections** to load
-links and excerpts for the current results. **Detailed** also shows how sections
+Similar defaults to **Matching sections**, which shows links and excerpts for the current results. Other searches default to **Hidden**. Choosing a match display in Search settings saves it for both. **Detailed** also shows how sections
 contributed to a Similar result. Turning explanations on searches the current
 page again and keeps your place. Once loaded, you can switch between the two
 views or hide explanations immediately.

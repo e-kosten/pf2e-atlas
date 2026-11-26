@@ -80,3 +80,19 @@ and exact trait membership/reference workflows are unchanged.
 result choices and a typed identity component. Following functional UX review,
 All and Core source presets both include identity. Explicit prose-only Custom
 comparisons retain this decision's representation and scoring.
+
+## Document-scoped comparison
+
+An opened document supplies the Similar source. Its address consists of the
+root record key, exact owner chain and required snapshot-local fingerprint.
+Reader landing, selected field, paragraph and spell rank are independent.
+App-service resolves the source title and address independently of ranking.
+The browser preserves that address through preview, Search, settings and copied
+links. Stable document links resolve the current sections. Explicit Custom
+selectors also require the generation of the inventory they came from.
+
+For embedded sources, index selects directly owned sections before reading seed
+vectors. The same inventory constrains Custom and its source reader. Search
+acknowledges the exact source while continuing to rank root records and exclude
+the source's root. Seed capacity failures offer section selection. Candidate
+work limits offer result filters.

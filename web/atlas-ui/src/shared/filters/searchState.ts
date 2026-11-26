@@ -4,17 +4,26 @@ import type {
   SearchResultsRequest,
   QueryPredicate,
   ResultSort,
+  OwnedContentLocator,
   SortField,
   SortDirection,
   SimilarityOptions,
   SearchContentScope,
   SimilaritySourceSections,
 } from "../../generated/atlas";
+import {
+  decodeSimilarityLocation,
+  encodeSimilarityLocation,
+  searchSeed,
+  seedCriteria,
+} from "../search/similaritySource";
 import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
 import {
   DEFAULT_SEARCH_PREFERENCES,
   type SearchPreferences,
 } from "../search/searchPreferences";
+export const INVALID_SIMILARITY_SOURCE =
+  "This comparison source link couldn’t be restored. Reopen the source document.";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export const UNKNOWN_RESULT_SORT = "Unknown result order";
@@ -31,6 +40,10 @@ export type SearchFormState = {
   query: string;
   mode: "browse" | "text_search" | "similar_records";
   similarSeed: string | null;
+  similarLocation?: {
+    embedded_path: OwnedContentLocator[];
+    source_fingerprint?: string;
+  };
   filter: QueryPredicate | null;
   filterError: string | null;
   /** Transient URL recovery state, excluded from requests and execution identity. */
@@ -61,7 +74,8 @@ export function buildSearchRequest(
   if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
   const sortRequest = state.sort ? { sort: state.sort } : {};
-  if (state.similarSeed)
+  const seed = searchSeed(state);
+  if (seed)
     return {
       search_profile,
       ...sortRequest,
@@ -70,7 +84,7 @@ export function buildSearchRequest(
         state.similarityGeneration ?? expected_artifact_generation,
       criteria: {
         kind: "similar_records",
-        seed_record_key: state.similarSeed,
+        ...seedCriteria(seed),
         filter: state.filter,
         similarity: state.similarity,
         search_content: state.searchContent ?? "all",
@@ -153,6 +167,7 @@ export function encodeSearchExecutionState(
       sort: state.sort,
       query: state.query,
       similarSeed: state.similarSeed,
+      similarLocation: state.similarSeed ? state.similarLocation : undefined,
       mode: state.mode,
       filter: state.filter,
       filterError: state.filterError,
@@ -169,7 +184,12 @@ export function searchStateQueryString(
   if (state.ranking) params.set("ranking", state.ranking);
   encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
-  if (state.similarSeed) params.set("similar", state.similarSeed);
+  const seed = searchSeed(state);
+  if (seed) {
+    params.set("similar", seed.record_key);
+    const location = encodeSimilarityLocation(seed);
+    if (location) params.set("similar_at", location);
+  }
   if (state.similarSeed || state.query.trim())
     params.set("search_content", state.searchContent ?? "all");
   if (state.similarSeed && state.similarity) {
@@ -220,6 +240,18 @@ export function decodeSearchStateFromParams(
     filterError = UNKNOWN_SEARCH_RANKING;
   const pageSize = Number(params.get("limit") || 25);
   const similarSeed = params.get("similar")?.trim() || null;
+  let similarLocation: SearchFormState["similarLocation"];
+  if (params.has("similar_at")) {
+    try {
+      if (!similarSeed || params.getAll("similar_at").length !== 1) throw new Error();
+      similarLocation = decodeSimilarityLocation(
+        params.get("similar_at")!,
+        similarSeed,
+      );
+    } catch {
+      filterError = INVALID_SIMILARITY_SOURCE;
+    }
+  }
   if (
     (params.has("similarity_sections") && !similarSeed) ||
     params.getAll("similarity_sections").length > 1 ||
@@ -271,6 +303,7 @@ export function decodeSearchStateFromParams(
     ...(sort ? { sort } : {}),
     query: params.get("q") || "",
     similarSeed,
+    ...(similarLocation ? { similarLocation } : {}),
     ...(similarity ? { similarity } : {}),
     ...(params.get("similarity_generation")
       ? { similarityGeneration: params.get("similarity_generation")! }

@@ -703,7 +703,7 @@ the reader lands, focuses and briefly highlights that marker while retaining the
 complete field. The marker is added only to the response after passage validation;
 stored HTML, passage hashes and artifact policy identities remain unchanged.
 Match display is a remembered browser preference with Hidden, Matching sections
-and Detailed modes. Hidden is the default. Enabling either visible mode repeats
+and Detailed modes. Without a saved choice, Similar uses Matching sections and other searches use Hidden. Enabling either visible mode repeats
 the applied search on its current page with evidence, while keeping the current
 rows and reading position available. Matching sections shows section links and
 excerpts. Detailed also shows Similarity coverage, section/role contributions

@@ -587,6 +587,20 @@ pub(crate) async fn search_page(
     ))
 }
 
+#[utoipa::path(post, path = "/api/search/similarity/source", operation_id = "similaritySource", request_body = atlas_app_model::SimilaritySourceRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SimilaritySourceView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn similarity_source(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::SimilaritySourceRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    Ok(Json(
+        call_read_service(state, move |service, execution| {
+            service.similarity_source(request, &execution)
+        })
+        .await?,
+    ))
+}
+
 #[utoipa::path(post, path = "/api/search/similarity/parts", operation_id = "similarityParts", request_body = atlas_app_model::SimilarityPartsRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SimilarityPartsView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn similarity_parts(
     State(state): State<AtlasWebState>,

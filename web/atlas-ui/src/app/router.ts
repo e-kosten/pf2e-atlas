@@ -43,6 +43,10 @@ declare module "@tanstack/react-router" {
   }
   interface HistoryState {
     atlasSearchReset?: string;
+    atlasComparisonControl?: {
+      seed: import("../generated/atlas").SimilaritySeed;
+      open: import("../shared/search/SimilarityFailure").ComparisonControl;
+    };
     atlasReadingDismissal?: string;
     atlasCharacterOrigin?: { href: string; index: number };
     atlasFilterResetNotice?: boolean;

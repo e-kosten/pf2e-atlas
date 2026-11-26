@@ -1,12 +1,39 @@
 //! Generation-checked inventory for stored-vector content comparison.
+use crate::connection_scope::check_generation;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    AppRecoverableAction, SearchCriteria, SearchResultsRequest, SimilarityPartsRequest,
-    SimilarityPartsView,
+    SearchCriteria, SearchResultsRequest, SimilarityPartsRequest, SimilarityPartsView,
+    SimilaritySourceDescriptor, SimilaritySourceRequest, SimilaritySourceView,
 };
 use atlas_domain::{RecordKey, SimilarityOptions, SimilaritySeed};
 
 impl AtlasAppService {
+    pub fn similarity_source(
+        &self,
+        request: SimilaritySourceRequest,
+        execution: &ReadExecutionContext,
+    ) -> AppServiceResult<SimilaritySourceView> {
+        execution.check()?;
+        self.with_retrieval(execution, move |retrieval| {
+            let generation = retrieval.artifact_generation()?;
+            check_generation(request.expected_artifact_generation.as_deref(), &generation)?;
+            let checked = retrieval
+                .similarity_source(&request.seed)?
+                .ok_or_else(missing_source)?;
+            let display =
+                retrieval.creature_display(&checked.record, checked.embedded_source.as_ref());
+            let parent_title = crate::projection::summary_title(&checked.record, display.as_ref());
+            Ok(SimilaritySourceView {
+                artifact_generation: generation,
+                source: source_descriptor(
+                    &request.seed,
+                    parent_title.to_owned(),
+                    checked.embedded_source.as_ref(),
+                )?,
+            })
+        })
+    }
+
     pub fn similarity_parts(
         &self,
         request: SimilarityPartsRequest,
@@ -19,11 +46,20 @@ impl AtlasAppService {
             check_generation(request.expected_artifact_generation.as_deref(), &generation)?;
             let profile =
                 retrieval.resolve_search_profile(request.search_profile.as_ref(), false)?;
-            let inventory =
-                retrieval.similarity_parts(&request.seed, request.search_profile.as_ref())?;
+            let (checked, inventory) = retrieval
+                .similarity_parts_with_source(&request.seed, request.search_profile.as_ref())?;
             projection_execution.check()?;
-            let SimilaritySeed::Record { record_key } = &inventory.seed;
-            let addresses = retrieval.similarity_part_addresses(record_key)?;
+            let record_key = inventory.seed.record_key();
+            let addresses = retrieval.similarity_part_addresses(&inventory.seed)?;
+            let source = checked
+                .embedded_source
+                .as_ref()
+                .map(|document| {
+                    let display = retrieval.creature_display(&checked.record, Some(document));
+                    let title = crate::projection::summary_title(&checked.record, display.as_ref());
+                    source_descriptor(&inventory.seed, title.to_owned(), Some(document))
+                })
+                .transpose()?;
             projection_execution.check()?;
             let parts = inventory
                 .parts
@@ -33,10 +69,8 @@ impl AtlasAppService {
                 })
                 .collect();
             Ok(SimilarityPartsView {
-                supports_corresponding_parts: matches!(
-                    inventory.seed,
-                    SimilaritySeed::Record { .. }
-                ),
+                supports_corresponding_parts: true,
+                source,
                 artifact_generation: generation,
                 search_profile: profile,
                 seed: inventory.seed,
@@ -46,6 +80,33 @@ impl AtlasAppService {
             })
         })
     }
+}
+
+fn missing_source() -> AppServiceError {
+    AppServiceError::new(
+        atlas_app_model::AppErrorCode::RecordNotFound,
+        "The selected comparison document is unavailable.",
+    )
+}
+
+fn source_descriptor(
+    seed: &SimilaritySeed,
+    parent_title: String,
+    embedded: Option<&atlas_record::source_record::SourceBackedRecord>,
+) -> AppServiceResult<SimilaritySourceDescriptor> {
+    let (title, parent_title) = if let Some(document) = embedded {
+        let node = document
+            .node_at(seed.embedded_path())
+            .ok_or_else(missing_source)?;
+        (crate::presentation::node_title(node), Some(parent_title))
+    } else {
+        (parent_title, None)
+    };
+    Ok(SimilaritySourceDescriptor {
+        seed: seed.clone(),
+        title,
+        parent_title,
+    })
 }
 
 pub(crate) fn validate_options(
@@ -70,19 +131,6 @@ pub(crate) fn require_parts_generation(
     Ok(())
 }
 
-fn check_generation(expected: Option<&str>, actual: &str) -> AppServiceResult<()> {
-    if let Some(expected) = expected
-        && expected != actual
-    {
-        return Err(AppServiceError::artifact_generation_changed(
-            expected,
-            actual,
-            AppRecoverableAction::RefreshResults,
-        ));
-    }
-    Ok(())
-}
-
 pub(crate) fn configured_results(
     retrieval: &atlas_search::AtlasRetrievalService,
     request: atlas_search::ConfigurableSimilarRequest<'_>,
@@ -93,24 +141,26 @@ pub(crate) fn configured_results(
     atlas_app_model::SimilarityConfigurationView,
 )> {
     let detail = request.result_detail;
-    let result = retrieval.configurable_similar(request)?.ok_or_else(|| {
-        AppServiceError::new(
-            atlas_app_model::AppErrorCode::RecordNotFound,
-            "the selected similarity seed is unavailable",
-        )
-    })?;
+    let seed = request.seed;
+    let result = retrieval
+        .configurable_similar(request)?
+        .ok_or_else(missing_source)?;
     execution.check()?;
+    let parent = crate::projection::localized_summary_view(&result.seed, retrieval);
+    let source = result
+        .embedded_source
+        .as_ref()
+        .map(|document| source_descriptor(seed, parent.title.clone(), Some(document)))
+        .transpose()?;
     let mode = atlas_app_model::SearchModeSummary::SimilarRecords {
-        seed: Box::new(crate::projection::localized_summary_view(
-            &result.seed,
-            retrieval,
-        )),
+        seed: Box::new(parent),
+        source,
     };
     execution.check()?;
     let addresses = if !result.evidence.iter().any(|(_, e)| !e.parts.is_empty()) {
         Default::default()
     } else {
-        retrieval.similarity_part_addresses(&result.seed.key)?
+        retrieval.similarity_part_addresses(seed)?
     };
     execution.check()?;
     let mut evidence = result
@@ -319,9 +369,7 @@ mod tests {
         )
         .unwrap();
         let key = "items:0000000000000000";
-        let seed = SimilaritySeed::Record {
-            record_key: key.parse().unwrap(),
-        };
+        let seed = SimilaritySeed::root(key.parse().unwrap());
         for options in [SimilarityOptions::Baseline {}, SimilarityOptions::default()] {
             retrieval.reset_read_metrics();
             let (mode, results, _) = configured_results(
@@ -342,7 +390,7 @@ mod tests {
                 &ReadExecutionContext::uncancellable(),
             )
             .unwrap();
-            let atlas_app_model::SearchModeSummary::SimilarRecords { seed } = mode else {
+            let atlas_app_model::SearchModeSummary::SimilarRecords { seed, .. } = mode else {
                 panic!("expected Similar results");
             };
             assert_eq!(seed.record_key, key);
@@ -369,9 +417,7 @@ mod tests {
             execution.abandon();
             false
         };
-        let seed = SimilaritySeed::Record {
-            record_key: "items:0000000000000000".parse().unwrap(),
-        };
+        let seed = SimilaritySeed::root("items:0000000000000000".parse().unwrap());
         let options = SimilarityOptions::default();
         let error = configured_results(
             &retrieval,

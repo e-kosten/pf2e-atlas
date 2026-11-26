@@ -47,6 +47,10 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::InvalidRecordKey
         | AppErrorCode::RecordResolutionMiss
         | AppErrorCode::RecordResolutionAmbiguous
+        | AppErrorCode::SimilaritySourceLimit
+        | AppErrorCode::SimilarityCandidateLimit
+        | AppErrorCode::SimilarityNoContent
+        | AppErrorCode::SimilarityMethodUnavailable
         | AppErrorCode::FilterInvalid
         | AppErrorCode::FilterFieldInvalid
         | AppErrorCode::FilterOptionInvalid => StatusCode::BAD_REQUEST,
@@ -69,6 +73,8 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::EncounterAlreadyExists
         | AppErrorCode::FilterEditorConflict
         | AppErrorCode::SetupInProgress
+        | AppErrorCode::SimilaritySourceStale
+        | AppErrorCode::SimilaritySectionsStale
         | AppErrorCode::ArtifactGenerationChanged => StatusCode::CONFLICT,
         AppErrorCode::ArtifactNotReady
         | AppErrorCode::ArtifactIncompatible

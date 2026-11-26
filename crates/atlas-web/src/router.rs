@@ -164,6 +164,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::roll_table))
         .routes(routes!(crate::handlers::search_page))
         .routes(routes!(crate::handlers::relationship_occurrences))
+        .routes(routes!(crate::handlers::similarity_source))
         .routes(routes!(crate::handlers::similarity_parts))
         .routes(routes!(crate::handlers::trait_definition))
         .routes(routes!(crate::handlers::trait_records))

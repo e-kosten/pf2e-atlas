@@ -3,6 +3,7 @@ import {
   LEGACY_SEARCH_PROFILE_KEY,
   SEARCH_PREFERENCES_KEY,
   readSearchPreferences,
+  effectiveMatchDisplay,
   writeSearchPreferences,
 } from "./searchPreferences";
 
@@ -10,13 +11,15 @@ beforeEach(() => localStorage.clear());
 
 it("uses record Similar defaults", () => {
   const preferences = readSearchPreferences();
+  expect(effectiveMatchDisplay(preferences.matchDisplay, true)).toBe("sections");
+  expect(effectiveMatchDisplay(preferences.matchDisplay, false)).toBe("hidden");
   expect(preferences).toEqual({
     version: 1,
     model: null,
     ranking: "score",
     searchContent: "all",
     sourceSectionsByFamily: {},
-    matchDisplay: "hidden",
+    matchDisplay: null,
     showSmallerWeights: false,
     recordSimilarity: { method: "passages", decay: 0.5, candidateParts: "any" },
   });
@@ -61,7 +64,7 @@ it("remembers general preferences across browser-owner launches", () => {
   expect(readSearchPreferences()).toEqual(preferences);
 });
 
-it("defaults to Hidden without losing existing browser preferences", () => {
+it("uses contextual display defaults without losing existing browser preferences", () => {
   localStorage.setItem(
     SEARCH_PREFERENCES_KEY,
     JSON.stringify({ version: 1, model: "embeddinggemma", ranking: "rrf" }),
@@ -69,7 +72,7 @@ it("defaults to Hidden without losing existing browser preferences", () => {
   expect(readSearchPreferences()).toMatchObject({
     model: "embeddinggemma",
     ranking: "rrf",
-    matchDisplay: "hidden",
+    matchDisplay: null,
     showSmallerWeights: false,
   });
 });
@@ -179,7 +182,7 @@ it.each(["hidden", "sections", "detailed"] as const)(
 it.each([
   [true, "detailed"],
   [false, "hidden"],
-  [undefined, "hidden"],
+  [undefined, null],
 ])("migrates legacy details %s to %s", (legacy, expected) => {
   localStorage.setItem(
     SEARCH_PREFERENCES_KEY,
@@ -201,5 +204,5 @@ it("recovers an invalid display preference without accepting arbitrary values", 
     SEARCH_PREFERENCES_KEY,
     JSON.stringify({ version: 1, matchDisplay: "invalid" }),
   );
-  expect(readSearchPreferences().matchDisplay).toBe("hidden");
+  expect(readSearchPreferences().matchDisplay).toBeNull();
 });

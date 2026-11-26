@@ -122,3 +122,9 @@ coverage and metadata cost separately from semantic usefulness. See
 [ADR0053](0053-field-aware-search-fusion.md) and
 [ADR0059](0059-configurable-similarity.md) for the unchanged lexical and scoring
 owners.
+
+The [document-scoped comparison amendment](0059-configurable-similarity.md#document-scoped-comparison)
+extends content methods to embedded sources. Their All and Custom selections
+use directly owned sections. Source Core and the Name and identity method
+apply to whole records. Destination All/Core remains independent of the
+source address. Embedded comparisons do not update the parent's Core preference.

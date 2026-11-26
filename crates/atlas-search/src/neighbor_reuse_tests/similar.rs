@@ -229,7 +229,7 @@ fn warm_neighbors_do_not_bypass_missing_seeds_profiles_or_sort_validation() {
         assert!(matches!(direct, Err(error) if error.is_vector_readiness_required()));
     }
 
-    let missing = SimilaritySeed::Record { record_key: absent };
+    let missing = SimilaritySeed::root(absent);
     let configured = || ConfigurableSimilarRequest {
         result_detail: atlas_domain::SearchResultDetail::Evidence,
         seed: &missing,
@@ -301,12 +301,10 @@ fn advanced_similar_keeps_its_distinct_candidate_path_with_an_empty_or_warm_stor
     drop(service);
     let store = Arc::new(NativeNeighborReuse::default());
     let seed_key = "items:0000000000000000".parse().unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: seed_key,
-    };
+    let seed = SimilaritySeed::root(seed_key);
     for warm in [false, true] {
         if warm {
-            let SimilaritySeed::Record { record_key } = &seed;
+            let SimilaritySeed::Record { record_key, .. } = &seed;
             open_native(&artifact.path(), Some(&store), "bge-base")
                 .similar_records(record_request(record_key))
                 .unwrap()

@@ -1,3 +1,4 @@
+import { sameSimilaritySeed } from "../search/similaritySource";
 import { createContext, useContext } from "react";
 import type {
   ContentLocationView,
@@ -37,7 +38,7 @@ export function useSourceOwnerSelection() {
     scope?.seed.kind === "record" &&
     selection &&
     inventory?.artifact_generation === scope.generation &&
-    JSON.stringify(inventory.seed) === JSON.stringify(scope.seed)
+    sameSimilaritySeed(inventory.seed, scope.seed)
   ) {
     for (const part of inventory.parts) {
       if (
@@ -77,7 +78,7 @@ export function useSourceSectionSelection(
   if (
     !selection ||
     inventory?.artifact_generation !== scope.generation ||
-    JSON.stringify(inventory.seed) !== JSON.stringify(scope.seed)
+    !sameSimilaritySeed(inventory.seed, scope.seed)
   )
     // Keep the same source rendering while a profile's inventory is pending.
     // Eligibility emphasis waits for an authoritative seed/generation match.
