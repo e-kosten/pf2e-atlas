@@ -180,6 +180,7 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
+                                exact_journal_pages: None,
                                 similarity: None,
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),

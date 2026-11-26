@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { publishOfficial } from '../src/official.js';
-import { macosDmg, windowsInstaller } from '../src/release-data.js';
+import { macosDmg, publicAssetNames, windowsInstaller } from '../src/release-data.js';
 import { releaseEndpoint } from '../src/release-upload.js';
 
 const sha = 'a'.repeat(40);
@@ -13,7 +13,6 @@ const archive = 'atlas-cli-aarch64-apple-darwin.tar.xz';
 const script = 'atlas-installer.sh';
 const manifest = 'atlas-release-manifest.json';
 const sums = 'SHA256SUMS';
-const names = [archive, script, manifest, sums, macosDmg, windowsInstaller].sort();
 const id = 123;
 const endpoint = `${releaseEndpoint}/${id}`;
 const upload = `https://uploads.github.com/repos/e-kosten/pf2e-atlas/releases/${id}/assets`;
@@ -30,7 +29,10 @@ function fixture(t: TestContext, tag: string, options: {
 } = {}) {
   const dist = mkdtempSync(path.join(tmpdir(), 'atlas-official-test-'));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
-  const assets = names.map((name, index) => {
+  for (const name of ['dist-manifest.json', archive + '.sha256', windowsInstaller + '.sig', 'ci-output.txt']) {
+    writeFileSync(path.join(dist, name), 'private assembly file');
+  }
+  const assets = publicAssetNames(tag.split('/')[1]).map((name, index) => {
     const contents = name === manifest ? JSON.stringify({ version: tag.split('/')[1] }) : `assembled ${name}`;
     writeFileSync(path.join(dist, name), contents);
     return { id: index + 1, name, digest: 'sha256:' + createHash('sha256').update(contents).digest('hex') };
@@ -88,7 +90,10 @@ test('repairs and publishes the exact draft with correct stable and RC flags and
     const { publish, mutations } = fixture(t, tag);
     await publish();
     assert.equal(mutations.filter((args) => args[2] === 'DELETE').length, 1);
-    assert.equal(mutations.filter((args) => args[2] === 'POST').length, names.length);
+    const uploads = mutations.filter((args) => args[2] === 'POST')
+      .map((args) => new URL(args[3]).searchParams.get('name'));
+    assert.equal(uploads.length, tag.startsWith('rc/') ? 15 : 21);
+    assert.deepEqual(uploads.sort(), publicAssetNames(tag.split('/')[1]));
     const published = mutations.at(-1)!;
     assert.equal(published[2], 'PATCH');
     assert.ok(published.includes('draft=false'));

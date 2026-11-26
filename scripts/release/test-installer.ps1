@@ -116,6 +116,8 @@ public class Program {
   "desktop image fixture" | Set-Content -Path (Join-Path $dist "atlas-desktop-aarch64-apple-darwin.dmg")
   "desktop installer fixture" | Set-Content -Path (Join-Path $dist "atlas-desktop-x86_64-pc-windows-msvc-setup.exe")
 
+  $fixtures = Join-Path $RepoRoot "dev-tools/release/dist/tests/release-fixtures.js"
+  node $fixtures updater $dist v9.9.9
   node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $dist
   node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/validate-release-assets.js") v9.9.9 $dist
 
@@ -136,6 +138,9 @@ public class Program {
     throw "asset validation accepted a manifest missing a required target"
   }
 
+  $assembly = $dist
+  $dist = Join-Path $tmp "public"
+  node $fixtures public-release $assembly v9.9.9 $dist
   $fakeBin = Join-Path $tmp "bin"
   $installDir = Join-Path $tmp ("install with spaces O'Brien" + [char]0x2019 + 's $(test) & ' + [char]0x201C + 'bin' + [char]0x201D)
   New-Item -ItemType Directory -Force -Path $fakeBin, $installDir | Out-Null
@@ -473,7 +478,8 @@ function Expand-Archive {
   $nightlyVersion = "9.9.9-nightly." + $nightlyTag.Split('/')[-1]
   $nightlyDist = Join-Path $tmp "nightly-dist"
   Copy-Item $dist $nightlyDist -Recurse
-  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") "v$nightlyVersion" $nightlyDist
+  node $fixtures build-public-release $nightlyDist "v$nightlyVersion" (Join-Path $tmp "nightly-public")
+  $nightlyDist = Join-Path $tmp "nightly-public"
   Set-Content -Path (Join-Path $nightlyDist "nightly-version.txt") -Value $nightlyTag
   $env:ATLAS_FAKE_RELEASE_DIR = $nightlyDist
   $env:ATLAS_TEST_INSTALL_DIR = Join-Path $tmp "nightly-install"
@@ -507,7 +513,8 @@ function Expand-Archive {
 
   $identityDist = Join-Path $tmp "identity-dist"
   Copy-Item $dist $identityDist -Recurse
-  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v1.2.3 $identityDist
+  node $fixtures build-public-release $identityDist v1.2.3 (Join-Path $tmp "identity-public")
+  $identityDist = Join-Path $tmp "identity-public"
   $env:ATLAS_FAKE_RELEASE_DIR = $identityDist
   $before = (Get-FileHash -LiteralPath (Join-Path $installDir "atlas.exe")).Hash
   foreach ($version in @("v9.9.9", "v1.2.3")) {

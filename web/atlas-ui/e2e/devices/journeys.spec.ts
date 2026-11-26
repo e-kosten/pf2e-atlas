@@ -458,7 +458,7 @@ test("compact filter links reload and unreadable links reset to empty idle Searc
   await page.goto(landedSearch);
   const title = page.getByRole("heading", { name: "Atlas Sentinel", exact: true });
   await expect(title).toBeVisible();
-  expect(new URL(page.url()).searchParams.get("filter")).toMatch(/^3\./);
+  expect(new URL(page.url()).searchParams.get("filter")).toMatch(/^4\./);
   await page.reload();
   await expect(title).toBeVisible();
 
@@ -2774,6 +2774,53 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
   }
 });
 
+test("table rolls show the authored document name before its reading page loads", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-tables:table00000000002");
+  const more = page.getByRole("button", { name: "Load more results", exact: true });
+  await expect(more).toBeVisible();
+  const name = "Quartermaster's Longsword";
+  const rowLink = page.getByRole("table").getByRole("link", { name, exact: true });
+  await expect(rowLink).toHaveCount(0);
+
+  const summary = page.locator(".roll-table-result-summary");
+  const matchLink = summary.getByRole("link", { name, exact: true });
+  for (const label of ["Roll", "Reroll"]) {
+    const response = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/rolls/table" &&
+        response.request().method() === "POST",
+    );
+    await activate(page.getByRole("button", { name: label, exact: true }), info);
+    expect((await response).ok()).toBe(true);
+    await expect(summary.getByText("Result 33", { exact: true })).toBeVisible();
+    await expect(matchLink).toBeVisible();
+    await expect(rowLink).toHaveCount(0);
+  }
+  const href = await matchLink.getAttribute("href");
+  expect(new URL(href!, page.url()).pathname).toBe(
+    "/records/browser-equipment:sword00000000001",
+  );
+  if (info.project.use.hasTouch) await matchLink.tap();
+  else {
+    await matchLink.focus();
+    await matchLink.press("Enter");
+  }
+  const preview = page.getByRole("dialog", { name: /^Glossary Sword/ });
+  await expect(preview).toBeVisible();
+  await activate(
+    preview.getByRole("button", { name: "Close reference preview" }),
+    info,
+  );
+  await expect(preview).toBeHidden();
+  if (!info.project.use.hasTouch) await expect(matchLink).toBeFocused();
+
+  await activate(more, info);
+  await expect(rowLink).toBeVisible();
+  await expect(rowLink).toHaveAttribute("href", href!);
+});
+
 test("Other editions keeps exact source citation navigation and comparison", async ({
   page,
   context,
@@ -3404,4 +3451,125 @@ test("reference feedback: link picker retains direction, scope and preview when 
   await expect(chip).toBeVisible();
   await expect(chip).toBeFocused();
   await noPageOverflow(page);
+});
+
+test("Kind groups and child exceptions survive search, dismissal and reload", async ({
+  page,
+}, info) => {
+  await page.goto("/search");
+  await showSearchFilters(page, info);
+  const opener = page.getByRole("button", { name: "Edit Kind filter", exact: true });
+  await activate(opener, info);
+  const group = page.getByRole("button", { name: /^Kind: All spells,/ });
+  const leaf = page.getByRole("button", { name: /^Kind: Spell,/ });
+  await expect(leaf).toHaveCount(0);
+  const expand = page.getByRole("button", { name: "Expand All spells" });
+  if (info.project.use.hasTouch) await activate(expand, info);
+  else await expand.press("Enter");
+  await expect(leaf).toBeVisible();
+  await expect(group).toHaveAccessibleName(
+    "Kind: All spells, neutral; activate to include",
+  );
+  await activate(group, info);
+  const collapse = page.getByRole("button", { name: "Collapse All spells" });
+  await activate(collapse, info);
+  await expect(leaf).toHaveCount(0);
+  const search = page.getByRole("textbox", { name: "Search kind choices" });
+  await search.fill("Ritual");
+  await expect(group).toBeVisible();
+  const ritual = page.getByRole("button", { name: /^Kind: Ritual,/ });
+  await expect(ritual).toHaveAccessibleName(
+    "Kind: Ritual, included by All spells; activate to exclude",
+  );
+  await activate(ritual, info);
+  await search.fill("");
+  await expect(page.getByRole("button", { name: "Expand All spells" })).toBeVisible();
+  await search.press("Escape");
+  await expect(opener).toBeFocused();
+  await page.reload();
+  await showSearchFilters(page, info);
+  const included = page.getByRole("button", {
+    name: "Remove included All spells from Kind",
+  });
+  const excluded = page.getByRole("button", {
+    name: "Remove excluded Ritual from Kind",
+  });
+  await expect(included).toBeVisible();
+  await activate(excluded, info);
+  await expect(included).toBeVisible();
+  await expect(excluded).toHaveCount(0);
+});
+
+test("Kind rows keep selection and expansion adjoining and leave the scrollbar operable", async ({
+  page,
+}, info) => {
+  await page.goto("/search");
+  await showSearchFilters(page, info);
+  await activate(page.getByRole("button", { name: "Edit Kind filter" }), info);
+  const group = page.getByRole("button", { name: /^Kind: All spells,/ });
+  const expand = page.getByRole("button", { name: "Expand All spells" });
+  const list = page.locator(".common-choice-options").filter({ has: expand });
+  const checkTargets = async () => {
+    await expand.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        expand.evaluate((disclosure) => {
+          const option = disclosure.parentElement!;
+          const list = option.parentElement!.getBoundingClientRect();
+          const choose = option.querySelector("button")!;
+          const label = choose.getBoundingClientRect();
+          const arrow = disclosure.getBoundingClientRect();
+          const hit = (x: number, y: number) =>
+            document.elementFromPoint(x, y)?.closest("button");
+          return (
+            Math.abs(label.right - arrow.left) < 1 &&
+            [arrow.top + 3, arrow.bottom - 3].every(
+              (y) =>
+                hit(label.right - 2, y) === choose &&
+                hit(arrow.left + 2, y) === disclosure &&
+                hit(arrow.right - 3, y) === disclosure &&
+                !hit(list.right - 8, y),
+            )
+          );
+        }),
+      )
+      .toBe(true);
+  };
+  await checkTargets();
+  if (info.project.name === "desktop-chromium") {
+    // Exercise a persistent native scrollbar even on hosts that default to overlays.
+    await page.addStyleTag({
+      content: `
+      .common-choice-options { overflow-y: scroll; max-block-size: 124px; }
+      .common-choice-options::-webkit-scrollbar { width: 20px; background: Canvas; }
+      .common-choice-options::-webkit-scrollbar-thumb { background: currentColor; }
+    `,
+    });
+    await checkTargets();
+    await list.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    const rail = await list.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return {
+        width: node.offsetWidth - node.clientWidth,
+        overflow: node.scrollHeight - node.clientHeight,
+        x: box.right - 8,
+        y: box.top + box.height / 2,
+      };
+    });
+    expect(rail.width).toBe(20);
+    expect(rail.overflow).toBeGreaterThan(0);
+    await page.mouse.move(rail.x, rail.y);
+    await page.mouse.wheel(0, 64);
+    await expect.poll(() => list.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    await checkTargets();
+  }
+  const label = (await group.boundingBox())!;
+  await activate(group, info, { x: label.width - 3, y: label.height / 2 });
+  await expect(group).toHaveAccessibleName(/included; activate to exclude/);
+  // The row can move between taps. Resolve the chevron's current position.
+  await activate(expand, info, { x: 2, y: label.height / 2 });
+  await expect(page.getByRole("button", { name: "Collapse All spells" })).toBeVisible();
+  await expect(group).toHaveAccessibleName(/included; activate to exclude/);
 });

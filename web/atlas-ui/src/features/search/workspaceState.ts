@@ -16,16 +16,17 @@ import {
   DEFAULT_SEARCH_PREFERENCES,
   type SearchPreferences,
 } from "../../shared/search/searchPreferences";
-export const KIND_PREFERENCE_KEY = "atlas.search.kind-default.v1";
+export const KIND_PREFERENCE_KEY = "atlas.search.kind-default.v2";
 type KindPreference = {
   include: string[];
   exclude: string[];
 };
 function readKindPreference(): KindPreference | null {
   try {
-    const value: unknown = JSON.parse(
-      localStorage.getItem(KIND_PREFERENCE_KEY) ?? "null",
-    );
+    const stored = localStorage.getItem(KIND_PREFERENCE_KEY);
+    // Bound restored browser data while allowing source pack IDs up to the query byte budget.
+    if (!stored || stored.length > 128 * 1024) return null;
+    const value: unknown = JSON.parse(stored);
     if (
       !value ||
       typeof value !== "object" ||
@@ -35,11 +36,8 @@ function readKindPreference(): KindPreference | null {
       return null;
     const valid = (values: unknown): values is string[] =>
       Array.isArray(values) &&
-      values.length <= 100 &&
-      values.every(
-        (entry) =>
-          typeof entry === "string" && entry.trim().length > 0 && entry.length <= 100,
-      ) &&
+      values.length <= 128 &&
+      values.every((entry) => typeof entry === "string" && entry.trim().length > 0) &&
       new Set(values).size === values.length;
     const include = value.include,
       exclude = value.exclude;

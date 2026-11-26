@@ -119,7 +119,13 @@ fn decorate(
     if let (Some(namespace), QueryLiteral::String(token)) = (namespace, &value) {
         context.keyed(namespace, token, &mut label, &mut help);
     }
-    FilterChoiceView { value, label, help }
+    FilterChoiceView {
+        value,
+        label,
+        help,
+        parent_kind: None,
+        search_aliases: vec![],
+    }
 }
 
 fn action_choices<'a>(
@@ -158,6 +164,8 @@ fn action_choices<'a>(
             Some((
                 key.clone(),
                 FilterChoiceView {
+                    parent_kind: None,
+                    search_aliases: vec![],
                     value: QueryLiteral::String(key),
                     label,
                     help: Some(ReferenceHelpView {
@@ -204,6 +212,9 @@ pub(crate) fn options(
     let field = atlas_search::filter_field_definition(&options.field)?;
     let namespace = namespace(field);
     let context = HelpContext::load(r, keys(namespace, options.options.iter().map(|o| &o.value)))?;
+    let kind_packs = (options.field == "kind")
+        .then(|| r.journal_kind_packs())
+        .transpose()?;
     let actions = action_choices(r, &options.field, options.options.iter().map(|o| &o.value))?;
     Ok(FilterValueOptionsView {
         field: options.field.clone(),
@@ -214,7 +225,10 @@ pub(crate) fn options(
             .options
             .into_iter()
             .map(|o| {
-                let value = if let QueryLiteral::String(key) = &o.value
+                let value = if let (Some(packs), QueryLiteral::String(id)) = (&kind_packs, &o.value)
+                {
+                    crate::kind_choices::choice(id, packs)
+                } else if let QueryLiteral::String(key) = &o.value
                     && let Some(choice) = actions.get(key)
                 {
                     choice.clone()
@@ -223,6 +237,7 @@ pub(crate) fn options(
                     decorate(&context, namespace, o.value, label)
                 };
                 FilterValueOptionView {
+                    parent_kind: value.parent_kind,
                     value: value.value,
                     label: value.label,
                     help: value.help,
@@ -240,6 +255,9 @@ pub(crate) fn vocabulary(
     let field = atlas_search::filter_field_definition(&values.field)?;
     let namespace = namespace(field);
     let context = HelpContext::load(r, keys(namespace, values.options.iter().map(|o| &o.value)))?;
+    let kind_packs = (values.field == "kind")
+        .then(|| r.journal_kind_packs())
+        .transpose()?;
     let mut actions = action_choices(
         r,
         &values.field,
@@ -253,6 +271,9 @@ pub(crate) fn vocabulary(
         .options
         .into_iter()
         .map(|o| {
+            if let (Some(packs), QueryLiteral::String(id)) = (&kind_packs, &o.value) {
+                return crate::kind_choices::choice(id, packs);
+            }
             if let QueryLiteral::String(key) = &o.value
                 && let Some(choice) = actions.remove(key)
             {
@@ -293,6 +314,9 @@ pub(crate) fn editor(
     }
     let context = HelpContext::load(r, all_keys)?;
     for field in editor.groups.iter_mut().flat_map(|g| &mut g.fields) {
+        if field.definition.id == "kind" {
+            continue;
+        }
         let namespace = namespace(&field.definition);
         for option in &mut field.choices {
             *option = decorate(

@@ -19,12 +19,12 @@ describe("atomic builder edits", () => {
   it("converts a singleton list before the scalar control is rendered", () => {
     const previous = {
       combinator: "and",
-      rules: [{ id: "kind", field: kind.id, operator: "in", value: ["companion"] }],
+      rules: [{ id: "kind", field: kind.id, operator: "in", value: ["familiar"] }],
     } satisfies RuleGroupType;
     const next = { ...previous, rules: [{ ...previous.rules[0], operator: "neq" }] };
     expect(normalizeBuilderEdit(previous, next, fields, null).rules[0]).toMatchObject({
       operator: "neq",
-      value: "companion",
+      value: "familiar",
     });
   });
   it("clears ambiguous lists rather than silently choosing the first value", () => {
@@ -35,7 +35,7 @@ describe("atomic builder edits", () => {
           id: "kind",
           field: kind.id,
           operator: "in",
-          value: ["creature", "companion"],
+          value: ["creature", "familiar"],
         },
       ],
     } satisfies RuleGroupType;
@@ -47,17 +47,17 @@ describe("atomic builder edits", () => {
   it("converts restored rules when the library assigns their initial IDs", () => {
     const previous: RuleGroupType = {
       combinator: "and",
-      rules: [{ field: kind.id, operator: "in", value: ["companion"] }],
+      rules: [{ field: kind.id, operator: "in", value: ["familiar"] }],
     };
     const next: RuleGroupType = {
       ...previous,
       rules: [
-        { id: "assigned-id", field: kind.id, operator: "neq", value: ["companion"] },
+        { id: "assigned-id", field: kind.id, operator: "neq", value: ["familiar"] },
       ],
     };
     expect(normalizeBuilderEdit(previous, next, fields, null).rules[0]).toMatchObject({
       id: "assigned-id",
-      value: "companion",
+      value: "familiar",
     });
   });
   it("replaces availability with a nested group before rendering Exists", () => {

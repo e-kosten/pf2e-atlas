@@ -1,6 +1,8 @@
 import { Input, Select, theme } from "antd";
 import { useState } from "react";
 import { AdvancedVocabularyPicker } from "./FilterChoicePicker";
+import { kindChoicesWithSelection, kindChoiceTree } from "./kindChoiceTree";
+import { withoutCoveredChoices } from "./filterControls";
 import { actorMetric } from "./actorMetricFields";
 import { ProficiencyRankInput } from "./ProficiencyRankInput";
 import type {
@@ -44,11 +46,25 @@ export function FilterValueInput({
   const selectedChoices = (
     Array.isArray(value) ? value : value == null || value === "" ? [] : [value]
   ).map(String);
-  const visibleChoices = field.choices.filter(
-    (choice) =>
-      selectedChoices.includes(String(choice.value)) ||
-      choice.label.toLowerCase().includes(choiceSearch.trim().toLowerCase()),
-  );
+  const hierarchy =
+    definition.id === "kind"
+      ? kindChoiceTree(
+          kindChoicesWithSelection(field, selectedChoices).map((choice) => ({
+            ...choice,
+            value: String(choice.value),
+            parent: choice.parent_kind,
+            searchAliases: choice.search_aliases,
+          })),
+          choiceSearch,
+        )
+      : undefined;
+  const visibleChoices =
+    hierarchy?.rows ??
+    field.choices.filter(
+      (choice) =>
+        selectedChoices.includes(String(choice.value)) ||
+        choice.label.toLowerCase().includes(choiceSearch.trim().toLowerCase()),
+    );
   const counts = useFilterOptionCounts(
     countContext,
     definition.id,
@@ -124,7 +140,11 @@ export function FilterValueInput({
         popupMatchSelectWidth={false}
         mode={multiple ? "multiple" : undefined}
         allowClear
-        showSearch={{ optionFilterProp: "label", onSearch: setChoiceSearch }}
+        showSearch={{
+          optionFilterProp: "label",
+          filterOption: hierarchy ? false : undefined,
+          onSearch: setChoiceSearch,
+        }}
         value={
           value === "" || value == null
             ? undefined
@@ -132,7 +152,7 @@ export function FilterValueInput({
               ? String(value)
               : value
         }
-        options={field.choices.map((choice) => ({
+        options={(hierarchy?.rows ?? field.choices).map((choice) => ({
           value: String(choice.value),
           label: choice.label,
           disabled:
@@ -143,7 +163,13 @@ export function FilterValueInput({
         }))}
         optionRender={(option) => {
           return (
-            <span>
+            <span
+              className={
+                hierarchy?.parents.has(String(option.value))
+                  ? "kind-operand-child"
+                  : undefined
+              }
+            >
               {option.label}
               {counts.has(String(option.value))
                 ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
@@ -151,8 +177,15 @@ export function FilterValueInput({
             </span>
           );
         }}
-        onOpenChange={setOpen}
-        onChange={(next) => onChange(next ?? (multiple ? [] : ""))}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setChoiceSearch("");
+        }}
+        onChange={(next) => {
+          if (hierarchy && multiple && Array.isArray(next))
+            onChange(withoutCoveredChoices(next, hierarchy.parents));
+          else onChange(next ?? (multiple ? [] : ""));
+        }}
       />
     );
   if (definition.field_type === "string" || definition.field_type === "set")

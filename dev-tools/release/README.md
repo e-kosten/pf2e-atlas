@@ -47,10 +47,13 @@ first for older installers. Both variants retain lexical key ordering, ASCII esc
 LF formatting. Hashes stream file bytes. ZIP inspection uses `yauzl` to read
 central-directory names without decompressing binaries; `yazl` constructs test
 fixtures. XZ tar archives use the system `tar`. Archive inspection never extracts
-release files. The validator checks both variants for all four targets, checksum metadata,
-cargo-dist references and excluded runtime-data paths. Its tag argument retains
-the existing command interface; tag/version agreement belongs to the workflow's
-earlier validation step.
+release files. The validator checks the manifest version against the requested tag,
+both variants for all four targets, cargo-dist references and excluded runtime-data
+paths. It checks the names and digests in `SHA256SUMS` against the public files
+for that tag. The publisher uses the same selection. The CI assembly retains the
+cargo-dist manifest, per-archive checksums and detached desktop package signatures
+for build verification. See [Public release assets](../../docs/development/releases.md#public-release-assets)
+for the channel layouts, public filenames and draft retry procedure.
 
 These commands prepare or inspect files. Release publication stays in the
 existing release workflow and explicit `prepare-release.sh --publish` flow.

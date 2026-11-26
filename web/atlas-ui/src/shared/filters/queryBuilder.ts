@@ -1,3 +1,4 @@
+import { dynamicChoiceGroup } from "./kindChoiceTree";
 import type { RuleGroupType, RuleType } from "react-querybuilder";
 import { commonCondition, type CommonCondition } from "./filterControls";
 import { ACTOR_METRIC_CHOOSERS } from "./actorMetricFields";
@@ -260,7 +261,11 @@ function literal(value: unknown, field: QueryFieldDefinition): QueryLiteral {
     throw new Error("Choose true or false");
   }
   if (typeof value !== "string" || !value.trim()) throw new Error("Enter a value");
-  if (field.choices.length && !field.choices.includes(value))
+  if (
+    field.choices.length &&
+    !field.choices.includes(value) &&
+    !dynamicChoiceGroup(field, value)
+  )
     throw new Error("Choose an available value");
   return value;
 }

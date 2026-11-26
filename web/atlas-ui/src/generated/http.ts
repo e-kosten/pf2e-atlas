@@ -2321,7 +2321,9 @@ export interface RecordSummaryView {
   creature_display?: CreatureDisplayView;
   /** The selected document's explicit publication era; absent when unavailable. */
   edition?: RecordEditionView;
-  kind: string;
+  /** The journal’s source pack choice under All journals. */
+  journal_pack_kind?: string;
+  kind?: string;
   kind_label: string;
   /** @nullable */
   level: number | null;
@@ -2330,6 +2332,7 @@ export interface RecordSummaryView {
   level_label: string | null;
   /** @nullable */
   pack: string | null;
+  parent_kind?: string;
   /** @nullable */
   publication: string | null;
   rarity: ReferenceValueView | null;
@@ -3773,6 +3776,7 @@ export interface VehicleReferenceView {
 }
 
 export type FactViewVecRollTableRowViewValue = ({
+  authored_name?: string;
   link: EmbeddedRecordLinkView;
   range: {
   state: QueryFieldState;
@@ -4452,6 +4456,17 @@ export type EquipmentFamilyView = {
   overviews: VariantFamilyChoiceView[];
 };
 
+export interface JournalPageLinkView {
+  navigation: RecordNavigationView;
+  title: string;
+}
+
+export interface ExactJournalPagesView {
+  /** @minimum 0 */
+  additional_count: number;
+  pages: JournalPageLinkView[];
+}
+
 export type FacetUnavailableReason = typeof FacetUnavailableReason[keyof typeof FacetUnavailableReason];
 
 
@@ -4504,6 +4519,8 @@ export interface FieldEditI64 {
 export interface FilterChoiceView {
   help?: ReferenceHelpView;
   label: string;
+  parent_kind?: string;
+  search_aliases?: string[];
   value: QueryLiteral;
 }
 
@@ -4557,6 +4574,12 @@ export interface FilterCountsView {
   search_profile: SearchProfileId;
 }
 
+export interface QueryChoiceGroup {
+  children: string[];
+  dynamic_child_prefix?: string;
+  id: string;
+}
+
 export type QueryFieldType = typeof QueryFieldType[keyof typeof QueryFieldType];
 
 
@@ -4581,6 +4604,7 @@ export const QueryValueDiscovery = {
 
 export interface QueryFieldDefinition {
   basis: string;
+  choice_groups?: QueryChoiceGroup[];
   choices: string[];
   examples: string[];
   family_types: string[];
@@ -4759,6 +4783,7 @@ export interface FilterValueOptionView {
   distinct_roots: number;
   help?: ReferenceHelpView;
   label: string;
+  parent_kind?: string;
   selected: boolean;
   value: QueryLiteral;
 }
@@ -5914,6 +5939,8 @@ export interface SimilarityEvidenceView {
 }
 
 export interface SearchResultRow {
+  /** Direct page-title destinations on a journal row, independent of match evidence. */
+  exact_journal_pages?: ExactJournalPagesView;
   matches: SearchWitnessView[];
   /** Display destinations coalesced across retrieval lanes; raw witnesses remain above. */
   matching_sections?: SearchMatchSectionView[];

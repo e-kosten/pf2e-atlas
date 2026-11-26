@@ -208,7 +208,7 @@ fn relationship_counts_cover_complete_set_numeric_stats_self_exclusion_and_key_s
         vocabulary
             .options
             .iter()
-            .any(|o| o.value == QueryLiteral::String("equipment".into()))
+            .any(|o| o.value == QueryLiteral::String("all_equipment".into()))
     );
 }
 

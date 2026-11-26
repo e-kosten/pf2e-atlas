@@ -21,7 +21,16 @@ pub struct RecordSummaryView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source_title: Option<String>,
-    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub parent_kind: Option<String>,
+    /// The journal’s source pack choice under All journals.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub journal_pack_kind: Option<String>,
     pub kind_label: String,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub source_type: Option<String>,

@@ -67,6 +67,7 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
                 ]
             }),
         ),
+        record("browser-tables", "RollTable", armory_table()),
     ];
     // Exact source fixtures exercise the same rank-aware pipeline as full-corpus reading.
     records.push(record(
@@ -125,6 +126,24 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
         record("browser-journals", "JournalEntry", json!({"_id":"editionjournal01","name":"Remaster Changes","pages":[{"_id":"editionpage00001","name":"Class Features","type":"text","text":{"content":"<table><tr><th>Old</th><th>Status</th><th>New</th></tr><tr><td>@UUID[Compendium.pf2e.browser-editions.Item.legacy0000000001]{Legacy signal}</td><td>Renamed</td><td>@UUID[Compendium.pf2e.browser-editions.Item.remaster00000001]{Modern signal}</td></tr></table>","format":1}}]})),
     ]);
     records
+}
+
+fn armory_table() -> Value {
+    let mut results: Vec<_> = (1..=32)
+        .map(|slot| {
+            json!({
+                "_id":format!("locker{slot:010}"), "type":"text", "range":[slot, slot],
+                "description":format!("Locker {slot} is empty.")
+            })
+        })
+        .collect();
+    results.push(json!({
+        "_id":"locker0000000033", "type":"document", "range":[33, 33],
+        "name":"Quartermaster's Longsword", "description":"",
+        "documentUuid":"Compendium.pf2e.browser-equipment.Item.sword00000000001"
+    }));
+    // Always draw the named weapon beyond the initial reading page.
+    json!({"_id":"table00000000002", "name":"Armory Lockers", "formula":"33", "results":results})
 }
 
 fn sentinel() -> Value {

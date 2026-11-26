@@ -105,7 +105,7 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
         .unwrap();
     assert_eq!(last.records.len(), 25);
     let filter: QueryPredicate = serde_json::from_value(
-        json!({"kind":"compare","field":"kind","op":"eq","value":"equipment"}),
+        json!({"kind":"compare","field":"kind","op":"eq","value":"all_equipment"}),
     )
     .unwrap();
     let filter = link_filter(Some(&filter), &constraints);

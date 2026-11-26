@@ -328,9 +328,7 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
   expect(discoverFilterCounts).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole("button", { name: "Edit Kind filter" }));
   expect(await screen.findByLabelText("4 matching records")).toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: "Kind: Spell, neutral; activate to include" }),
-  ).toBeEnabled();
+  expect(screen.queryByRole("button", { name: /^Kind: Spell,/ })).toBeNull();
   expect(discoverFilterCounts).toHaveBeenCalledWith(
     expect.objectContaining({
       context: expect.objectContaining({
@@ -346,6 +344,9 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
   await waitFor(() =>
     expect(screen.queryByLabelText("4 matching records")).not.toBeInTheDocument(),
   );
+  expect(
+    screen.getByRole("button", { name: "Kind: Spell, neutral; activate to include" }),
+  ).toBeEnabled();
   expect(search.mock.lastCall?.[0].criteria).toMatchObject({
     kind: "text_search",
     query: "dragon",

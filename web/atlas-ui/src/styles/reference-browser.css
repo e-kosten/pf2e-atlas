@@ -234,6 +234,20 @@
   align-self: center;
   margin-inline-end: 12px;
 }
+.reference-result__journal-pages {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-control);
+  padding: 0 var(--browse-pane-inset) 10px;
+  padding-inline-start: calc(var(--browse-pane-inset) - 3px);
+  overflow-wrap: anywhere;
+}
+.reference-result__journal-pages > span {
+  color: var(--muted);
+}
 .reference-match-list {
   display: flex;
   flex-direction: column;

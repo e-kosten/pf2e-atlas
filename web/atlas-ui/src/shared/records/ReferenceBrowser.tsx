@@ -147,6 +147,9 @@ export function ReferenceBrowser({
                 selected={row.record.record_key === selectedRecordKey}
                 disabled={disabled}
                 previewOnEnter={previewOnEnter}
+                onOpenPage={
+                  query ? (navigation) => onSelect(row, { navigation }) : undefined
+                }
                 onPreview={() => {
                   onSelect(row, { navigation: rootNavigation(row.record.record_key) });
                 }}

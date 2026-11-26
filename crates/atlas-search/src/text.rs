@@ -80,6 +80,7 @@ pub struct SearchWitness {
 #[derive(Debug, Clone)]
 pub struct TextSearchRecord {
     pub record: SourceRecordSummary,
+    pub exact_journal_pages: Option<atlas_index::ExactJournalPages>,
     pub matches: Vec<SearchWitness>,
     pub lexical_rank: Option<usize>,
     pub semantic_similarity: Option<f64>,
@@ -231,14 +232,27 @@ impl AtlasRetrievalService {
             vector: vector.as_deref(),
             exclude: None,
         })?;
-        self.finish_results(
+        let mut result = self.finish_results(
             &search_profile,
             roots,
             request.page,
             window,
             request.sort,
             request.result_detail,
-        )
+        )?;
+        let journals = result
+            .records
+            .iter()
+            .filter(|row| row.record.document_kind == "JournalEntry")
+            .map(|row| &row.record.key)
+            .collect::<Vec<_>>();
+        let mut pages =
+            self.index
+                .exact_journal_pages(&journals, request.query, request.content_scope)?;
+        for row in &mut result.records {
+            row.exact_journal_pages = pages.remove(&row.record.key);
+        }
+        Ok(result)
     }
     fn native_vector_candidates(
         &self,
@@ -472,6 +486,7 @@ impl AtlasRetrievalService {
             .zip(summaries)
             .map(|(root, record)| TextSearchRecord {
                 record,
+                exact_journal_pages: None,
                 matches: root.witnesses,
                 lexical_rank: root.lexical_rank,
                 semantic_similarity: root.similarity,

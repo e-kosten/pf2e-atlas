@@ -849,6 +849,19 @@ fn exact_add_record(
         .ok_or_else(|| record_resolution_miss(input))
 }
 
+fn resolved_item(
+    record: atlas_domain::SourceRecordSummary,
+    title_snapshot: String,
+    note: Option<String>,
+) -> ResolvedSavedListItem {
+    ResolvedSavedListItem {
+        kind_snapshot: crate::kind_choices::record_selector(&record).map(str::to_owned),
+        record_key: record.key,
+        title_snapshot,
+        note,
+    }
+}
+
 fn add_resolved_list_record(
     lists: &atlas_local_state::SavedListsWrite<'_>,
     list: SavedList,
@@ -863,15 +876,7 @@ fn add_resolved_list_record(
         .unwrap_or_else(|| record_key.clone());
     let outcome = lists.add_resolved_item(
         &list.list_key,
-        ResolvedSavedListItem {
-            record_key: record.key,
-            title_snapshot: record_name.clone(),
-            kind_snapshot: record
-                .record_kind
-                .as_value()
-                .map(|kind| kind.as_str().to_string()),
-            note,
-        },
+        resolved_item(record, record_name.clone(), note),
     )?;
     Ok(SavedListItemMutationView {
         list_key: list.list_key,
@@ -929,15 +934,7 @@ fn apply_list_add_batch(
             .unwrap_or_else(|| record.key.to_string());
         let outcome = lists.add_resolved_item(
             &list.list_key,
-            ResolvedSavedListItem {
-                record_key: record.key,
-                title_snapshot: record_name.clone(),
-                kind_snapshot: record
-                    .record_kind
-                    .as_value()
-                    .map(|kind| kind.as_str().to_string()),
-                note,
-            },
+            resolved_item(record, record_name.clone(), note),
         )?;
         let outcome = match outcome {
             AddSavedListItemOutcome::Added => {

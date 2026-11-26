@@ -32,6 +32,34 @@ export type Variant = typeof variants[number];
 export function archiveName(target: string, variant: Variant): string {
   return `${variant === 'full' ? 'atlas-cli' : 'atlas-cli-only'}-${target}${target.includes('windows') ? '.zip' : '.tar.xz'}`;
 }
+export const updaterManifest = 'atlas-desktop-update.json';
+export const updaterPlatforms = {
+  'darwin-aarch64': 'atlas-desktop-aarch64-apple-darwin.app.tar.gz',
+  'windows-x86_64': windowsInstaller,
+};
+export const publicUpdaterAssets = [
+  updaterManifest, updaterPlatforms['darwin-aarch64'],
+  ...Object.values(updaterPlatforms).flatMap((name) => [name + '.transition.json', name + '.transition.json.sig']),
+];
+
+export function packageReleaseRef(tag: string): string {
+  const nightly = nightlyTag.exec(tag);
+  if (nightly && nightly[0] === tag) return `nightly/${nightly[2]}.${tag.split('.').at(-1)}`;
+  const ref = tag.includes('-rc.') ? `rc/${tag}` : `release/${tag}`;
+  officialPackageTag(ref);
+  return ref;
+}
+
+export function publicAssetNames(tag: string): string[] {
+  const ref = packageReleaseRef(tag);
+  return [
+    ...variants.flatMap((variant) => Object.keys(targets).map((target) => archiveName(target, variant))),
+    ...desktopAssets.map(({ name }) => name),
+    'atlas-installer.sh', 'atlas-installer.ps1', 'atlas-release-manifest.json', 'SHA256SUMS', 'THIRD-PARTY-NOTICES.md',
+    ...(ref.startsWith('rc/') ? [] : publicUpdaterAssets),
+  ].sort(compare);
+}
+
 export type Target = keyof typeof targets;
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export function object(value: Json | undefined): { [key: string]: Json } {

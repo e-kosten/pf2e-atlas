@@ -7,6 +7,7 @@ use atlas_domain::{LexicalFields, LexicalMatch, LexicalOptions, OwnedContentLoca
 use atlas_domain::{RecordKey, SearchContentScope, SourcePassageAddress};
 use rusqlite::{OptionalExtension, params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 pub(crate) const NAME_LOOKUP_SQL: &str = "SELECT r.key,NULL,NULL FROM records r WHERE r.document_kind<>'Macro' AND r.name_state='value' AND r.name_lookup_key=?1 UNION ALL SELECT r.key,a.alias,a.evidence_json FROM verified_aliases a JOIN records r ON r.record_id=a.record_id WHERE r.document_kind<>'Macro' AND a.alias_lookup_key=?1 ORDER BY 1,2";
 
 fn lexical_content_sql(scope: SearchContentScope) -> &'static str {
@@ -65,6 +66,12 @@ pub struct SourceIdentityMatch {
     pub key: RecordKey,
     pub alias: Option<String>,
     pub evidence: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ExactJournalPages {
+    pub pages: Vec<(OwnedContentLocator, String)>,
+    pub additional_count: usize,
 }
 #[derive(Debug, Clone)]
 pub struct SourceRemasterPair {
@@ -194,6 +201,63 @@ pub(crate) fn location_at(
     })
 }
 impl SqliteIndexReader {
+    /// Match whole page titles in the returned journal roots. Owned-name units retain
+    /// the authored title and checked page address even when no witnesses were requested.
+    pub fn exact_journal_pages(
+        &self,
+        journals: &[&RecordKey],
+        text: &str,
+        scope: SearchContentScope,
+    ) -> Result<BTreeMap<RecordKey, ExactJournalPages>, IndexError> {
+        let mut matches = BTreeMap::<RecordKey, ExactJournalPages>::new();
+        if journals.is_empty() {
+            return Ok(matches);
+        }
+        let keys: Vec<_> = journals.iter().map(ToString::to_string).collect();
+        let normalized = normalized_label_query(text);
+        let sql = format!(
+            "SELECT r.key, lu.owners_json, lu.definition_terms
+             FROM records r JOIN lexical_units lu ON lu.record_id=r.record_id
+             WHERE r.key IN (SELECT value FROM json_each(?1))
+               AND r.document_kind='JournalEntry' AND lu.unit_kind='owned_name' {}
+             ORDER BY r.key,
+                 json_extract(lu.owners_json, '$[0].identity.SnapshotLocal.index') ASC NULLS LAST,
+                 lu.owners_json",
+            lexical_content_sql(scope)
+        );
+        self.count_statement();
+        let mut statement = self.native()?.prepare(&sql)?;
+        let mut rows = statement.query([
+            serde_json::to_string(&keys).map_err(|e| IndexError::Invalid(e.to_string()))?
+        ])?;
+        let mut previous = None;
+        while let Some(row) = rows.next()? {
+            let title: String = row.get(2)?;
+            if atlas_domain::normalize_record_name(&title) != normalized {
+                continue;
+            }
+            let key = parse_key(row.get(0)?)?;
+            let owners_json: String = row.get(1)?;
+            let owners: Vec<OwnedContentLocator> = serde_json::from_str(&owners_json)
+                .map_err(|e| IndexError::Invalid(e.to_string()))?;
+            let [page] = owners.as_slice() else { continue };
+            if page.collection != "/pages"
+                || previous
+                    .as_ref()
+                    .is_some_and(|(k, p)| k == &key && p == page)
+            {
+                continue;
+            }
+            let entry = matches.entry(key.clone()).or_default();
+            if entry.pages.len() < 3 {
+                entry.pages.push((page.clone(), title));
+            } else {
+                entry.additional_count += 1;
+            }
+            previous = Some((key, page.clone()));
+        }
+        Ok(matches)
+    }
     /// Names for selected owner addresses, using the existing lexical projection.
     /// Search summaries and match captions do not decode source snapshots.
     pub fn owned_search_labels(
@@ -597,17 +661,20 @@ fn lexical_label(
         "owned_name" | "heading" | "definition_label" => Some(definition.as_str()),
         _ => None,
     };
+    let exact_label = label.is_some_and(|label| {
+        atlas_domain::normalize_record_name(label) == normalized_label_query(text)
+    });
+    Ok((label.map(str::to_owned), exact_label))
+}
+
+fn normalized_label_query(text: &str) -> String {
     let comparison = text.trim();
     let comparison = comparison
         .strip_prefix('"')
         .and_then(|s| s.strip_suffix('"'))
         .filter(|s| !s.contains('"'))
         .unwrap_or(comparison);
-    let exact_label = label.is_some_and(|label| {
-        atlas_domain::normalize_record_name(label)
-            == atlas_domain::normalize_record_name(comparison)
-    });
-    Ok((label.map(str::to_owned), exact_label))
+    atlas_domain::normalize_record_name(comparison)
 }
 
 fn lexical_hit(

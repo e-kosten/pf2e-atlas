@@ -46,6 +46,11 @@ pub(crate) fn bound_field(d: &Descriptor, scope: Option<&str>) -> BoundField {
     fn binding(b: &Binding, scope: Option<&str>) -> BoundField {
         let a = source_alias(scope);
         match b {
+            Binding::RootKind => BoundField {
+                value: super::root_kind::CLASSIFICATION_SQL.into(),
+                state: super::root_kind::field_state(),
+                owner_id: "r.record_id".into(),
+            },
             Binding::Common { column, known } => {
                 let value = if *column == "pack_label" {
                     "(SELECT p.label FROM packs p WHERE p.pack_id=r.pack_id)".to_owned()
@@ -411,6 +416,17 @@ fn compile_tree(
             )
         }
         QueryExpression::BooleanConstant { value } => if *value { "1" } else { "0" }.to_owned(),
+        QueryExpression::Compare { field, op, value } if scope.is_none() && field == "kind" => {
+            let membership = super::root_kind::matches(std::slice::from_ref(value), parameters)?;
+            if *op == QueryCompare::Neq {
+                format!("NOT ({membership})")
+            } else {
+                membership
+            }
+        }
+        QueryExpression::In { field, values } if scope.is_none() && field == "kind" => {
+            super::root_kind::matches(values, parameters)?
+        }
         QueryExpression::Compare { field, op, value } => {
             let d = checked_descriptor(scope, field)?;
             let b = comparison_field(d, scope);

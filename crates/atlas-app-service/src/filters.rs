@@ -299,8 +299,11 @@ fn enrich_editor(
                 .iter()
                 .any(|family| families.contains(family));
         if field.definition.id == "kind" {
-            let kinds = editor_values(retrieval, "kind", None)?;
-            field.choices.retain(|choice| matches!(&choice.value, atlas_domain::QueryLiteral::String(value) if kinds.contains(value)));
+            let packs = retrieval.journal_kind_packs()?;
+            field.choices.extend(packs.iter().map(|(pack, _)| {
+                let selector = format!("{}{pack}", atlas_domain::root_kind::JOURNAL_PACK_PREFIX);
+                crate::kind_choices::choice(&selector, &packs)
+            }));
         }
     }
     crate::definition_values::editor(retrieval, &mut editor)?;
@@ -566,7 +569,7 @@ mod tests {
         let baseline = f.worker.discover_filter_editor(editor_request()).unwrap();
         for input in [
             json!({"kind":"compare","clause_id":"invalid","field":"invented.field","op":"eq","value":"example"}),
-            json!({"kind":"in","clause_id":"invalid","field":"kind","values":["action"]}),
+            json!({"kind":"in","clause_id":"invalid","field":"kind","values":["rule"]}),
         ] {
             let predicate: QueryPredicate = serde_json::from_value(input).unwrap();
             assert!(
@@ -665,8 +668,7 @@ mod tests {
             .find(|field| field.definition.id == "kind")
             .unwrap();
         assert!(
-            !kind
-                .choices
+            kind.choices
                 .iter()
                 .any(|choice| choice.value
                     == atlas_domain::QueryLiteral::String("affliction".into()))

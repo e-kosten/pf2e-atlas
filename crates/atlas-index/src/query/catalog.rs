@@ -1,10 +1,11 @@
-use atlas_domain::query::QueryValueDiscovery;
+use atlas_domain::query::{QueryChoiceGroup, QueryValueDiscovery};
+use atlas_domain::root_kind::{JOURNAL_PACK_PREFIX, ROOT_KINDS};
 use atlas_domain::{QueryCapability, QueryFieldDefinition, QueryFieldType, QueryLimits};
 use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 10;
+pub const QUERY_CAPABILITY_VERSION: u32 = 11;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -230,6 +231,7 @@ fn choices<T: DeserializeOwned>() -> Result<Vec<String>, String> {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Binding {
+    RootKind,
     Common {
         column: &'static str,
         known: bool,
@@ -303,6 +305,7 @@ fn field(
             family_types: families.iter().map(|f| (*f).to_owned()).collect(),
             units: unit.map(str::to_owned),
             basis: match path {
+                "kind" => "select a standalone group, exact kind, or journal_pack/<pack-id>; discover journal packs with atlas filters values --field kind",
                 "has_description" => "nonempty prepared description on the record itself, or readable journal page text; uses the artifact content audience",
                 "level_or_rank" => "authored spell rank and rank state for spells; authored record level and level state for other applicable families; no fallback from unavailable rank",
                 "physical.unit_price_gp" => "authored coin value divided by authored per; denomination omissions=0, per omission=1; converted from copper to gp",
@@ -325,6 +328,7 @@ fn field(
                 _ => QueryValueDiscovery::ClosedChoices,
             },
             choices: enum_choices,
+            choice_groups: Vec::new(),
             operators,
             examples: vec![format!("availability[\"{path}\"] == \"value\"")],
         },
@@ -412,10 +416,10 @@ fn build() -> Result<Vec<Descriptor>, String> {
         "kind",
         String,
         &[],
-        common("record_kind"),
-        choices::<atlas_domain::RecordKind>()?
-            .into_iter()
-            .filter(|s| s != "tooling")
+        Binding::RootKind,
+        atlas_domain::root_kind::ROOT_KINDS
+            .iter()
+            .map(|choice| choice.id.to_owned())
             .collect(),
         None,
     ));
@@ -1199,6 +1203,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
                     collection.members.iter().map(|f| (*f).to_owned()).collect();
             }
             if descriptor.definition.path == "kind" {
+                descriptor.definition.basis = "immediate embedded source family".into();
                 descriptor.binding = Binding::EmbeddedKind {
                     members: collection.members,
                 };
@@ -1313,6 +1318,29 @@ fn build() -> Result<Vec<Descriptor>, String> {
     fields.push(kinds);
     for descriptor in &mut fields {
         let d = &mut descriptor.definition;
+        if matches!(descriptor.binding, Binding::RootKind) {
+            d.value_discovery = QueryValueDiscovery::OpenValues;
+            d.choice_groups = ROOT_KINDS
+                .iter()
+                .filter(|kind| kind.parent.is_none())
+                .filter_map(|group| {
+                    let children = ROOT_KINDS
+                        .iter()
+                        .filter(|kind| kind.parent == Some(group.id))
+                        .map(|kind| kind.id.to_owned())
+                        .collect::<Vec<_>>();
+                    let dynamic_child_prefix =
+                        (group.id == "journal").then(|| JOURNAL_PACK_PREFIX.to_owned());
+                    (!children.is_empty() || dynamic_child_prefix.is_some()).then(|| {
+                        QueryChoiceGroup {
+                            id: group.id.to_owned(),
+                            children,
+                            dynamic_child_prefix,
+                        }
+                    })
+                })
+                .collect();
+        }
         d.label = super::labels::field_label(&d.path, d.scope.as_deref())?.to_owned();
         let prefix = if d.scope.is_some() { "entry." } else { "" };
         let field = format!("{prefix}{}", d.path);

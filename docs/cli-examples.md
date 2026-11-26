@@ -15,13 +15,12 @@ atlas record get actionspf2e:1kGNdIIhuglAjIp9
 ```
 
 Names and verified aliases can resolve to more than one entry. Choose the intended
-result and use its key for later commands. Treat Wounds has kind `rule`, so use
-`--kind rule` rather than `--kind action` when filtering for it.
+result and use its key for later commands. Treat Wounds has kind `action`. Use `--kind general_feat` to select the general feat named Shield Block when a class feature shares its name.
 
 Choose how much to read, or request several entries as JSON:
 
 ```bash
-atlas record resolve 'Shield Block' --kind feat --alternatives 5 --json
+atlas record resolve 'Shield Block' --kind general_feat --alternatives 5 --json
 atlas record get equipment-srd:s1vB3HdXjMigYAnY --detail full
 atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --json
 ```
@@ -58,9 +57,25 @@ record, see [source data](#inspect-source-data).
 atlas search 'walk through walls' --kind spell --limit 8
 atlas search 'masked spirit' --kind creature --limit 8
 atlas search 'healing spell' --kind spell --where 'level <= 2' --page 2 --limit 10
-atlas search --kind equipment --rarity uncommon --limit 20
+atlas search --kind all_equipment --rarity uncommon --limit 20
 atlas search --kind creature --trait undead --where 'defenses.hp.maximum >= 80'
 ```
+
+Choose a Kind group to search all its children, or use the specific type shown on a result.
+`all_spells` includes both `spell` and `ritual`; `all_equipment` includes `weapon`,
+`container` and `general_equipment`. Journal packs are children of `journal`.
+Use the current workspace to find available packs and their counts.
+
+```bash
+atlas filters fields --field kind
+atlas filters values --field kind --text journal --json
+atlas search Champion --kind journal_pack/journals --json
+```
+
+For an exact journal page title, the result includes
+`exact_journal_pages.pages[].navigation`. Pass the chosen navigation object to
+`atlas record get --navigation` to open that page. The journal’s record key
+opens its outline.
 
 Omitting query text browses eligible records alphabetically. Repeated `--kind`,
 `--pack-name`, and `--rarity` values accept alternatives; repeated `--trait` flags
@@ -114,8 +129,8 @@ atlas similar 'Dirge of Doom' --kind spell --search-profile embeddinggemma --lim
 atlas search 'forest guardian' --search-content core
 atlas similar 'Lich' --sections core --search-content all
 atlas similar 'Brown Mold' --list-parts --sections core --json
-atlas search 'healing' --kind spell --sort level_asc
-atlas search --kind equipment --sort level_desc --sort unit_price_asc
+atlas search 'healing' --kind all_spells --sort level_asc
+atlas search --kind all_equipment --sort level_desc --sort unit_price_asc
 atlas search --kind creature --sort random --seed 42
 ```
 

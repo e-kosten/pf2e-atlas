@@ -37,7 +37,10 @@ pub(crate) struct FilterOptions {
         help = "CEL filter expression, including links_to/linked_from and AND/OR/NOT; discover fields with atlas filters fields"
     )]
     pub(crate) where_expression: Option<String>,
-    #[arg(long = "kind", help = "Record kind; repeat to accept any listed kind")]
+    #[arg(
+        long = "kind",
+        help = "Kind group or specific type; repeat for alternatives. Discover IDs with atlas filters fields --field kind"
+    )]
     pub(crate) kinds: Vec<String>,
     #[arg(long = "pack-name", help = "Foundry pack ID; repeat for alternatives")]
     pub(crate) pack_names: Vec<String>,

@@ -10,8 +10,8 @@ import { archiveEntries } from '../src/archives.js';
 import { generateManifest } from '../src/generate-release-manifest.js';
 import { notices } from '../src/generate-notices.js';
 import { pruneManifest } from '../src/prune-dist-manifest.js';
-import { fixture, windowsRuntimeFixture, writeZip } from './release-fixtures.js';
-import { jsonText, macosDmg, object, readJson, repoRoot, sha256, targets, variants, archiveName, windowsInstaller, writeJson } from '../src/release-data.js';
+import { fixture, windowsRuntimeFixture, writeUpdaterFixture, writeZip } from './release-fixtures.js';
+import { jsonText, macosDmg, object, publicAssetNames, readJson, repoRoot, sha256, targets, variants, archiveName, windowsInstaller, writeJson } from '../src/release-data.js';
 import { stageCliOnly } from '../src/stage-cli-only.js';
 import { validateAssets } from '../src/validate-release-assets.js';
 
@@ -20,6 +20,7 @@ function temporary(t: TestContext): string {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
 }
+const rcTag = 'v9.9.9-rc.1';
 const noticeFixturePin = { commit: 'fixture-pin', systemVersion: '1.0' };
 const noticeFixture = 'Source commit: fixture-pin (PF2e 1.0)\n';
 const command = (name: string) => fileURLToPath(new URL(`../src/cli/${name}.js`, import.meta.url));
@@ -54,34 +55,47 @@ test('assembly binds both desktop installers to their CLI archives, source and t
 });
 
 test('manifest and checksums cover supported packages and release extras deterministically', async (t) => {
-  const dist = temporary(t);
   const packages = [
     { target: 'aarch64-apple-darwin', os: 'macos', arch: 'aarch64', name: 'atlas-cli-aarch64-apple-darwin.tar.xz' },
     { target: 'aarch64-unknown-linux-gnu', os: 'linux', arch: 'aarch64', name: 'atlas-cli-aarch64-unknown-linux-gnu.tar.xz' },
     { target: 'x86_64-pc-windows-msvc', os: 'windows', arch: 'x86_64', name: 'atlas-cli-x86_64-pc-windows-msvc.zip' },
     { target: 'x86_64-unknown-linux-gnu', os: 'linux', arch: 'x86_64', name: 'atlas-cli-x86_64-unknown-linux-gnu.tar.xz' },
   ];
-  const bothPackages = variants.flatMap((variant) => packages.map((item) => ({ ...item, variant, name: archiveName(item.target, variant) })));
-  for (const item of bothPackages) writeFileSync(path.join(dist, item.name), item.target);
-  writeFileSync(path.join(dist, 'unrecognized.zip'), 'ignored');
-  for (const name of [macosDmg, windowsInstaller, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'installer\n');
-  await generateManifest('v9.9.9', dist);
-  const manifestText = readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8');
-  const manifest = object(readJson(path.join(dist, 'atlas-release-manifest.json')));
-  assert.equal(manifest.version, 'v9.9.9');
-  const expectedAssets = bothPackages.map((item) => ({ ...item, sha256: createHash('sha256').update(item.target).digest('hex') }));
-  assert.deepEqual(manifest.assets, expectedAssets);
-  assert.ok(manifestText.indexOf('"arch"') < manifestText.indexOf('"target"'));
-  const sums = readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8');
-  const expectedSums = [
-    ...expectedAssets.map((item) => `${item.sha256}  ${item.name}`),
-    ...[macosDmg, windowsInstaller, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md'].map((name) => `${createHash('sha256').update('installer\n').digest('hex')}  ${name}`),
-    `${createHash('sha256').update(manifestText).digest('hex')}  atlas-release-manifest.json`,
-  ].sort().join('\n') + '\n';
-  assert.equal(sums, expectedSums);
-  await generateManifest('v9.9.9', dist);
-  assert.equal(readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8'), manifestText);
-  assert.equal(readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8'), sums);
+  const bothPackages = (['full', 'cli-only'] as const).flatMap((variant) => packages.map((item) => ({
+    ...item, variant, name: variant === 'full' ? item.name : item.name.replace('atlas-cli-', 'atlas-cli-only-'),
+  })));
+  const common = ['atlas-desktop-aarch64-apple-darwin.dmg', 'atlas-desktop-x86_64-pc-windows-msvc-setup.exe',
+    'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md'];
+  const mac = 'atlas-desktop-aarch64-apple-darwin.app.tar.gz';
+  const updates = ['atlas-desktop-update.json', mac, ...[mac, 'atlas-desktop-x86_64-pc-windows-msvc-setup.exe']
+    .flatMap((name) => [name + '.transition.json', name + '.transition.json.sig'])];
+  for (const tag of [rcTag, 'v9.9.9', 'v9.9.9-nightly.20261115092300.gabcdef123456']) {
+    const dist = temporary(t);
+    for (const item of bothPackages) writeFileSync(path.join(dist, item.name), item.target);
+    for (const name of common) writeFileSync(path.join(dist, name), 'installer\n');
+    writeFileSync(path.join(dist, 'extra.txt'), 'CI output');
+    if (tag !== rcTag) await writeUpdaterFixture(dist, tag);
+    await generateManifest(tag, dist);
+    const manifestText = readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8');
+    const manifest = object(readJson(path.join(dist, 'atlas-release-manifest.json')));
+    const expectedAssets = bothPackages.map((item) => ({ ...item, sha256: createHash('sha256').update(item.target).digest('hex') }));
+    assert.equal(manifest.version, tag);
+    assert.deepEqual(manifest.assets, expectedAssets);
+    assert.ok(manifestText.indexOf('"arch"') < manifestText.indexOf('"target"'));
+    const names = [...expectedAssets.map(({ name }) => name), ...common, 'atlas-release-manifest.json',
+      ...(tag === rcTag ? [] : updates)];
+    assert.equal(names.length + 1, tag === rcTag ? 15 : 21);
+    const sums = readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8');
+    assert.deepEqual(publicAssetNames(tag).sort(), [...names, 'SHA256SUMS'].sort());
+    const expectedSums = names.map((name) => {
+      const digest = createHash('sha256').update(readFileSync(path.join(dist, name))).digest('hex');
+      return `${digest}  ${name}`;
+    }).sort().join('\n') + '\n';
+    assert.equal(sums, expectedSums);
+    await generateManifest(tag, dist);
+    assert.equal(readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8'), manifestText);
+    assert.equal(readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8'), sums);
+  }
 });
 
 test('hashing reads more than one chunk and handles binary bytes', async (t) => {
@@ -180,9 +194,10 @@ test('commands preserve usage exit 2 and fatal-input exit 1', (t) => {
   assert.equal(spawnSync(process.execPath, [command('prune-dist-manifest'), malformed, root]).status, 1);
   assert.equal(spawnSync(process.execPath, [command('validate-release-assets'), 'v9.9.9', root]).status, 1);
   const dist = path.join(root, 'relative dist'); mkdirSync(dist);
-  execFileSync(process.execPath, [command('generate-release-manifest'), 'v9.9.9', 'relative dist'],
+  for (const name of publicAssetNames(rcTag)) writeFileSync(path.join(dist, name), 'fixture');
+  execFileSync(process.execPath, [command('generate-release-manifest'), rcTag, 'relative dist'],
     { env: { ...process.env, INIT_CWD: root } });
-  assert.equal(object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version, 'v9.9.9');
+  assert.equal(object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version, rcTag);
 });
 
 test('ZIP names are inspected without extraction; malformed ZIP fails', async (t) => {
@@ -205,58 +220,70 @@ test('asset checks reject missing metadata, bad hashes, runtime data in archives
   for (const name of [macosDmg, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'fixture\n');
   writeJson(path.join(dist, 'dist-manifest.json'), {});
   const installer = path.join(dist, windowsInstaller);
-  for (const tag of ['v9.9.9', 'v9.9.9-rc.1', 'v9.9.9-nightly.20261115092300.gabcdef123456']) {
-    await generateManifest(tag, dist);
-    await assert.rejects(validateAssets(dist), /missing required release asset: .*\.exe/);
-    writeFileSync(installer, 'verified installer');
-    await generateManifest(tag, dist);
-    await validateAssets(dist);
-    writeFileSync(installer, 'substituted installer');
-    await assert.rejects(validateAssets(dist), /checksum metadata mismatch for .*\.exe/);
-    rmSync(installer);
-  }
   writeFileSync(installer, 'verified installer');
-  await generateManifest('v9.9.9', dist);
+  await generateManifest(rcTag, dist);
+  await validateAssets(dist, rcTag);
+  await assert.rejects(validateAssets(dist, 'v9.9.9-rc.2'), /version mismatch/i);
+  for (const tag of ['v9.9.9', 'v9.9.9-nightly.20261115092300.gabcdef123456']) {
+    const missing = temporary(t);
+    cpSync(dist, missing, { recursive: true });
+    const manifestPath = path.join(missing, 'atlas-release-manifest.json');
+    writeJson(manifestPath, { ...object(readJson(manifestPath)), version: tag });
+    await assert.rejects(generateManifest(tag, missing), /atlas-desktop/);
+    await assert.rejects(validateAssets(missing, tag), /atlas-desktop/);
+    await writeUpdaterFixture(missing, tag);
+    await generateManifest(tag, missing);
+    await validateAssets(missing, tag);
+  }
+  rmSync(installer);
+  await assert.rejects(validateAssets(dist, rcTag), /missing required release asset: .*\.exe/i);
+  writeFileSync(installer, 'substituted installer');
+  await assert.rejects(validateAssets(dist, rcTag), /checksum metadata mismatch for .*\.exe/);
+  writeFileSync(installer, 'verified installer');
   const dmg = path.join(dist, macosDmg);
   rmSync(dmg);
-  await assert.rejects(validateAssets(dist), /missing required release asset: .*\.dmg/);
+  await assert.rejects(validateAssets(dist, rcTag), /missing required release asset: .*\.dmg/);
   writeFileSync(dmg, 'changed');
-  await assert.rejects(validateAssets(dist), /checksum metadata mismatch for .*\.dmg/);
+  await assert.rejects(validateAssets(dist, rcTag), /checksum metadata mismatch for .*\.dmg/);
   writeFileSync(dmg, 'fixture\n');
   const sumFile = path.join(dist, 'SHA256SUMS');
   const sums = readFileSync(sumFile, 'utf8');
   writeFileSync(sumFile, sums + sums.split('\n').find((line) => line.endsWith(macosDmg)) + '\n');
-  await assert.rejects(validateAssets(dist), /checksum metadata mismatch for .*\.dmg/);
+  await assert.rejects(validateAssets(dist, rcTag), /checksum metadata mismatch for .*\.dmg/);
+  writeFileSync(sumFile, sums + '0'.repeat(64) + '  extra.txt\n');
+  await assert.rejects(validateAssets(dist, rcTag));
+  writeFileSync(sumFile, sums.replace(/^.*  atlas-installer\.sh\n/m, ''));
+  await assert.rejects(validateAssets(dist, rcTag));
   writeFileSync(sumFile, sums);
   const bad = path.join(root, 'bad');
   async function reset(): Promise<void> { rmSync(bad, { recursive: true, force: true }); cpSync(dist, bad, { recursive: true }); }
   await reset(); await fixture(['remove-target', path.join(bad, 'atlas-release-manifest.json')]);
-  await assert.rejects(validateAssets(bad), /missing required target/);
+  await assert.rejects(validateAssets(bad, rcTag), /missing required target/);
   await reset(); await fixture(['bad-manifest-checksum', path.join(bad, 'atlas-release-manifest.json')]);
-  await assert.rejects(validateAssets(bad), /checksum metadata mismatch/);
+  await assert.rejects(validateAssets(bad, rcTag), /checksum metadata mismatch/);
   await reset(); writeJson(path.join(bad, 'dist-manifest.json'), { artifacts: { 'missing.zip': { kind: 'executable-zip' } } });
-  await assert.rejects(validateAssets(bad), /references missing asset/);
+  await assert.rejects(validateAssets(bad, rcTag), /references missing asset/);
   await reset(); await fixture(['bad-zip', path.join(bad, 'atlas-cli-x86_64-pc-windows-msvc.zip')]);
-  await generateManifest('v9.9.9', bad); // Hashes must pass before testing archive contents.
-  await assert.rejects(validateAssets(bad), /release archive contains runtime data.*zip/);
+  await generateManifest(rcTag, bad); // Hashes must pass before testing archive contents.
+  await assert.rejects(validateAssets(bad, rcTag), /release archive contains runtime data.*zip/);
   await reset(); writeFileSync(path.join(archiveRoot, 'model.onnx'), 'forbidden');
   await fixture(['unix-archive', path.join(bad, 'atlas-cli-aarch64-apple-darwin.tar.xz'), archiveRoot]);
-  await generateManifest('v9.9.9', bad);
-  await assert.rejects(validateAssets(bad), /release archive contains runtime data.*model.onnx/);
+  await generateManifest(rcTag, bad);
+  await assert.rejects(validateAssets(bad, rcTag), /release archive contains runtime data.*model.onnx/);
   await reset(); writeFileSync(path.join(bad, 'pf2e-index.sqlite'), 'forbidden');
-  await assert.rejects(validateAssets(bad), /release assets contain runtime data/);
+  await assert.rejects(validateAssets(bad, rcTag), /release assets contain runtime data/);
   await reset(); writeFileSync(path.join(bad, 'THIRD-PARTY-NOTICES.md'), 'stale');
-  await assert.rejects(validateAssets(bad), /checksum metadata mismatch for THIRD-PARTY-NOTICES/);
+  await assert.rejects(validateAssets(bad, rcTag), /checksum metadata mismatch for THIRD-PARTY-NOTICES/);
   await reset();
   await writeZip(path.join(bad, 'atlas-cli-x86_64-pc-windows-msvc.zip'), { 'atlas/atlas.exe': 'stub' });
-  await generateManifest('v9.9.9', bad);
-  await assert.rejects(validateAssets(bad), /release archive is missing THIRD-PARTY-NOTICES/);
+  await generateManifest(rcTag, bad);
+  await assert.rejects(validateAssets(bad, rcTag), /release archive is missing THIRD-PARTY-NOTICES/);
   await reset();
   await writeZip(path.join(bad, 'atlas-cli-only-x86_64-pc-windows-msvc.zip'), {
     'atlas/atlas.exe': 'stub', 'atlas/THIRD-PARTY-NOTICES.md': 'fixture', ...windowsRuntimeFixture('wrong-directory'),
   });
-  await generateManifest('v9.9.9', bad);
-  await assert.rejects(validateAssets(bad), /expected msvcp140.dll beside atlas.exe/);
+  await generateManifest(rcTag, bad);
+  await assert.rejects(validateAssets(bad, rcTag), /expected msvcp140.dll beside atlas.exe/);
 });
 
 
@@ -304,12 +331,12 @@ test('asset validation requires one correctly named package per variant and lega
     writeFileSync(path.join(dist, archiveName(target, variant)), 'stub');
   }
   for (const name of [macosDmg, windowsInstaller, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md', 'dist-manifest.json']) writeFileSync(path.join(dist, name), '{}');
-  await generateManifest('v9.9.9', dist);
+  await generateManifest(rcTag, dist);
   const file = path.join(dist, 'atlas-release-manifest.json');
   const manifest = object(readJson(file));
   const assets = manifest.assets as import('../src/release-data.js').Json[];
   assets.push(assets[0]); writeJson(file, manifest);
-  await assert.rejects(validateAssets(dist), /duplicates/);
+  await assert.rejects(validateAssets(dist, rcTag), /duplicates/);
   assets.pop(); assets.reverse(); writeJson(file, manifest);
-  await assert.rejects(validateAssets(dist), /must precede/);
+  await assert.rejects(validateAssets(dist, rcTag), /must precede/);
 });

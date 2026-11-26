@@ -200,7 +200,7 @@ atlas search fire --search-content core --json
 atlas search 'a creature whose disease drains a victim over time' --json
 atlas search --kind creature --trait undead --json
 atlas search --kind creature --sort level_desc --json
-atlas search --kind equipment --sort level_desc --sort unit_price_asc --json
+atlas search --kind all_equipment --sort level_desc --sort unit_price_asc --json
 atlas search --kind creature --sort random --seed 42 --json
 atlas search --where 'defenses.hp.maximum >= 80 && "undead" in traits' --json
 atlas similar spells-srd:1xLVcA8Y1onw7toT --kind spell --json
@@ -299,6 +299,7 @@ atlas filters fields --detail full --json
 atlas filters fields --all --json
 atlas filters fields --text 'maximum hp' --json
 atlas filters fields --field defenses.hp.maximum --json
+atlas filters values --field kind --text journal --json
 atlas filters values --field traits --kind spell --json
 atlas filters values --field defenses.hp.maximum --kind creature --json
 atlas search --where 'defenses.saves.fortitude >= 12' --print-filter --json
@@ -318,7 +319,12 @@ combine conditions inside one CEL `exists`, for example
 `movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)`.
 Use `embedded.spells.exists(s, "fire" in s.traits)` for records containing a fire
 spell. This does not match a standalone spell itself; use
-`kind == "spell" && "fire" in traits` for those. Equipment predicates use
+`kind == "spell" && "fire" in traits` for those. Root Kind selectors include types such as
+`background`, `class_feature` and `ritual` and groups such as `all_equipment`,
+`all_spells` and `journal`. Discover journal packs in the current workspace.
+When a journal row has exact page-title matches, read the intended page with
+`record get --navigation` and its `exact_journal_pages.pages[].navigation` object.
+Equipment predicates use
 `embedded.equipment.exists(e, e.source.type == "weapon" && "agile" in e.traits)`.
 These collections contain immediate embedded copies, not linked records.
 `physical.unit_price_gp` is listed unit price in gold pieces.

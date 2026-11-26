@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { nightlyVersion, planNightly, prepareNightly, publishNightly, type Run } from '../src/nightly.js';
-import { macosDmg, windowsInstaller } from '../src/release-data.js';
+import { macosDmg, publicAssetNames, windowsInstaller } from '../src/release-data.js';
 
 const sha = 'abcdef123456' + '0'.repeat(28);
 const tag = 'nightly/20261018092300.gabcdef123456';
@@ -17,11 +17,19 @@ const releaseEndpoint = 'repos/{owner}/{repo}/releases';
 const uploadUrl = `https://uploads.github.com/repos/e-kosten/pf2e-atlas/releases/${datedReleaseId}/assets`;
 const archiveBytes = 'checked CLI archive';
 const archiveDigest = createHash('sha256').update(archiveBytes).digest('hex');
-const dmgBytes = 'checked DMG';
-const dmgAsset = { id: 456, name: macosDmg, digest: `sha256:${createHash('sha256').update(dmgBytes).digest('hex')}` };
-const installerBytes = 'checked Windows installer';
-const windowsAsset = { id: 457, name: windowsInstaller, digest: `sha256:${createHash('sha256').update(installerBytes).digest('hex')}` };
-const publishedAssets = [dmgAsset, windowsAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }];
+const manifestBytes = JSON.stringify({
+  version: packageTag, assets: [{ name: coverageArchive, target: 'x86_64-unknown-linux-gnu', variant: 'cli-only', sha256: archiveDigest }],
+});
+function fixtureBytes(name: string): string {
+  if (name === coverageArchive) return archiveBytes;
+  if (name === 'atlas-release-manifest.json') return manifestBytes;
+  return `assembled ${name}\n`;
+}
+const publishedAssets = publicAssetNames(packageTag).map((name, index) => ({
+  id: index + 1, name, digest: 'sha256:' + createHash('sha256').update(fixtureBytes(name)).digest('hex'),
+}));
+const dmgAsset = publishedAssets.find((asset) => asset.name === macosDmg)!;
+const windowsAsset = publishedAssets.find((asset) => asset.name === windowsInstaller)!;
 const pins = { version: 2, profiles: {
   'bge-base': {
     base: { tag: 'embedding-seed/bge-base/v1', asset: 'bge-base.gz', file: { sha256: 'b'.repeat(64), bytes: 1 } },
@@ -41,16 +49,11 @@ function fixture(t: TestContext) {
   writeFileSync(manifest, '[package]\nname = "atlas-cli"\nversion = "0.1.0-rc.6"\n\n[dependencies.other]\nversion = "0.1.0-rc.6"\n');
   writeFileSync(lock, 'version = 4\n\n[[package]]\nname = "atlas-cli"\nversion = "0.1.0-rc.6"\n\n[[package]]\nname = "other"\nversion = "0.1.0-rc.6"\n');
   const dist = path.join(root, 'dist'); mkdirSync(dist);
-  writeFileSync(path.join(dist, 'atlas-release-manifest.json'), JSON.stringify({
-    version: packageTag, assets: [{ name: coverageArchive, target: 'x86_64-unknown-linux-gnu', variant: 'cli-only', sha256: archiveDigest }],
-  }));
-  writeFileSync(path.join(dist, coverageArchive), archiveBytes);
-  writeFileSync(path.join(dist, macosDmg), dmgBytes);
-  writeFileSync(path.join(dist, windowsInstaller), installerBytes);
+  for (const { name } of publishedAssets) writeFileSync(path.join(dist, name), fixtureBytes(name));
+  writeFileSync(path.join(dist, 'dist-manifest.json'), 'private build output');
   const pinPath = path.join(root, 'crates/atlas-runtime/embedding-seeds.json');
   mkdirSync(path.dirname(pinPath), { recursive: true });
   writeFileSync(pinPath, JSON.stringify(pins));
-  for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'SHA256SUMS']) writeFileSync(path.join(dist, name), 'fixture\n');
   return { root, manifest, lock, dist };
 }
 
@@ -107,7 +110,7 @@ test('scheduled skip requires the published channel to point to this exact sourc
   }
 });
 
-function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean; badDesktopAsset?: string; channelTag?: string; staleList?: boolean; listPublishedAsDraft?: boolean } = {}) {
+function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean; remoteFault?: 'extra' | 'duplicate' | 'missing' | 'corrupt' | 'after-publication'; channelTag?: string; staleList?: boolean; listPublishedAsDraft?: boolean } = {}) {
   const { root, dist } = fixture(t);
   const coverage = path.join(root, 'embedding-coverage.json');
   const covered = { status: 'covered', inferred_inputs: 0, reused_inputs: 3 };
@@ -117,13 +120,28 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
       ? { status: 'gap', reason: 'missing_input', first_hash: 'a'.repeat(64), reused_inputs: 100, missing_inputs: 1 } : covered },
   }));
   const calls: string[][] = [];
-  const releases = [...options.existing ?? []] as { tag_name: string; target_commitish?: string; draft?: boolean; prerelease?: boolean; assets?: { id?: number; name?: string }[] }[];
+  const releases = [...options.existing ?? []] as { tag_name: string; target_commitish?: string; draft?: boolean; prerelease?: boolean; body?: string; assets?: { id?: number; name?: string; digest?: string }[] }[];
   const listedReleases = [...releases];
   const draftMetadata = { id: datedReleaseId, upload_url: `${uploadUrl}{?name,label}` };
   const run: Run = (program, args) => {
     calls.push([program, ...args]);
     if (program === 'git') return releases.some((release) => release.tag_name === tag && !release.draft) ? `${sha}\trefs/tags/${tag}` : '';
     if (program === 'gh' && args[0] === 'api') {
+      if (args.at(-1) === `${releaseEndpoint}/${datedReleaseId}/assets?per_page=100`) {
+        const dated = releases.find((item) => item.tag_name === tag)!;
+        const assets = [...dated.assets ?? []];
+        const sum = assets.find((asset) => asset.name === 'SHA256SUMS');
+        if (sum && options.remoteFault) {
+          switch (options.remoteFault) {
+            case 'extra': assets.push({ id: 1000, name: 'unexpected.txt' }); break;
+            case 'duplicate': assets.push(sum); break;
+            case 'missing': assets.splice(assets.indexOf(sum), 1); break;
+            case 'corrupt': assets[assets.indexOf(sum)] = { ...sum, digest: 'wrong' }; break;
+            case 'after-publication': if (!dated.draft) assets.splice(assets.indexOf(sum), 1); break;
+          }
+        }
+        return JSON.stringify([assets.slice(0, 1), assets.slice(1)]);
+      }
       if (args[1] === '--paginate') {
         const listed = options.staleList ? listedReleases : releases;
         return JSON.stringify([listed.map((item) => options.listPublishedAsDraft && item.tag_name === tag
@@ -151,6 +169,7 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
           assert.ok(args.includes('prerelease=true'));
           assert.ok(args.includes('make_latest=false'));
           draft.draft = false;
+          draft.body = args.find((arg) => arg.startsWith('body='))?.slice(5);
         }
         return JSON.stringify({ ...draftMetadata, ...draft });
       }
@@ -164,8 +183,9 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
       assert.equal(endpoint, `${uploadUrl}?name=${name}`);
       assert.equal(path.dirname(input), dist);
       assert.ok(!draft.assets?.some((asset) => asset.name === name), 'duplicate draft asset');
-      const asset = name === options.badDesktopAsset ? { name, digest: `sha256:${'0'.repeat(64)}` } :
-        [dmgAsset, windowsAsset].find((asset) => asset.name === name) ?? { name };
+      const asset = publishedAssets.find((item) => item.name === name);
+      assert.ok(asset, `unexpected upload: ${name}`);
+      assert.equal('sha256:' + createHash('sha256').update(readFileSync(input)).digest('hex'), asset.digest);
       (draft.assets ??= []).push(asset);
       return JSON.stringify(asset);
     }
@@ -196,7 +216,12 @@ test('channel advances only after dated publication and successful downloaded in
   const cliInstallation = calls.findIndex((call) => call[0] === 'sh' && call.includes('--without-web'));
   assert.ok(cliInstallation > installation && cliInstallation < channelPublication);
   const uploads = calls.filter((call) => call.slice(0, 4).join(' ') === `gh release upload ${channel}`);
-  assert.equal(path.basename(uploads.at(-1)![4]), 'nightly-version.txt');
+  assert.deepEqual(uploads.flatMap((args) => args.slice(4).filter((item) => item !== '--clobber').map((item) => path.basename(item))),
+    ['atlas-installer.sh', 'atlas-installer.ps1', 'nightly-version.txt']);
+  const datedNames = calls.filter((call) => call[3] === 'POST' && call[4].startsWith(uploadUrl))
+    .map((call) => new URL(call[4]).searchParams.get('name'));
+  assert.equal(datedNames.length, 21);
+  assert.deepEqual(datedNames.sort(), publishedAssets.map(({ name }) => name).sort());
   assert.ok(calls.some((call) => call[4] === `${uploadUrl}?name=${windowsInstaller}`));
   assert.ok(calls.some((call) => call.some((arg) => arg.includes(`/releases/download/${tag}/${windowsInstaller}`))));
   for (const call of calls.filter((call) => call[1] === 'release' && ['create', 'edit'].includes(call[2]))) {
@@ -233,12 +258,22 @@ test('retry preserves published dated assets while repairing the channel', async
   assert.ok(calls.some((call) => call[2] === 'upload' && call[3] === channel));
 });
 
-test('bad desktop upload digests keep the release in draft', async (t) => {
-  for (const [name, error] of [[macosDmg, /Uploaded DMG digest mismatch/], [windowsInstaller, /Uploaded Windows installer digest mismatch/]] as const) {
-    const bad = publisher(t, { badDesktopAsset: name });
-    await assert.rejects(bad.execute, error);
-    assert.ok(!bad.calls.some((call) => call.includes('draft=false')));
+test('remote asset verification gates dated publication and pointer advancement', async (t) => {
+  for (const remoteFault of ['extra', 'missing', 'duplicate', 'corrupt', 'after-publication'] as const) {
+    const bad = publisher(t, { remoteFault });
+    await assert.rejects(bad.execute, remoteFault === 'extra' ? /Unexpected assets.*unexpected.txt/ : /digest mismatch.*SHA256SUMS/);
+    assert.equal(bad.calls.some((call) => call.includes('draft=false')), remoteFault === 'after-publication');
+    assert.ok(!bad.calls.some((call) => call[3] === channel || call[0] === 'sh'));
   }
+});
+
+test('unexpected pre-existing nightly attachments block all draft and channel mutations', async (t) => {
+  const bad = publisher(t, { existing: [{
+    id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: true, prerelease: true,
+    assets: [dmgAsset, { id: 1000, name: 'obsolete.sig' }],
+  }] });
+  await assert.rejects(bad.execute, /Unexpected assets.*obsolete.sig/);
+  assert.ok(!bad.calls.some((call) => call.includes('--method') || call[3] === channel));
 });
 
 test('older retries preserve the channel and current retries repair its download page', async (t) => {
@@ -248,7 +283,7 @@ test('older retries preserve the channel and current retries repair its download
   assert.ok(!old.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
   const current = publisher(t, { existing: [
     { tag_name: channel, draft: false, assets: [{ name: 'nightly-version.txt' }] },
-    { tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
+    { id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
       assets: publishedAssets },
   ], channelTag: tag });
   await current.execute();
@@ -265,7 +300,7 @@ test('an existing dated release without the verified Windows installer cannot ad
     id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
     assets: publishedAssets.filter((asset) => asset !== windowsAsset),
   }] });
-  await assert.rejects(retry.execute, /Uploaded Windows installer digest mismatch/);
+  await assert.rejects(retry.execute, /digest mismatch.*windows-msvc-setup\.exe/);
   assert.ok(!retry.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
 });
 
@@ -294,8 +329,8 @@ test('bad report and missing notice on a published nightly block the channel', a
   await assert.rejects(invalid.execute, /archive differs/);
   assert.deepEqual(invalid.calls, []);
   const retry = publisher(t, { gap: true, existing: [{
-    tag_name: tag, target_commitish: sha, draft: false, body: 'Not a stable release',
-    assets: [{ name: coverageArchive, digest: `sha256:${archiveDigest}` }],
+    id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: false, prerelease: true, body: 'Not a stable release',
+    assets: publishedAssets,
   }] });
   await assert.rejects(retry.execute, /notes differ/);
   assert.ok(!retry.calls.some((call) => call[3] === channel));

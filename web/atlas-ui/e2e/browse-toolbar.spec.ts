@@ -148,7 +148,7 @@ test("selected filters keep trigger dimensions stable and restore focus when a c
   page,
 }) => {
   const encoded =
-    "3.NoIghiA0odIJZRAa3gOwCZVAYwE4CmYALgK6EgC6lca2CSqm9OAFmHmDsQXldTVABnJMU7xiIyAjQ4ANqQwEhAfTBoAnvS7ws0sBgwT4ANwL9KQA";
+    "4.NoIghiA0odIJZRAa3gOwCZVAYwE4CmYALgK6EgC6lca2CSqm9OAFmHmDsQXldTVABnJMU7xiIyAjQ4ANqQwEhAfTBoAnvS7ws0sBgwT4ANwL9KQA";
   await page.goto(`/search?search_profile=bge-base&q=cat&filter=${encoded}`);
   const filters = page.getByRole("group", { name: "Applied filters", exact: true });
   const creature = filters.getByRole("button", {
@@ -299,6 +299,7 @@ test("link picker keeps target filters while refreshing its connected corpus and
   const searchBox = await search.boundingBox();
   expect(top!.y + top!.height).toBeLessThanOrEqual(searchBox!.y);
   await picker.getByRole("button", { name: "Edit Kind filter", exact: true }).click();
+  await page.getByRole("button", { name: "Expand All spells" }).click();
   await page
     .getByRole("button", {
       name: "Kind: Spell, neutral; activate to include",

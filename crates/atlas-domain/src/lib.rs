@@ -2,6 +2,7 @@
 
 pub mod categories;
 mod name_lookup;
+pub mod root_kind;
 mod search_profile;
 pub use search_profile::SearchProfileId;
 pub mod query;

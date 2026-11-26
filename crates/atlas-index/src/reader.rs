@@ -478,7 +478,7 @@ pub fn read_product_source_record(
         })
         .transpose()
 }
-const SUMMARY_SELECT: &str = "SELECT r.key,p.label AS pack_label,r.document_kind,r.source_path,r.content_hash,r.name_state,r.name,r.source_type_state,r.source_type,r.record_kind_state,r.record_kind,r.rarity_state,r.rarity,r.traits_state,(SELECT json_group_array(value) FROM (SELECT value FROM trait_members t WHERE t.record_key=r.key AND t.owners_json='[]' ORDER BY value)) AS traits_json,CASE WHEN r.source_type='spell' THEN sp.rank_state ELSE r.level_state END AS level_state,CASE WHEN r.source_type='spell' THEN sp.rank ELSE r.level END AS level,CASE WHEN r.source_type='spell' THEN sp.ritual_state ELSE 'not_applicable' END AS ritual_state,sp.ritual,r.size_state,r.size,r.publication_title_state,r.publication_title,r.publication_remaster_state,r.publication_remaster FROM records r JOIN packs p ON p.pack_id=r.pack_id LEFT JOIN spell_projection sp ON sp.root_record_id=r.record_id";
+const SUMMARY_COLUMNS: &str = "r.key,p.label AS pack_label,r.document_kind,r.source_path,r.content_hash,r.name_state,r.name,r.source_type_state,r.source_type,r.record_kind_state,r.record_kind,r.rarity_state,r.rarity,r.traits_state,(SELECT json_group_array(value) FROM (SELECT value FROM trait_members t WHERE t.record_key=r.key AND t.owners_json='[]' ORDER BY value)) AS traits_json,CASE WHEN r.source_type='spell' THEN sp.rank_state ELSE r.level_state END AS level_state,CASE WHEN r.source_type='spell' THEN sp.rank ELSE r.level END AS level,CASE WHEN r.source_type='spell' THEN sp.ritual_state ELSE 'not_applicable' END AS ritual_state,sp.ritual,r.size_state,r.size,r.publication_title_state,r.publication_title,r.publication_remaster_state,r.publication_remaster FROM records r JOIN packs p ON p.pack_id=r.pack_id LEFT JOIN spell_projection sp ON sp.root_record_id=r.record_id";
 struct SummaryRow {
     key: String,
     pack_label: String,
@@ -489,6 +489,7 @@ struct SummaryRow {
     name: Option<String>,
     source_type_state: String,
     source_type: Option<String>,
+    root_kind: Option<String>,
     record_kind_state: String,
     record_kind: Option<String>,
     rarity_state: String,
@@ -540,6 +541,7 @@ impl SummaryRow {
             name: row.get("name")?,
             source_type_state: row.get("source_type_state")?,
             source_type: row.get("source_type")?,
+            root_kind: row.get("root_kind")?,
             record_kind_state: row.get("record_kind_state")?,
             record_kind: row.get("record_kind")?,
             rarity_state: row.get("rarity_state")?,
@@ -588,6 +590,7 @@ impl SummaryRow {
             document_kind: self.document_kind,
             name: fact(&self.name_state, self.name)?,
             source_type: fact(&self.source_type_state, self.source_type)?,
+            root_kind: self.root_kind,
             record_kind: fact(&self.record_kind_state, kind)?,
             level: fact(&self.level_state, self.level.map(|n| n.0))?,
             level_basis,
@@ -654,7 +657,8 @@ fn read_summaries(
         });
     }
     let sql = format!(
-        "{SUMMARY_SELECT} WHERE {} r.key IN ({})",
+        "SELECT {} AS root_kind, {SUMMARY_COLUMNS} WHERE {} r.key IN ({})",
+        crate::query::root_kind::CLASSIFICATION_SQL,
         if developer {
             ""
         } else {
