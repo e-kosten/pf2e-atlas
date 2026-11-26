@@ -129,7 +129,10 @@ case "$1" in
     [ -f "$6" ] || exit 0
     printf '100644 blob aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\t%s\0' "$6"
     ;;
-  cat-file) printf '1\n' ;;
+  cat-file)
+    [ "$2" = blob ] || exit 1
+    printf 'Sample release notes.\n'
+    ;;
   show-ref) exit 1 ;;
   ls-remote)
     if [ "$2" = "--exit-code" ] && [ "$3" = "--heads" ]; then

@@ -45,8 +45,7 @@ export function candidateNotes(tag, commit, file) {
   if (!match || entry.slice(match[0].length) !== file + '\0') {
     throw new Error(`Expected a tracked regular notes file at ${commit}:${file}`);
   }
-  const size = Number(git('cat-file', '-s', match[1]));
-  const content = execFileSync('git', ['cat-file', 'blob', match[1]], { encoding: 'utf8', maxBuffer: size });
+  const content = execFileSync('git', ['cat-file', 'blob', match[1]], { encoding: 'utf8', maxBuffer: Infinity });
   if (!content.trim()) throw new Error(`Empty release notes: ${file}`);
   return match[1];
 }
