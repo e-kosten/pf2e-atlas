@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from "react";
 import { useAtlasRouter } from "../../app/router";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { type HistoryState } from "@tanstack/react-router";
@@ -8,14 +9,29 @@ import {
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button } from "antd";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
-import { FilterControls } from "../../shared/filters/FilterPanel";
+import {
+  FilterControls,
+  type AdvancedFiltersHandle,
+} from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
-import { SearchSettings } from "../../shared/search/SearchSettings";
+import { appError } from "../../shared/feedback/errorMessages";
+import {
+  SimilarityFailure,
+  type ComparisonControl,
+} from "../../shared/search/SimilarityFailure";
+import { searchSeed, sameSimilaritySeed } from "../../shared/search/similaritySource";
+import {
+  SearchSettings,
+  type SearchSettingsHandle,
+} from "../../shared/search/SearchSettings";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
-import { hasExecutableSearch } from "../../shared/filters/searchState";
+import {
+  hasExecutableSearch,
+  INVALID_SIMILARITY_SOURCE,
+} from "../../shared/filters/searchState";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 
 export function SearchView({
@@ -23,7 +39,10 @@ export function SearchView({
   historyState = {},
 }: {
   workspace: SearchWorkspaceState;
-  historyState?: Pick<HistoryState, "atlasSearchReset" | "atlasFilterResetNotice">;
+  historyState?: Pick<
+    HistoryState,
+    "atlasSearchReset" | "atlasFilterResetNotice" | "atlasComparisonControl"
+  >;
 }) {
   const atlasRouter = useAtlasRouter();
   const selected = workspace.reading.detail?.record;
@@ -48,19 +67,85 @@ export function SearchView({
     (workspace.resultsLoading ||
       workspace.resultsRefreshing ||
       (hasCriteria && profile.loading));
-  const mode = workspace.resultPage?.mode;
-  const seedTitle =
+  const seed = useMemo(
+    () =>
+      workspace.search.filterError === INVALID_SIMILARITY_SOURCE
+        ? null
+        : searchSeed(workspace.search),
+    [workspace.search],
+  );
+  const settings = useRef<SearchSettingsHandle>(null);
+  const filters = useRef<AdvancedFiltersHandle>(null);
+  function openControl(control: ComparisonControl) {
+    if (control === "filters") filters.current?.open();
+    else settings.current?.open(control);
+  }
+  const request = historyState.atlasComparisonControl;
+  useEffect(() => {
+    if (!request || !sameSimilaritySeed(request.seed, seed)) return;
+    openControl(request.open);
+    void atlasRouter.navigate({
+      to: ".",
+      search: true,
+      replace: true,
+      resetScroll: false,
+      state: (state) => ({ ...state, atlasComparisonControl: undefined }),
+    });
+  }, [request, seed, atlasRouter]);
+  const page = workspace.resultPage;
+  const mode = page?.mode;
+  const acknowledged =
+    page &&
     mode?.kind === "similar_records" &&
-    mode.seed.record_key === workspace.search.similarSeed
-      ? mode.seed.title
+    sameSimilaritySeed(
+      mode.source?.seed ?? { kind: "record", record_key: mode.seed.record_key },
+      seed,
+    )
+      ? {
+          title: mode.source?.title ?? mode.seed.title,
+          parentTitle: mode.seed.title,
+        }
+      : undefined;
+  const rankingCode = appError(workspace.resultsError)?.code;
+  const source = workspace.similaritySource;
+  const identityCode = appError(source?.error)?.code;
+  const missing =
+    identityCode === "record_not_found" || rankingCode === "record_not_found";
+  const stale =
+    identityCode === "similarity_source_stale" ||
+    rankingCode === "similarity_source_stale";
+  const seedTitle =
+    !missing && !stale
+      ? (source?.data?.source.title ?? acknowledged?.title)
       : undefined;
   const similarTitle =
     seedTitle ??
-    (profile.keywordSearch && workspace.search.similarSeed
-      ? "Similar search unavailable"
-      : workspace.resultsFailed || workspace.errorMessage
-        ? "Record unavailable"
-        : "Loading record…");
+    (missing
+      ? "Record unavailable"
+      : stale
+        ? "Source changed"
+        : source?.error
+          ? "Couldn’t load source name"
+          : "Loading record…");
+  const resultsFailure = workspace.errorMessage && (
+    <ErrorNotice
+      error={workspace.resultsError ?? workspace.errorMessage}
+      title="Unable to update results"
+      description={workspace.errorMessage}
+      action={
+        <Button
+          loading={workspace.resultsRecovering}
+          onClick={() =>
+            workspace.resultsPaused
+              ? void workspace.refreshResults()
+              : workspace.refresh()
+          }
+        >
+          {workspace.resultsPaused ? "Refresh results" : "Retry"}
+        </Button>
+      }
+    />
+  );
   return (
     <ReferenceHelpHost generation={workspace.filterEditor?.artifact_generation}>
       <main className="search-workspace">
@@ -83,21 +168,23 @@ export function SearchView({
         )}
         <FilterControls
           key={reset.token ?? "search"}
+          ref={filters}
           filterState={workspace}
           searchInputError={workspace.searchInputError}
           layout="toolbar"
           collapseToolbar
           similarSearch={
-            workspace.search.similarSeed
+            seed
               ? {
                   title: similarTitle,
-                  seed: { kind: "record", record_key: workspace.search.similarSeed },
+                  seed,
                   onSearch: workspace.refresh,
                   onClear: () =>
                     workspace.setSearch({
                       ...workspace.search,
                       query: "",
                       similarSeed: null,
+                      similarLocation: undefined,
                       mode: "browse",
                     }),
                 }
@@ -105,14 +192,14 @@ export function SearchView({
           }
           searchRowEnd={
             <SearchSettings
+              ref={settings}
               search={workspace.search}
               seedTitle={seedTitle}
-              seed={
-                workspace.search.similarSeed
-                  ? { kind: "record", record_key: workspace.search.similarSeed }
-                  : null
+              seed={seed}
+              generation={
+                workspace.referenceGeneration ??
+                workspace.resultPage?.artifact_generation
               }
-              generation={workspace.resultPage?.artifact_generation}
               disabled={profile.keywordSearch && Boolean(workspace.search.similarSeed)}
               onApply={(next, model) =>
                 workspace.applySettings
@@ -129,24 +216,37 @@ export function SearchView({
             rerunSemantic={workspace.rerunSemantic}
           />
         </div>
-        {workspace.errorMessage && (
+        {seed && source?.error && !seedTitle && !missing && !stale && (
           <ErrorNotice
-            error={workspace.errorMessage}
-            title="Unable to update results"
-            description={workspace.errorMessage}
+            error={source.error}
+            title="Unable to load comparison source"
             action={
-              <Button
-                loading={workspace.resultsRecovering}
-                onClick={() =>
-                  workspace.resultsPaused
-                    ? void workspace.refreshResults()
-                    : workspace.refresh()
-                }
-              >
-                {workspace.resultsPaused ? "Refresh results" : "Retry"}
-              </Button>
+              <Button onClick={() => void source.refetch()}>Retry source lookup</Button>
             }
           />
+        )}
+        {seed && (workspace.resultsError || ((missing || stale) && source?.error)) ? (
+          <SimilarityFailure
+            seed={seed}
+            search={workspace.search}
+            error={
+              identityCode === "record_not_found" ||
+              identityCode === "similarity_source_stale"
+                ? source?.error
+                : workspace.resultsError
+            }
+            generation={
+              workspace.referenceGeneration ?? source?.data?.artifact_generation
+            }
+            parentTitle={source?.data?.source.parent_title ?? acknowledged?.parentTitle}
+            onRecover={(next, open) => {
+              if (open) openControl(open);
+              else workspace.setSearch(next);
+            }}
+            fallback={resultsFailure}
+          />
+        ) : (
+          resultsFailure
         )}
         <ReferenceBrowser
           clearBesideSelection

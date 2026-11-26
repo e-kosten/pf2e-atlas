@@ -44,9 +44,13 @@ For **Base Type**, search with a readable name such as “Chain Mail,” or use
 
 ## Find similar options
 
-Open **Similar** from an entry you like to find alternatives. In **Search settings**,
-choose **Sections to compare** to use all of that entry's content, its main sections
-(Core), or sections you select yourself (Custom).
+Open the **Psychic** page in the **Classes** journal and choose **Similar** to
+find entries with passages like that page. **Search similar records** opens
+the same comparison in Search. To focus on part of the page, open **Search
+settings**, then choose **Custom** under **Source sections**. The choices come from
+Psychic. Opening an individual creature ability or roll-table result works the
+same way. Following a highlight within a document keeps the document as the
+comparison source.
 
 The default **Passage matches** method looks for matches to individual passages.
 **Content average** compares the selected content as a whole. **Name and identity**
@@ -55,8 +59,12 @@ select that trait in the Search filters.
 
 **Sections to compare** chooses content from the entry you started with.
 **Search content** chooses which parts of the other entries can match it.
-All and Core both include the name and basic details; Custom lets you select
-individual parts.
+For a whole record, All and Core include its name and basic details. For an
+embedded entry, All uses its own sections and Custom lets you select among them.
+Advanced filters narrow which records can appear in the results.
+
+If the source has too much text for one comparison, choose fewer sections.
+If scoring the candidates exceeds the limit, narrow the results with filters.
 
 ## Sort results
 

@@ -33,7 +33,11 @@ import {
   assertKeywordSearch,
   assertSearchIdentity,
   assertSimilarityIdentity,
+  assertSimilarityResultSource,
+  matchesSimilaritySource,
 } from "../../shared/search/searchIdentity";
+import { useSimilaritySource } from "../../shared/search/similarityQueries";
+import { sameSimilaritySeed, searchSeed } from "../../shared/search/similaritySource";
 import type {
   FilterEditorView,
   SearchResultsPage,
@@ -140,6 +144,9 @@ export type SearchWorkspaceState = {
   errorMessage: string | null;
   searchInputError?: string;
   resultsFailed?: boolean;
+  resultsError?: unknown;
+  referenceGeneration?: string | null;
+  similaritySource?: ReturnType<typeof useSimilaritySource>;
   refresh: () => void;
   rerunSemantic?: () => void;
 };
@@ -273,17 +280,32 @@ export function useSearchWorkspace({
     requestProfile,
     textMode,
   );
+  const retrieval = useReferenceGeneration(
+    activeSearchExecutionToken,
+    enabled && initialRoute !== null && !failedTransport && !resetPending,
+  );
+  const visibleSource = searchSeed(search);
+  const activeSource = searchSeed(activeSearch);
+  const sameSource = sameSimilaritySeed(visibleSource, activeSource);
+  const similaritySource = useSimilaritySource(
+    retrieval.active && !retrieval.recovering && !search.filterError
+      ? visibleSource
+      : null,
+    retrieval.generation,
+  );
+  // A cold tab resolves its title before admitting its own expensive ranking job.
+  // A transient title failure still permits ranking to supply a verified descriptor.
+  const awaitingSource =
+    activeSource !== null && (!sameSource || similaritySource.isPending);
   const canRunResultSearch =
     enabled &&
     initialRoute !== null &&
     !failedTransport &&
     !resetPending &&
     activeSearchReady &&
-    hasExecutableSearch(activeSearch);
-  const retrieval = useReferenceGeneration(
-    activeSearchExecutionToken,
-    enabled && initialRoute !== null && !failedTransport && !resetPending,
-  );
+    hasExecutableSearch(activeSearch) &&
+    sameSource &&
+    !awaitingSource;
   const reading = useReferenceReading(
     initialRoute?.selectedRecordKey
       ? {
@@ -457,6 +479,7 @@ export function useSearchWorkspace({
     placeholderData: (previous, previousQuery) =>
       !heldPage &&
       previous &&
+      matchesSimilaritySource(previous.page, visibleSource) &&
       previousQuery?.queryKey[6] === projection.detail &&
       previousQuery.queryKey[5] === (requestProfile ?? null) &&
       (previous.page.mode.kind !== "text_search" ||
@@ -490,13 +513,16 @@ export function useSearchWorkspace({
           ? (activeSearch.searchContent ?? "all")
           : undefined,
       );
-      if (activeSearch.similarSeed)
+      const source = searchSeed(activeSearch);
+      if (source) {
+        assertSimilarityResultSource(page, source);
         assertSimilarityIdentity(
           page,
           activeSearch.similarity,
           activeSearch.sourceSections,
           activeSearch.searchContent ?? "all",
         );
+      }
       if (textMode === "lexical" && activeSearch.query.trim())
         assertKeywordSearch(page);
       if (
@@ -567,10 +593,15 @@ export function useSearchWorkspace({
     urlProfile,
     atlasRouter,
   ]);
-  const changed = [resultsQuery.error, reading.error].find(isArtifactGenerationChanged);
+  // A copied Custom search can pin an old inventory even in a current workspace.
+  // Keep that failure with the URL so it cannot pause an unrelated next search.
+  const changed = [
+    activeSearch.similarityGeneration ? null : resultsQuery.error,
+    reading.error,
+  ].find(isArtifactGenerationChanged);
   if (!pausedError && changed)
     setGenerationFailure({ epoch: retrieval.epoch, error: changed });
-  const resultsError = pausedError ?? resultsQuery.error;
+  const resultsError = sameSource ? (pausedError ?? resultsQuery.error) : null;
   const resultsPaused = isArtifactGenerationChanged(resultsError);
   function refreshResults() {
     return retrieval.refresh(async () => {
@@ -691,10 +722,11 @@ export function useSearchWorkspace({
     rerunSemantic = false,
   ) {
     searchVersion.current += 1;
-    if (!next.similarSeed && search.similarSeed)
+    if ((!next.similarSeed || next.query.trim()) && search.similarSeed)
       next = {
         ...next,
         similarity: undefined,
+        similarLocation: undefined,
         similarityGeneration: undefined,
         sourceSections: undefined,
       };
@@ -745,7 +777,7 @@ export function useSearchWorkspace({
           query: searchStateQueryString(next, selected),
           page: 1,
         }),
-        replace: search.similarSeed === next.similarSeed,
+        replace: sameSimilaritySeed(searchSeed(search), searchSeed(next)),
         resetScroll: false,
         state: true,
       });
@@ -814,7 +846,11 @@ export function useSearchWorkspace({
       !resetPending &&
       !activeSearchReady &&
       hasExecutableSearch(activeSearch));
-  const result = resultsQuery.data ?? heldPage;
+  const candidateResult = resultsQuery.data ?? heldPage;
+  const result =
+    candidateResult && matchesSimilaritySource(candidateResult.page, visibleSource)
+      ? candidateResult
+      : undefined;
   const evidencePending =
     visible &&
     (resultsQuery.data?.page.result_detail !== "evidence" ||
@@ -849,24 +885,29 @@ export function useSearchWorkspace({
       searchVersion.current += 1;
       const committed = normalizeSortTransition(search, next);
       const nextGeneration = committed.similarityGeneration;
-      await retrieval.applyGeneration(nextGeneration, () => {
-        dispatch({ type: "search.settingsApplied", search: committed });
-        void atlasRouter.navigate({
-          ...searchDestination({
-            ...currentSearchLocation(atlasRouter),
-            selectedRecordKey,
-            query: searchStateQueryString(committed, profile),
-            selection: reading.detail
-              ? readingNavigationForUrl(reading.detail.selected, reading.request)
-              : (reading.request?.match ?? reading.request?.navigation),
-            landing: reading.landing ?? reading.request?.landing,
-            page: 1,
-          }),
-          replace: true,
-          resetScroll: false,
-          state: true,
-        });
-      });
+      const recoveringCustom = resultsPaused && Boolean(search.similarityGeneration);
+      await retrieval.applyGeneration(
+        nextGeneration,
+        () => {
+          dispatch({ type: "search.settingsApplied", search: committed });
+          void atlasRouter.navigate({
+            ...searchDestination({
+              ...currentSearchLocation(atlasRouter),
+              selectedRecordKey,
+              query: searchStateQueryString(committed, profile),
+              selection: reading.detail
+                ? readingNavigationForUrl(reading.detail.selected, reading.request)
+                : (reading.request?.match ?? reading.request?.navigation),
+              landing: reading.landing ?? reading.request?.landing,
+              page: 1,
+            }),
+            replace: true,
+            resetScroll: false,
+            state: true,
+          });
+        },
+        recoveringCustom,
+      );
     },
     recoverFilterUrl: (restored) => {
       dispatch({ type: "url.restored", search: restored, selectedRecordKey: null });
@@ -908,7 +949,7 @@ export function useSearchWorkspace({
       enabled &&
       searchReady &&
       hasExecutableSearch(search) &&
-      ((resultsQuery.isLoading && !heldPage) || searchDebouncing),
+      ((resultsQuery.isLoading && !heldPage) || awaitingSource || searchDebouncing),
     resultsRefreshing,
     resultsPaused,
     resultsRecovering: retrieval.recovering,
@@ -916,7 +957,10 @@ export function useSearchWorkspace({
     filterDiscoveryLoading: filterDiscovery.loading,
     errorMessage,
     searchInputError,
+    similaritySource,
     resultsFailed: !!resultsError,
+    resultsError,
+    referenceGeneration: retrieval.generation,
     refresh: () => {
       if (!enabled) {
         return;

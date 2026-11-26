@@ -41,6 +41,7 @@ import {
   searchStateQueryString,
   effectiveResultSort,
 } from "../../shared/filters/searchState";
+import { SearchView } from "./SearchView";
 import { KIND_PREFERENCE_KEY } from "./workspaceState";
 import { AtlasApiError } from "../../api/atlasApi";
 import { AtlasConnectionError } from "../../api/availability";
@@ -61,6 +62,7 @@ const apiMocks = vi.hoisted(() => ({
   searchPage: vi.fn(),
   getRelationshipOccurrences: vi.fn(),
   getSimilarityParts: vi.fn(),
+  getSimilaritySource: vi.fn(),
 }));
 const recordSimilarity: SimilarityOptions = {
   method: "passages",
@@ -79,12 +81,19 @@ vi.mock("../../api/atlasApi", async (original) => ({
   searchPage: apiMocks.searchPage,
   getRelationshipOccurrences: apiMocks.getRelationshipOccurrences,
   getSimilarityParts: apiMocks.getSimilarityParts,
+  getSimilaritySource: apiMocks.getSimilaritySource,
 }));
 
 describe("useSearchWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    apiMocks.getSimilaritySource.mockImplementation(
+      async ({ seed, expected_artifact_generation }) => ({
+        source: { seed, title: seed.record_key },
+        artifact_generation: expected_artifact_generation ?? "generation-a",
+      }),
+    );
     apiMocks.getReadiness.mockResolvedValue({
       status: "ready",
       message: "Ready",
@@ -450,7 +459,13 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
       ...searchResultsPage(["items:witness"], { pageNumber: request.page.number }),
       ...(request.criteria.kind === "similar_records" && request.criteria.similarity
-        ? { similarity: similarityConfigurationFixture(request.criteria.similarity) }
+        ? {
+            mode: {
+              kind: "similar_records",
+              seed: summaryFixture(request.criteria.seed_record_key),
+            },
+            similarity: similarityConfigurationFixture(request.criteria.similarity),
+          }
         : {}),
       sort:
         request.sort ??
@@ -560,6 +575,59 @@ describe("useSearchWorkspace", () => {
     expect(
       apiMocks.searchPage.mock.lastCall?.[0].expected_artifact_generation,
     ).toBeNull();
+  });
+
+  it("resolves a cold document before ranking and removes sibling rows while the next document is pending", async () => {
+    const record_key = "journals:classes";
+    const address = (id: string) => ({
+      embedded_path: [{ collection: "/pages", identity: { Stable: id } }],
+    });
+    const url = (id: string) =>
+      searchStateQueryString({
+        ...DEFAULT_SEARCH_STATE,
+        similarSeed: record_key,
+        similarLocation: address(id),
+      });
+    history.replaceState(null, "", "/search" + url("psychic"));
+    const firstLookup =
+      deferred<import("../../generated/atlas").SimilaritySourceView>();
+    apiMocks.getSimilaritySource.mockReturnValueOnce(firstLookup.promise);
+    const secondRank = deferred<SearchResultsPage>();
+    const seed = { kind: "record" as const, record_key, ...address("psychic") };
+    const page: SearchResultsPage = {
+      ...searchResultsPage(["spells:first"], { similarity: recordSimilarity }),
+      mode: {
+        kind: "similar_records",
+        seed: summaryFixture(record_key, "Classes"),
+        source: { seed, title: "Psychic" },
+      },
+    };
+    apiMocks.searchPage.mockResolvedValueOnce(page).mockReturnValue(secondRank.promise);
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(apiMocks.getSimilaritySource).toHaveBeenCalled());
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+    await act(async () =>
+      firstLookup.resolve({
+        source: { seed, title: "Psychic" },
+        artifact_generation: "generation-a",
+      }),
+    );
+    await waitFor(() =>
+      expect(result.current.resultPage?.rows[0].record.record_key).toBe("spells:first"),
+    );
+    await act(async () =>
+      atlasRouter.navigate(searchDestination({ query: url("wizard") })),
+    );
+    await waitFor(() =>
+      expect(apiMocks.searchPage.mock.lastCall?.[0].criteria.embedded_path).toEqual(
+        address("wizard").embedded_path,
+      ),
+    );
+    expect(result.current.resultPage).toBeUndefined();
+    expect(result.current.resultsError).toBeNull();
   });
 
   it("retains loaded Similar rows and the seed title as updating while a new order is pending", async () => {
@@ -895,6 +963,132 @@ describe("useSearchWorkspace", () => {
     },
   );
 
+  it("reselects sections from a stale copied link and keeps the original request until Apply", async () => {
+    const embedded_path = [{ collection: "/pages", identity: { Stable: "psychic" } }];
+    const seed = {
+      kind: "record" as const,
+      record_key: "journals:classes",
+      embedded_path,
+    };
+    const source = { seed, title: "Psychic", parent_title: "Classes" };
+    const filter = { kind: "in" as const, field: "kind", values: ["spell"] };
+    const sort: ResultSort = {
+      kind: "attributes",
+      rules: [{ field: "name", direction: "asc" }],
+    };
+    const oldState = {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: seed.record_key,
+      similarLocation: { embedded_path },
+      filter,
+      sort,
+      sourceSections: "custom" as const,
+      similarity: {
+        method: "passages" as const,
+        decay: 0.5,
+        candidate_parts: "any" as const,
+        parts: ["retired-section"],
+      },
+      similarityGeneration: "generation-a",
+    };
+    history.replaceState(null, "", "/search" + searchStateQueryString(oldState));
+    apiMocks.getSimilaritySource.mockResolvedValue({
+      source,
+      artifact_generation: "generation-b",
+    });
+    const inventory = similarityPartsFixture();
+    apiMocks.getSimilarityParts.mockResolvedValue({
+      ...inventory,
+      core: null,
+      seed,
+      source,
+      parts: inventory.parts
+        .filter((part) => part.kind === "section")
+        .map((part) => ({ ...part, owners: embedded_path, owner_label: "Psychic" })),
+    });
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => {
+      if (request.expected_artifact_generation === "generation-a")
+        throw new AtlasApiError(409, "Collection changed", {
+          code: "artifact_generation_changed",
+          message: "Collection changed",
+          recoverable_action: "refresh_results",
+        });
+      if (request.criteria.kind !== "similar_records" || !request.criteria.similarity)
+        throw new Error("Expected Similar");
+      return {
+        ...searchResultsPage([], {
+          generation: "generation-b",
+          similarity: request.criteria.similarity,
+        }),
+        sort,
+        mode: {
+          kind: "similar_records",
+          source,
+          seed: summaryFixture(seed.record_key),
+        },
+      };
+    });
+    function Workspace() {
+      const workspace = useSearchWorkspace({ searchProfile: "bge-base" });
+      return <SearchView workspace={workspace} />;
+    }
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <App>
+          <SearchProfileProvider>
+            <Workspace />
+          </SearchProfileProvider>
+        </App>
+      </ConfigProvider>,
+      { wrapper: queryClientWrapper() },
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Choose sections" }));
+    const first = await screen.findByRole("checkbox", { name: "Description" });
+    expect(first).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(apiMocks.getSimilarityParts.mock.calls[0][0]).toMatchObject({
+      seed,
+      expected_artifact_generation: null,
+    });
+    fireEvent.click(first);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(new URLSearchParams(location.search).get("similarity_generation")).toBe(
+      "generation-a",
+    );
+    expect(
+      apiMocks.searchPage.mock.calls.every(
+        ([r]) => r.expected_artifact_generation === "generation-a",
+      ),
+    ).toBe(true);
+    fireEvent.click(await screen.findByRole("button", { name: "Choose sections" }));
+    const next = await screen.findByRole("checkbox", { name: "Description" });
+    expect(next).not.toBeChecked();
+    fireEvent.click(next);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() =>
+      expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+        expected_artifact_generation: "generation-b",
+        sort,
+        criteria: {
+          embedded_path,
+          seed_record_key: seed.record_key,
+          filter,
+          similarity: { parts: ["description-b"] },
+        },
+      }),
+    );
+    await screen.findByText("No matching records.");
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(location.search)),
+    ).toMatchObject({
+      similarityGeneration: "generation-b",
+      similarity: { parts: ["description-b"] },
+    });
+  });
+
   it("applies reloaded B parts without a separate refresh and retires late A reads", async () => {
     history.replaceState(null, "", "/search?similar=hazards%3Abrown-mold");
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -909,7 +1103,13 @@ describe("useSearchWorkspace", () => {
           generation: request.expected_artifact_generation ?? "generation-a",
         }),
         ...(similarity
-          ? { similarity: similarityConfigurationFixture(similarity) }
+          ? {
+              mode: {
+                kind: "similar_records",
+                seed: summaryFixture("hazards:brown-mold"),
+              },
+              similarity: similarityConfigurationFixture(similarity),
+            }
           : {}),
       };
       return apiMocks.searchPage.mock.calls.length === 2
@@ -1495,9 +1695,10 @@ describe("useSearchWorkspace", () => {
     );
     expect(result.current.resultPage).toBeUndefined();
     rerender({ usable: false });
-    apiMocks.searchPage.mockResolvedValue(
-      searchResultsPage(["items:similar"], { similarity: recordSimilarity }),
-    );
+    apiMocks.searchPage.mockResolvedValue({
+      ...searchResultsPage(["items:similar"], { similarity: recordSimilarity }),
+      mode: { kind: "similar_records", seed: summaryFixture("items:seed") },
+    });
     await act(async () => {
       await atlasRouter.navigate(
         searchDestination({
@@ -1530,6 +1731,7 @@ describe("useSearchWorkspace", () => {
     });
     apiMocks.searchPage.mockReturnValueOnce(first.promise).mockResolvedValue({
       ...searchResultsPage([], { generation: "generation-b" }),
+      mode: { kind: "similar_records", seed: summaryFixture("items:second") },
       similarity,
     });
     const { result } = renderHook(
@@ -1557,6 +1759,7 @@ describe("useSearchWorkspace", () => {
     await act(async () =>
       first.resolve({
         ...searchResultsPage([], { generation: "generation-a" }),
+        mode: { kind: "similar_records", seed: summaryFixture("items:first") },
         similarity,
       }),
     );

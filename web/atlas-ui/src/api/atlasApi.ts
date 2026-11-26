@@ -38,6 +38,8 @@ import type {
   SearchResultsPage,
   SimilarityPartsRequest,
   SimilarityPartsView,
+  SimilaritySourceRequest,
+  SimilaritySourceView,
   SavedListDetailView,
   SavedListIndexView,
   SavedListItemMutationView,
@@ -103,6 +105,13 @@ export async function searchPage(
   return checkSearchResults(
     await http.searchPage(checkRequest(request), { signal, intent: "read" }),
   );
+}
+
+export function getSimilaritySource(
+  request: SimilaritySourceRequest,
+  signal?: AbortSignal,
+): Promise<SimilaritySourceView> {
+  return http.similaritySource(checkRequest(request), { intent: "read", signal });
 }
 
 export async function getSimilarityParts(

@@ -117,9 +117,10 @@ export function useReferenceGeneration(token: string, active: boolean) {
   async function applyGeneration(
     generation: string | undefined,
     apply: () => void | Promise<void>,
+    recover = false,
   ) {
-    if (generation !== undefined && generation !== live.current.generation)
-      await replace(generation, apply);
+    if (recover || (generation !== undefined && generation !== live.current.generation))
+      await replace(generation ?? null, apply);
     else await apply();
   }
   const reset = useCallback(() => {

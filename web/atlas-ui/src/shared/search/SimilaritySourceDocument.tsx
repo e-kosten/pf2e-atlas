@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
-import { rootNavigation, useReferenceReading } from "../records/useReferenceReading";
+import { documentSeed, seedNavigation, sameSimilaritySeed } from "./similaritySource";
+import { useReferenceReading } from "../records/useReferenceReading";
 import { ReferenceReader } from "../records/ReferenceReader";
 import { ReferenceHelpHost } from "../records/ReferenceHelpHost";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
@@ -43,8 +44,8 @@ export function SimilaritySourceDocument({
   return (
     <ReferenceHelpHost generation={generation ?? undefined}>
       <RecordSourceDocument
-        key={JSON.stringify([seed.record_key, generation])}
-        recordKey={seed.record_key}
+        key={JSON.stringify([seed, generation])}
+        seed={seed}
         generation={generation}
         target={target}
         selection={selection}
@@ -56,22 +57,24 @@ export function SimilaritySourceDocument({
 }
 
 function RecordSourceDocument({
-  recordKey,
+  seed,
   generation,
   target,
   active,
   selection = null,
   onReloadSections,
 }: {
-  recordKey: string;
+  seed: SimilaritySeed;
   generation: string | null;
   target: SimilaritySourceTarget;
   active: boolean;
   selection?: SourceSectionSelection | null;
   onReloadSections: () => void;
 }) {
+  const recordKey = seed.record_key;
+  const document = useMemo(() => seedNavigation(seed), [seed]);
   const reading = useReferenceReading(
-    { navigation: rootNavigation(recordKey) },
+    { navigation: document },
     true,
     0,
     generation,
@@ -82,9 +85,9 @@ function RecordSourceDocument({
   useLayoutEffect(() => {
     if (target)
       inspect({
-        navigation: target.part.navigation ?? rootNavigation(recordKey),
+        navigation: target.part.navigation ?? document,
       });
-  }, [target, recordKey, inspect]);
+  }, [target, document, inspect]);
   const focusedVisit = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (
@@ -93,12 +96,9 @@ function RecordSourceDocument({
       reading.loading ||
       !reading.detail ||
       JSON.stringify(reading.request?.navigation) !==
-        JSON.stringify(target.part.navigation ?? rootNavigation(recordKey)) ||
+        JSON.stringify(target.part.navigation ?? document) ||
       recordReadingIdentity(recordKey, reading.detail.selected) !==
-        recordReadingIdentity(
-          recordKey,
-          target.part.navigation ?? rootNavigation(recordKey),
-        ) ||
+        recordReadingIdentity(recordKey, target.part.navigation ?? document) ||
       focusedVisit.current === target.visit
     )
       return;
@@ -114,25 +114,31 @@ function RecordSourceDocument({
         heading.focus({ preventScroll: true });
       }
     }
-  }, [target, active, reading.loading, reading.detail, reading.request, recordKey]);
-  const comparisonActive =
+  }, [
+    target,
+    active,
+    reading.loading,
+    reading.detail,
+    reading.request,
+    document,
+    recordKey,
+  ]);
+  const readingSource =
     reading.detail?.artifact_generation === generation &&
     reading.detail.selected.record_key === recordKey &&
+    (!seed.embedded_path?.length ||
+      sameSimilaritySeed(documentSeed(reading.detail.selected), seed));
+  const comparisonActive =
+    readingSource &&
     selection?.inventory.artifact_generation === generation &&
-    selection.inventory.seed.kind === "record" &&
-    selection.inventory.seed.record_key === recordKey;
+    sameSimilaritySeed(selection.inventory.seed, seed);
   return (
     <div
       ref={root}
       className={`search-settings__record-source${comparisonActive ? " comparison-source" : ""}`}
     >
       <SourceSectionSelectionContext
-        value={
-          reading.detail?.artifact_generation === generation &&
-          reading.detail.selected.record_key === recordKey
-            ? { seed: { kind: "record", record_key: recordKey }, generation, selection }
-            : null
-        }
+        value={readingSource ? { seed, generation, selection } : null}
       >
         <ReferenceReader
           reading={
@@ -144,6 +150,7 @@ function RecordSourceDocument({
             isArtifactGenerationChanged(reading.error) ? "Reload sections" : "Retry"
           }
           selectedRecordKey={recordKey}
+          selectedDocument={document}
           active={active}
           label="Source document"
           returnToSelectionLabel="Whole document"
@@ -151,7 +158,7 @@ function RecordSourceDocument({
           status={
             reading.detail && (
               <span className="search-settings__source-context">
-                {reading.detail.record.title}
+                {reading.detail.presentation.identity.title}
               </span>
             )
           }

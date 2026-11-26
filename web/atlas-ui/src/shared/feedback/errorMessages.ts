@@ -6,6 +6,16 @@ import { AtlasConnectionError, isAvailabilityFailure } from "../../api/availabil
 // Keep expected product failures specific without exposing response bodies, IDs,
 // paths, SQL, decoder messages, or native fetch errors.
 const explanations: Partial<Record<AppErrorCode, string>> = {
+  similarity_source_limit:
+    "This source has too much content to compare at once. Choose fewer source sections.",
+  similarity_candidate_limit:
+    "Too many results qualify for this comparison. Add filters to narrow the results.",
+  similarity_no_content: "This document has no indexed sections to compare.",
+  similarity_method_unavailable: "This comparison setting requires a whole record.",
+  similarity_sections_stale:
+    "Some selected sections have changed. Choose sections again.",
+  similarity_source_stale:
+    "This address belongs to an earlier version of the collection. Open the document again.",
   record_not_found: "This record is no longer in the reference collection.",
   record_resolution_miss: "Choose another record.",
   record_resolution_ambiguous:
@@ -54,7 +64,7 @@ const explanations: Partial<Record<AppErrorCode, string>> = {
     "Atlas took too long to respond. Check the current values before trying again.",
 };
 
-function appError(error: unknown): AppError | undefined {
+export function appError(error: unknown): AppError | undefined {
   if (!error || typeof error !== "object") return undefined;
   const value = "appError" in error ? error.appError : error;
   return value &&

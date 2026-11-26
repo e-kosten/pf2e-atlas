@@ -2,7 +2,16 @@ import { useAtlasRouter } from "../../app/router";
 import { referenceExternalUrl } from "./recordReferenceDestination";
 import { useReferenceRecordNavigation as useContextualReference } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
-import { similarityPartsQueryOptions } from "../search/similarityQueries";
+import { SimilarityFailure } from "../search/SimilarityFailure";
+import {
+  documentSeed,
+  seedCriteria,
+  seedSearchFields,
+} from "../search/similaritySource";
+import {
+  similarityPartsQueryOptions,
+  useRememberSimilaritySource,
+} from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
@@ -26,6 +35,7 @@ import { SearchProfileNotice } from "../search/SearchProfileNotice";
 import { searchExecution } from "../search/searchExecution";
 import {
   assertSearchIdentity,
+  assertSimilarityResultSource,
   assertSimilarityIdentity,
 } from "../search/searchIdentity";
 import { currentSearchLocation } from "../../app/searchLocation";
@@ -680,17 +690,20 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
 
 function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreProps) {
   const atlasRouter = useAtlasRouter();
-  const seed = detail.record.record_key;
+  const seed = documentSeed(detail.selected);
+  useRememberSimilaritySource(seed, {
+    title: detail.presentation.identity.title,
+    generation: detail.artifact_generation,
+    parentTitle: detail.record.title,
+  });
   const profile = useSearchProfile();
   const similarity = similarityFromPreferences(profile.preferences.recordSimilarity);
   const needsFamily =
-    similarity.method !== "baseline" && hasCoreSourcePreference(profile.preferences);
+    !seed.embedded_path?.length &&
+    similarity.method !== "baseline" &&
+    hasCoreSourcePreference(profile.preferences);
   const seedInventory = useQuery({
-    ...similarityPartsQueryOptions(
-      { kind: "record", record_key: seed },
-      profile.id,
-      detail.artifact_generation,
-    ),
+    ...similarityPartsQueryOptions(seed, profile.id, detail.artifact_generation),
     enabled: needsFamily && profile.id !== null && profile.storedVectors,
   });
   const inventoryGenerationChanged = isArtifactGenerationChanged(seedInventory.error);
@@ -698,7 +711,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
   const sourceSections =
     similarity.method === "baseline"
       ? undefined
-      : inventory
+      : inventory?.core
         ? preferredSourceSections(profile.preferences, inventory.core.family)
         : "all";
   const searchLocation = currentSearchLocation(atlasRouter);
@@ -735,7 +748,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
           search_profile: profile.id ?? undefined,
           criteria: {
             kind: "similar_records",
-            seed_record_key: seed,
+            ...seedCriteria(seed),
             filter: null,
             similarity,
             source_sections: sourceSections,
@@ -749,8 +762,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       assertSearchIdentity(page, profile.id, detail.artifact_generation, {
         kind: "relevance",
       });
-      if (page.mode.kind !== "similar_records" || page.mode.seed.record_key !== seed)
-        throw new Error("The similar records do not match this source.");
+      assertSimilarityResultSource(page, seed);
       assertSimilarityIdentity(page, similarity, sourceSections, searchContent);
       return page;
     },
@@ -759,22 +771,22 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
     inventoryGenerationChanged || isArtifactGenerationChanged(similar.error);
   const data = changedGeneration ? undefined : similar.data;
   const previewError = seedInventory.error ?? similar.error;
-  const route = searchDestination({
-    selectedRecordKey: null,
-    query: searchStateQueryString(
-      {
-        ...(currentSearch ?? DEFAULT_SEARCH_STATE),
-        query: "",
-        mode: "similar_records",
-        similarSeed: seed,
-        similarity,
-        searchContent,
-        sourceSections,
-        similarityGeneration: undefined,
-      },
-      profile.id ?? profile.pendingUrlProfile,
-    ),
-  });
+  const comparisonSearch = {
+    ...(currentSearch ?? DEFAULT_SEARCH_STATE),
+    query: "",
+    mode: "similar_records" as const,
+    ...seedSearchFields(seed),
+    similarity,
+    searchContent,
+    sourceSections,
+    similarityGeneration: undefined,
+  };
+  const destination = (state: typeof DEFAULT_SEARCH_STATE) =>
+    searchDestination({
+      selectedRecordKey: null,
+      query: searchStateQueryString(state, profile.id ?? profile.pendingUrlProfile),
+    });
+  const route = destination(comparisonSearch);
   return (
     <div className="record-explore__task">
       <ExploreSearchAction
@@ -786,11 +798,6 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       >
         Search similar records
       </ExploreSearchAction>
-      {!!detail.selected.embedded_path.length && (
-        <Typography.Paragraph>
-          Similar to parent record: {detail.record.title}
-        </Typography.Paragraph>
-      )}
       {!profile.storedVectors && <SearchProfileNotice similar />}
       {similar.isFetching && (
         <div className={similar.data ? "detail-refresh" : undefined}>
@@ -798,18 +805,33 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
         </div>
       )}
       {previewError && (
-        <QueryError
-          title={
-            seedInventory.error
-              ? "Couldn’t load comparison sections"
-              : "Couldn’t load similar records"
-          }
+        <SimilarityFailure
+          seed={seed}
+          search={comparisonSearch}
           error={previewError}
-          retry={() =>
-            void (seedInventory.error ? seedInventory.refetch() : similar.refetch())
+          generation={detail.artifact_generation}
+          parentTitle={detail.record.title}
+          onRecover={(state, open) => {
+            void atlasRouter.navigate({
+              ...destination(state),
+              state: open ? { atlasComparisonControl: { seed, open } } : {},
+            });
+          }}
+          fallback={
+            <QueryError
+              title={
+                seedInventory.error
+                  ? "Couldn’t load comparison sections"
+                  : "Couldn’t load similar records"
+              }
+              error={previewError}
+              retry={() =>
+                void (seedInventory.error ? seedInventory.refetch() : similar.refetch())
+              }
+              onReload={onReload}
+              reloadLabel={reloadLabel}
+            />
           }
-          onReload={onReload}
-          reloadLabel={reloadLabel}
         />
       )}
       {data &&

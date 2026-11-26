@@ -754,7 +754,7 @@ it("remembers an authoritative All preset for the backend's family with sections
   api.parts.mockResolvedValue({
     ...coreInventory(),
     seed: npcSeed,
-    core: { ...coreInventory().core, family: "npc" },
+    core: { ...coreInventory().core!, family: "npc" },
   } satisfies SimilarityPartsView);
   const { apply, remember } = setup(
     {
@@ -1057,4 +1057,99 @@ it("offers only content, model, ranking and match-display settings for a text se
       .getAllByRole("combobox")
       .map((control) => control.getAttribute("aria-label")),
   ).toEqual(["Search content", "Search model", "Search ranking", "Match display"]);
+});
+
+const psychicSeed: SimilaritySeed = {
+  kind: "record",
+  record_key: "journals:classes",
+  embedded_path: [{ collection: "/pages", identity: { Stable: "psychic" } }],
+};
+function psychicInventory() {
+  return {
+    ...inventory,
+    seed: psychicSeed,
+    source: { seed: psychicSeed, title: "Psychic", parent_title: "Classes" },
+    core: null,
+    parts: inventory.parts.map((part, i) => ({
+      ...part,
+      label: i ? "Psychic Spellcasting" : "Roleplaying the Psychic",
+      owner_label: "Psychic",
+      owners: psychicSeed.embedded_path!,
+      navigation: {
+        ...part.navigation,
+        record_key: psychicSeed.record_key,
+        embedded_path: psychicSeed.embedded_path!,
+      },
+    })),
+  } satisfies SimilarityPartsView;
+}
+it("requests and edits only the opened page's sections without writing a root Core preference", async () => {
+  api.parts.mockResolvedValue(psychicInventory());
+  const preferences = {
+    ...DEFAULT_SEARCH_PREFERENCES,
+    sourceSectionsByFamily: { npc: "core" as const },
+  };
+  const { apply, remember } = setup(
+    {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: psychicSeed.record_key,
+      similarLocation: { embedded_path: psychicSeed.embedded_path! },
+      similarity: options,
+    },
+    psychicSeed,
+    preferences,
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source sections" }));
+  const optionsList = screen.getByRole("listbox");
+  expect(
+    within(optionsList).queryByRole("option", { name: "Core sections" }),
+  ).toBeNull();
+  fireEvent.click(screen.getByText("Custom", { exact: true }));
+  const checks = await screen.findAllByRole("checkbox");
+  expect(checks).toHaveLength(4); // Select all, the Psychic group, and the two sections.
+  fireEvent.click(screen.getByRole("checkbox", { name: "Roleplaying the Psychic" }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(api.parts).toHaveBeenCalledWith(
+    expect.objectContaining({ seed: psychicSeed }),
+    expect.any(AbortSignal),
+  );
+  expect(apply).toHaveBeenCalledWith(
+    expect.objectContaining({
+      similarLocation: { embedded_path: psychicSeed.embedded_path },
+      similarity: expect.objectContaining({ parts: ["part-1"] }),
+    }),
+    "bge-base",
+  );
+  expect(remember).toHaveBeenCalledWith(
+    expect.objectContaining({
+      sourceSectionsByFamily: preferences.sourceSectionsByFamily,
+    }),
+  );
+});
+
+it("rejects a sibling inventory even when its record, model and generation match", async () => {
+  const other = {
+    ...psychicSeed,
+    embedded_path: [{ collection: "/pages", identity: { Stable: "other" } }],
+  };
+  api.parts.mockResolvedValue({
+    ...psychicInventory(),
+    seed: other,
+    source: { seed: other, title: "Other page" },
+  });
+  setup(
+    {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: psychicSeed.record_key,
+      similarity: options,
+    },
+    psychicSeed,
+  );
+  chooseSections();
+  expect(await screen.findByText("Unable to load comparison sections")).toBeVisible();
+  expect(screen.queryByRole("checkbox", { name: "Psychic Spellcasting" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
 });

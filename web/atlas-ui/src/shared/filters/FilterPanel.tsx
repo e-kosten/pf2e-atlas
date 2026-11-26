@@ -26,6 +26,8 @@ import {
 } from "@ant-design/icons";
 import {
   createContext,
+  useImperativeHandle,
+  type Ref,
   useContext,
   useId,
   type CSSProperties,
@@ -138,7 +140,10 @@ export function FilterPanel({
 }) {
   return <FilterControls filterState={workspace}>{children}</FilterControls>;
 }
+export type AdvancedFiltersHandle = { open: () => void };
+
 export function FilterControls({
+  ref,
   filterState: workspace,
   includeSearch = true,
   includeLinks = true,
@@ -153,6 +158,7 @@ export function FilterControls({
   children,
   pane,
 }: {
+  ref?: Ref<AdvancedFiltersHandle>;
   filterState: FilterPanelState;
   includeSearch?: boolean;
   includeLinks?: boolean;
@@ -173,6 +179,12 @@ export function FilterControls({
   const [criteriaOpen, setCriteriaOpen] = useState(false);
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      setCriteriaOpen(true);
+      setAdvanced(true);
+    },
+  }));
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -208,12 +220,6 @@ export function FilterControls({
   }, [generation, search.filter]);
   function linkTitle(leaf: LinkLeaf): string {
     const draft = draftLabels[leaf.clause_id ?? ""];
-    if (
-      draft &&
-      (!generation || draft.generation === generation) &&
-      sameRelationship(draft.relationship, leaf.relationship)
-    )
-      return draft.title;
     const presentation = editor?.relationship_clauses.find(
       (entry) =>
         entry.clause_id === leaf.clause_id &&
@@ -231,7 +237,15 @@ export function FilterControls({
               ? ` · ${presentation.record?.title ?? presentation.title}`
               : "")
         : "Record unavailable";
-    return workspace.filterDiscoveryError ? "Record unavailable" : "Loading record…";
+    if (
+      draft &&
+      generation === draft.generation &&
+      sameRelationship(draft.relationship, leaf.relationship)
+    )
+      return draft.title;
+    return workspace.filterDiscoveryError
+      ? "Couldn’t load record name"
+      : "Loading record…";
   }
   function openPicker(
     initial: QueryRelationship | undefined,
@@ -1333,7 +1347,7 @@ function FilterRule(props: RuleProps) {
         )}
         {relationship && (
           <Typography.Text type="secondary" className="filter-link-summary">
-            {direction} {title ?? "Record unavailable"} ·{" "}
+            {direction} {title ?? "Loading record…"} ·{" "}
             {relationship.include_contents ? "Whole entry" : "Main entry only"}
           </Typography.Text>
         )}

@@ -1,4 +1,4 @@
-import { readUrl } from "./readingUrl";
+import { readUrl, recordUrl } from "./readingUrl";
 import { test, expect } from "@playwright/test";
 import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
 import type { RelatedRecordsView, SearchResultsPage } from "../src/generated/atlas";
@@ -960,4 +960,145 @@ test("missing keys and malformed selected routes report errors", async ({ page }
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await page.goto("/records/spells-srd%3A0000000000000000?at=99.invalid");
   await expect(page.getByRole("alert")).toContainText("This link couldn’t be restored");
+});
+
+for (const width of [1440, 390]) {
+  test(`Psychic Similar follows the document from preview to copied Search and Custom sections at ${width}px`, async ({
+    page,
+    context,
+  }, info) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    const record_key = "journals:kzxu2dI7tFxv6Ix6";
+    const embedded_path = [
+      { collection: "/pages", identity: { Stable: "KVoEUJBAbAFUJTqw" } },
+    ];
+    await page.goto(
+      recordUrl({
+        record_key,
+        embedded_path,
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      }),
+    );
+    await expect(
+      page.getByRole("heading", { name: "Psychic", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Explore related records", exact: true })
+      .click();
+    const explore = page.getByRole("region", { name: "Explore record" });
+    const previewRequest = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/search/page") &&
+        response.request().postDataJSON()?.criteria?.kind === "similar_records",
+    );
+    await explore.getByRole("tab", { name: "Similar", exact: true }).click();
+    const response = await previewRequest;
+    expect(response.ok()).toBeTruthy();
+    const preview: SearchResultsPage = await response.json();
+    expect(preview.mode).toMatchObject({
+      kind: "similar_records",
+      source: { title: "Psychic", seed: { record_key, embedded_path } },
+    });
+    await expect(explore.locator(".reference-result")).toHaveCount(5);
+    await info.attach("Psychic preview", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    const handoff = explore.getByRole("link", { name: "Search similar records" });
+    const copied = await handoff.getAttribute("href");
+    await handoff.click();
+    await expect(
+      page
+        .locator(".reference-search-entry--similar")
+        .getByRole("link", { name: "Psychic", exact: true }),
+    ).toBeVisible();
+    const restored = await context.newPage();
+    await restored.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    await restored.goto(new URL(copied!, page.url()).href);
+    await expect(
+      restored
+        .locator(".reference-search-entry--similar")
+        .getByRole("link", { name: "Psychic", exact: true }),
+    ).toBeVisible();
+    await restored
+      .getByRole("button", { name: "Search settings", exact: true })
+      .click();
+    await restored
+      .getByRole("button", { name: "Choose sections", exact: true })
+      .click();
+    const dialog = restored.getByRole("dialog", { name: "Choose sections" });
+    const group = dialog.getByRole("checkbox", {
+      name: "All sections in Psychic",
+      exact: true,
+    });
+    await expect(group).toBeChecked();
+    await expect(
+      dialog.getByRole("checkbox", { name: /^All sections in / }),
+    ).toHaveCount(1);
+    await expect(
+      dialog.getByRole("checkbox", { name: "Roleplaying the Psychic", exact: true }),
+    ).toBeVisible();
+    await info.attach("Psychic sections", {
+      body: await restored.screenshot(),
+      contentType: "image/png",
+    });
+    await group.uncheck();
+    await dialog
+      .getByRole("checkbox", { name: "Psychic Spellcasting", exact: true })
+      .check();
+    const changed = restored.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/search/page") &&
+        response.request().postDataJSON()?.criteria?.source_sections === "custom",
+    );
+    await dialog.getByRole("button", { name: "Apply", exact: true }).click();
+    const subset = await changed;
+    expect(subset.ok()).toBeTruthy();
+    expect(subset.request().postDataJSON().criteria).toMatchObject({
+      embedded_path,
+      similarity: { parts: [expect.any(String)] },
+    });
+    await expect(restored.locator(".reference-search-entry--similar")).toContainText(
+      "Psychic",
+    );
+    await restored.close();
+    await page.goBack();
+    await expect(explore.getByRole("tab", { name: "Similar" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+}
+
+test("full Search preserves the source title and opens the control for the failed comparison", async ({
+  page,
+}) => {
+  const root = "journals:kzxu2dI7tFxv6Ix6";
+  await page.goto("/search?similar=" + root);
+  const source = page
+    .locator(".reference-search-entry--similar")
+    .getByRole("link", { name: "Classes", exact: true });
+  await expect(source).toBeVisible();
+  await page.getByRole("button", { name: "Choose sections", exact: true }).click();
+  const sections = page.getByRole("dialog", { name: "Choose sections" });
+  await expect(sections).toBeVisible();
+  await sections.getByRole("button", { name: "Cancel", exact: true }).click();
+  // Candidate work depends on the corpus. Keep the genuine title lookup and
+  // filter UI, and deterministically exercise the separate candidate response.
+  await page.route("**/api/search/page", async (route) => {
+    if (route.request().postDataJSON()?.criteria?.kind !== "similar_records")
+      return route.continue();
+    await route.fulfill({
+      status: 400,
+      json: { code: "similarity_candidate_limit", message: "bounded candidate work" },
+    });
+  });
+  await page.reload();
+  await expect(source).toBeVisible();
+  await page.getByRole("button", { name: "Narrow results", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Advanced filters" })).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("similar")).toBe(root);
 });

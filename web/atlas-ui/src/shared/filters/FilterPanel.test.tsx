@@ -1542,3 +1542,62 @@ it("validates a level range after leaving both bounds, without committing an inv
     }),
   );
 });
+
+it("distinguishes a failed name lookup from an unavailable Links target", async () => {
+  const relationship = {
+    direction: "incoming" as const,
+    include_contents: false,
+    selection: {
+      record_key: "journals:classes",
+      embedded_path: [{ collection: "/pages", identity: { Stable: "psychic" } }],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    },
+  };
+  const filter = {
+    kind: "relationship" as const,
+    clause_id: "link-test",
+    relationship,
+  };
+  const editor = editorFixture([]);
+  const props = {
+    search: { ...DEFAULT_SEARCH_STATE, filter },
+    setSearch: vi.fn(),
+    filterEditor: editor,
+    filterDiscoveryError: "Connection failed",
+    refreshFilterInformation: vi.fn(),
+  };
+  const ui = (clauses: FilterEditorView["relationship_clauses"]) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <FilterControls
+        includeSearch={false}
+        filterState={{
+          ...props,
+          filterEditor: { ...editor, relationship_clauses: clauses },
+        }}
+      />
+    </ConfigProvider>
+  );
+  const view = render(ui([]));
+  expect(
+    screen.getByRole("button", { name: /Links to Couldn’t load record name/ }),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+  expect(
+    await screen.findByText(/Links to Couldn’t load record name · Main entry only/),
+  ).toBeVisible();
+  view.rerender(
+    ui([
+      {
+        status: "unavailable",
+        clause_id: "link-test",
+        relationship,
+        message: "Entry unavailable",
+      },
+    ]),
+  );
+  expect(
+    await screen.findByText(/Links to Record unavailable · Main entry only/),
+  ).toBeVisible();
+});
