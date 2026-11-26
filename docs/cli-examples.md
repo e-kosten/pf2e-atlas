@@ -31,6 +31,11 @@ pages. It does not open every linked record. For a spell, `record get SPELL_KEY
 --rank 5` previews its facts at that rank without spending resources; a creature's
 included spells keep their own casting details.
 
+For a single-page journal, standard detail reads the page inline. For example,
+`atlas record get criticaldeck:Toz2ZIpy7N4pDmyi` shows all four outcomes.
+Multi-page journals such as Ancestries show their page titles grouped in Foundry
+order. Read a specific page using its navigation address.
+
 Use the same detail options with `--json`. Standard returns readable rules
 and facts with a source and a reusable address. Summary returns identity. Full
 includes the detailed semantic facts and prepared fields. Select a specific

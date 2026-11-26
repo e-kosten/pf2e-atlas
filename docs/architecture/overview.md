@@ -393,10 +393,14 @@ is reused by exact model/input identity. No legacy adapter, bridge or mixed old/
 authority is retained. See ADR0051 for workspace ownership and ADR0046 for the
 source-backed reference decision.
 
-Journal presentation retains authored page order and exact checked navigation;
-empty pages differ from missing/null/invalid collections. Page identity remains
-visible even when authored title visibility suppresses an additional body heading.
-Unsupported media is identified without fetching or introducing a viewer.
+App-service orders journal contents by Foundry page sort and groups entries by
+authored title level. Empty text dividers become section headings. Sections with
+their own content also have page links. A whole-journal read includes the body
+of a sole page inline, retaining its checked content locators, references and
+exact page destination. The journal keeps its own identity and actions.
+A distinct page title follows the authored display setting. Unavailable page
+collections retain their source state, and unsupported media receives a notice.
+
 Roll-table reference rolls are stateless and may repeat, including when a source
 specifies no replacement; source drawn flags do not become saved deck history.
 All matching valid ranges remain visible with an incomplete-results warning when

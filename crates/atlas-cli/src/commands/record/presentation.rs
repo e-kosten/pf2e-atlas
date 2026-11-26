@@ -266,14 +266,9 @@ pub(super) fn render_record(
             number(&mut out, "Weight", &body.weight, false, "");
             required_text(&mut out, "Result type", &body.result_type);
         }
-        RecordBodyView::Journal(body) => match known_value(&body.pages) {
-            Some(pages) if pages.is_empty() => line(&mut out, "No pages."),
-            Some(_) => {}
-            None => line(
-                &mut out,
-                format!("Pages unavailable {}", unavailable(body.pages.state)),
-            ),
-        },
+        RecordBodyView::Journal(journal) => {
+            render_journal(&mut out, journal, &presentation.identity.title, width)?;
+        }
         RecordBodyView::JournalPage(body) => {
             if let Some(notice) = &body.media_notice {
                 line(&mut out, notice);
@@ -309,7 +304,6 @@ pub(super) fn render_record(
                 .flatten()
                 .map(|row| &row.link)
                 .collect(),
-            RecordBodyView::Journal(journal) => journal.pages.value.iter().flatten().collect(),
             RecordBodyView::PhysicalReference(physical) => physical
                 .consumable
                 .as_ref()
@@ -365,6 +359,43 @@ pub(super) fn render_record(
         }
         rendered
     }))
+}
+
+fn render_journal(
+    out: &mut String,
+    journal: &atlas_app_model::JournalPresentationView,
+    title: &str,
+    width: TerminalLayout,
+) -> Result<(), String> {
+    let Some(pages) = known_value(&journal.pages) else {
+        line(
+            out,
+            format!("Pages unavailable {}", unavailable(journal.pages.state)),
+        );
+        return Ok(());
+    };
+    if let ([entry], Some(inline)) = (pages.as_slice(), &journal.inline_page) {
+        if inline.page.show_body_heading.value == Some(true) && entry.link.title != title {
+            line(out, &entry.link.title);
+        }
+        if let Some(notice) = &inline.page.media_notice {
+            line(out, notice);
+        }
+        for field in &inline.content {
+            content_field(out, field, width, false)?;
+        }
+    } else if pages.is_empty() {
+        line(out, "No pages.");
+    } else {
+        line(out, "Contents");
+        let mut depths = Vec::with_capacity(pages.len());
+        for entry in pages {
+            let depth = entry.parent_index.map_or(0, |index| depths[index] + 1);
+            depths.push(depth);
+            line(out, format!("{}{}", "  ".repeat(depth), entry.link.title));
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn render_actor(

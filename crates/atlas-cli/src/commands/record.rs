@@ -400,12 +400,14 @@ fn render_selected_record(
                     .map(|s| &s.navigation)
                     .into_iter()
                     .collect(),
+                RecordBodyView::Journal(journal) if journal.inline_page.is_some() => vec![],
                 RecordBodyView::Journal(journal) => journal
                     .pages
                     .value
                     .iter()
                     .flatten()
-                    .map(|page| &page.navigation)
+                    .filter(|entry| !entry.is_heading_only)
+                    .map(|entry| &entry.link.navigation)
                     .collect(),
                 _ => record
                     .presentation

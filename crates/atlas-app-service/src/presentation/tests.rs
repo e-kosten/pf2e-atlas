@@ -2857,3 +2857,192 @@ fn strike_effect_links_use_owned_items_before_the_exact_glossary() {
     };
     assert_eq!(selected.strike_effects, strike.strike_effects);
 }
+
+#[test]
+fn journal_outline_groups_in_authored_order_without_readdressing_ordinal_pages() {
+    let page = |name: &str, sort: i64, level: u8, html: &str| {
+        json!({"name":name, "sort":sort, "title":{"show":true, "level":level},
+            "type":"text","text":{"format":1,"content":html}})
+    };
+    let mut hidden = page("Hidden body title", 10, 2, "");
+    hidden["title"]["show"] = json!(false);
+    let mut markdown = page("Markdown", 12, 2, "");
+    markdown["text"] = json!({"format":2, "markdown":"some source"});
+    let pages = vec![
+        page("Elf", 2, 2, "Elf"),
+        page("Common", 1, 1, "  "),
+        page("Dwarf", 2, 2, "Dwarf"),
+        page("Running the Game", 3, 1, "<p>Sources: GM Core</p>"),
+        page("Simple DCs", 4, 2, "DCs"),
+        page("Image", 5, 2, "<img src='example.png'>"),
+        page("Detail", 6, 3, "detail"),
+        page(
+            "Reference",
+            7,
+            2,
+            "@UUID[Compendium.pf2e.journals.JournalEntry.aaaaaaaaaaaaaaaa]",
+        ),
+        page("Detail", 8, 3, "detail"),
+        hidden,
+        page("Detail", 11, 3, "detail"),
+        markdown,
+        page("Detail", 13, 3, "detail"),
+        page("Empty standalone", 14, 1, ""),
+    ];
+    let input = record(
+        "journals",
+        "JournalEntry",
+        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Journal","pages":pages}),
+    );
+    let entries = journal::contents(&input.record, "snapshot").value.unwrap();
+    assert_eq!(
+        entries
+            .iter()
+            .map(|e| (e.link.title.as_str(), e.parent_index))
+            .collect::<Vec<_>>(),
+        [
+            ("Common", None),
+            ("Elf", Some(0)),
+            ("Dwarf", Some(0)),
+            ("Running the Game", None),
+            ("Simple DCs", Some(3)),
+            ("Image", Some(3)),
+            ("Detail", Some(5)),
+            ("Reference", Some(3)),
+            ("Detail", Some(7)),
+            ("Hidden body title", Some(3)),
+            ("Detail", Some(9)),
+            ("Markdown", Some(3)),
+            ("Detail", Some(11)),
+            ("Empty standalone", None),
+        ]
+    );
+    assert_eq!(
+        entries
+            .iter()
+            .filter(|e| e.is_heading_only)
+            .map(|e| e.link.title.as_str())
+            .collect::<Vec<_>>(),
+        ["Common"]
+    );
+    assert_eq!(
+        entries[0].link.navigation.owners[0].identity,
+        atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 1 }
+    );
+    assert_eq!(
+        entries[0].link.navigation.source_fingerprint.as_deref(),
+        Some("snapshot")
+    );
+}
+
+#[test]
+fn sole_journal_page_reuses_the_exact_read_and_keeps_root_ownership() {
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "journals",
+                        "JournalEntry",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Card","pages":[
+                            {"name":"Card","type":"text","title":{"show":false,"level":1},"text":{"format":1,"content":"<h1>Outcome</h1><p>@UUID[Compendium.pf2e.actions.Item.bbbbbbbbbbbbbbbb]</p>"}}
+                        ]}),
+                    ),
+                    record(
+                        "actions",
+                        "Item",
+                        json!({"_id":"bbbbbbbbbbbbbbbb","name":"An Action","type":"action"}),
+                    ),
+                    record(
+                        "journals",
+                        "JournalEntry",
+                        json!({"_id":"cccccccccccccccc","name":"Art","pages":[
+                            {"_id":"dddddddddddddddd", "name":"Painting","type":"image","image":{"caption":"Landscape"},"src":"paint.webp"}
+                        ]}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let request: RecordDetailRequest = serde_json::from_value(
+        json!({"record_key":"journals:aaaaaaaaaaaaaaaa","include_section_rendering":true}),
+    )
+    .unwrap();
+    for (detail, should_inline) in [
+        (crate::RecordReadDetail::Summary, false),
+        (
+            crate::RecordReadDetail::Standard {
+                include_grants: false,
+            },
+            true,
+        ),
+        (crate::RecordReadDetail::Full, true),
+    ] {
+        let (root, _) = fixture
+            .worker
+            .record_read_at(request.clone(), detail, vec![])
+            .unwrap();
+        assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 1);
+        assert!(root.selected.owners.is_empty());
+        assert!(root.presentation.content.is_empty());
+        assert!(root.relationships.is_empty());
+        let RecordBodyView::Journal(journal) = root.presentation.body else {
+            panic!("journal")
+        };
+        assert_eq!(journal.inline_page.is_some(), should_inline);
+        let Some(inline) = journal.inline_page else {
+            continue;
+        };
+        let entries = journal.pages.value.unwrap();
+        let navigation = &entries[0].link.navigation;
+        assert!(navigation.source_fingerprint.is_some());
+        let child = fixture
+            .worker
+            .record_detail_at(RecordDetailRequest {
+                owners: navigation.owners.clone(),
+                source_fingerprint: navigation.source_fingerprint.clone(),
+                ..request.clone()
+            })
+            .unwrap();
+        assert_eq!(child.selected, *navigation);
+        assert_eq!(
+            child.presentation.body,
+            RecordBodyView::JournalPage(Box::new(inline.page))
+        );
+        assert_eq!(child.presentation.content, inline.content);
+        assert!(
+            inline
+                .content
+                .iter()
+                .any(|f| f.locator.owners == navigation.owners && f.section_rendering.is_some())
+        );
+        assert!(inline.relationships.iter().any(|r| {
+            r.destination
+                .record_target()
+                .is_some_and(|n| n.record_key == "actions:bbbbbbbbbbbbbbbb")
+        }));
+        assert_eq!(child.relationships, inline.relationships);
+        assert_eq!(
+            child.relationships_truncated,
+            inline.relationships_truncated
+        );
+    }
+    let art = fixture
+        .worker
+        .record_detail("journals:cccccccccccccccc")
+        .unwrap();
+    let RecordBodyView::Journal(journal) = art.presentation.body else {
+        panic!("journal")
+    };
+    let inline = journal.inline_page.unwrap();
+    assert_eq!(
+        inline.page.media_notice.as_deref(),
+        Some("Media preview unavailable (image).")
+    );
+    assert!(inline.content.iter().any(
+        |field| matches!(&field.body, PreparedFieldBodyView::Plain { text } if text == "Landscape")
+    ));
+}

@@ -219,6 +219,23 @@ fn reference(
                     "cost": s.cost,
                 })
             }
+            RecordBodyView::Journal(journal) => {
+                let inline = match (&journal.inline_page, journal.pages.value.as_deref()) {
+                    (Some(page), Some([entry])) => Some(json!({
+                        "page": page.page,
+                        "rules": rule_fields(
+                            &page.content,
+                            &entry.link.navigation,
+                            &record.artifact_generation,
+                            &page.relationships,
+                            page.relationships_truncated,
+                            None,
+                        )?,
+                    })),
+                    _ => None,
+                };
+                json!({"kind": "journal", "value": {"pages": journal.pages, "inline_page": inline}})
+            }
             _ => json!(p.body),
         };
     }

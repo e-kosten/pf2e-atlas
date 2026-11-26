@@ -3801,28 +3801,38 @@ export interface TableResultPresentationView {
   weight: NumberFactView;
 }
 
-export type FactViewVecEmbeddedRecordLinkViewValue = ({
-  action_cost: FactViewActionCostView;
-  family: string;
-  navigation: RecordNavigationView;
-  title: string;
-  /** @nullable */
-  usage: string | null;
-})[] | null;
-
-export interface FactViewVecEmbeddedRecordLinkView {
-  state: QueryFieldState;
-  value: FactViewVecEmbeddedRecordLinkViewValue;
-}
-
-export interface JournalPresentationView {
-  pages: FactViewVecEmbeddedRecordLinkView;
-}
-
 export interface JournalPagePresentationView {
   /** @nullable */
   media_notice: string | null;
   show_body_heading: FactViewBool;
+}
+
+export interface InlineJournalPageView {
+  content: PreparedContentFieldView[];
+  page: JournalPagePresentationView;
+  relationships: RecordRelationshipView[];
+  relationships_truncated: boolean;
+}
+
+export type FactViewVecJournalContentsEntryViewValue = ({
+  is_heading_only: boolean;
+  link: EmbeddedRecordLinkView;
+  /**
+     * Index of the parent in the authored display order.
+     * @minimum 0
+     * @nullable
+     */
+  parent_index: number | null;
+})[] | null;
+
+export interface FactViewVecJournalContentsEntryView {
+  state: QueryFieldState;
+  value: FactViewVecJournalContentsEntryViewValue;
+}
+
+export interface JournalPresentationView {
+  inline_page: InlineJournalPageView | null;
+  pages: FactViewVecJournalContentsEntryView;
 }
 
 export type RecordBodyView = {

@@ -6,6 +6,7 @@ mod facts;
 mod hazard_readouts;
 mod immunity_reading;
 mod item_reference;
+pub(crate) mod journal;
 mod physical_reference;
 pub(crate) mod reference_help;
 #[cfg(test)]
@@ -289,26 +290,12 @@ pub(crate) fn record_presentation(
             }
             SelectedItemBody::Content => RecordBodyView::Content,
         },
-        SourceNodeView::Journal(journal) => {
-            RecordBodyView::Journal(Box::new(JournalPresentationView {
-                pages: fact(
-                    SourceFieldView::from(&journal.pages).map(|_| std::mem::take(&mut owned)),
-                ),
-            }))
-        }
+        SourceNodeView::Journal(_) => RecordBodyView::Journal(Box::new(JournalPresentationView {
+            pages: journal::contents(record, retrieval.source_fingerprint()),
+            inline_page: None,
+        })),
         SourceNodeView::JournalPage(page) => {
-            RecordBodyView::JournalPage(Box::new(JournalPagePresentationView {
-                show_body_heading: fact(
-                    SourceFieldView::from(&page.title)
-                        .and_then(|t| (&t.show).into())
-                        .map(|v| *v),
-                ),
-                media_notice: match page.r#type.as_value().map(String::as_str) {
-                    Some("text") => None,
-                    Some(kind) => Some(format!("Media preview unavailable ({kind}).")),
-                    None => Some("Page type unavailable.".into()),
-                },
-            }))
+            RecordBodyView::JournalPage(Box::new(journal::page_presentation(page)))
         }
         SourceNodeView::Table(table) => {
             RecordBodyView::RollTable(Box::new(RollTablePresentationView {
@@ -684,6 +671,35 @@ pub(crate) fn consumable_spell(
     )
 }
 
+fn owned_link(
+    record: &SourceBackedRecord,
+    owner: &OwnedContentLocator,
+    child: SourceNodeView<'_>,
+    fingerprint: &str,
+) -> EmbeddedRecordLinkView {
+    EmbeddedRecordLinkView {
+        navigation: crate::definitions::record_navigation(
+            record.key().clone(),
+            vec![owner.clone()],
+            fingerprint,
+        ),
+        title: node_title(child),
+        family: child
+            .source_type()
+            .value()
+            .unwrap_or(child.document_kind())
+            .into(),
+        usage: match child {
+            SourceNodeView::Item(item) => item_usage(item),
+            _ => None,
+        },
+        action_cost: match child {
+            SourceNodeView::Item(item) => item_action_cost(item),
+            _ => unavailable(),
+        },
+    }
+}
+
 pub(crate) fn owned_links(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
@@ -695,31 +711,7 @@ pub(crate) fn owned_links(
         return links;
     }
     let mut add = |owner: &OwnedContentLocator, child: SourceNodeView<'_>| {
-        let owners = vec![owner.clone()];
-        links.push(EmbeddedRecordLinkView {
-            navigation: RecordNavigationView {
-                spell_rank: None,
-                record_key: record.key().to_string(),
-                source_fingerprint: navigation_fingerprint(&owners, fingerprint),
-                owners,
-                field: None,
-                passage: None,
-            },
-            title: node_title(child),
-            family: child
-                .source_type()
-                .value()
-                .unwrap_or(child.document_kind())
-                .into(),
-            usage: match child {
-                SourceNodeView::Item(i) => item_usage(i),
-                _ => None,
-            },
-            action_cost: match child {
-                SourceNodeView::Item(i) => item_action_cost(i),
-                _ => unavailable(),
-            },
-        });
+        links.push(owned_link(record, owner, child, fingerprint));
     };
     match node {
         SourceNodeView::Actor(_)
@@ -729,9 +721,6 @@ pub(crate) fn owned_links(
                 .is_some_and(|t| matches!(t, "npc" | "hazard" | "character" | "familiar")) => {}
         SourceNodeView::Actor(_) => {
             record.visit_immediate_actor_items(|_, o, i| add(o, SourceNodeView::Item(i)));
-        }
-        SourceNodeView::Journal(_) => {
-            record.visit_immediate_journal_pages(&mut add);
         }
         SourceNodeView::Table(_) => {
             record.visit_immediate_table_results(&mut add);
