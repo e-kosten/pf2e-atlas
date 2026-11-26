@@ -4,14 +4,27 @@ use atlas_app_model::{RecordReferenceDestinationView, RecordRelationshipView, Re
 use serde_json::{Value, json};
 
 pub(crate) fn identity(record: &RecordSummaryView) -> Value {
-    let mut fields = json!({"record_key":record.record_key, "title":record.title, "kind":record.kind, "publication":record.publication});
+    let mut fields = json!({
+        "record_key": record.record_key,
+        "title": record.title,
+        "kind_label": record.kind_label,
+        "publication": record.publication,
+    });
     for (key, value) in [
+        ("kind", &record.kind),
+        ("parent_kind", &record.parent_kind),
+        ("journal_pack_kind", &record.journal_pack_kind),
         ("level_label", &record.level_label),
         ("unit_price_label", &record.unit_price_label),
     ] {
         if let Some(value) = value {
             fields[key] = json!(value);
         }
+    }
+    if record.journal_pack_kind.is_some()
+        && let Some(label) = &record.pack
+    {
+        fields["pack"] = json!(label);
     }
     if let Some(level) = &record.level {
         fields["level"] = json!(level);

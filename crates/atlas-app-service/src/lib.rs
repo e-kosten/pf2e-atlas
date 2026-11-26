@@ -27,6 +27,7 @@ mod flat_check;
 mod inline_content;
 #[cfg(test)]
 mod inline_content_tests;
+mod kind_choices;
 mod lists;
 mod parties;
 #[cfg(test)]

@@ -14,8 +14,9 @@ have finished; your saved lists and encounters remain available next time.
 ## Find something
 
 In Search, enter a name such as “Treat Wounds” or a description such as “low level
-healing spell.” Add a Kind filter for spells, creatures, equipment or another
-type of entry. Add level, rarity or trait filters to narrow the results.
+healing spell.” Open **Kind** and type a label you see on a result, such as
+Background. Select **Character creation** to include Background, Ancestry, Class
+and Heritage together. Add level, rarity or trait filters to narrow the results.
 Leave the search text empty to browse everything matching your filters.
 
 Open a result to read its details. Follow a linked name to preview another

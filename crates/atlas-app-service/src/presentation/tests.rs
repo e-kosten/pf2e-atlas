@@ -225,7 +225,7 @@ fn classification_uses_typed_rank_and_level_including_zero_and_unavailable() {
         },
     ));
     let zero = f.worker.record_detail("items:aaaaaaaaaaaaaaaa").unwrap();
-    assert_eq!(zero.presentation.classification, "Equipment 0");
+    assert_eq!(zero.presentation.classification, "General Equipment 0");
     let unavailable = f.worker.record_detail("spells:bbbbbbbbbbbbbbbb").unwrap();
     assert_eq!(
         unavailable.presentation.classification,
@@ -1816,9 +1816,9 @@ fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
         .as_ref()
         .unwrap()[0]
         .navigation;
-    for (key, owners) in [
-        ("spells:ssssssssssssssss", vec![]),
-        ("actors:aaaaaaaaaaaaaaaa", local.owners.clone()),
+    for (key, owners, selector) in [
+        ("spells:ssssssssssssssss", vec![], "ritual"),
+        ("actors:aaaaaaaaaaaaaaaa", local.owners.clone(), "spell"),
     ] {
         for rank in [None, Some(6)] {
             let detail = f
@@ -1834,7 +1834,7 @@ fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
                     source_fingerprint: None,
                 })
                 .unwrap();
-            assert_eq!(detail.presentation.identity.kind, "spell");
+            assert_eq!(detail.presentation.identity.kind.as_deref(), Some(selector));
             assert_eq!(detail.presentation.identity.kind_label, "Ritual");
             assert_eq!(
                 detail.presentation.classification,
@@ -2205,16 +2205,16 @@ fn selected_kind_labels_describe_documents_without_changing_source_identifiers()
             "Creature",
         ),
         ("tables:ffffffffffffffff", "roll_table", None, "Roll Table"),
-        ("journals:hhhhhhhhhhhhhhhh", "lore", None, "Journal"),
+        ("journals:hhhhhhhhhhhhhhhh", "journal", None, "Journal"),
         (
             "features:jjjjjjjjjjjjjjjj",
-            "campaign_feature",
+            "kingdom_and_warfare",
             Some("campaignFeature"),
-            "Campaign Feature",
+            "Kingdom and warfare",
         ),
     ] {
         let detail = fixture.worker.record_detail(key).unwrap();
-        assert_eq!(detail.presentation.identity.kind, kind);
+        assert_eq!(detail.presentation.identity.kind.as_deref(), Some(kind));
         assert_eq!(
             detail.presentation.identity.source_type.as_deref(),
             source_type
@@ -2289,7 +2289,7 @@ fn selected_kind_labels_describe_documents_without_changing_source_identifiers()
                 source_fingerprint: None,
             })
             .unwrap();
-        assert_eq!(detail.presentation.identity.kind, raw);
+        assert_eq!(detail.presentation.identity.kind.as_deref(), Some(raw));
         assert_eq!(
             detail.presentation.identity.source_type.as_deref(),
             Some(raw)

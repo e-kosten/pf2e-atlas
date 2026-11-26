@@ -8,8 +8,8 @@ import type {
 import { packSelection, unpackSelection } from "./filterUrlSelection";
 import { invalidFilterUrl, urlLiteral, urlString, urlTuple } from "./filterUrlValues";
 
-// Version 3 is a compact transport for the existing query tree, not a query language.
-const VERSION = "3.";
+// Version 4 is a compact transport for the existing query tree, not a query language.
+const VERSION = "4.";
 export const UNSUPPORTED_FILTER_URL =
   "This search link uses an unsupported filter version.";
 const { compressToEncodedURIComponent, decompressFromEncodedURIComponent } = LZString;

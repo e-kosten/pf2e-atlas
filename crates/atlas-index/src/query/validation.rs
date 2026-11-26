@@ -32,7 +32,11 @@ pub(super) fn literal(d: &Descriptor, value: &QueryLiteral) -> Result<(), QueryE
     use QueryFieldType::*;
     match (&d.definition.field_type, value) {
         (String, QueryLiteral::String(value)) => {
-            if !d.definition.choices.is_empty() && !d.definition.choices.contains(value) {
+            if !d.definition.choices.is_empty()
+                && !d.definition.choices.contains(value)
+                && !(matches!(d.binding, super::catalog::Binding::RootKind)
+                    && atlas_domain::root_kind::journal_pack(value).is_some())
+            {
                 Err(error(
                     "invalid_choice",
                     format!(

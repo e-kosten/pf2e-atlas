@@ -449,7 +449,7 @@ fn sorting_ties_keep_canonical_keys_and_relationship_scopes_do_not_rebind_editio
         false,
     );
     let filter = serde_json::from_value(
-        json!({"kind":"compare","field":"kind","op":"eq","value":"equipment"}),
+        json!({"kind":"compare","field":"kind","op":"eq","value":"all_equipment"}),
     )
     .unwrap();
     let filter = crate::relationship_tests::link_filter(Some(&filter), &[relationship]);

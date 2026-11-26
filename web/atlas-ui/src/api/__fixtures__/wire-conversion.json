@@ -1451,8 +1451,8 @@
         },
         "record": {
           "edition": "legacy",
-          "kind": "rule",
-          "kind_label": "Rule",
+          "kind": "action",
+          "kind_label": "Action",
           "level": null,
           "level_basis": null,
           "level_label": null,

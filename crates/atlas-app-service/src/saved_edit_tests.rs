@@ -46,6 +46,31 @@ fn note_patch(expected: Option<&str>, value: Option<&str>) -> UpdateSavedListIte
 }
 
 #[test]
+fn single_and_batch_adds_snapshot_the_kind_shown_on_the_result() {
+    use atlas_app_model::{BatchAddSavedListItemsRequest, BatchSavedListItemInput};
+    let worker = fixture_worker().worker;
+    let list = list_fixture(&worker);
+    add_note(&worker, &list, FIRST, None);
+    let batch = worker
+        .add_saved_list_items(BatchAddSavedListItemsRequest {
+            list_ref: list.clone(),
+            items: [FIRST, SECOND]
+                .map(|record_ref| BatchSavedListItemInput {
+                    record_ref: record_ref.into(),
+                    note: None,
+                })
+                .to_vec(),
+        })
+        .unwrap();
+    assert_eq!(batch.added_count, 1);
+    let snapshot = worker.saved_list_snapshot(&list, None).unwrap();
+    assert_eq!(snapshot.items.len(), 2);
+    for item in snapshot.items {
+        assert_eq!(item.snapshot.kind.as_deref(), Some("action"));
+    }
+}
+
+#[test]
 fn list_note_save_merges_with_reorder_and_unrelated_edits() {
     let worker = fixture_worker().worker;
     let key = list_fixture(&worker);

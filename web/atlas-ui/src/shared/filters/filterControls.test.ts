@@ -36,7 +36,7 @@ describe("typed builder translation", () => {
             kind: "in",
             clause_id: "kind",
             field: field.path,
-            values: ["companion"],
+            values: ["familiar"],
           },
         },
       ],

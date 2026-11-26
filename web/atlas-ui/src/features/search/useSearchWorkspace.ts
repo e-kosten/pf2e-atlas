@@ -849,13 +849,17 @@ export function useSearchWorkspace({
   ) {
     dispatch({ type: "record.selected", recordKey, submission });
     const searchQuery = searchStateQueryString(search, urlProfile);
+    const selectedPart = request?.navigation.embedded_path.length
+      ? request.navigation
+      : undefined;
     void atlasRouter.navigate({
       ...searchDestination({
         selectedRecordKey: recordKey,
+        selection: selectedPart,
         query: searchQuery,
         page: pageNumber,
       }),
-      replace: true,
+      replace: !selectedPart,
       resetScroll: false,
       state: true,
     });

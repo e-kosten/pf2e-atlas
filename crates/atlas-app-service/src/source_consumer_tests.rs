@@ -1548,7 +1548,10 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
         vec![],
     )
     .unwrap();
-    assert_eq!(editor.catalog_version, 10);
+    assert_eq!(
+        editor.catalog_version,
+        crate::discover_filter_fields().unwrap().version
+    );
     let senses = editor
         .groups
         .iter()

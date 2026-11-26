@@ -1,6 +1,6 @@
 //! Contextual facets operate on named projections and exact counterfactual sets.
 use crate::query::{
-    catalog::{Binding, descriptor, descriptors},
+    catalog::{Binding, Descriptor, descriptor, descriptors},
     compiler::{CompiledPredicate, bound_field, compile_node, member_relation},
     validation::error,
 };
@@ -435,6 +435,44 @@ fn selected(target: Option<&QueryPredicate>) -> Vec<QueryLiteral> {
         _ => Vec::new(),
     }
 }
+fn kind_counts(
+    connection: &Connection,
+    query: &ValidatedQuery,
+    context: &QueryFacetContext,
+) -> Result<std::collections::BTreeMap<String, u64>, IndexError> {
+    let (eligible, params) =
+        crate::read_units::eligible_sql(query, context.eligible_keys.as_deref())?;
+    crate::query::root_kind::counts(connection, &eligible, &params)
+}
+
+fn kind_options(
+    field: &Descriptor,
+    base: &ValidatedQuery,
+    values: Vec<QueryLiteral>,
+    selected: &[QueryLiteral],
+    counts: &std::collections::BTreeMap<String, u64>,
+) -> Result<Vec<QueryValueOption>, IndexError> {
+    values
+        .into_iter()
+        .map(|value| {
+            // Preserve the same counterfactual byte/depth/node limits as other fields,
+            // including for selections retained outside the window of matching values.
+            validate_query(&QueryPredicate::new(QueryExpression::AllOf {
+                children: vec![base.predicate().clone(), candidate_clause(field, &value)?],
+            }))?;
+            let count = match &value {
+                QueryLiteral::String(id) => counts.get(id).copied().unwrap_or_default(),
+                _ => 0,
+            };
+            Ok(QueryValueOption {
+                selected: selected.contains(&value),
+                value,
+                distinct_roots: count,
+            })
+        })
+        .collect()
+}
+
 /// Validate every requested literal before optional discovery availability.
 pub fn validate_value_counts(field_id: &str, values: &[QueryLiteral]) -> Result<(), IndexError> {
     validate_value_discovery(field_id, 0, 1, None)?;
@@ -523,6 +561,14 @@ fn count_options(
     } else {
         None
     };
+    if matches!(d.binding, Binding::RootKind) {
+        let base = match root_base {
+            Some(base) => validate_query(&base)?,
+            None => query.clone(),
+        };
+        let counts = kind_counts(connection, &base, context)?;
+        return kind_options(d, &base, values, selected, &counts);
+    }
     let with_choice = |value: &QueryLiteral| -> Result<ValidatedQuery, IndexError> {
         let candidate = candidate_clause(d, value)?;
         let p = if let Some(base) = &root_base {
@@ -608,12 +654,27 @@ fn count_options(
     Ok(options)
 }
 // Search both the stored identifier and the words shown in the Base Type picker.
-fn matching_action_names(
+fn matching_display_names(
     connection: &Connection,
-    path: &str,
+    field: &Descriptor,
     text: &str,
 ) -> Result<BTreeSet<String>, IndexError> {
-    if path != "actions" {
+    if matches!(field.binding, Binding::RootKind) {
+        let mut matching = BTreeSet::new();
+        for (id, label) in crate::query::root_kind::pack_choices(connection)? {
+            if label.to_lowercase().contains(text) {
+                matching.insert(id);
+            }
+        }
+        if "companion".contains(text) {
+            matching.insert("familiar".into());
+        }
+        if "all journals".contains(text) {
+            matching.insert("journal".into());
+        }
+        return Ok(matching);
+    }
+    if field.definition.path != "actions" {
         return Ok(BTreeSet::new());
     }
     let mut statement = connection.prepare(
@@ -636,16 +697,17 @@ fn matches_value_text(
     path: &str,
     value: &QueryLiteral,
     text: &str,
-    action_names: &BTreeSet<String>,
+    display_names: &BTreeSet<String>,
 ) -> bool {
     match value {
         QueryLiteral::String(value) => {
-            if action_names.contains(value) {
+            if display_names.contains(value) {
                 return true;
             }
             let value = value.to_lowercase();
             value.contains(text)
-                || (path == "physical.base_type" && value.replace(['-', '_'], " ").contains(text))
+                || (matches!(path, "physical.base_type" | "kind")
+                    && value.replace(['-', '_'], " ").contains(text))
         }
         QueryLiteral::Boolean(value) => value.to_string().contains(text),
         QueryLiteral::Number(_) => false,
@@ -675,7 +737,21 @@ pub(crate) fn field_values(
     } else {
         (request.query.clone(), None, None)
     };
-    let mut values = enumerate_values(connection, d, &base, &request.context, member.as_ref())?;
+    let kind_counts = matches!(d.binding, Binding::RootKind)
+        .then(|| kind_counts(connection, &base, &request.context))
+        .transpose()?;
+    let mut values = match &kind_counts {
+        Some(counts) => counts.keys().cloned().map(QueryLiteral::String).collect(),
+        None => enumerate_values(connection, d, &base, &request.context, member.as_ref())?,
+    };
+    if kind_counts.is_some() && !request.only_matching {
+        for id in crate::query::root_kind::pack_choices(connection)?.into_keys() {
+            let value = QueryLiteral::String(id);
+            if !values.contains(&value) {
+                values.push(value);
+            }
+        }
+    }
     // Closed choices absent from this artifact and selected absent open values
     // remain discoverable rather than being silently erased by row enumeration.
     for value in d
@@ -702,11 +778,11 @@ pub(crate) fn field_values(
     let selected = selected(target.as_ref());
     if let Some(text) = &request.text {
         let text = text.to_lowercase();
-        let action_names = matching_action_names(connection, &d.definition.path, &text)?;
+        let display_names = matching_display_names(connection, d, &text)?;
         values.retain(|value| {
             selected.contains(value)
                 || (matches!(value, QueryLiteral::String(_))
-                    && matches_value_text(&d.definition.path, value, &text, &action_names))
+                    && matches_value_text(&d.definition.path, value, &text, &display_names))
         });
     }
     let total_values = values.len() as u64;
@@ -722,15 +798,18 @@ pub(crate) fn field_values(
             page.push(value.clone());
         }
     }
-    let options = count_options(
-        connection,
-        d,
-        &request.query,
-        request.clause_id.as_deref(),
-        &request.context,
-        page,
-        &selected,
-    )?;
+    let options = match kind_counts {
+        Some(counts) => kind_options(d, &base, page, &selected, &counts)?,
+        None => count_options(
+            connection,
+            d,
+            &request.query,
+            request.clause_id.as_deref(),
+            &request.context,
+            page,
+            &selected,
+        )?,
+    };
     Ok(QueryFacetOutcome::Available {
         value: QueryValueOptions {
             field: request.field.clone(),
@@ -768,6 +847,12 @@ fn enumerate_values(
     context: &QueryFacetContext,
     member: Option<&QueryPredicate>,
 ) -> Result<Vec<QueryLiteral>, IndexError> {
+    if matches!(d.binding, Binding::RootKind) {
+        return Ok(kind_counts(connection, base, context)?
+            .into_keys()
+            .map(QueryLiteral::String)
+            .collect());
+    }
     let mut compiled = compile_eligibility(base, context)?;
     let (from, _) = occurrences(d)?;
     let b = bound_field(d, d.definition.scope.as_deref());
@@ -858,8 +943,8 @@ pub(crate) fn field_vocabulary(
     let mut values = enumerate_values(connection, d, &base, &context, None)?;
     if let Some(text) = &request.text {
         let text = text.to_lowercase();
-        let action_names = matching_action_names(connection, &d.definition.path, &text)?;
-        values.retain(|value| matches_value_text(&d.definition.path, value, &text, &action_names));
+        let display_names = matching_display_names(connection, d, &text)?;
+        values.retain(|value| matches_value_text(&d.definition.path, value, &text, &display_names));
     }
     super::value_order::sort_values(&d.definition.path, &mut values);
     let total_values = values.len() as u64;

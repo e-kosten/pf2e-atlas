@@ -503,7 +503,7 @@ fn party_context_drives_encounter_and_saved_loot_planning_with_replay_guards() {
         "--retrieval",
         "fts",
         "--kind",
-        "equipment",
+        "all_equipment",
     ]);
     f.data(&["lists", "create", "Party loot", "--slug", "party-loot"]);
     f.data(&[

@@ -471,11 +471,11 @@ describe("shared common and maintained advanced filters", () => {
   it("keeps individual exclusion reversible after successful edits", () => {
     const kind = {
       ...fieldFixture("kind", "string", "Kind"),
-      choices: ["companion"],
+      choices: ["familiar"],
     };
     const change = renderControls(editorFixture([kind], kindLabels), {
       kind: "not",
-      predicate: { kind: "in", field: kind.path, values: ["companion"] },
+      predicate: { kind: "in", field: kind.path, values: ["familiar"] },
     });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     const operator = screen.getByRole("combobox", { name: "Condition for Kind" });
@@ -493,12 +493,12 @@ describe("shared common and maintained advanced filters", () => {
   it("converts a selected singleton when changing In to Is not", () => {
     const kind = {
       ...fieldFixture("kind", "string", "Kind"),
-      choices: ["companion"],
+      choices: ["familiar"],
     };
     const change = renderControls(editorFixture([kind], kindLabels), {
       kind: "in",
       field: kind.path,
-      values: ["companion"],
+      values: ["familiar"],
     });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Condition for Kind" }));
@@ -506,7 +506,7 @@ describe("shared common and maintained advanced filters", () => {
     expect(screen.queryByText("Enter a value")).toBeNull();
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        filter: expect.objectContaining({ op: "neq", value: "companion" }),
+        filter: expect.objectContaining({ op: "neq", value: "familiar" }),
       }),
     );
   });
@@ -1024,6 +1024,98 @@ describe("per-value states and the complete query", () => {
     const listbox = document.getElementById(control.getAttribute("aria-controls")!)!;
     fireEvent.click(within(listbox).getByRole("option", { name: state }));
   }
+  it("finds collapsed kinds and edits whole-group selections with exceptions", async () => {
+    const kind = {
+      ...fieldFixture("kind", "string", "Kind"),
+      choices: ["all_equipment", "armor", "weapon", "familiar"],
+    };
+    const editor = editorFixture([kind]);
+    editor.groups[0].fields[0].choices = [
+      { value: "all_equipment", label: "All equipment" },
+      { value: "armor", parent_kind: "all_equipment", label: "Armor" },
+      { value: "weapon", parent_kind: "all_equipment", label: "Weapon" },
+      { value: "familiar", label: "Familiar", search_aliases: ["companion"] },
+    ];
+    const change = renderControls(editor);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
+    const search = screen.getByRole("textbox", { name: "Search kind choices" });
+    const byKind = (name: RegExp) => screen.getByRole("button", { name });
+    expect(screen.queryByRole("button", { name: /^Kind: Weapon,/ })).toBeNull();
+    fireEvent.change(search, { target: { value: "companion" } });
+    expect(byKind(/^Kind: Familiar,/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Kind: All equipment,/ })).toBeNull();
+    fireEvent.change(search, { target: { value: "weap" } });
+    expect(byKind(/^Kind: All equipment,/)).toBeInTheDocument();
+    fireEvent.click(byKind(/^Kind: Weapon, neutral/));
+    expect(byKind(/^Remove included Weapon from Kind$/)).toBeVisible();
+    fireEvent.change(search, { target: { value: "" } });
+    fireEvent.click(byKind(/^Expand All equipment$/));
+    expect(byKind(/^Collapse All equipment$/)).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(byKind(/^Kind: All equipment, neutral/));
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({ kind: "in", values: ["all_equipment"] }),
+      }),
+    );
+    fireEvent.click(
+      byKind(/^Kind: Weapon, included by All equipment; activate to exclude$/),
+    );
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          kind: "all_of",
+          children: [
+            expect.objectContaining({ kind: "in", values: ["all_equipment"] }),
+            expect.objectContaining({
+              kind: "not",
+              predicate: expect.objectContaining({ values: ["weapon"] }),
+            }),
+          ],
+        }),
+      }),
+    );
+    fireEvent.click(byKind(/^Collapse All equipment$/));
+    expect(byKind(/^Remove excluded Weapon from Kind$/)).toBeVisible();
+    fireEvent.click(byKind(/^Remove excluded Weapon from Kind$/));
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({ kind: "in", values: ["all_equipment"] }),
+      }),
+    );
+  });
+
+  it("retains a journal pack from another library and recognizes its parent when edited", () => {
+    const kind = {
+      ...fieldFixture("kind", "string", "Kind"),
+      choices: ["journal"],
+      choice_groups: [
+        { id: "journal", children: [], dynamic_child_prefix: "journal_pack/" },
+      ],
+    };
+    const pack = "journal_pack/absent-pack";
+    const change = renderControls(
+      editorFixture([kind], { kind: { journal: "All journals" } }),
+      {
+        kind: "in",
+        field: "kind",
+        values: [pack],
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand All journals" }));
+    expect(
+      screen.getByRole("button", { name: /^Kind: absent-pack, included/ }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Kind: All journals, neutral/ }),
+    );
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({ kind: "in", values: ["journal"] }),
+      }),
+    );
+  });
+
   it("includes and excludes individual Kind values without a field-wide mode", async () => {
     const kind = {
       ...fieldFixture("kind", "string", "Kind"),

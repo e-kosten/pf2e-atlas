@@ -186,12 +186,24 @@ export function choiceValueState(
   );
   return match ? (isExcluded(match) ? "exclude" : "include") : "neutral";
 }
+/** Keep the broadest selected value within one include or exclude list. */
+export function withoutCoveredChoices(
+  values: string[],
+  parents: ReadonlyMap<string, string>,
+) {
+  const selected = new Set(values);
+  return values.filter((value) => {
+    const parent = parents.get(value);
+    return !parent || !selected.has(parent);
+  });
+}
 /** Change one literal while retaining the other literals and each surviving leaf ID. */
 export function changeChoiceValue(
   field: QueryFieldDefinition,
   current: QueryPredicate | null,
   value: string,
   state: ChoiceState,
+  parents?: ReadonlyMap<string, string>,
 ): QueryPredicate | null {
   const clauses = choiceClauses(current);
   const source = clauses.find((child) => conditionValues(child).includes(value));
@@ -201,7 +213,12 @@ export function changeChoiceValue(
     if (state === (exclude ? "exclude" : "include")) values.push(value);
     const identity =
       previous ?? (source && conditionValues(source).length === 1 ? source : null);
-    const next = choiceCondition(field, identity, values, exclude);
+    const next = choiceCondition(
+      field,
+      identity,
+      parents ? withoutCoveredChoices(values, parents) : values,
+      exclude,
+    );
     return next ? [next] : [];
   });
   return children.length > 1

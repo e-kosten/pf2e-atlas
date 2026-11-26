@@ -16,7 +16,7 @@ beforeEach(() => {
   history.replaceState(null, "", "/search");
 });
 
-it.each(["2.obsolete", "3.broken", "", "4.future"])(
+it.each(["3.obsolete", "4.broken", "", "5.future"])(
   "blocks all execution and discards criteria for unreadable filter %s",
   (filter) => {
     const state = decodeSearchStateFromParams(

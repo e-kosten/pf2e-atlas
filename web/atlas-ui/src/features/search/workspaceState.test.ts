@@ -142,6 +142,20 @@ describe("remembered Kind default precedence", () => {
       ],
     });
   });
+  it("starts fresh after the Kind catalog changes and remembers long pack identifiers", () => {
+    history.replaceState(null, "", "/search");
+    localStorage.setItem(
+      "atlas.search.kind-default.v1",
+      JSON.stringify({ include: ["spell"], exclude: [] }),
+    );
+    expect(initialWorkspaceInteractionState().search.filter).toBeNull();
+    const pack = "journal_pack/" + "a".repeat(128);
+    rememberKindPreference({ kind: "in", field: field.path, values: [pack] }, field);
+    expect(initialWorkspaceInteractionState().search.filter).toMatchObject({
+      kind: "in",
+      values: [pack],
+    });
+  });
   it.each(["?q=heal", "?filter=null", "?filter=bad", "?pageSize=50", "?mode=browse"])(
     "keeps explicit incoming state authoritative: %s",
     (query) => {

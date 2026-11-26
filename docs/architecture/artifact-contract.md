@@ -284,6 +284,21 @@ Sense type, acuity and range qualify the same `senses` member. Multiple required
 sense entries use separate collection predicates. Armor groups use the ordinary
 root and immediate equipment fields.
 
+Root `kind` selectors describe reference categories and selectable groups.
+Eligibility, facets and result summaries use the same root classification from the
+record, spell and ability projections. Groups count distinct eligible roots.
+The journal group admits all JournalEntry roots. `journal_pack/<pack-id>` selects
+a journal pack using source identity. Static discovery describes this namespace.
+Workspace discovery supplies present pack IDs and labels. Embedded kind predicates
+retain their collection-specific source family semantics. Source document type
+and source subtype stay separately queryable.
+
+Query catalog v11 introduces this hierarchy using the existing authored-query/v5
+projection. An offline update from v10 rebuilds query rows from retained snapshots
+and publishes the new catalog fingerprint. Saved work and stored vectors survive
+the update. New list entries snapshot the public record kind for use when the
+record is subsequently unavailable.
+
 Public filters use domain namespaces, including root `kind`, `traits`,
 `level_or_rank` and explicit `embedded.spells`/`embedded.equipment` collections.
 Embedded predicates match immediate children only, irrespective of root-kind
@@ -903,8 +918,8 @@ The current source contract includes ammunition as an equipment family. NPC skil
 are keyed authored entries; character movement is runtime-derived and has no
 source-backed movement projection. Table result content uses `/description` and
 structured references use `/documentUuid`, resolving only explicit compendium UUIDs.
-The query catalog is version 9, query projections use `authored-query/v5`, content
-selection uses `structural-source-sections/v4` and relationships use
+The initial 8.6.1 preparation used query catalog v9. Its query projections used `authored-query/v5`, content
+selection used `structural-source-sections/v4` and relationships used
 `typed-authored-occurrences/v5`. Preparation identities govern derived refresh;
 workspace migrations 18 and 19 provide the additional query columns. The exact
 preceding 6.12.4 model can be replaced from compatible source while preserving

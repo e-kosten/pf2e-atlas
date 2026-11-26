@@ -153,6 +153,15 @@ pub enum QueryValueDiscovery {
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueryChoiceGroup {
+    pub id: String,
+    pub children: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub dynamic_child_prefix: Option<String>,
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryFieldDefinition {
     pub id: String,
     pub path: String,
@@ -165,6 +174,8 @@ pub struct QueryFieldDefinition {
     pub units: Option<String>,
     pub basis: String,
     pub choices: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choice_groups: Vec<QueryChoiceGroup>,
     pub operators: Vec<String>,
     pub examples: Vec<String>,
     pub value_discovery: QueryValueDiscovery,

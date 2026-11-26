@@ -27,7 +27,20 @@ it and leaves the text selected for copying.
 On a narrow or short screen, open **Filters** to see the criteria. The number
 on the button shows how many conditions are applied.
 
-Use **Kind** to look for creatures, spells, equipment or another type of entry.
+Open **Kind** and type the label from a result, such as **Background** or
+**Class Feature**. You can also expand a group or select its name to include every
+kind beneath it. For example, **All spells** includes both Spell and Ritual.
+To browse equipment except weapons, include **All equipment** and exclude **Weapon**.
+
+**All journals** contains the journal packs provided by Foundry. To find the
+Champion class page, select **All journals** and search for **Champion**.
+Choose **Classes › Champion** on the Classes result. **Archetypes › Champion**
+opens the separate archetype page. Select the journal title to browse its outline.
+
+Advanced filters offer the same **Kind** choices. **Foundry document type** selects
+source documents such as Item or JournalEntry. **Foundry subtype** selects their
+authored subtype, such as feat or spell.
+
 Add level, rarity or trait filters for requirements that matter to your game.
 For example, combine a creature idea with a level range suited to your party.
 Filters keep those requirements explicit while you experiment with the wording.
