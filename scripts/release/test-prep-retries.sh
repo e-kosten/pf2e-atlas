@@ -17,7 +17,7 @@ git init -q --bare "$fixture/origin.git"
 git remote add origin "$fixture/origin.git"
 mkdir -p scripts/release dev-tools/release/src crates/atlas-cli docs/releases web/atlas-ui
 cp "$source_dir/scripts/prepare-release.sh" scripts/
-cp "$source_dir/scripts/release/prep-state.mjs" scripts/release/
+cp "$source_dir/scripts/release/prep-state.mjs" "$source_dir/scripts/release/release-notes.mjs" scripts/release/
 cp "$source_dir/dev-tools/release/src/package-version.mjs" dev-tools/release/src/
 cp "$source_dir/.gitignore" .
 cat > crates/atlas-cli/Cargo.toml <<'TOML'

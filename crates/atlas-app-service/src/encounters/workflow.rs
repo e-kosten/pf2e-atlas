@@ -14,7 +14,7 @@ use atlas_local_state::{
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::saved_edit::SavedEditCheck;
+use crate::saved_edit::{SavedEditCheck, require_name};
 use crate::service::AtlasAppService;
 
 use super::conditions::{condition_catalog, modeled_condition_by_ref};
@@ -228,6 +228,7 @@ impl AtlasAppService {
         request: CreateEncounterRequest,
     ) -> AppServiceResult<EncounterCreateView> {
         self.with_write(move |session| {
+            require_name(&request.name, "Encounter")?;
             let slug = derive_slug(&request.name);
             let encounter = session.local_state()?.encounters().create(NewEncounter {
                 slug,
@@ -328,6 +329,9 @@ impl AtlasAppService {
                 .get(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
             let edit = edit(&current)?;
+            if let Some(name) = &edit.name {
+                require_name(name, "Encounter")?;
+            }
             let round_duration_seconds = edit
                 .round_duration_seconds
                 .filter(|&seconds| seconds != current.round_duration_seconds);

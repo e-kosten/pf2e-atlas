@@ -99,9 +99,10 @@ they are not probabilities.
 
 Record Similar defaults to Passage matches. Try `--method baseline` for Name and
 identity, or `--method content-average` to compare selected content as a whole.
-Starting from a trait uses Trait definition by default. If the starting name is
-ambiguous, resolve it separately and use the returned key. Filters apply to the
-results, independently of resolving the starting entry.
+Start Similar from a record. If its name is ambiguous, resolve it first and use
+the returned key. Filters apply to the results. For a trait such as agile, use
+`atlas record definition trait:agile` to read its rules or `atlas search --trait agile`
+to find records with that trait.
 
 ```bash
 atlas similar 'Dirge of Doom' --kind spell --search-profile embeddinggemma --limit 8
@@ -469,11 +470,14 @@ atlas encounters import garden-sentries.json --slug garden-sentries-copy --json
 atlas encounters show garden-sentries-copy
 ```
 
-Export writes a version 3 JSON document to stdout by default. It preserves
-archive membership, the saved round and the current participant. Import accepts
-earlier supported documents. Atlas builds predating version 3 cannot import a
-new encounter file. A named output
-file must be new. Import uses the exported slug unless you supply `--slug`
+Export writes JSON to stdout by default. It preserves archive membership, the saved
+round and the current participant. The export uses version 4 when it includes a
+content fingerprint for a record linked only in a GM or participant note. Reading
+that file requires a version 4 reader. Other new exports use version 3. Atlas
+also reads earlier supported versions. Older exports can report a missing linked
+record. Detecting a change to its content requires its original fingerprint.
+
+A named output file must be new. Import uses the exported slug unless you supply `--slug`
 and fails if that slug is already in use. The result reports missing or
 changed reference records. Saved participants and state survive missing
 references, though source-dependent actions may need compatible reference data.

@@ -337,6 +337,13 @@ Version 3 standalone encounter exports and workspace archive 7.0 encode archive
 membership as a boolean. Readers import historical standalone v1/v2 and workspace
 archives through 6.x by translating their saved phase. Historical standalone
 exports with adjustment state or history required version 2.
+
+Standalone encounter exports use version 4 when they include a content hash for
+a record linked only from an encounter or participant note. The links can come
+from the current encounter or its frozen outgoing turn. Files whose available
+hashes all belong to participant records, including files without hashes, use
+version 3. Readers of versions 1–3 accept only participant record hashes.
+
 Custom turns use a detectable participant kind value. Older readers reject
 archives and standalone encounter files containing that kind before writing.
 Bump the minor version for compatible additions. Older readers can ignore optional data when doing so preserves saved

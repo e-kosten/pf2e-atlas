@@ -77,11 +77,7 @@ impl AtlasAppService {
         request: CreateEncounterWithAdditionRequest,
     ) -> AppServiceResult<CreatedEncounterAdditionView> {
         let name = request.name.trim().to_owned();
-        if name.is_empty() {
-            return Err(AppServiceError::invalid_request(
-                "Encounter name is required.",
-            ));
-        }
+        crate::saved_edit::require_name(&name, "Encounter")?;
         let digest = crate::characters::intent_digest(&(
             &name,
             &request.addition,

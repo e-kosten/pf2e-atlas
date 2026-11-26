@@ -32,17 +32,10 @@ jobs:
             exit 1
           fi
           package_tag="${tag#*/}"
-          version="${package_tag#v}"
-          crate_version="$(awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml)"
-          if [[ "$crate_version" != "$version" ]]; then
-            echo "crate version $crate_version does not match tag $tag" >&2
-            exit 1
-          fi
-          notes="docs/releases/$package_tag.md"
-          if [[ ! -s "$notes" ]]; then
-            echo "missing release notes: $notes" >&2
-            exit 1
-          fi
+          ref="refs/tags/$tag"
+          git fetch --depth=1 --no-tags origin "$ref"
+          object=$(git rev-parse FETCH_HEAD)
+          node scripts/release/prep-state.mjs remote-notes "$tag" "$(git rev-parse HEAD)" "$object"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "package-tag=$package_tag" >> "$GITHUB_OUTPUT"
 

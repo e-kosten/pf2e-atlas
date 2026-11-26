@@ -90,7 +90,11 @@ export function CreateEncounterModal({
         {mutation.error && (
           <ErrorNotice error={mutation.error} title="Encounter could not be created" />
         )}
-        <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+        <Form.Item
+          name="name"
+          label="Name"
+          rules={[{ required: true, whitespace: true, message: "Name is required." }]}
+        >
           <Input />
         </Form.Item>
       </Form>
@@ -246,7 +250,17 @@ export function EditEncounterForm({
             description={error}
           />
         )}
-        <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+        <Form.Item
+          name="name"
+          label="Name"
+          rules={[
+            ({ getFieldValue }) => {
+              const saved = draft.savedName();
+              if (!saved.trim() && getFieldValue("name") === saved) return {};
+              return { required: true, whitespace: true, message: "Name is required." };
+            },
+          ]}
+        >
           <Input />
         </Form.Item>
         <Form.Item name="description" label="Description">

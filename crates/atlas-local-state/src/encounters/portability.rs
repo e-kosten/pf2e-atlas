@@ -13,9 +13,13 @@ use serde::{
     de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor},
 };
 use serde_json::Value;
-use std::io::{Read, Write};
+use std::{
+    collections::BTreeSet,
+    io::{Read, Write},
+};
 
-const VERSION: u32 = 3;
+const ARCHIVE_MEMBERSHIP_VERSION: u32 = 3;
+const NOTE_FINGERPRINT_VERSION: u32 = 4;
 const LEGACY_VERSION: u32 = 1;
 const ADJUSTMENT_VERSION: u32 = 2;
 const BYTE_LIMIT: usize = 64 * 1024 * 1024;
@@ -33,7 +37,7 @@ pub struct EncounterDocument {
     receipts: Vec<Receipt>,
     outgoing: Option<Outgoing>,
     pub source_fingerprint: Option<String>,
-    pub record_sources: Vec<EncounterRecordSource>,
+    record_sources: Vec<EncounterRecordSource>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -110,7 +114,6 @@ impl EncounterDocument {
     }
 
     fn normalize_membership(&mut self) {
-        self.version = VERSION;
         self.snapshot.encounter.legacy_phase = None;
         if let Some(row) = &mut self.outgoing {
             row.turn.snapshot.encounter.legacy_phase = None;
@@ -144,14 +147,12 @@ impl EncounterDocument {
         let remaining = remaining_entries(&bytes)?;
         let mut document: Self =
             serde_json::from_slice(&bytes).map_err(|err| invalid(err.to_string()))?;
-        document.validate()?.check_budget(remaining)?;
-        document.normalize_membership();
+        document.validate_and_normalize()?.check_budget(remaining)?;
         Ok(document)
     }
 
     pub fn encode(&mut self) -> LocalStateResult<Vec<u8>> {
-        let identities = self.validate()?;
-        self.normalize_membership();
+        let identities = self.validate_and_normalize()?;
         let mut output = BoundedDocument(Vec::new());
         serde_json::to_writer(&mut output, &self).map_err(|err| invalid(err.to_string()))?;
         output.write_all(b"\n")?;
@@ -159,16 +160,66 @@ impl EncounterDocument {
         Ok(output.0)
     }
 
-    pub fn record_keys(&self) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
-        snapshot_record_keys(&self.snapshot, self.outgoing.as_ref())
+    pub fn name(&self) -> &str {
+        &self.snapshot.encounter.name
     }
 
-    pub fn markdown_record_keys(&self) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
+    pub fn record_sources(&self) -> &[EncounterRecordSource] {
+        &self.record_sources
+    }
+
+    pub fn set_record_sources(
+        &mut self,
+        sources: Vec<EncounterRecordSource>,
+    ) -> LocalStateResult<()> {
+        self.version = fingerprint_version(&self.participant_record_keys()?, &sources);
+        self.record_sources = sources;
+        Ok(())
+    }
+
+    pub fn record_keys(&self) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
+        let mut keys = self.participant_record_keys()?;
+        keys.extend(self.markdown_record_keys());
+        Ok(keys.into_iter().collect())
+    }
+
+    fn participant_record_keys(&self) -> LocalStateResult<BTreeSet<atlas_domain::RecordKey>> {
+        let historical = self
+            .outgoing
+            .iter()
+            .flat_map(|row| &row.turn.snapshot.participants);
+        self.snapshot
+            .participants
+            .iter()
+            .chain(historical)
+            .filter_map(|p| p.record_key.as_deref())
+            .map(|key| {
+                key.parse()
+                    .map_err(|err| invalid(format!("invalid record key {key}: {err}")))
+            })
+            .collect()
+    }
+
+    fn markdown_record_keys(&self) -> impl Iterator<Item = atlas_domain::RecordKey> + '_ {
         snapshot_markdown_keys(&self.snapshot).chain(
             self.outgoing
                 .iter()
                 .flat_map(|row| snapshot_markdown_keys(&row.turn.snapshot)),
         )
+    }
+}
+
+fn fingerprint_version(
+    participants: &BTreeSet<atlas_domain::RecordKey>,
+    sources: &[EncounterRecordSource],
+) -> u32 {
+    if sources
+        .iter()
+        .any(|source| !participants.contains(&source.record_key))
+    {
+        NOTE_FINGERPRINT_VERSION
+    } else {
+        ARCHIVE_MEMBERSHIP_VERSION
     }
 }
 
@@ -198,26 +249,6 @@ fn snapshot_markdown_keys(
                 .filter_map(|participant| participant.note.as_deref()),
         )
         .flat_map(|note| crate::markdown::Markdown(note).record_keys())
-}
-
-fn snapshot_record_keys(
-    snapshot: &ArchiveSnapshot,
-    outgoing: Option<&Outgoing>,
-) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
-    let historical = outgoing
-        .into_iter()
-        .flat_map(|row| &row.turn.snapshot.participants);
-    snapshot
-        .participants
-        .iter()
-        .chain(historical)
-        .filter_map(|p| p.record_key.as_deref())
-        .map(|key| {
-            key.parse()
-                .map_err(|err| invalid(format!("invalid record key {key}: {err}")))
-        })
-        .collect::<LocalStateResult<std::collections::BTreeSet<_>>>()
-        .map(|keys| keys.into_iter().collect())
 }
 
 struct BoundedDocument(Vec<u8>);

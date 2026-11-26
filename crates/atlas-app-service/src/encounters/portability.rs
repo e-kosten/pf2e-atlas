@@ -24,7 +24,7 @@ impl AtlasAppService {
             match session.exact_records() {
                 Ok(reader) => {
                     document.source_fingerprint = Some(reader.source_fingerprint().into());
-                    document.record_sources = reader
+                    let sources = reader
                         .summaries(&document.record_keys()?)?
                         .into_iter()
                         .map(|record| EncounterRecordSource {
@@ -32,6 +32,7 @@ impl AtlasAppService {
                             content_hash: record.content_hash,
                         })
                         .collect();
+                    document.set_record_sources(sources)?;
                 }
                 Err(error) if error.reference_unavailable() => {}
                 Err(error) => return Err(error.into()),
@@ -46,13 +47,8 @@ impl AtlasAppService {
         slug: Option<String>,
     ) -> AppServiceResult<EncounterImportReport> {
         let document = EncounterDocument::read(input)?;
-        let keys: Vec<_> = document
-            .record_keys()?
-            .into_iter()
-            .chain(document.markdown_record_keys())
-            .collect::<std::collections::BTreeSet<_>>()
-            .into_iter()
-            .collect();
+        crate::saved_edit::require_name(document.name(), "Encounter")?;
+        let keys = document.record_keys()?;
         self.with_write(move |session| {
             let mut missing_records = Vec::new();
             let mut changed_records = Vec::new();
@@ -69,7 +65,7 @@ impl AtlasAppService {
                         .map(|record| (record.key, record.content_hash))
                         .collect();
                     let source: BTreeMap<_, _> = document
-                        .record_sources
+                        .record_sources()
                         .iter()
                         .map(|record| (&record.record_key, &record.content_hash))
                         .collect();

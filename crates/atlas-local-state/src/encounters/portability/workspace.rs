@@ -177,7 +177,7 @@ impl RecoveryEncounter {
             ));
         }
         let mut document = EncounterDocument {
-            version: VERSION,
+            version: ARCHIVE_MEMBERSHIP_VERSION,
             snapshot: self.snapshot,
             baselines: self.baselines.into_iter().map(Into::into).collect(),
             pending: self.pending,
@@ -189,7 +189,7 @@ impl RecoveryEncounter {
             record_sources: Vec::new(),
         };
         document.normalize_membership();
-        let condition_floor = document.validate()?.condition_floor();
+        let condition_floor = document.validate_and_normalize()?.condition_floor();
         Ok(ValidatedEncounter {
             document,
             condition_floor,

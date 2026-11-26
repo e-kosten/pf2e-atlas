@@ -2,39 +2,11 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { candidateNotes, notesPath, remoteTagNotes, tagNotes } from './release-notes.mjs';
 import { cliVersion, lockPath, manifestPath, versionFiles, writeVersionFiles } from '../../dev-tools/release/src/package-version.mjs';
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
 const read = file => readFileSync(file, 'utf8');
-
-// A user-supplied notes path must stay inside the checkout before the shell
-// creates a template or launches an editor (including on an interrupted prep).
-function notesPath(input) {
-  const invalid = () => new Error('Choose a separate repository-relative release notes file');
-  if (path.parse(input).root || /[\r\n]/.test(input)) throw invalid();
-  const parts = input.split(path.sep).join('/').split('/');
-  const normalized = [];
-  for (const [i, part] of parts.entries()) {
-    if (!part || part === '.') continue;
-    if (part === '..') {
-      if (!normalized.length) throw invalid();
-      normalized.pop();
-      continue;
-    }
-    if (part.toLowerCase() === '.git') throw invalid();
-    normalized.push(part);
-    const name = normalized.join('/');
-    const stat = lstatSync(name, { throwIfNoEntry: false });
-    if (stat && (i === parts.length - 1 ? !stat.isFile() : !stat.isDirectory())) {
-      throw new Error(`Invalid release notes path: ${name}`);
-    }
-  }
-  const file = normalized.join('/');
-  if (!file || path.parse(file).root || !parts.at(-1) || ['.', '..'].includes(parts.at(-1)) || file.startsWith(':')
-      || [manifestPath, lockPath].includes(file)) throw invalid();
-  return file;
-}
 
 function checkPaths(base, notes, committed) {
   const allowed = new Set([lockPath, manifestPath, notes]);
@@ -69,7 +41,7 @@ function prepState(mode, version, inputNotes, main) {
   if (committed && (resuming || git('show', '-s', '--format=%P', head).trim() !== base)) {
     throw new Error('Expected an uncommitted release prep or one preparation commit directly on its main branch point');
   }
-  const notes = notesPath(inputNotes);
+  const notes = notesPath(inputNotes, true);
   checkPaths(base, notes, committed);
   const fromBase = file => git('cat-file', '--filters', `--path=${file}`, `${base}:${file}`);
   const source = fromBase(manifestPath);
@@ -119,9 +91,15 @@ function matchingPR(branch, head, repository) {
 try {
   const [mode, ...args] = process.argv.slice(2);
   if (mode === 'notes-path') {
-    console.log(notesPath(args[0]));
+    console.log(notesPath(args[0], true));
+  } else if (mode === 'notes-blob') {
+    console.log(candidateNotes(...args));
+  } else if (mode === 'tag-notes') {
+    console.log(tagNotes(...args));
+  } else if (mode === 'remote-notes') {
+    console.log(remoteTagNotes(...args));
   } else if (mode === 'check' || mode === 'write') {
-    notesPath(args[1]);
+    notesPath(args[1], true);
     const files = versionFiles(read(manifestPath), read(lockPath), args[0]);
     if (mode === 'write') writeVersionFiles('.', files);
   } else if (mode === 'resume' || mode === 'resume-dry-run' || mode === 'candidate') {

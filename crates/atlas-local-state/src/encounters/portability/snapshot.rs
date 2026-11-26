@@ -109,7 +109,7 @@ pub(super) fn capture_document(
                 Ok::<_, LocalStateError>(Outgoing { request_id, requires_review, turn: decode(&payload, "outgoing turn")? })
             }).transpose()?;
     let document = EncounterDocument {
-        version: VERSION,
+        version: ARCHIVE_MEMBERSHIP_VERSION,
         snapshot,
         baselines,
         pending,

@@ -251,9 +251,14 @@ scripts/prepare-release.sh --publish
 ```
 
 The helper switches to `main`, fast-forwards to `origin/main`, reads the
-committed crate version, validates the matching release notes, and then creates
-the tag and draft release. Pass `--version <X.Y.Z[-rc.N]>` only when you want an
-extra guard that the committed crate version matches that exact value.
+committed crate version, and shows the commit and release notes for approval.
+After local validation it verifies that clean local and remote main still match
+that commit. If either moved, restart publication to review the new candidate.
+The helper tags the approved commit explicitly and verifies the pushed annotated
+tag before opening the draft. Every new stable or RC tag records the selected
+notes path, including when you pass a custom repository-relative `--notes-file`.
+The draft and hosted tag validation use those committed notes. Pass
+`--version <X.Y.Z[-rc.N]>` to require that exact crate version.
 
 Running `scripts/prepare-release.sh` without a mode flag opens an interactive
 picker for the workflow steps. Non-interactive shells must pass
@@ -288,9 +293,12 @@ scripts/prepare-release.sh --recover-draft TAG COMMIT --dry-run
 scripts/prepare-release.sh --recover-draft TAG COMMIT
 ```
 
-Recovery reads the version and release notes from that commit, so it also works
-after `main` advances. Fetch the named tag from origin if the commit is missing
-locally. If the tag-triggered workflow already failed waiting for the draft,
+Recovery reads the tag's selected notes from the verified commit, even after
+`main` advances. Fetch the named tag from origin if the tag object or commit
+is missing locally. For historical tags without a recorded path, recovery uses
+`docs/releases/v<version>.md`. Pass `--notes-file <path>` if the historical
+release selected another file. For new tags, an explicit path must match the
+annotation. If the tag-triggered workflow already failed waiting for the draft,
 rerun its failed jobs after the draft exists.
 
 cargo-dist is configured in `dist-workspace.toml`. The Atlas release workflow intentionally keeps repo-owned installers instead of cargo-dist-generated installers so install/update prompts, install locations, PATH guidance, and runtime-data policy remain under Atlas control.

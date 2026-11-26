@@ -727,7 +727,7 @@ expected artifact generation. The generation check precedes embedding and rankin
 a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
 generation identities. There is no app window registry or handle lifecycle. Each
 page retains admission and query inference where needed. Ordinary unscoped
-TextSearch and baseline record/trait Similar may reuse exact per-k native
+TextSearch and baseline record Similar may reuse exact per-k native
 neighbors through one runtime-shared search-owned store;
 index rehydrates their metadata in the consuming snapshot. Lexical, root/window,
 fusion, remaster, order and presentation work still execute independently. Similar
