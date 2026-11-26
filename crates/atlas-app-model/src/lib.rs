@@ -267,11 +267,11 @@ pub use record::{
     RecordSummaryView, RecordTitleLinkView,
 };
 pub use search::{
-    ConnectionScopeUnavailableReason, ConnectionScopeView, MatchPreviewView,
-    RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
-    RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
-    SearchConnectionScope, SearchCoverageView, SearchCriteria, SearchLaneView,
-    SearchMatchSectionView, SearchModeSummary, SearchPageRequest, SearchPageView,
-    SearchResultDetail, SearchResultRow, SearchResultsPage, SearchResultsRequest,
+    ConnectionScopeUnavailableReason, ConnectionScopeView, ExactJournalPagesView,
+    JournalPageLinkView, MatchPreviewView, RelationshipClausePresentationView,
+    RelationshipClauseSummaryView, RelationshipEvidenceView, RelationshipOccurrencesPage,
+    RelationshipOccurrencesRequest, RetrievalModeView, SearchConnectionScope, SearchCoverageView,
+    SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary, SearchPageRequest,
+    SearchPageView, SearchResultDetail, SearchResultRow, SearchResultsPage, SearchResultsRequest,
     SearchWitnessView, StaticSearchContext,
 };

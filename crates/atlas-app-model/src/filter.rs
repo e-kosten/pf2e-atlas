@@ -155,6 +155,11 @@ pub struct FilterCollectionControlView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterChoiceView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub parent_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub search_aliases: Vec<String>,
     pub value: QueryLiteral,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -230,6 +235,9 @@ pub struct FilterCountsView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterValueOptionView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub parent_kind: Option<String>,
     pub value: QueryLiteral,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

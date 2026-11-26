@@ -131,23 +131,34 @@ pub(crate) fn filter_editor_view(
         let mut choices: Vec<_> = definition
             .choices
             .iter()
-            .map(|value| FilterChoiceView {
-                help: None,
-                value: QueryLiteral::String(value.clone()),
-                label: if definition.path == "kind" {
-                    crate::projection::kind_label(value)
-                } else {
-                    words(value)
-                },
+            .map(|value| {
+                if definition.id == "kind" {
+                    return crate::kind_choices::choice(value, &[]);
+                }
+                FilterChoiceView {
+                    value: QueryLiteral::String(value.clone()),
+                    label: if definition.path == "kind" {
+                        crate::projection::kind_label(value)
+                    } else {
+                        words(value)
+                    },
+                    parent_kind: None,
+                    search_aliases: vec![],
+                    help: None,
+                }
             })
             .chain(if definition.field_type == QueryFieldType::Boolean {
                 vec![
                     FilterChoiceView {
+                        parent_kind: None,
+                        search_aliases: vec![],
                         help: None,
                         value: QueryLiteral::Boolean(true),
                         label: "Yes".into(),
                     },
                     FilterChoiceView {
+                        parent_kind: None,
+                        search_aliases: vec![],
                         help: None,
                         value: QueryLiteral::Boolean(false),
                         label: "No".into(),
@@ -161,6 +172,8 @@ pub(crate) fn filter_editor_view(
             choices = crate::physical_labels::USAGES
                 .iter()
                 .map(|(value, label)| FilterChoiceView {
+                    parent_kind: None,
+                    search_aliases: vec![],
                     help: None,
                     value: QueryLiteral::String((*value).into()),
                     label: (*label).into(),

@@ -458,7 +458,7 @@ test("compact filter links reload and unreadable links reset to empty idle Searc
   await page.goto(landedSearch);
   const title = page.getByRole("heading", { name: "Atlas Sentinel", exact: true });
   await expect(title).toBeVisible();
-  expect(new URL(page.url()).searchParams.get("filter")).toMatch(/^3\./);
+  expect(new URL(page.url()).searchParams.get("filter")).toMatch(/^4\./);
   await page.reload();
   await expect(title).toBeVisible();
 
@@ -3404,4 +3404,51 @@ test("reference feedback: link picker retains direction, scope and preview when 
   await expect(chip).toBeVisible();
   await expect(chip).toBeFocused();
   await noPageOverflow(page);
+});
+
+test("Kind groups and child exceptions survive search, dismissal and reload", async ({
+  page,
+}, info) => {
+  await page.goto("/search");
+  await showSearchFilters(page, info);
+  const opener = page.getByRole("button", { name: "Edit Kind filter", exact: true });
+  await activate(opener, info);
+  const group = page.getByRole("button", { name: /^Kind: All spells,/ });
+  const leaf = page.getByRole("button", { name: /^Kind: Spell,/ });
+  await expect(leaf).toHaveCount(0);
+  const expand = page.getByRole("button", { name: "Expand All spells" });
+  if (info.project.use.hasTouch) await activate(expand, info);
+  else await expand.press("Enter");
+  await expect(leaf).toBeVisible();
+  await expect(group).toHaveAccessibleName(
+    "Kind: All spells, neutral; activate to include",
+  );
+  await activate(group, info);
+  const collapse = page.getByRole("button", { name: "Collapse All spells" });
+  await activate(collapse, info);
+  await expect(leaf).toHaveCount(0);
+  const search = page.getByRole("textbox", { name: "Search kind choices" });
+  await search.fill("Ritual");
+  await expect(group).toBeVisible();
+  const ritual = page.getByRole("button", { name: /^Kind: Ritual,/ });
+  await expect(ritual).toHaveAccessibleName(
+    "Kind: Ritual, included by All spells; activate to exclude",
+  );
+  await activate(ritual, info);
+  await search.fill("");
+  await expect(page.getByRole("button", { name: "Expand All spells" })).toBeVisible();
+  await search.press("Escape");
+  await expect(opener).toBeFocused();
+  await page.reload();
+  await showSearchFilters(page, info);
+  const included = page.getByRole("button", {
+    name: "Remove included All spells from Kind",
+  });
+  const excluded = page.getByRole("button", {
+    name: "Remove excluded Ritual from Kind",
+  });
+  await expect(included).toBeVisible();
+  await activate(excluded, info);
+  await expect(included).toBeVisible();
+  await expect(excluded).toHaveCount(0);
 });

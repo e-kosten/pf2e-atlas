@@ -1133,7 +1133,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             "/api/filters/validate",
-            Some(json!({"kind":"compare","field":"kind","op":"eq","value":"rule"})),
+            Some(json!({"kind":"compare","field":"kind","op":"eq","value":"action"})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1351,7 +1351,7 @@ async fn saved_list_routes_use_real_router_wiring() {
             Method::POST,
             &format!("{path}/filter"),
             Some(
-                json!({"filter":{"kind":"in","clause_id":"kind","field":"kind","values":["rule"]}}),
+                json!({"filter":{"kind":"in","clause_id":"kind","field":"kind","values":["action"]}}),
             ),
         )
         .await;

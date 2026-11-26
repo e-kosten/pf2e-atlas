@@ -62,6 +62,157 @@ fn static_parent(request: SearchResultsRequest) -> Box<atlas_app_model::StaticSe
 }
 
 #[test]
+fn exact_journal_page_links_are_scoped_bounded_and_independent_of_passage_evidence() {
+    use atlas_domain::{OwnedContentIdentity, SearchContentScope, SearchResultDetail};
+    let worker =
+        fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(1, 8, || {
+            let mut index_pages = vec![json!({
+                "_id":"eeeeeeeeeeeeeeee","name":"Index","type":"text",
+                "text":{"format":1,"content":"<h2>Champion</h2>"}
+            })];
+            index_pages.extend((1..=11).map(|index| {
+                let name = if matches!(index, 2 | 4 | 9 | 10 | 11) {
+                    "Echo"
+                } else {
+                    "Other"
+                };
+                json!({"name":name,"type":"text"})
+            }));
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "journals",
+                        "JournalEntry",
+                        json!({
+                "_id":"journalchampion1","name":"Champion","pages":[
+                    {"_id":"aaaaaaaaaaaaaaaa","name":"Champion","type":"text"},
+                    {"_id":"bbbbbbbbbbbbbbbb","name":"champion","type":"text"},
+                    {"_id":"cccccccccccccccc","name":"CHAMPION","type":"text"},
+                    {"name":"Champion","type":"text"},
+                    {"_id":"dddddddddddddddd","name":"Champions","type":"text"}]}),
+                    ),
+                    record(
+                        "journals",
+                        "JournalEntry",
+                        json!({"_id":"journalchampion2","name":"Champion","pages":index_pages}),
+                    ),
+                    record(
+                        "classes",
+                        "Item",
+                        json!({"_id":"championclass001","name":"Champion","type":"class"}),
+                    ),
+                ],
+                false,
+            )?)
+        }))
+        .worker;
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let mut req = request(
+        SearchCriteria::TextSearch {
+            lexical: None,
+            query: "\"cHaMpIoN\"".into(),
+            filter: None,
+            mode: RetrievalModeView::Lexical,
+            search_content: None,
+        },
+        1,
+    );
+    req.page.size = 10;
+    for detail in [
+        SearchResultDetail::Records,
+        SearchResultDetail::Compact,
+        SearchResultDetail::Evidence,
+    ] {
+        req.result_detail = detail;
+        let page = worker.search_page(req.clone(), &execution).unwrap();
+        assert_eq!(page.page.total, 3);
+        let row = page
+            .rows
+            .iter()
+            .find(|r| r.record.record_key == "journals:journalchampion1")
+            .unwrap();
+        let matches = row.exact_journal_pages.as_ref().unwrap();
+        assert_eq!((matches.pages.len(), matches.additional_count), (3, 1));
+        let mut ids = std::collections::BTreeSet::new();
+        for link in &matches.pages {
+            assert_eq!(link.navigation.record_key, row.record.record_key);
+            assert!(link.title.eq_ignore_ascii_case("Champion"));
+            let [owner] = link.navigation.owners.as_slice() else {
+                panic!("page address")
+            };
+            assert_eq!(owner.collection, "/pages");
+            assert!(ids.insert(owner.identity.clone()));
+            assert_eq!(
+                link.navigation.source_fingerprint.is_some(),
+                matches!(owner.identity, OwnedContentIdentity::SnapshotLocal { .. })
+            );
+            assert!(link.navigation.field.is_none() && link.navigation.passage.is_none());
+            if detail == SearchResultDetail::Records {
+                let mut open = atlas_app_model::RecordDetailRequest {
+                    include_section_rendering: false,
+                    expected_artifact_generation: Some(page.artifact_generation.clone()),
+                    spell_rank: None,
+                    record_key: link.navigation.record_key.clone(),
+                    owners: link.navigation.owners.clone(),
+                    fields: vec![],
+                    passage: None,
+                    source_fingerprint: link.navigation.source_fingerprint.clone(),
+                };
+                assert_eq!(
+                    worker.record_detail_at(open.clone()).unwrap().selected,
+                    link.navigation
+                );
+                open.expected_artifact_generation = Some("stale-page-generation".into());
+                assert_eq!(
+                    worker
+                        .record_detail_at(open)
+                        .unwrap_err()
+                        .into_app_error()
+                        .code,
+                    AppErrorCode::ArtifactGenerationChanged
+                );
+            }
+        }
+        assert!(ids.contains(&OwnedContentIdentity::SnapshotLocal { index: 3 }));
+        assert!(
+            page.rows
+                .iter()
+                .filter(|other| other.record.record_key != row.record.record_key)
+                .all(|other| other.exact_journal_pages.is_none())
+        );
+    }
+    if let SearchCriteria::TextSearch { search_content, .. } = &mut req.criteria {
+        *search_content = Some(SearchContentScope::Core);
+    }
+    let core = worker.search_page(req.clone(), &execution).unwrap();
+    assert_eq!(core.page.total, 3);
+    assert!(
+        core.rows
+            .iter()
+            .all(|row| row.exact_journal_pages.is_none())
+    );
+    req.criteria = SearchCriteria::TextSearch {
+        lexical: None,
+        query: "Echo".into(),
+        filter: None,
+        mode: RetrievalModeView::Lexical,
+        search_content: None,
+    };
+    let result = worker.search_page(req, &execution).unwrap();
+    let matches = result.rows[0].exact_journal_pages.as_ref().unwrap();
+    assert_eq!(matches.additional_count, 2);
+    let owners: Vec<_> = matches
+        .pages
+        .iter()
+        .map(|p| p.navigation.owners[0].identity.clone())
+        .collect();
+    assert_eq!(
+        owners,
+        [2, 4, 9].map(|index| OwnedContentIdentity::SnapshotLocal { index })
+    );
+}
+
+#[test]
 fn selected_profile_is_request_local_and_stored_similar_and_lexical_need_no_model_assets() {
     let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, || {
         Ok(open_input_fixture(atlas_search::test_support::input_with_both_profiles((0..3).map(|i|record("items","Item",json!({"_id":format!("{i:016}"),"name":format!("Record {i}"),"type":"effect"}))).collect()))?)
@@ -1508,7 +1659,7 @@ fn connected_picker_uses_complete_static_scope_and_its_own_filters_before_paging
         query: "target".into(),
         filter: Some(
             serde_json::from_value(
-                json!({"kind":"compare", "field":"kind", "op":"eq", "value":"equipment"}),
+                json!({"kind":"compare", "field":"kind", "op":"eq", "value":"all_equipment"}),
             )
             .unwrap(),
         ),
@@ -1653,7 +1804,7 @@ fn link_edit_self_exclusion_and_counts_use_the_same_static_connected_scope() {
 fn malformed_link_discovery_targets_and_stale_parents_fail_before_inference() {
     let fixture = fixture(false).0;
     let execution = crate::ReadExecutionContext::uncancellable();
-    let ordinary: atlas_domain::QueryPredicate = serde_json::from_value(json!({"kind":"compare", "clause_id":"wrong", "field":"kind", "op":"eq", "value":"equipment"})).unwrap();
+    let ordinary: atlas_domain::QueryPredicate = serde_json::from_value(json!({"kind":"compare", "clause_id":"wrong", "field":"kind", "op":"eq", "value":"all_equipment"})).unwrap();
     for filter in [
         ordinary.clone(),
         atlas_domain::QueryPredicate::new(atlas_domain::QueryExpression::AnyOf {

@@ -39,11 +39,21 @@ pub(crate) fn record_summary_view_with_display(
     record: &SourceRecordSummary,
     display: Option<atlas_search::CreatureDisplay>,
 ) -> RecordSummaryView {
-    let kind = record
-        .record_kind
-        .as_value()
-        .map(|k| k.as_str().to_owned())
-        .unwrap_or_else(|| record.document_kind.to_lowercase());
+    let precise = record.root_kind.as_deref();
+    let journal = record.document_kind == "JournalEntry";
+    let kind = crate::kind_choices::record_selector(record);
+    let label = if journal {
+        "Journal".into()
+    } else if let Some(selector) = kind {
+        crate::kind_choices::label(selector)
+    } else {
+        kind_label(
+            record
+                .source_type
+                .as_value()
+                .map_or(record.document_kind.as_str(), String::as_str),
+        )
+    };
     let source_title = record.name.as_value().cloned();
     let (title, source_title) = match display.as_ref().and_then(|display| display.label.as_ref()) {
         Some(label) => (label.clone(), source_title.filter(|name| name != label)),
@@ -60,16 +70,12 @@ pub(crate) fn record_summary_view_with_display(
         record_key: record.key.to_string(),
         title,
         source_title,
-        kind_label: if record.document_kind == "JournalEntry" {
-            "Journal".into()
-        } else if kind == "spell" && record.spell_ritual.as_value() == Some(&true) {
-            "Ritual".into()
-        } else if kind == "equipment" {
-            physical_kind_label(record.source_type.as_value().map(String::as_str))
-        } else {
-            reference_kind_label(record.source_type.as_value().map(String::as_str), &kind)
-        },
-        kind,
+        kind_label: label,
+        kind: kind.map(str::to_owned),
+        parent_kind: kind
+            .and_then(atlas_domain::root_kind::parent)
+            .map(str::to_owned),
+        journal_pack_kind: precise.filter(|_| journal).map(str::to_owned),
         source_type: record.source_type.as_value().cloned(),
         level_label: record.level.as_value().map(|level| {
             format!(
@@ -181,16 +187,6 @@ pub(crate) fn physical_kind_label(source_type: Option<&str>) -> String {
     .into()
 }
 
-pub(crate) fn reference_kind_label(source_type: Option<&str>, fallback: &str) -> String {
-    match source_type {
-        Some(
-            value @ ("ancestry" | "heritage" | "background" | "class" | "deity" | "condition"
-            | "effect"),
-        ) => kind_label(value),
-        _ => kind_label(fallback),
-    }
-}
-
 pub(crate) fn kind_label(value: &str) -> String {
     // These source document/family tokens are finite upstream names, not product IDs.
     // Preserve the display boundary while keeping canonical kind/source tokens exact.
@@ -260,6 +256,32 @@ pub(crate) fn search_results_view(
                     })
                     .unzip();
                 atlas_app_model::SearchResultRow {
+                    exact_journal_pages: r.exact_journal_pages.map(|matches| {
+                        atlas_app_model::ExactJournalPagesView {
+                            pages: matches
+                                .pages
+                                .into_iter()
+                                .map(|(page, title)| {
+                                    let owners = vec![page];
+                                    atlas_app_model::JournalPageLinkView {
+                                        title,
+                                        navigation: RecordNavigationView {
+                                            record_key: r.record.key.to_string(),
+                                            source_fingerprint: navigation_fingerprint(
+                                                &owners,
+                                                retrieval.source_fingerprint(),
+                                            ),
+                                            owners,
+                                            field: None,
+                                            passage: None,
+                                            spell_rank: None,
+                                        },
+                                    }
+                                })
+                                .collect(),
+                            additional_count: matches.additional_count,
+                        }
+                    }),
                     similarity: None,
                     relationship_evidence: vec![],
                     record: localized_summary_view(&r.record, retrieval),
@@ -501,6 +523,7 @@ mod tests {
             document_kind: "Item".into(),
             source_type: SourceQueryFact::known("equipment".into()),
             name,
+            root_kind: Some("general_equipment".into()),
             record_kind: SourceQueryFact::known(atlas_domain::RecordKind::Equipment),
             level: SourceQueryFact::known(1.into()),
             level_basis: Some(SourceLevelBasis::ItemLevel),
@@ -580,57 +603,90 @@ mod tests {
     }
 
     #[test]
-    fn equipment_display_subtypes_keep_canonical_identity_and_source_type() {
-        use atlas_domain::SourceQueryFact;
-        let mut source = summary_with_name(SourceQueryFact::known("Item".into()));
-        for (source_type, label) in [
-            ("weapon", "Weapon"),
-            ("armor", "Armor"),
-            ("shield", "Shield"),
-            ("consumable", "Consumable"),
-            ("ammo", "Ammunition"),
-            ("backpack", "Container"),
-            ("treasure", "Treasure"),
-            ("kit", "Kit"),
-            ("equipment", "Equipment"),
-            ("custom-homebrew", "Equipment"),
+    fn hydrated_summary_preserves_partial_kind_and_duplicate_journal_pack_labels() {
+        use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+        use atlas_search::test_support::{input, open_input_fixture, record};
+        use serde_json::json;
+
+        let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+            1,
+            16,
+            || {
+                let mut source = input(
+                    vec![
+                        record(
+                            "items",
+                            "Item",
+                            json!({"_id":"aaaaaaaaaaaaaaaa","name":"Unclassified feat","type":"feat"}),
+                        ),
+                        record(
+                            "items",
+                            "Item",
+                            json!({"_id":"bbbbbbbbbbbbbbbb","name":"Unclassified campaign feature","type":"campaignFeature"}),
+                        ),
+                        record(
+                            "guides",
+                            "JournalEntry",
+                            json!({"_id":"cccccccccccccccc","name":"Class Guide","pages":[]}),
+                        ),
+                        record(
+                            "cards",
+                            "JournalEntry",
+                            json!({"_id":"dddddddddddddddd","name":"Card Guide","pages":[]}),
+                        ),
+                    ],
+                    false,
+                );
+                for pack in &mut source.packs {
+                    if pack.pack_id != "items" {
+                        pack.label = "GM Reference".into();
+                    }
+                }
+                Ok(open_input_fixture(source)?)
+            },
+        ));
+        let keys = [
+            "items:aaaaaaaaaaaaaaaa",
+            "items:bbbbbbbbbbbbbbbb",
+            "guides:cccccccccccccccc",
+            "cards:dddddddddddddddd",
+        ];
+        let (_, rows) = fixture
+            .worker
+            .record_summaries_at(keys.iter().map(|key| key.parse().unwrap()).collect(), None)
+            .unwrap();
+        let row = |key: &str| rows.iter().find(|r| r.record_key == key).unwrap();
+        let feat = row(keys[0]);
+        assert_eq!(feat.kind_label, "Feat");
+        assert_eq!(feat.kind, None);
+        assert_eq!(feat.parent_kind, None);
+        assert!(serde_json::to_value(feat).unwrap().get("kind").is_none());
+        let campaign = row(keys[1]);
+        assert_eq!(campaign.kind.as_deref(), Some("kingdom_and_warfare"));
+        assert_eq!(campaign.kind_label, "Kingdom and warfare");
+        for (key, pack_kind) in [
+            (keys[2], "journal_pack/guides"),
+            (keys[3], "journal_pack/cards"),
         ] {
-            source.source_type = SourceQueryFact::known(source_type.into());
-            let view = record_summary_view(&source);
-            assert_eq!(view.kind_label, label);
-            assert_eq!(view.kind, "equipment");
-            assert_eq!(view.source_type.as_deref(), Some(source_type));
-            assert_eq!(view.record_key, source.key.to_string());
-            assert_eq!(view.level_label.as_deref(), Some("Level 1"));
+            let journal = row(key);
+            assert_eq!(journal.kind.as_deref(), Some("journal"));
+            assert_eq!(journal.kind_label, "Journal");
+            assert_eq!(journal.journal_pack_kind.as_deref(), Some(pack_kind));
+            assert_eq!(journal.pack.as_deref(), Some("GM Reference"));
         }
     }
 
     #[test]
-    fn ritual_display_label_requires_known_ritual_identity_and_keeps_spell_kind() {
-        use atlas_domain::{QueryFieldState, RecordKind, SourceQueryFact};
-        let mut source = summary_with_name(SourceQueryFact::known("Resurrect".into()));
-        source.source_type = SourceQueryFact::known("spell".into());
-        source.record_kind = SourceQueryFact::known(RecordKind::Spell);
-        for (ritual, label) in [
-            (SourceQueryFact::known(true), "Ritual"),
-            (SourceQueryFact::known(false), "Spell"),
-            (
-                SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
-                "Spell",
-            ),
-            (
-                SourceQueryFact::unavailable(QueryFieldState::Invalid).unwrap(),
-                "Spell",
-            ),
-        ] {
-            source.spell_ritual = ritual;
-            let view = record_summary_view(&source);
-            assert_eq!(
-                (view.kind.as_str(), view.kind_label.as_str()),
-                ("spell", label)
-            );
-            assert_eq!(view.record_key, source.key.to_string());
-        }
+    fn precise_kind_on_a_summary_is_a_selectable_value() {
+        use atlas_domain::SourceQueryFact;
+        let mut source = summary_with_name(SourceQueryFact::known("Container".into()));
+        source.source_type = SourceQueryFact::known("backpack".into());
+        source.root_kind = Some("container".into());
+        let view = record_summary_view(&source);
+        assert_eq!(view.kind.as_deref(), Some("container"));
+        assert_eq!(view.kind_label, "Container");
+        assert_eq!(view.parent_kind.as_deref(), Some("all_equipment"));
+        assert_eq!(view.source_type.as_deref(), Some("backpack"));
     }
 
     #[test]

@@ -8403,6 +8403,25 @@
           }
         ]
       },
+      "ExactJournalPagesView": {
+        "properties": {
+          "additional_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/JournalPageLinkView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "pages",
+          "additional_count"
+        ],
+        "type": "object"
+      },
       "FacetUnavailableReason": {
         "enum": [
           "non_conjunctive_context",
@@ -10599,6 +10618,15 @@
           "label": {
             "type": "string"
           },
+          "parent_kind": {
+            "type": "string"
+          },
+          "search_aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "value": {
             "$ref": "#/components/schemas/QueryLiteral"
           }
@@ -11112,6 +11140,9 @@
             "$ref": "#/components/schemas/ReferenceHelpView"
           },
           "label": {
+            "type": "string"
+          },
+          "parent_kind": {
             "type": "string"
           },
           "selected": {
@@ -11806,6 +11837,21 @@
           "key",
           "label",
           "modifier"
+        ],
+        "type": "object"
+      },
+      "JournalPageLinkView": {
+        "properties": {
+          "navigation": {
+            "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "navigation"
         ],
         "type": "object"
       },
@@ -14129,6 +14175,27 @@
         ],
         "type": "object"
       },
+      "QueryChoiceGroup": {
+        "properties": {
+          "children": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "dynamic_child_prefix": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "children"
+        ],
+        "type": "object"
+      },
       "QueryCompare": {
         "enum": [
           "eq",
@@ -14839,6 +14906,12 @@
         "properties": {
           "basis": {
             "type": "string"
+          },
+          "choice_groups": {
+            "items": {
+              "$ref": "#/components/schemas/QueryChoiceGroup"
+            },
+            "type": "array"
           },
           "choices": {
             "items": {
@@ -16127,6 +16200,10 @@
             "$ref": "#/components/schemas/RecordEditionView",
             "description": "The selected document's explicit publication era; absent when unavailable."
           },
+          "journal_pack_kind": {
+            "description": "The journal’s source pack choice under All journals.",
+            "type": "string"
+          },
           "kind": {
             "type": "string"
           },
@@ -16161,6 +16238,9 @@
               "string",
               "null"
             ]
+          },
+          "parent_kind": {
+            "type": "string"
           },
           "publication": {
             "type": [
@@ -16206,7 +16286,6 @@
         "required": [
           "record_key",
           "title",
-          "kind",
           "kind_label",
           "source_type",
           "level_label",
@@ -18511,6 +18590,10 @@
       },
       "SearchResultRow": {
         "properties": {
+          "exact_journal_pages": {
+            "$ref": "#/components/schemas/ExactJournalPagesView",
+            "description": "Direct page-title destinations on a journal row, independent of match evidence."
+          },
           "matches": {
             "items": {
               "$ref": "#/components/schemas/SearchWitnessView"

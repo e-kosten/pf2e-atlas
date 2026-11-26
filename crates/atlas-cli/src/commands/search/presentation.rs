@@ -92,6 +92,7 @@ fn source_owner<'a>(
 
 fn compact_row(result: &SearchResultsPage, row: &SearchResultRow) -> Value {
     let mut summary = json!({"record":evidence::identity(&row.record)});
+    super::locators::journal_pages(&mut summary, row, &result.artifact_generation);
     if result.result_detail == atlas_app_model::SearchResultDetail::Records {
         return summary;
     }
@@ -161,6 +162,14 @@ fn print_page(result: &SearchResultsPage, continuation: &OccurrenceArgs<'_>) {
         product::print_summary(&row.record);
         if let Some(publication) = &row.record.publication {
             println!("  {publication}");
+        }
+        if let Some(matches) = &row.exact_journal_pages {
+            for page in &matches.pages {
+                println!("  {} › {}", row.record.title, page.title);
+            }
+            if matches.additional_count > 0 {
+                println!("  +{} more in this journal", matches.additional_count);
+            }
         }
         let witnesses: Vec<_> = if continuation.detail == EvidenceDetail::Full {
             row.matches.iter().collect()

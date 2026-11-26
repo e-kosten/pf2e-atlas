@@ -47,6 +47,8 @@ pub struct SourceRecordSummary {
     pub document_kind: String,
     pub source_type: SourceQueryFact<String>,
     pub name: SourceQueryFact<String>,
+    /// Executable root Kind choice, derived by the query catalog on read.
+    pub root_kind: Option<String>,
     pub record_kind: SourceQueryFact<RecordKind>,
     pub level: SourceQueryFact<Number>,
     pub level_basis: Option<SourceLevelBasis>,

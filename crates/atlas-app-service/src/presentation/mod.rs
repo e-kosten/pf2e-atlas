@@ -558,7 +558,9 @@ fn selected_identity(
         record_key: record.key().to_string(),
         title: node_title(node),
         source_title: None,
-        kind: family.into(),
+        kind: Some(family.into()),
+        parent_kind: None,
+        journal_pack_kind: None,
         kind_label: match family {
             _ if matches!(node, SourceNodeView::Journal(_)) => "Journal".into(),
             _ if matches!(node, SourceNodeView::JournalPage(_)) => "Journal page".into(),

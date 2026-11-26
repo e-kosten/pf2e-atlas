@@ -54,7 +54,7 @@ it("retains repeated sorting and exact selected reading across Search navigation
     kind: "in",
     clause_id: "kind",
     field: "kind",
-    values: ["equipment"],
+    values: ["all_equipment"],
   });
   await atlasRouter.navigate(
     searchDestination({

@@ -61,6 +61,27 @@ pub(in crate::commands) fn parts(inventory: &SimilarityPartsView) -> Value {
     value
 }
 
+pub(super) fn journal_pages(
+    target: &mut Value,
+    row: &atlas_app_model::SearchResultRow,
+    generation: &str,
+) {
+    if let Some(matches) = &row.exact_journal_pages {
+        let pages = matches
+            .pages
+            .iter()
+            .map(|page| {
+                json!({
+                    "title": page.title,
+                    "navigation": Locator::new(generation, &page.navigation).compact(),
+                })
+            })
+            .collect::<Vec<_>>();
+        target["exact_journal_pages"] =
+            json!({"pages": pages, "additional_count": matches.additional_count});
+    }
+}
+
 pub(in crate::commands) fn page(result: &SearchResultsPage) -> Value {
     let mut value = json!(result);
     let generation = &result.artifact_generation;
@@ -76,6 +97,7 @@ pub(in crate::commands) fn page(result: &SearchResultsPage) -> Value {
     }
     for (i, row) in result.rows.iter().enumerate() {
         let entry = &mut value["rows"][i];
+        journal_pages(entry, row, generation);
         summary(&mut entry["record"], &row.record, generation);
         let containing_record = match result.mode {
             SearchModeSummary::SimilarRecords { .. } => None,

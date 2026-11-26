@@ -95,7 +95,7 @@ describe("self-contained filter URLs", () => {
     }).toString();
     expect(packed.length).toBeLessThan(original.length / 2);
   });
-  it.each(["bad", "4.unknown", "3.", JSON.stringify(predicate)])(
+  it.each(["bad", "5.unknown", "4.", JSON.stringify(predicate)])(
     "rejects unsupported or malformed encodings: %s",
     (input) => {
       expect(() => decodeFilterUrl(input)).toThrow();
@@ -111,6 +111,18 @@ describe("self-contained filter URLs", () => {
       expect(() => decodeFilterUrl(wire(value))).toThrow("Invalid filter URL");
     },
   );
+});
+
+it("requires the current Kind vocabulary for saved filter links", () => {
+  const filter = wire(["i", "kind", ["spell"]]);
+  expect(() => decodeFilterUrl("3." + filter.slice(2))).toThrow(
+    "unsupported filter version",
+  );
+  expect(decodeFilterUrl(filter)).toMatchObject({
+    kind: "in",
+    field: "kind",
+    values: ["spell"],
+  });
 });
 
 it("rejects an otherwise valid old vocabulary link explicitly", () => {
@@ -129,7 +141,7 @@ it("rejects an otherwise valid old vocabulary link explicitly", () => {
 
 function wire(value: unknown): string {
   return (
-    "3." + compressToEncodedURIComponent(JSON.stringify(value)).replace(/\+/g, "_")
+    "4." + compressToEncodedURIComponent(JSON.stringify(value)).replace(/\+/g, "_")
   );
 }
 
@@ -241,7 +253,7 @@ it("shortens the user's two-link URL substantially without dropping either const
   };
   const encoded = encodeFilterUrl(predicate);
   expect(encodeURIComponent(encoded).length).toBeLessThan(160);
-  expect(encoded).toMatch(/^3\.[A-Za-z0-9_-]+$/);
+  expect(encoded).toMatch(/^4\.[A-Za-z0-9_-]+$/);
   const restored = decodeFilterUrl(encoded);
   const stripIds = (_key: string, value: unknown) =>
     _key === "clause_id" ? undefined : value;
@@ -279,7 +291,7 @@ it("retains transport depth, node and encoded-length bounds", () => {
   expect(() =>
     decodeFilterUrl(wire(["a", ...Array.from({ length: 1024 }, () => ["b", true])])),
   ).toThrow("Invalid filter URL");
-  expect(() => decodeFilterUrl("3." + "A".repeat(16_383))).toThrow(
+  expect(() => decodeFilterUrl("4." + "A".repeat(16_383))).toThrow(
     "Invalid filter URL",
   );
 });
@@ -293,9 +305,9 @@ it("does not reinterpret a previous full-JSON URL as the new compact vocabulary"
   expect(() => decodeFilterUrl(old)).toThrow("unsupported filter version");
 });
 
-it("keeps the version-three wire contract stable for an existing compact link", () => {
+it("keeps the current compact wire contract stable", () => {
   const saved =
-    "3.NoIghiA0oC5SBTAjgVwJYAcC2CB2MBaAZwCcATALgBYYBJANQBUBzATgHcArAVgDYAlEgDcEAQRABdaCDiQQAYwD2uMmhhplahFiIUyAMwDCAWTL8q7XBgBGATQByjNAA9JEoA";
+    "4.NoIghiA0oC5SBTAjgVwJYAcC2CB2MBaAZwCcATALgBYYBJANQBUBzATgHcArAVgDYAlEgDcEAQRABdaCDiQQAYwD2uMmhhplahFiIUyAMwDCAWTL8q7XBgBGATQByjNAA9JEoA";
   expect(decodeFilterUrl(saved)).toMatchObject({
     kind: "all_of",
     children: [
@@ -322,7 +334,7 @@ it("keeps the version-three wire contract stable for an existing compact link", 
 
 it("rejects removed generic definition-reference URLs", () => {
   const removed =
-    "3." +
+    "4." +
     compressToEncodedURIComponent(
       JSON.stringify(["d", ["d", "language:chthonian"]]),
     ).replace(/\+/g, "_");

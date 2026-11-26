@@ -169,6 +169,10 @@ pub struct SearchResultsPage {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchResultRow {
+    /// Direct page-title destinations on a journal row, independent of match evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub exact_journal_pages: Option<ExactJournalPagesView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub similarity: Option<crate::SimilarityEvidenceView>,
@@ -179,6 +183,19 @@ pub struct SearchResultRow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub matching_sections: Option<Vec<SearchMatchSectionView>>,
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExactJournalPagesView {
+    pub pages: Vec<JournalPageLinkView>,
+    pub additional_count: usize,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct JournalPageLinkView {
+    pub title: String,
+    pub navigation: RecordNavigationView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

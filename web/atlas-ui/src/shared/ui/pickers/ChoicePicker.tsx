@@ -9,6 +9,7 @@ import {
   DownOutlined,
   MinusOutlined,
   PlusOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
 import { Button, Grid, Input, Tag, Typography, theme } from "antd";
 import type { InputRef } from "antd";
@@ -22,13 +23,20 @@ import {
 } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 export type ChoiceState = "neutral" | "include" | "exclude";
-export type ChoiceOption = { value: string; label: string };
+export type ChoiceOption = {
+  value: string;
+  label: string;
+  parent?: string;
+  expanded?: boolean;
+};
 /** Shared include/exclude interaction; callers own vocabulary and filter semantics. */
 export function ChoicePicker({
   label,
   inlineSelections = false,
   id,
   choices,
+  visibleChoices,
+  onToggleGroup,
   selected,
   stateOf,
   onChange,
@@ -52,6 +60,8 @@ export function ChoicePicker({
   inlineSelections?: boolean;
   id: string;
   choices: ChoiceOption[];
+  visibleChoices?: ChoiceOption[];
+  onToggleGroup?: (value: string) => void;
   selected: string[];
   stateOf: (value: string) => ChoiceState;
   onChange: (value: string, state: ChoiceState) => void | "close";
@@ -120,11 +130,13 @@ export function ChoicePicker({
           .filter((value) => !choices.some((choice) => choice.value === value))
           .map((value) => ({ value, label: labelForValue(value) }));
   const options = [...choices, ...retained];
-  const rows = filterChoices
-    ? options.filter((option) =>
-        option.label.toLowerCase().includes(text.trim().toLowerCase()),
-      )
-    : options;
+  const rows: ChoiceOption[] =
+    visibleChoices ??
+    (filterChoices
+      ? options.filter((option) =>
+          option.label.toLowerCase().includes(text.trim().toLowerCase()),
+        )
+      : options);
   function setMenuOpen(next: boolean) {
     if (!next && reading) {
       readOrigin.current = null;
@@ -188,15 +200,31 @@ export function ChoicePicker({
           const state = stateOf(option.value);
           const count = counts?.get(option.value);
           const dimmed = count === 0 && state === "neutral";
+          const inherited = option.parent ? stateOf(option.parent) : "neutral";
+          const inheritedSelection =
+            !valueEditing && state === "neutral" && inherited !== "neutral";
+          const applied = inheritedSelection ? inherited : state;
+          const appliedLabel =
+            applied === "neutral"
+              ? "neutral"
+              : applied === "include"
+                ? "included"
+                : "excluded";
+          const stateLabel =
+            inheritedSelection && option.parent
+              ? `${appliedLabel} by ${labelForValue(option.parent)}`
+              : appliedLabel;
           const next: ChoiceState = valueEditing
             ? state === "include"
               ? "neutral"
               : "include"
-            : state === "neutral"
-              ? "include"
-              : state === "include"
-                ? "exclude"
-                : "neutral";
+            : inheritedSelection && inherited === "include"
+              ? "exclude"
+              : state === "neutral"
+                ? "include"
+                : state === "include"
+                  ? "exclude"
+                  : "neutral";
           const button = (
             <Button
               className="common-choice-row"
@@ -251,7 +279,7 @@ export function ChoicePicker({
                     (state === "include"
                       ? ", selected; activate to remove"
                       : ", activate to select")
-                  : `${label}: ${option.label}, ${state === "include" ? "included" : state === "exclude" ? "excluded" : "neutral"}; activate to ${next === "neutral" ? "clear" : next}`
+                  : `${label}: ${option.label}, ${stateLabel}; activate to ${next === "neutral" ? "clear" : next}`
               }
               onClick={() => change(option.value, next)}
               onKeyDown={closeOnEscape}
@@ -266,11 +294,11 @@ export function ChoicePicker({
                   {new Intl.NumberFormat().format(count)}
                 </Typography.Text>
               )}
-              {state !== "neutral" && (
+              {applied !== "neutral" && (
                 <span className="common-choice-marker" aria-hidden="true">
                   {valueEditing ? (
                     <CheckOutlined style={{ color: token.colorPrimary }} />
-                  ) : state === "include" ? (
+                  ) : applied === "include" ? (
                     <PlusOutlined />
                   ) : (
                     <MinusOutlined />
@@ -279,10 +307,24 @@ export function ChoicePicker({
               )}
             </Button>
           );
-          return action ? (
-            <div key={option.value} className="common-choice-option">
+          return action || onToggleGroup ? (
+            <div
+              key={option.value}
+              className="common-choice-option"
+              data-child={!!option.parent || undefined}
+            >
               {button}
-              <span className="common-choice-option__action">{action}</span>
+              {option.expanded !== undefined && (
+                <Button
+                  type="text"
+                  className="common-choice-disclosure"
+                  icon={option.expanded ? <DownOutlined /> : <RightOutlined />}
+                  aria-label={`${option.expanded ? "Collapse" : "Expand"} ${option.label}`}
+                  aria-expanded={option.expanded}
+                  onClick={() => onToggleGroup?.(option.value)}
+                />
+              )}
+              {action && <span className="common-choice-option__action">{action}</span>}
             </div>
           ) : (
             <Fragment key={option.value}>{button}</Fragment>

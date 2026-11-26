@@ -147,7 +147,7 @@ it("retains field definitions without trusting applicability from a previous fil
         finish = resolve;
       }),
   );
-  rerender({ kind: "in", field: "kind", values: ["equipment"] });
+  rerender({ kind: "in", field: "kind", values: ["all_equipment"] });
   expect(result.current.filterEditor?.groups).toEqual(previous.groups);
   expect(result.current.filterApplicabilityCurrent).toBe(false);
   await waitFor(() => expect(finish).toBeDefined());

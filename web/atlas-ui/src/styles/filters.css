@@ -114,6 +114,22 @@
   gap: var(--space-control);
   min-width: 0;
 }
+.kind-operand-child,
+.common-choice-option[data-child] {
+  padding-inline-start: var(--space-section);
+}
+.common-choice-option > .common-choice-row {
+  flex: 1;
+}
+.common-choice-disclosure {
+  flex-shrink: 0;
+  align-self: stretch;
+  height: auto;
+}
+.common-choice-menu[role="group"] .common-choice-disclosure {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+}
 .common-choice-option__action {
   flex: none;
 }

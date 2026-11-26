@@ -1,3 +1,4 @@
+import { readUrl } from "../readingUrl";
 import type { Page, Request } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import {
@@ -301,4 +302,63 @@ test("keeps newer search text in the Add records picker", async ({ page }, info)
   await expect(picker).toBeHidden();
   await activate(add, info);
   await expect(query).toHaveValue("");
+});
+
+test("an exact journal page opens from its result with explanations hidden", async ({
+  page,
+  context,
+}, info) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "atlas.search.preferences.v1",
+      JSON.stringify({ version: 1, matchDisplay: "hidden" }),
+    ),
+  );
+  await page.goto("/search?q=%22Class%20Features%22");
+  const link = page.getByRole("link", {
+    name: "Remaster Changes › Class Features",
+    exact: true,
+  });
+  await expect(link).toBeVisible();
+  const resultsUrl = page.url();
+  const target = readUrl(new URL((await link.getAttribute("href"))!, page.url()));
+  expect(target).toMatchObject({
+    record_key: "browser-journals:editionjournal01",
+    embedded_path: [{ collection: "/pages", identity: { Stable: "editionpage00001" } }],
+    field: null,
+    passage: null,
+  });
+  if (!info.project.use.hasTouch) {
+    const opened = context.waitForEvent("page");
+    await link.click({ modifiers: ["ControlOrMeta"] });
+    const native = await opened;
+    await expect(
+      native.getByRole("heading", { name: "Class Features", exact: true }).first(),
+    ).toBeVisible();
+    expect(readUrl(new URL(native.url()))).toEqual(target);
+    await native.close();
+    await link.focus();
+    await link.press("Enter");
+  } else {
+    await activate(link, info);
+  }
+  await expect(
+    page.getByRole("heading", { name: "Class Features", exact: true }).first(),
+  ).toBeVisible();
+  await expect(page).toHaveURL(
+    (url) => url.pathname.startsWith("/search/records/") && url.searchParams.has("at"),
+  );
+  expect(readUrl(new URL(page.url()))).toEqual(target);
+  await page.goBack();
+  await expect(page).toHaveURL(resultsUrl);
+  await expect(link).toBeVisible();
+  await activate(
+    page.locator('[data-record-key="browser-journals:editionjournal01"]').first(),
+    info,
+  );
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname.endsWith("/browser-journals:editionjournal01") &&
+      !url.searchParams.has("at"),
+  );
 });

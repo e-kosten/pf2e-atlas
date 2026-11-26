@@ -18,7 +18,9 @@ import {
   choiceClauses,
   choiceValueState,
   conditionValues,
+  withoutCoveredChoices,
 } from "./filterControls";
+import { kindChoicesWithSelection, kindChoiceTree } from "./kindChoiceTree";
 import { filterValueLabel } from "./filterValueLabel";
 import {
   findClauseIds,
@@ -112,6 +114,8 @@ function FilterChoicePicker({
   const [fullCatalogKey, setFullCatalogKey] = useState<string | null>(null);
   const closedChoices = field.short_choices;
   const isActions = field.definition.id === "actions";
+  const isRootKind = field.definition.id === "kind";
+  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(new Set());
   const labelScope = JSON.stringify([scope, field.definition.id]);
   const [retained, setRetained] = useState<{
     scope: string;
@@ -231,7 +235,10 @@ function FilterChoicePicker({
             prefix + letter.toLocaleUpperCase("en"),
         )
       : label;
-  const choices = (closedChoices ? field.choices : (query.data?.values.options ?? []))
+  const catalog = isRootKind
+    ? kindChoicesWithSelection(field, selected)
+    : field.choices;
+  const choices = (closedChoices ? catalog : (query.data?.values.options ?? []))
     // An empty string clears an Advanced operand, so it cannot be a choice.
     .filter(
       (option) =>
@@ -245,7 +252,21 @@ function FilterChoicePicker({
       value: String(option.value),
       label: displayLabel(option.label),
       help: option.help,
+      parent: option.parent_kind,
+      searchAliases: option.search_aliases,
     }));
+  const hierarchy = isRootKind
+    ? kindChoiceTree(choices, text, expandedGroups)
+    : undefined;
+  const kindRows = hierarchy?.rows;
+  function toggleGroup(value: string) {
+    setExpandedGroups((previous) => {
+      const next = new Set(previous);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  }
   // A vocabulary page can disappear when the picker changes search or count scope.
   // Keep the resolved labels of saved selections independently of that page.
   if (unresolvedActions.length) {
@@ -290,9 +311,10 @@ function FilterChoicePicker({
     [
       ...new Set([
         ...selected,
-        ...choices
+        ...(kindRows ?? choices)
           .filter(
             (choice) =>
+              isRootKind ||
               !closedChoices ||
               choice.label.toLowerCase().includes(text.trim().toLowerCase()),
           )
@@ -365,15 +387,25 @@ function FilterChoicePicker({
       });
     }
     if (edit.kind === "condition") {
-      edit.onChange(changeChoiceValue(field.definition, edit.clause, value, next));
+      edit.onChange(
+        changeChoiceValue(
+          field.definition,
+          edit.clause,
+          value,
+          next,
+          hierarchy?.parents,
+        ),
+      );
     } else if (edit.shape === "scalar") {
       edit.onChange(next === "neutral" ? "" : value);
       if (next !== "neutral") return "close";
     } else {
-      edit.onChange(
+      const values =
         next === "neutral"
           ? selected.filter((entry) => entry !== value)
-          : [...new Set([...selected, value])],
+          : [...new Set([...selected, value])];
+      edit.onChange(
+        hierarchy ? withoutCoveredChoices(values, hierarchy.parents) : values,
       );
       if (next !== "neutral") searchValues("");
     }
@@ -422,6 +454,15 @@ function FilterChoicePicker({
         id={field.definition.id}
         label={label}
         choices={displayedChoices}
+        visibleChoices={kindRows?.filter(
+          (option) =>
+            text.trim() ||
+            selected.includes(option.value) ||
+            counts.get(option.value) !== 0 ||
+            // Keep the parent reachable when a selected child has zero results.
+            selected.some((value) => hierarchy?.parents.get(value) === option.value),
+        )}
+        onToggleGroup={isRootKind ? toggleGroup : undefined}
         counts={counts}
         selected={selected}
         stateOf={(value) =>

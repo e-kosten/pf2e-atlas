@@ -278,7 +278,7 @@ describe("AtlasApp routing", () => {
 
   it("replaces a broken filter link with empty idle Search and a dismissible inline notice", async () => {
     localStorage.setItem(
-      "atlas.search.kind-default.v1",
+      "atlas.search.kind-default.v2",
       JSON.stringify({ include: ["creature"], exclude: [] }),
     );
     const params = new URLSearchParams({
@@ -313,7 +313,7 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
   });
 
-  it.each(["filter=3.broken&rank=bad", "filter=3.broken&selection=obsolete"])(
+  it.each(["filter=4.broken&rank=bad", "filter=4.broken&selection=obsolete"])(
     "recovers a saved-list filter failure before reading validation: %s",
     async (query) => {
       history.replaceState(null, "", "/lists/research/records/spell:heal?" + query);
@@ -329,8 +329,8 @@ describe("AtlasApp routing", () => {
 
   it.each([
     "/lists/research/records/spell:heal?filter=2.obsolete&q=other&rank=8",
-    "/search/records/spell:heal?filter=3.broken&rank=bad",
-    "/search/records/spell:heal?filter=3.broken&selection=obsolete",
+    "/search/records/spell:heal?filter=4.broken&rank=bad",
+    "/search/records/spell:heal?filter=4.broken&selection=obsolete",
   ])(
     "clears retained Search criteria, reading, page and unfinished input after transport failure: %s",
     async (brokenLink) => {

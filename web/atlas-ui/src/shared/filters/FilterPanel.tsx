@@ -1369,8 +1369,6 @@ function contextualFieldLabel(field: FilterEditorFieldView) {
   switch (field.definition.id) {
     case "campaign_feature.category":
       return "Feature category";
-    case "source.document_kind":
-      return "Document category";
     default:
       return null;
   }

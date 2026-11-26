@@ -1,6 +1,6 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Button, Popover } from "antd";
+import { Button, Popover, Typography } from "antd";
 import { useEffect, useRef, type ReactNode } from "react";
 import type {
   RelationshipClauseSummaryView,
@@ -14,6 +14,7 @@ export function ReferenceResult({
   selected,
   disabled,
   onPreview,
+  onOpenPage,
   matchNavigation,
   relationshipClauses,
   filter,
@@ -40,6 +41,7 @@ export function ReferenceResult({
   selected: boolean;
   disabled: boolean;
   onPreview: (anchor: HTMLElement) => void;
+  onOpenPage?: (navigation: RecordNavigationView) => void;
   matchNavigation?: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -100,6 +102,34 @@ export function ReferenceResult({
             : undefined
         }
       />
+      {onOpenPage && row.exact_journal_pages && (
+        <div className="reference-result__journal-pages">
+          {row.exact_journal_pages.pages.map(({ title, navigation: page }) => (
+            <Typography.Link
+              key={JSON.stringify(page.embedded_path)}
+              disabled={disabled}
+              href={destinationHref(
+                recordDestination({
+                  recordKey: record.record_key,
+                  selection: page,
+                }),
+              )}
+              onClick={(event) => {
+                if (!isPrimaryActivation(event)) return;
+                event.preventDefault();
+                onOpenPage(page);
+              }}
+            >
+              {record.title} › {title}
+            </Typography.Link>
+          ))}
+          {row.exact_journal_pages.additional_count > 0 && (
+            <span>
+              +{row.exact_journal_pages.additional_count} more in this journal
+            </span>
+          )}
+        </div>
+      )}
       {(matchCount > 0n || actions) && (
         <div className="reference-result__actions">
           {matchCount > 0n && (

@@ -411,7 +411,7 @@ it("carries complete relationship constraints in browse and saved-list discovery
     filter: {
       kind: "all_of" as const,
       children: [
-        { kind: "in" as const, field: "kind", values: ["equipment"] },
+        { kind: "in" as const, field: "kind", values: ["all_equipment"] },
         {
           kind: "relationship" as const,
           clause_id: "link-0",

@@ -66,6 +66,10 @@ pub fn filter_field_definition(
     Ok(atlas_index::query_field_definition(id)?)
 }
 impl AtlasRetrievalService {
+    pub fn journal_kind_packs(&self) -> Result<Vec<(String, String)>, SearchError> {
+        Ok(self.index.journal_kind_packs()?)
+    }
+
     pub fn discover_filter_value_counts(
         &mut self,
         request: DiscoverFilterValueCountsRequest<'_>,

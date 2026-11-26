@@ -253,7 +253,7 @@ it.each([
 it("leaves failed filter transport untouched for shared empty-search recovery before reading validation", () => {
   const raw = {
     q: " retained until reset ",
-    filter: "3.broken",
+    filter: "4.broken",
     rank: "bad",
     selection: "obsolete",
     unused: "keep until reset",
@@ -266,8 +266,8 @@ it("leaves failed filter transport untouched for shared empty-search recovery be
     search: raw,
   };
   expect(() => routeSearch("search_record").beforeLoad({ location })).not.toThrow();
-  expect(canonicalRouteSearch("search", { filter: [filter, "3.broken"] })).toEqual({
-    filter: [filter, "3.broken"],
+  expect(canonicalRouteSearch("search", { filter: [filter, "4.broken"] })).toEqual({
+    filter: [filter, "4.broken"],
   });
   expect(() => canonicalRouteSearch("search_record", { filter, rank: "bad" })).toThrow(
     "invalid spell rank",

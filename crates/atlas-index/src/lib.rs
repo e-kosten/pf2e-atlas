@@ -129,7 +129,7 @@ pub use read_content::{
     SourceRelationshipDirection, SourceRelationshipRequest,
 };
 pub use read_units::{
-    SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,
+    ExactJournalPages, SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,
     SourceLexicalRootHit, SourceRemasterPair, SourceVectorCandidateRequest, SourceVectorHit,
     validate_lexical_text,
 };

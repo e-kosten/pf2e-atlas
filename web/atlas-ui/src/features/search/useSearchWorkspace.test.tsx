@@ -2070,7 +2070,7 @@ describe("useSearchWorkspace", () => {
                 kind: "in",
                 clause_id: "kind-exclude_any",
                 field: "kind",
-                values: ["character_option"],
+                values: ["character_creation"],
               },
             },
           ],
@@ -2087,7 +2087,7 @@ describe("useSearchWorkspace", () => {
         { kind: "in", field: "kind", values: ["affliction", "character"] },
         {
           kind: "not",
-          predicate: { kind: "in", field: "kind", values: ["character_option"] },
+          predicate: { kind: "in", field: "kind", values: ["character_creation"] },
         },
       ],
     });

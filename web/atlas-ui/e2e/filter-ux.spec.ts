@@ -18,7 +18,7 @@ test("single-condition exclusion stays reversible and singleton operands follow 
       encodeURIComponent(
         encodeFilterUrl({
           kind: "not",
-          predicate: { kind: "in", field: "kind", values: ["companion"] },
+          predicate: { kind: "in", field: "kind", values: ["familiar"] },
         }),
       ),
   );
@@ -36,14 +36,14 @@ test("single-condition exclusion stays reversible and singleton operands follow 
     await expect(groups).toHaveCount(1);
     await expect
       .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
-      .toMatchObject({ kind: "in", field: "kind", values: ["companion"] });
+      .toMatchObject({ kind: "in", field: "kind", values: ["familiar"] });
     await choose(page, operator, "is none of");
     await expect(groups).toHaveCount(1);
     await expect
       .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
       .toMatchObject({
         kind: "not",
-        predicate: { kind: "in", field: "kind", values: ["companion"] },
+        predicate: { kind: "in", field: "kind", values: ["familiar"] },
       });
   }
   await page.reload();
@@ -57,7 +57,7 @@ test("single-condition exclusion stays reversible and singleton operands follow 
       kind: "compare",
       field: "kind",
       op: "neq",
-      value: "companion",
+      value: "familiar",
     });
   await expect(drawer.getByText("Enter a value", { exact: true })).toHaveCount(0);
   await expect(
@@ -136,10 +136,10 @@ test("wrapped values and validation retain the advanced control grid", async ({
               values: [
                 "creature",
                 "character",
-                "companion",
+                "familiar",
                 "hazard",
-                "equipment",
-                "feat",
+                "all_equipment",
+                "character_advancement",
                 "spell",
                 "affliction",
               ],
@@ -286,6 +286,7 @@ test("common filters retain valid results through drafts and exact URL reload", 
   await expect(creature).toBeVisible();
   await expect(page.getByText("Retrieval", { exact: true })).toHaveCount(0);
   await creature.click();
+  await page.getByRole("textbox", { name: "Search kind choices" }).fill("Spell");
   const spell = page.getByRole("button", { name: /^Kind: Spell,/ });
   await spell.click();
   await spell.click();

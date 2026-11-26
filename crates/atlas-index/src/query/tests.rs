@@ -1187,7 +1187,6 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
     }
     assert_eq!(result(&db, "level == 3"), vec![1, 2]);
     assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
-    assert_eq!(query_capabilities().unwrap().version, 10);
     let catalog = query_capabilities().unwrap();
     assert_eq!(
         catalog
@@ -2064,4 +2063,216 @@ fn filtered_links_preserve_direction_scope_and_unknown_witnesses() {
         vec![1, 9]
     );
     assert!(parse_where("links_to_matching(links_to_matching(rarity == 'common'))").is_err());
+}
+
+#[test]
+fn static_kind_catalog_declares_groups_dynamic_syntax_and_independent_embedded_choices() {
+    let catalog = query_capabilities().unwrap();
+    assert_eq!(catalog.version, 11);
+    let kind = catalog
+        .fields
+        .iter()
+        .find(|field| field.id == "kind")
+        .unwrap();
+    assert_eq!(kind.value_discovery, QueryValueDiscovery::OpenValues);
+    let group = |id: &str| kind.choice_groups.iter().find(|g| g.id == id).unwrap();
+    assert_eq!(group("all_spells").children, ["ritual", "spell"]);
+    assert_eq!(
+        group("journal").dynamic_child_prefix.as_deref(),
+        Some("journal_pack/")
+    );
+    assert!(
+        catalog
+            .fields
+            .iter()
+            .filter(|field| field.id != "kind")
+            .all(|field| field.choice_groups.is_empty())
+    );
+    let embedded = catalog
+        .fields
+        .iter()
+        .find(|field| field.id == "embedded.equipment[].kind")
+        .unwrap();
+    assert!(embedded.choices.iter().any(|v| v == "equipment"));
+    assert_eq!(embedded.value_discovery, QueryValueDiscovery::ClosedChoices);
+}
+
+#[test]
+fn kind_predicates_distinguish_authored_categories_partial_records_and_groups() {
+    let db = database();
+    for (id, family) in [
+        (1, "feat"),
+        (2, "feat"),
+        (3, "feat"),
+        (4, "campaignFeature"),
+        (5, "spell"),
+        (6, "spell"),
+        (7, "spell"),
+        (8, "weapon"),
+        (9, "equipment"),
+    ] {
+        root(&db, id, family, "common");
+    }
+    for (id, state, category) in [
+        (1, "value", Some("classfeature")),
+        (2, "value", Some("curse")),
+        (3, "missing", None),
+        (4, "missing", None),
+    ] {
+        row(
+            &db,
+            "ability_projection",
+            &[
+                ("id", id.into()),
+                ("root_record_id", id.into()),
+                ("category_state", text(state)),
+                ("category", category.map_or(Value::Null, text)),
+            ],
+        );
+    }
+    for (id, ritual) in [(5, Some(1)), (6, Some(0)), (7, None)] {
+        row(
+            &db,
+            "spell_projection",
+            &[
+                ("id", id.into()),
+                ("root_record_id", id.into()),
+                (
+                    "ritual_state",
+                    text(if ritual.is_some() { "value" } else { "missing" }),
+                ),
+                ("ritual", ritual.map_or(Value::Null, Value::from)),
+            ],
+        );
+    }
+    for (selector, ids) in [
+        ("class_feature", vec![1]),
+        ("character_advancement", vec![1]),
+        ("all_deities", vec![2]),
+        ("deity_curse", vec![2]),
+        ("kingdom_and_warfare", vec![4]),
+        ("all_spells", vec![5, 6, 7]),
+        ("spell", vec![6, 7]),
+        ("ritual", vec![5]),
+        ("all_equipment", vec![8, 9]),
+        ("general_equipment", vec![9]),
+    ] {
+        assert_eq!(result(&db, &format!("kind=='{selector}'")), ids);
+    }
+    assert_eq!(
+        result(&db, "kind=='all_equipment' && kind!='weapon'"),
+        vec![9]
+    );
+    assert_eq!(
+        result(&db, "kind in ['all_spells','spell','ritual']"),
+        vec![5, 6, 7]
+    );
+    assert_eq!(result(&db, "availability['kind']=='missing'"), vec![3]);
+    assert_eq!(result(&db, "spell.ritual==false"), vec![6]);
+    assert!(!result(&db, "kind != 'army_tactic'").contains(&4));
+    assert!(result(&db, "kind != 'army'").contains(&4));
+    assert!(!result(&db, "!(kind=='spell')").contains(&3));
+    for obsolete in [
+        "lore",
+        "feat",
+        "equipment",
+        "rule",
+        "companion",
+        "journal_pack/",
+    ] {
+        assert!(
+            parse_where(&format!("kind == '{obsolete}'")).is_err(),
+            "{obsolete}"
+        );
+    }
+}
+
+#[test]
+fn kind_facet_uses_context_and_source_pack_id_for_nested_and_dynamic_options() {
+    use crate::discovery::{
+        QueryFacetContext, QueryValueCountsRequest, QueryValuesRequest, field_value_counts,
+        field_values,
+    };
+    let db = database();
+    root(&db, 1, "weapon", "rare");
+    root(&db, 2, "armor", "common");
+    root(&db, 3, "ancestry", "rare");
+    root(&db, 4, "unused", "common");
+    db.execute(
+        "UPDATE records SET document_kind='JournalEntry' WHERE record_id=4",
+        [],
+    )
+    .unwrap();
+    db.execute("UPDATE packs SET label='Unusual Journal Label'", [])
+        .unwrap();
+    let predicate: QueryPredicate = serde_json::from_value(json!({"kind":"all_of","children":[
+        {"kind":"compare","field":"rarity","op":"eq","value":"rare"},
+        {"clause_id":"picked","kind":"in","field":"kind","values":["all_equipment"]}]}))
+    .unwrap();
+    let request = QueryValuesRequest {
+        only_matching: false,
+        field: "kind".into(),
+        clause_id: Some("picked".into()),
+        query: validate_query(&predicate).unwrap(),
+        context: QueryFacetContext::default(),
+        text: None,
+        offset: 0,
+        limit: 100,
+    };
+    let opts = available(field_values(&db, &request).unwrap());
+    let count = |opts: &atlas_domain::QueryValueOptions, key: &str| {
+        opts.options
+            .iter()
+            .find(|o| o.value == QueryLiteral::String(key.into()))
+            .unwrap()
+            .distinct_roots
+    };
+    assert_eq!(count(&opts, "all_equipment"), 1);
+    assert_eq!(count(&opts, "weapon"), 1);
+    assert_eq!(count(&opts, "armor"), 0);
+    assert_eq!(count(&opts, "character_creation"), 1);
+    assert_eq!(count(&opts, "journal_pack/test"), 0);
+    let absent = "journal_pack/absent";
+    let request = QueryValueCountsRequest {
+        field: "kind".into(),
+        clause_id: None,
+        query: parse_where("true").unwrap(),
+        context: QueryFacetContext::default(),
+        values: [
+            "all_equipment",
+            "weapon",
+            "journal",
+            "journal_pack/test",
+            absent,
+        ]
+        .into_iter()
+        .map(|v| QueryLiteral::String(v.into()))
+        .collect(),
+    };
+    let opts = available(field_value_counts(&db, &request).unwrap());
+    assert_eq!(
+        opts.options
+            .iter()
+            .map(|o| o.distinct_roots)
+            .collect::<Vec<_>>(),
+        vec![2, 1, 1, 1, 0]
+    );
+    assert_eq!(
+        result(&db, "kind in ['journal_pack/test','journal']"),
+        vec![4]
+    );
+    let request = QueryValuesRequest {
+        only_matching: false,
+        field: "kind".into(),
+        clause_id: None,
+        query: parse_where("true").unwrap(),
+        context: QueryFacetContext::default(),
+        text: Some("unusual".into()),
+        offset: 0,
+        limit: 1,
+    };
+    assert_eq!(
+        available(field_values(&db, &request).unwrap()).options[0].value,
+        QueryLiteral::String("journal_pack/test".into())
+    );
 }

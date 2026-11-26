@@ -129,7 +129,23 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
             } else if f.field_type == QueryFieldType::Collection {
                 println!("  Use exists(...) to match an entry in this collection.");
             }
-            if !f.choices.is_empty() {
+            if !f.choice_groups.is_empty() {
+                println!("  Kind selectors:");
+                for id in &f.choices {
+                    if f.choice_groups.iter().any(|g| g.children.contains(id)) {
+                        continue;
+                    }
+                    println!("    {id}");
+                    if let Some(group) = f.choice_groups.iter().find(|g| g.id == *id) {
+                        for child in &group.children {
+                            println!("      {child}");
+                        }
+                        if let Some(prefix) = &group.dynamic_child_prefix {
+                            println!("      {prefix}<pack-id>");
+                        }
+                    }
+                }
+            } else if !f.choices.is_empty() {
                 println!("  Allowed choices: {}", f.choices.join(", "));
             }
             println!("  Basis: {}", f.basis);
@@ -254,8 +270,9 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         if let Some(values) = values {
             for v in &values.options {
                 println!(
-                    "{}\t{} records{}",
+                    "{}\t{}\t{} records{}",
                     serde_json::to_string(&v.value).map_err(|e| e.to_string())?,
+                    v.label,
                     v.distinct_roots,
                     v.help
                         .as_ref()

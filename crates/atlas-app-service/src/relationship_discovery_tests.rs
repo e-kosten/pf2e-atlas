@@ -67,7 +67,7 @@ fn counts_request(context: FilterDiscoveryContext) -> DiscoverFilterCountsReques
         clause_id: None,
         values: vec![
             QueryLiteral::String("creature".into()),
-            QueryLiteral::String("equipment".into()),
+            QueryLiteral::String("all_equipment".into()),
         ],
     }
 }
