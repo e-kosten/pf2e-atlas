@@ -729,13 +729,20 @@ fn open_missing_product(app: &AppHandle, route: &str) -> Result<(), String> {
 }
 
 fn current_product(app: &AppHandle) -> Result<(Url, String), String> {
+    running_product(app)?.ok_or_else(|| "Start the Atlas workspace first.".into())
+}
+
+fn running_product(app: &AppHandle) -> Result<Option<(Url, String)>, String> {
     let desktop = app.state::<Desktop>();
     let launcher = lock(&desktop.launcher);
-    let ready = &launcher
-        .as_ref()
-        .ok_or("Start the Atlas workspace first.")?
-        .ready;
-    Ok((verified_url(&ready.endpoint)?, ready.instance.clone()))
+    let Some(launcher) = launcher.as_ref() else {
+        return Ok(None);
+    };
+    let ready = &launcher.ready;
+    Ok(Some((
+        verified_url(&ready.endpoint)?,
+        ready.instance.clone(),
+    )))
 }
 
 fn product_view(window: &WebviewWindow, base: &Url, instance: &str) -> bool {
@@ -874,11 +881,26 @@ fn build_product(
         }
     });
     if let Err(error) = placement {
-        let _ = window.destroy();
+        let _ = destroy_window(&window);
         desktop.staged_setup.detach_window(&label);
         return Err(error);
     }
     Ok(window)
+}
+
+fn destroy_window(window: &WebviewWindow) -> tauri::Result<()> {
+    // Tauri attaches the same native menu to every Windows window. Detach
+    // it before DestroyWindow takes ownership and destroys the shared menu.
+    #[cfg(windows)]
+    let menu = window.remove_menu()?;
+    let result = window.destroy();
+    #[cfg(windows)]
+    if result.is_err()
+        && let Some(menu) = menu
+    {
+        let _ = window.set_menu(menu);
+    }
+    result
 }
 
 fn new_search(app: &AppHandle, as_tab: bool) -> Result<(), String> {
@@ -1239,15 +1261,8 @@ fn main() {
             #[cfg(windows)]
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
                 && let Some(view) = app.get_webview_window(window.label())
-                && windows_tabs::ready(&view)
             {
-                api.prevent_close();
-                if windows_tabs::update_handoff_active(app) {
-                    return;
-                }
-                if let Err(error) = windows_tabs::send(&view, windows_tabs::Command::CloseWindow) {
-                    window_host::report("Could not close Atlas window", &error);
-                }
+                windows_tabs::handle_close(&view, api);
             }
             #[cfg(target_os = "macos")]
             if window.label() == settings::WINDOW
@@ -1273,7 +1288,7 @@ fn main() {
         })
         .on_menu_event(|app, event| {
             #[cfg(windows)]
-            if windows_tabs::update_handoff_active(app) {
+            if windows_tabs::window_handoff_active(app) {
                 return;
             }
             let result = match event.id().as_ref() {

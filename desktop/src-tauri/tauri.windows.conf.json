@@ -4,6 +4,7 @@
     "icon": ["icons/icon.ico"],
     "resources": {
       "../.generated/THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
+      "../.generated/windows-crt/atlas-windows-runtime.json": "atlas-desktop-windows-runtime.json",
       "../.generated/windows-crt/msvcp140.dll": "msvcp140.dll",
       "../.generated/windows-crt/msvcp140_1.dll": "msvcp140_1.dll",
       "../.generated/windows-crt/vcruntime140.dll": "vcruntime140.dll",

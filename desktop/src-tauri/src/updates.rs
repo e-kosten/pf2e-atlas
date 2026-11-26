@@ -1438,7 +1438,7 @@ fn install(app: &AppHandle, offer: &Offer, bytes: &[u8], instance: &str) -> Resu
             .map(|launcher| (launcher.pid, launcher.ready.worker_pid))
             .ok_or("The Atlas service stopped.")?;
         crate::window_host::check_cli_sessions(launcher, worker)?;
-        crate::windows_tabs::UpdateHandoff::acquire(app)?
+        crate::windows_tabs::WindowHandoff::for_update(app)?
     };
     let reservation = if let Some(transition) = &offer.switch {
         if transition.config != config {
@@ -1597,7 +1597,7 @@ fn recover(app: &AppHandle, old_base: Url, old_instance: &str) {
                         let replacement = crate::open_product_on_worker(app, &route, &instance);
                         match replacement {
                             Ok(_) => {
-                                let _ = window.destroy();
+                                let _ = crate::destroy_window(&window);
                             }
                             #[cfg(windows)]
                             Err(error) => {

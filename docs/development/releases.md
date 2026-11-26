@@ -212,7 +212,11 @@ scripts/prepare-release.sh --prepare-pr
 ```
 
 The helper prompts for the release version, creates `release-prep/v<version>`, updates
-`crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock`, and scaffolds `docs/releases/v<version>.md`. Pass
+the CLI package version in `crates/atlas-cli/Cargo.toml` and `Cargo.lock`, and creates
+`docs/releases/v<version>.md` if it is missing. This step requires Node and can
+run from a clean checkout before building the frontend. If preparation is interrupted,
+rerun the same command on its release-prep branch. The helper recognizes the
+original and intended version edits and preserves authored notes. Pass
 `--version <X.Y.Z[-rc.N]>` to skip the prompt. In an interactive terminal, the
 helper opens the release notes with `VISUAL`, `EDITOR`, or `git config
 core.editor` after creating the file. Edit the release notes and complete independent review of the release-preparation
@@ -231,7 +235,11 @@ Independent review is required before merge readiness; this helper does not
 perform it.
 The helper verifies the release-prep branch, checks that the release notes no
 longer contain template text, runs local validation, commits the release-prep
-files, pushes the branch, and opens a PR to `main`.
+files, pushes the branch, and opens a PR to `main`. If a push or GitHub request
+fails, rerun `--open-pr` on the same branch. It verifies the candidate against
+its branch point and origin, then resumes with the existing commit or returns
+the matching open PR. If it reports an unexpected commit or file, inspect that
+difference before retrying.
 
 3. After the PR lands, publish the release from any clean checkout:
 
@@ -270,7 +278,7 @@ Release notes use this template:
 ## Known Issues
 ```
 
-The helper creates an annotated tag and a draft GitHub release. The tag-triggered release workflow uses cargo-dist to build platform archives, then uploads Atlas installer scripts, checksums, cargo-dist metadata, the Atlas release manifest, and third-party notices. The publisher compares every uploaded asset’s name and SHA-256 digest with the assembled files before publishing the same draft. If verification fails, the release stays in draft. Rerun with the original assembly to repair a partial upload.
+The helper creates an annotated tag and a draft GitHub release. The tag-triggered release workflow uses cargo-dist to build platform archives, then uploads Atlas installer scripts, checksums, cargo-dist metadata, the Atlas release manifest, and third-party notices. The publisher checks the draft for unexpected attachments before uploading, then verifies the complete asset list and SHA-256 digests against the assembly before publication. If it names an unexpected attachment, inspect it and resolve the discrepancy before retrying. If verification fails, the release stays in draft. Rerun with the original assembly to repair a partial upload.
 
 If a tag was pushed and draft creation failed, use the tag and commit printed
 by the helper:

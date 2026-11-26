@@ -9,7 +9,7 @@ import { createRequire } from "node:module";
 import { createServer as createTcpServer } from "node:net";
 import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { qualifyUpdateGuards, reviewNightly } from "./qualify-windows-update.mjs";
+import { answerDialog, qualifyUpdateGuards, reviewNightly } from "./qualify-windows-update.mjs";
 import { qualifyWindowsTabs } from "./qualify-windows-tabs.mjs";
 
 if (process.platform !== "win32") throw new Error("This qualification requires native Windows.");
@@ -56,37 +56,79 @@ function payloadHashes() {
     .filter((name) => /^(atlas(-desktop)?\.exe|.+\.dll|THIRD-PARTY-NOTICES\.md)$/i.test(name))
     .map((name) => [name, sha256(join(installDirectory, name))]));
 }
-// Exercise the installed window's actual menu command independently of the
-// shortcut. WebView2 receives keyboard input through its own CDP session.
-function openSettingsMenu(pid, env) {
-  ps(`Add-Type -TypeDefinition @'
+const nativeWindows = `Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-public static class AtlasMenu {
-  [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr window);
+public static class AtlasHostWindows {
+  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)] public static extern int GetWindowTextW(IntPtr hwnd, StringBuilder text, int length);
+  [DllImport("user32.dll")] public static extern IntPtr GetTopWindow(IntPtr parent);
+  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hwnd, uint relation);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern bool IsMenu(IntPtr menu);
   [DllImport("user32.dll")] public static extern IntPtr GetSubMenu(IntPtr menu, int index);
   [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr menu);
   [DllImport("user32.dll")] public static extern uint GetMenuItemID(IntPtr menu, int index);
+  [DllImport("user32.dll")] public static extern uint GetMenuState(IntPtr menu, uint item, uint flags);
   [DllImport("user32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)] public static extern int GetMenuStringW(IntPtr menu, uint item, StringBuilder text, int length, uint flags);
-  [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr window, uint message, UIntPtr command, IntPtr parameter);
+  [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr hwnd, uint msg, UIntPtr wParam, IntPtr lParam);
 }
 '@
-    $window = (Get-Process -Id ${pid}).MainWindowHandle
-    $menu = [AtlasMenu]::GetMenu($window)
-    for ($i = 0; $i -lt [AtlasMenu]::GetMenuItemCount($menu); $i++) {
-      $submenu = [AtlasMenu]::GetSubMenu($menu, $i)
-      for ($j = 0; $j -lt [AtlasMenu]::GetMenuItemCount($submenu); $j++) {
-        $label = [Text.StringBuilder]::new(256)
-        [void][AtlasMenu]::GetMenuStringW($submenu, $j, $label, $label.Capacity, 0x400)
-        if ($label.ToString().Replace('&', '') -match '^Settings…') {
-          $command = [AtlasMenu]::GetMenuItemID($submenu, $j)
-          if (![AtlasMenu]::PostMessageW($window, 0x0111, [UIntPtr]$command, [IntPtr]::Zero)) { throw 'Settings menu dispatch failed' }
+function Get-AtlasWindows([uint32]$processId) {
+  for ($window = [AtlasHostWindows]::GetTopWindow([IntPtr]::Zero); $window -ne [IntPtr]::Zero;
+      $window = [AtlasHostWindows]::GetWindow($window, 2)) {
+    $ownerId = [uint32]0
+    [void][AtlasHostWindows]::GetWindowThreadProcessId($window, [ref]$ownerId)
+    if ($ownerId -eq $processId -and [AtlasHostWindows]::IsWindowVisible($window)) { $window }
+  }
+}`;
+
+// Dispatch a real menu command. A confirmation dialog or helper window may be
+// the process's foreground window while several product windows remain open.
+function invokeMenu(pid, env, label, targetWindow) {
+  ps(`${nativeWindows}
+    $foreground = [AtlasHostWindows]::GetForegroundWindow()
+    $candidates = Get-AtlasWindows ${pid} | Where-Object {
+      [AtlasHostWindows]::IsWindowEnabled($_) -and [AtlasHostWindows]::GetMenu($_) -ne [IntPtr]::Zero -and
+        (${targetWindow ?? 0} -eq 0 -or $_.ToInt64() -eq ${targetWindow ?? 0})
+    } | Sort-Object -Stable { $_ -ne $foreground }
+    foreach ($window in $candidates) {
+      $menu = [AtlasHostWindows]::GetMenu($window)
+      for ($i = 0; $i -lt [AtlasHostWindows]::GetMenuItemCount($menu); $i++) {
+        $submenu = [AtlasHostWindows]::GetSubMenu($menu, $i)
+        for ($j = 0; $j -lt [AtlasHostWindows]::GetMenuItemCount($submenu); $j++) {
+          $label = [Text.StringBuilder]::new(256)
+          [void][AtlasHostWindows]::GetMenuStringW($submenu, $j, $label, $label.Capacity, 0x400)
+          if (($label.ToString().Replace('&', '') -split [char]9)[0] -ne ${literal(label)}) { continue }
+          if ([AtlasHostWindows]::GetMenuState($submenu, $j, 0x400) -band 3) { continue }
+          $command = [AtlasHostWindows]::GetMenuItemID($submenu, $j)
+          if (![AtlasHostWindows]::PostMessageW($window, 0x0111, [UIntPtr]$command, [IntPtr]::Zero)) { throw 'Menu dispatch failed' }
           return
         }
       }
     }
-    throw 'Settings menu item missing from the installed Atlas window'`, env);
+    throw "No enabled Atlas window offered the requested menu command: ${label} (HWNDs: $candidates)"`, env);
+}
+
+// Identify the added workspace HWND independently of translated titles or focus.
+function hostWindows(pid, env, close) {
+  return JSON.parse(ps(`${nativeWindows}
+    $views = foreach ($window in Get-AtlasWindows ${pid}) {
+      if ($window.ToInt64() -eq ${close ?? 0}) {
+        if (![AtlasHostWindows]::PostMessageW($window, 0x10, [UIntPtr]::Zero, [IntPtr]::Zero)) { throw 'Close request failed' }
+      }
+      $title = [Text.StringBuilder]::new(256)
+      [void][AtlasHostWindows]::GetWindowTextW($window, $title, $title.Capacity)
+      $menu = [AtlasHostWindows]::GetMenu($window)
+      [pscustomobject]@{ id = $window.ToInt64(); title = $title.ToString(); menu = [AtlasHostWindows]::IsMenu($menu)
+        menuHandle = $menu.ToInt64(); menuItemCount = [AtlasHostWindows]::GetMenuItemCount($menu)
+        enabled = [AtlasHostWindows]::IsWindowEnabled($window); foreground = $window -eq [AtlasHostWindows]::GetForegroundWindow() }
+    }
+    ConvertTo-Json -InputObject @($views) -Compress`, env));
 }
 function installedProcesses() {
   const result = ps(`@((Get-CimInstance Win32_Process | Where-Object {
@@ -218,6 +260,13 @@ async function runCase(mode) {
       assert.equal(sha256(join(installDirectory, "atlas-desktop.exe")), plan.oldHostSha256);
       assert.equal(sha256(join(installDirectory, "atlas.exe")), plan.oldCliSha256);
     }
+    if (mode === "normal") {
+      const bootstrap = spawn(join(installDirectory, "atlas-desktop.exe"), [], { env, cwd: home, stdio: "ignore" });
+      await nativePage((page) => page.getByRole("button", { name: "Set up Atlas", exact: true }).isVisible());
+      invokeMenu(bootstrap.pid, env, "Exit");
+      await until("bootstrap-only exit", () => bootstrap.exitCode === 0);
+      log("bootstrap-only-exit");
+    }
     const setup = ["setup", "--offline", "--no-embeddings", "--json", "--source", source];
     cli(setup, env);
     cli(["lists", "create", "Windows handoff saved work", "--slug", "handoff", "--record", "actions:aaaaaaaaaaaaaaaa", "--json"], env);
@@ -301,7 +350,7 @@ async function runCase(mode) {
       log("settings-restored-search-draft", { mode });
       // Keep Settings open in both windows, then deliver a record to a window
       // whose only remaining tab is Settings. The original draft stays mounted.
-      openSettingsMenu(child.pid, env);
+      invokeMenu(child.pid, env, "Settings…");
       await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
       await page.keyboard.press("Control+n");
       second = await nativePage(async (candidate) =>
@@ -414,7 +463,12 @@ async function runCase(mode) {
       const key = (path) => run("python", ["-c", "from pathlib import Path; import sqlite3,sys; db=sqlite3.connect(Path(sys.argv[1]).as_uri()+'?mode=ro',uri=True); print(db.execute('select workspace_key from workspace where id=1').fetchone()[0]); db.close()", windowsPath(path)]).trim();
       assert.notEqual(key(original), key(selected.workspace));
       await target.screenshot({ path: join(caseRoot, "target.png") });
+      const pid = installedProcesses().find((entry) => entry.Name === "atlas-desktop.exe").ProcessId;
       await qualifyWindowsTabs({
+        exit: (hwnd) => invokeMenu(pid, env, "Exit", hwnd),
+        windows: (close) => hostWindows(pid, env, close), log,
+        answer: (title, button) => answerDialog(ps, pid, env, title, button),
+
         page: target, expect, nativePage, evidence: caseRoot,
         listKey: cli(["lists", "show", "handoff", "--json"], env).list.list_key,
         openLink: (url) => run(join(installDirectory, "atlas-desktop.exe"), [url], { env, cwd: home }),
@@ -423,6 +477,11 @@ async function runCase(mode) {
         }); if ($workers.Count -ne 1) { throw 'Expected one disposable Atlas service worker.' }
         Stop-Process -Id $workers[0].ProcessId -Force`, env),
       });
+      await until("previous host exit", () => !installedProcesses().some((entry) => entry.Name === "atlas-desktop.exe"));
+      const clean = spawn(join(installDirectory, "atlas-desktop.exe"), [], { env, cwd: home, stdio: "ignore" });
+      await product(plan.nightly);
+      invokeMenu(clean.pid, env, "Exit");
+      await until("clean connected exit", () => clean.exitCode === 0);
       log("normal-complete", { selected: selected.workspace, config });
     } else if (lateLock) {
       const target = await product(plan.nightly);
@@ -444,7 +503,10 @@ async function runCase(mode) {
   } catch (error) {
     log("case-failed", { mode, message: String(error) });
     try {
-      writeFileSync(join(caseRoot, "failure-processes.json"), JSON.stringify(installedProcesses(), null, 2));
+      const processes = installedProcesses();
+      writeFileSync(join(caseRoot, "failure-processes.json"), JSON.stringify(processes, null, 2));
+      const host = processes.find((entry) => entry.Name === "atlas-desktop.exe");
+      if (host) writeFileSync(join(caseRoot, "failure-windows.json"), JSON.stringify(hostWindows(host.ProcessId, env), null, 2));
     } catch (inventoryError) {
       log("process-inventory-failed", { mode, message: String(inventoryError) });
     }

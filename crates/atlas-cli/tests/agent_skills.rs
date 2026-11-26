@@ -479,32 +479,53 @@ fn json_errors_cover_missing_confirmation_and_invalid_target()
 }
 
 #[test]
-fn filesystem_install_failure_has_the_same_exit_in_both_formats() {
-    let root = tempfile::tempdir().unwrap();
-    fs::write(root.path().join(".codex"), "obstructed").unwrap();
-    for json in [false, true] {
-        let mut command = atlas(root.path());
-        command.args([
-            "agent",
-            "skills",
-            "install",
-            "--target",
-            "codex",
-            "--scope",
-            "workspace",
-            "--yes",
-        ]);
-        if json {
-            command.arg("--json");
+fn file_in_skill_root_blocks_doctor_and_install() {
+    for obstruction in [".claude", ".claude/skills"] {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join(obstruction);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, "preserve me").unwrap();
+        let selection = ["--target", "claude", "--scope", "workspace"];
+        let doctor = atlas(root.path())
+            .args(["agent", "skills", "doctor"])
+            .args(selection)
+            .arg("--json")
+            .output()
+            .unwrap();
+        assert!(doctor.status.success());
+        let report: Value = serde_json::from_slice(&doctor.stdout).unwrap();
+        let plan = &ok_data(&report)["targets"][0];
+        assert_eq!(plan["action"], "blocked");
+        assert_eq!(plan["writable"], false);
+        let message = plan["message"].as_str().unwrap();
+        assert!(message.contains(file.file_name().unwrap().to_str().unwrap()));
+        assert!(message.contains("directory"));
+
+        for json in [false, true] {
+            let mut command = atlas(root.path());
+            command
+                .args(["agent", "skills", "install"])
+                .args(selection)
+                .arg("--yes");
+            if json {
+                command.arg("--json");
+            }
+            let output = command.output().unwrap();
+            assert_eq!(output.status.code(), Some(3));
+            if json {
+                let error: Value = serde_json::from_slice(&output.stdout).unwrap();
+                assert_eq!(error["error"]["code"], "install_failed");
+                assert!(
+                    error["error"]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains(message)
+                );
+            } else {
+                assert!(String::from_utf8_lossy(&output.stderr).contains(message));
+            }
         }
-        let output = command.output().unwrap();
-        assert_eq!(output.status.code(), Some(3));
-        if json {
-            let error: Value = serde_json::from_slice(&output.stdout).unwrap();
-            assert_eq!(error["error"]["code"], "install_failed");
-        } else {
-            assert!(!output.stderr.is_empty());
-        }
+        assert_eq!(fs::read_to_string(file).unwrap(), "preserve me");
     }
 }
 

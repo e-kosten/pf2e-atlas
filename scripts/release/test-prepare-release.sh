@@ -15,6 +15,9 @@ work="$tmp/work"
 fake_bin="$tmp/bin"
 log="$tmp/commands.log"
 mkdir -p "$work/dev-tools/release" "$work/scripts/release" "$work/scripts/git-hooks" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
+mkdir -p "$work/dev-tools/release/src"
+cp "$repo_root/scripts/release/prep-state.mjs" "$work/scripts/release/"
+cp "$repo_root/dev-tools/release/src/package-version.mjs" "$work/dev-tools/release/src/"
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
 mkdir -p "$work/scripts/validation"
@@ -39,6 +42,13 @@ printf '%s\n' "$0" >> "$ATLAS_TEST_COMMAND_LOG"
 exit 0
 EOF_GIT_HOOK_CHECK
 chmod +x "$work/scripts/git-hooks/test-common.sh"
+cat > "$tmp/base.lock" <<'LOCK'
+version = 4
+[[package]]
+name = "atlas-cli"
+version = "0.1.0"
+LOCK
+cp "$tmp/base.lock" "$work/Cargo.lock"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO'
 [package]
 name = "atlas-cli"
@@ -188,6 +198,7 @@ case "$1 $2" in
     exit 1
     ;;
   "api --paginate")
+    if [ "${ATLAS_TEST_RELEASE_EXISTS:-0}" = 1 ]; then echo release/v0.1.0; exit 0; fi
     case "${ATLAS_TEST_RELEASE_STATE:-missing}" in
       missing) exit 0 ;;
       draft) printf 'true\n' ;;
@@ -346,68 +357,8 @@ ATLAS_TEST_FZF_CHOICE=cancel ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_RELEASE_TEST_DIS
 reset_flags
 remove_fake_fzf
 
-: > "$log"
-open_pr_output=$(printf 'y\n' | ATLAS_TEST_BRANCH=release-prep/v0.1.0 run_prepare --open-pr 2>&1) || {
-  printf '%s\n' "$open_pr_output" >&2
-  cat "$log" >&2
-  exit 1
-}
-grep -q 'scripts/release/validate-release-tooling.sh' "$log" || {
-  echo "prepare-release --open-pr did not run release tooling validation" >&2
-  exit 1
-}
-grep -q 'npm --prefix web/atlas-ui run build' "$log" || {
-  echo "prepare-release --open-pr did not build web UI assets" >&2
-  exit 1
-}
-expect_log_absent 'scripts/release/test-prepare-release.sh' "prepare-release --open-pr ran recursive release-script smoke tests"
-expect_log_absent 'scripts/git-hooks/test-common.sh' "prepare-release --open-pr ran git-hook smoke tests"
-grep -q 'cargo clippy --workspace --all-targets --locked -- -D warnings -D clippy::dbg_macro' "$log" || {
-  echo "prepare-release --open-pr did not run broad clippy validation" >&2
-  exit 1
-}
-grep -q 'cargo clippy --workspace --lib --bins --locked -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' "$log" || {
-  echo "prepare-release --open-pr did not run strict runtime clippy validation" >&2
-  exit 1
-}
-grep -q '^cargo nextest run --workspace --locked$' "$log" || {
-  echo "prepare-release --open-pr did not run workspace tests" >&2
-  exit 1
-}
-grep -q '^cargo test --workspace --doc --locked$' "$log" || {
-  echo "prepare-release --open-pr did not run doctests" >&2
-  exit 1
-}
-grep -q 'git add Cargo.lock crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
-  echo "prepare-release --open-pr did not stage release-prep files" >&2
-  exit 1
-}
-grep -q 'git commit --no-verify -m chore(release): prepare v0.1.0' "$log" || {
-  echo "prepare-release --open-pr did not create the release-prep commit" >&2
-  exit 1
-}
-grep -q 'git push --no-verify -u origin release-prep/v0.1.0' "$log" || {
-  echo "prepare-release --open-pr did not push the release branch" >&2
-  exit 1
-}
-grep -q 'gh pr create --base main --head release-prep/v0.1.0 --title chore(release): prepare v0.1.0 --body Prepare v0.1.0 for release.' "$log" || {
-  echo "prepare-release --open-pr did not create the expected PR" >&2
-  exit 1
-}
-reset_flags
-
-: > "$log"
-ATLAS_TEST_BRANCH=release-prep/v0.1.0 run_prepare --open-pr --dry-run >/dev/null
-expect_log_absent 'git commit --no-verify -m chore(release): prepare v0.1.0' "prepare-release --open-pr dry-run committed"
-expect_log_absent 'git push --no-verify -u origin release-prep/v0.1.0' "prepare-release --open-pr dry-run pushed"
-expect_log_absent 'gh pr create' "prepare-release --open-pr dry-run created a PR"
-reset_flags
-
+# Branch and PR recovery use a real local Git repository below.
 ATLAS_TEST_BRANCH=dev expect_fail --open-pr
-reset_flags
-ATLAS_TEST_BRANCH=release-prep/v0.1.0 ATLAS_TEST_STATUS=' M README.md' expect_fail --open-pr
-reset_flags
-ATLAS_TEST_BRANCH=release-prep/v0.1.0 ATLAS_TEST_PR_EXISTS=1 expect_fail --open-pr
 reset_flags
 
 ATLAS_TEST_DIRTY=1 expect_fail --prepare-pr --version 0.1.0
@@ -454,15 +405,14 @@ grep -q 'version = "0.1.0-rc.1"' "$work/crates/atlas-cli/Cargo.toml" || {
   echo "prepare-release --prepare-pr did not update the crate version" >&2
   exit 1
 }
-grep -q 'cargo check -p atlas-cli' "$log" || {
-  echo "prepare-release --prepare-pr did not refresh the lockfile through cargo" >&2
-  exit 1
-}
+grep -q 'version = "0.1.0-rc.1"' "$work/Cargo.lock"
+expect_log_absent 'cargo check' "prepare-release compiled the frontend-dependent CLI"
 [ -f "$work/docs/releases/v0.1.0-rc.1.md" ] || {
   echo "prepare-release --prepare-pr did not scaffold release notes" >&2
   exit 1
 }
 
+cp "$tmp/base.lock" "$work/Cargo.lock"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_RESET'
 [package]
 name = "atlas-cli"
@@ -481,6 +431,7 @@ grep -q 'version = "0.1.0-rc.1"' "$work/crates/atlas-cli/Cargo.toml" || {
   echo "prepare-release --prepare-pr numbered prompt did not update to the default RC candidate" >&2
   exit 1
 }
+cp "$tmp/base.lock" "$work/Cargo.lock"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_RESET'
 [package]
 name = "atlas-cli"
@@ -501,6 +452,7 @@ grep -q 'version = "0.1.0-rc.3"' "$work/crates/atlas-cli/Cargo.toml" || {
   echo "prepare-release --prepare-pr did not apply the advanced RC version" >&2
   exit 1
 }
+cp "$tmp/base.lock" "$work/Cargo.lock"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_RESET'
 [package]
 name = "atlas-cli"
@@ -521,6 +473,7 @@ grep -q 'git switch -c release-prep/v0.1.1' "$log" || {
   echo "prepare-release --prepare-pr did not apply patch selection" >&2
   exit 1
 }
+cp "$tmp/base.lock" "$work/Cargo.lock"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_RESET'
 [package]
 name = "atlas-cli"
@@ -536,6 +489,7 @@ grep -q 'git switch -c release-prep/v0.2.0' "$log" || {
   echo "prepare-release --prepare-pr fzf prompt did not apply selected version" >&2
   exit 1
 }
+cp "$tmp/base.lock" "$work/Cargo.lock"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_RESET'
 [package]
 name = "atlas-cli"
@@ -561,6 +515,7 @@ grep -q 'Edited by fake editor.' "$work/docs/releases/v0.3.0.md" || {
   echo "prepare-release --prepare-pr editor did not receive the release notes path" >&2
   exit 1
 }
+cp "$tmp/base.lock" "$work/Cargo.lock"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_RESET'
 [package]
 name = "atlas-cli"
@@ -601,6 +556,15 @@ expect_log_absent 'gh release create release/v0.1.0' "prepare-release dry-run cr
 reset_flags
 
 printf 'y\n' | run_prepare --publish --version 0.1.0 >/dev/null
+expect_log_absent 'scripts/release/test-prepare-release.sh' "release checks invoked recursive smoke tests"
+expect_log_absent 'scripts/git-hooks/test-common.sh' "release checks invoked git-hook smoke tests"
+for check in \
+  'cargo clippy --workspace --all-targets --locked -- -D warnings -D clippy::dbg_macro' \
+  'cargo clippy --workspace --lib --bins --locked -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' \
+  'cargo nextest run --workspace --locked' \
+  'cargo test --workspace --doc --locked'; do
+  grep -Fxq "$check" "$log" || { echo "missing release check: $check" >&2; exit 1; }
+done
 grep -q 'git tag -a release/v0.1.0 -m Release release/v0.1.0' "$log" || {
   echo "prepare-release did not create the expected annotated tag" >&2
   exit 1
@@ -726,4 +690,5 @@ ATLAS_TEST_RECOVERY_SHA=cccccccccccccccccccccccccccccccccccccccc \
 expect_fail --recover-draft rc/v0.1.0 "$release_sha" --yes
 expect_log_absent 'gh release create' 'recovery tried to create a release after a failed check'
 
+sh "$repo_root/scripts/release/test-prep-retries.sh"
 printf 'prepare-release smoke tests passed\n'

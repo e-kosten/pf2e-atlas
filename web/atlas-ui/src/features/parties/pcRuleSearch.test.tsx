@@ -342,6 +342,128 @@ it("keeps the linking task visible through preparing, loading, populated and emp
   );
 });
 
+it("restarts paged rule search after the library changes and links a current rule", async () => {
+  const first = page();
+  const current = {
+    ...first,
+    artifact_generation: "new-generation",
+    page: { ...first.page, total: 9 },
+  };
+  api.searchPage
+    .mockResolvedValueOnce({
+      ...first,
+      page: { ...first.page, total: 11, has_more: true, next_page: 2 },
+    })
+    .mockRejectedValueOnce(
+      new AtlasApiError(409, "Library changed", {
+        code: "artifact_generation_changed",
+        message: "Library changed",
+      }),
+    )
+    .mockResolvedValue(current);
+  api.getRecordDetail.mockResolvedValue({
+    ...detailFixture(recordKey, recordTitle),
+    artifact_generation: "new-generation",
+  });
+  api.savePcAbilityLink.mockResolvedValue(character);
+  render(<Harness />);
+  await openAbilities();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Next Page" }));
+  await waitFor(() => expect(api.searchPage).toHaveBeenCalledTimes(3));
+  const requests = api.searchPage.mock.calls.map(([request]) => [
+    request.page.number,
+    request.expected_artifact_generation ?? null,
+  ]);
+  expect(requests).toEqual([
+    [1, null],
+    [2, "test-generation"],
+    [1, null],
+  ]);
+  expect(await screen.findByText("9 results")).toBeVisible();
+  expect(screen.queryByRole("group", { name: "Result pages" })).toBeNull();
+  fireEvent.click(screen.getByRole("link", { name: resultName }));
+  const link = await screen.findByRole("button", { name: "Link this rule" });
+  await waitFor(() => expect(link).toBeEnabled());
+  fireEvent.click(link);
+  await waitFor(() =>
+    expect(api.savePcAbilityLink).toHaveBeenCalledWith(
+      "pc",
+      ability.ability_key,
+      expect.objectContaining({
+        selection: expect.objectContaining({
+          expected_artifact_generation: "new-generation",
+        }),
+      }),
+    ),
+  );
+});
+
+it("binds forward and back paging to the same library and ignores a superseded continuation", async () => {
+  const first = page();
+  let nextPageReads = 0;
+  let rejectOldPage!: (error: Error) => void;
+  api.searchPage.mockImplementation(async (request) => {
+    if (request.criteria.query === "Another name") return page(0);
+    if (request.page.number === 2 && ++nextPageReads === 2)
+      return new Promise((_resolve, reject) => {
+        rejectOldPage = reject;
+      });
+    return {
+      ...first,
+      page: {
+        ...first.page,
+        number: request.page.number,
+        total: 11,
+        has_more: request.page.number === 1,
+        next_page: request.page.number === 1 ? 2 : null,
+      },
+    };
+  });
+  render(<Harness />);
+  await openAbilities();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Search for Mature Animal Companion" }),
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Next Page" }));
+  const back = await screen.findByRole("button", { name: "Previous Page" });
+  await waitFor(() => expect(back).toBeEnabled());
+  fireEvent.click(back);
+  const next = await screen.findByRole("button", { name: "Next Page" });
+  await waitFor(() => expect(next).toBeEnabled());
+  fireEvent.click(next);
+  await waitFor(() => expect(nextPageReads).toBe(2));
+  const input = screen.getByRole("searchbox", { name: "Search Atlas rules" });
+  fireEvent.change(input, { target: { value: "Another name" } });
+  fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+  expect(
+    await screen.findByText("No rules found. Try a different name."),
+  ).toBeVisible();
+  await act(async () =>
+    rejectOldPage(
+      new AtlasApiError(409, "Library changed", {
+        code: "artifact_generation_changed",
+        message: "Library changed",
+      }),
+    ),
+  );
+  expect(input).toHaveValue("Another name");
+  expect(
+    api.searchPage.mock.calls.map(([request]) => [
+      request.page.number,
+      request.expected_artifact_generation ?? null,
+    ]),
+  ).toEqual([
+    [1, null],
+    [2, "test-generation"],
+    [1, "test-generation"],
+    [2, "test-generation"],
+    [1, null],
+  ]);
+});
+
 it("retries a failed rule search in place and restores the ability filter and opener", async () => {
   api.searchPage
     .mockRejectedValueOnce(new Error("Offline"))

@@ -111,10 +111,22 @@ pub fn report(title: &str, detail: &str) {
     message(title, detail, MB_OK | MB_ICONERROR);
 }
 
-pub fn confirm_exit() -> bool {
+pub fn confirm_exit(disconnected: bool) -> bool {
     message(
         "Exit Atlas",
-        "Discard unsaved changes in all open Atlas windows?",
+        if disconnected {
+            "Atlas cannot check for unsaved changes in every workspace window. Discard any unsaved changes and exit?"
+        } else {
+            "Discard unsaved changes in all open Atlas windows?"
+        },
+        MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
+    ) == IDYES
+}
+
+pub fn confirm_disconnected_close() -> bool {
+    message(
+        "Close Atlas window",
+        "Atlas cannot check this window for unsaved changes. Discard any unsaved changes and close this window?",
         MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
     ) == IDYES
 }

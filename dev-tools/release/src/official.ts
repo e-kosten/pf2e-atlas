@@ -9,15 +9,21 @@ export async function publishOfficial(tag: string, sha: string, dist: string, ru
   const listed = releases(run).find((item) => item.tag_name === tag);
   if (!listed || !Number.isSafeInteger(listed.id) || listed.id <= 0) throw new Error(`Missing release ID for ${tag}`);
   const endpoint = `${releaseEndpoint}/${listed.id}`;
+  const names = releaseAssetNames(dist);
+  const expected = new Map(await Promise.all(names.map(async (name) =>
+    [name, `sha256:${await sha256(path.join(dist, name))}`] as const)));
   const readRelease = (): Release => {
     const release: Release = JSON.parse(run('gh', ['api', endpoint]));
     if (release.id !== listed.id) throw new Error('Official release lookup returned a different ID');
     verifyReleaseSource(run, release, tag, sha);
-    return release;
+    const pages: NonNullable<Release['assets']>[] = JSON.parse(run('gh', [
+      'api', '--paginate', '--slurp', endpoint + '/assets?per_page=100',
+    ]));
+    const assets = pages.flat();
+    const extras = assets.filter((asset) => !expected.has(asset.name));
+    if (extras.length) throw new Error(`Unexpected assets for ${tag}: ${extras.map((asset) => asset.name).join(', ')}`);
+    return { ...release, assets };
   };
-  const names = releaseAssetNames(dist);
-  const expected = new Map(await Promise.all(names.map(async (name) =>
-    [name, `sha256:${await sha256(path.join(dist, name))}`] as const)));
   const release = readRelease();
   const prerelease = tag.startsWith('rc/');
   if (!release.draft && release.prerelease !== prerelease) throw new Error('Published release channel mismatch');

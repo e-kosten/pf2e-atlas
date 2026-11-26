@@ -6,6 +6,7 @@ import { coverageArchive, coverageHeading, validateNightlyCoverage } from './emb
 import { validateAssets } from './validate-release-assets.js';
 import { desktopAssets, macosDmg, nightlyChannel, nightlyRef, nightlyTag, object, readJson, windowsInstaller } from './release-data.js';
 import { releaseAssetNames, releaseEndpoint, releases, uploadDraftAssets, verifyReleaseSource, verifyUploadedDesktop, type Release, type Run } from './release-upload.js';
+import { cliVersion, lockPath, manifestPath, versionFiles, writeVersionFiles } from './package-version.mjs';
 export type { Run } from './release-upload.js';
 
 export function nightlyVersion(tag: string): string {
@@ -14,36 +15,13 @@ export function nightlyVersion(tag: string): string {
   return match[1];
 }
 
-function cliVersion(manifest: string): string {
-  const section = manifest.split(/^\[/m).find((part) => part.startsWith('package]'));
-  if (!section || !/^name = "atlas-cli"\r?$/m.test(section)) throw new Error('Expected atlas-cli package');
-  const versions = [...section.matchAll(/^version = "([^"]+)"\r?$/gm)];
-  if (versions.length !== 1) throw new Error('Expected one explicit CLI version');
-  return versions[0][1];
-}
-
 /** Only the ephemeral build checkout is changed; no dependency versions move. */
 export function prepareNightly(root: string, tag: string): void {
   const version = nightlyVersion(tag);
-  const manifestFile = path.join(root, 'crates/atlas-cli/Cargo.toml');
-  const lockFile = path.join(root, 'Cargo.lock');
-  const manifest = readFileSync(manifestFile, 'utf8');
-  const lock = readFileSync(lockFile, 'utf8');
-  const old = cliVersion(manifest);
-  if (version.split('-')[0] !== old.split('-')[0]) throw new Error('Nightly must retain the source version core');
-  const sections = lock.split(/(?=^\[\[package\]\])/m);
-  const matches = sections.map((section, index) => /^name = "atlas-cli"\r?$/m.test(section) ? index : -1).filter((index) => index >= 0);
-  if (matches.length !== 1) throw new Error('Expected one CLI lockfile entry');
-  const index = matches[0];
-  const locked = /^version = "([^"]+)"\r?$/m.exec(sections[index]);
-  if (locked?.[1] !== old) throw new Error('CLI manifest and lockfile disagree');
-  sections[index] = sections[index].replace(/^(version = ")[^"]+("\r?)$/m, `$1${version}$2`);
-  // Restrict replacement to the package section, leaving dependencies untouched.
-  const manifestSections = manifest.split(/(?=^\[)/m);
-  const packageIndex = manifestSections.findIndex((section) => section.startsWith('[package]'));
-  manifestSections[packageIndex] = manifestSections[packageIndex].replace(/^(version = ")[^"]+("\r?)$/m, `$1${version}$2`);
-  writeFileSync(manifestFile, manifestSections.join(''));
-  writeFileSync(lockFile, sections.join(''));
+  const manifest = readFileSync(path.join(root, manifestPath), 'utf8');
+  if (version.split('-')[0] !== cliVersion(manifest).split('-')[0]) throw new Error('Nightly must retain the source version core');
+  const lock = readFileSync(path.join(root, lockPath), 'utf8');
+  writeVersionFiles(root, versionFiles(manifest, lock, version));
 }
 
 export function commandRunner(root: string): Run {
@@ -59,7 +37,7 @@ function temporary<T>(work: (directory: string) => T): T {
 function nightlyPackageTag(root: string, ref: string): string {
   const match = nightlyRef.exec(ref);
   if (!match || match[0] !== ref) throw new Error('Invalid nightly release tag');
-  const core = cliVersion(readFileSync(path.join(root, 'crates/atlas-cli/Cargo.toml'), 'utf8')).split('-')[0];
+  const core = cliVersion(readFileSync(path.join(root, manifestPath), 'utf8')).split('-')[0];
   return `v${core}-nightly.${match[1]}.g${match[2]}`;
 }
 

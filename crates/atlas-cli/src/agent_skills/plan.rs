@@ -75,8 +75,21 @@ pub(crate) fn build_plan(
     let resolved_root = symlinked.then(|| resolve_path(&root)).flatten();
     let resolved_skill = symlinked.then(|| resolve_path(&skill_path)).flatten();
 
-    let (status, installed_hash, message) = status_for_path(&skill_path, &skill.content_hash);
-    let writable = install_path_writable(&root, &skill_path);
+    let (status, installed_hash, mut message) = status_for_path(&skill_path, &skill.content_hash);
+    let ancestor = root
+        .ancestors()
+        .find(|path| path.exists() || path.is_symlink());
+    let writable = match ancestor {
+        Some(path) if !path.is_dir() => {
+            message = Some(format!(
+                "The skill root requires a directory at {}.",
+                path.display()
+            ));
+            false
+        }
+        Some(path) => path_writable(path) && (!skill_path.exists() || path_writable(&skill_path)),
+        None => false,
+    };
     let status = if !writable {
         InstallStatus::NotWritable
     } else if symlinked {
@@ -169,15 +182,6 @@ fn status_for_path(
 fn manifest_hash(manifest: &str) -> Option<String> {
     let value = serde_json::from_str::<serde_json::Value>(manifest).ok()?;
     value.get("content_hash")?.as_str().map(ToString::to_string)
-}
-
-fn install_path_writable(root: &Path, skill_path: &Path) -> bool {
-    nearest_existing_ancestor(root).is_some_and(path_writable)
-        && (!skill_path.exists() || path_writable(skill_path))
-}
-
-fn nearest_existing_ancestor(path: &Path) -> Option<&Path> {
-    path.ancestors().find(|ancestor| ancestor.exists())
 }
 
 fn path_writable(path: &Path) -> bool {

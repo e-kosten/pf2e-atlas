@@ -26,6 +26,7 @@ function fixture(t: TestContext, tag: string, options: {
   omit?: string;
   corrupt?: string;
   duplicate?: string;
+  extra?: 'existing' | 'after-upload';
 } = {}) {
   const dist = mkdtempSync(path.join(tmpdir(), 'atlas-official-test-'));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
@@ -43,14 +44,19 @@ function fixture(t: TestContext, tag: string, options: {
   const mutations: string[][] = [];
   return { dist, mutations, publish: () => publishOfficial(tag, sha, dist, (program, args) => {
     if (program === 'git') return `${'b'.repeat(40)}\trefs/tags/${tag}\n${options.source ?? sha}\trefs/tags/${tag}^{}`;
-    if (args[0] === 'api' && args[1] === '--paginate') {
+    if (args[0] === 'api' && args[1] === '--paginate' && !args.at(-1)?.includes('/assets?')) {
       return JSON.stringify([[mutations.length ? { ...release, id: id + 1 } : release]]);
     }
+    const surfaced = remote.filter((asset) => asset.name !== options.omit)
+      .map((asset) => asset.name === options.corrupt ? { ...asset, digest: 'wrong' } : asset);
+    const duplicate = surfaced.find((asset) => asset.name === options.duplicate);
+    if (duplicate) surfaced.push(duplicate);
+    const extras = options.extra === 'existing' || (options.extra === 'after-upload' && mutations.length)
+      ? [{ id: 999, name: 'obsolete-installer.exe', digest: 'old' }] : [];
+    if (args[0] === 'api' && args.at(-1) === endpoint + '/assets?per_page=100') {
+      return JSON.stringify([surfaced, extras]);
+    }
     if (args[0] === 'api' && args[1] === endpoint) {
-      const surfaced = remote.filter((asset) => asset.name !== options.omit)
-        .map((asset) => asset.name === options.corrupt ? { ...asset, digest: 'wrong' } : asset);
-      const duplicate = surfaced.find((asset) => asset.name === options.duplicate);
-      if (duplicate) surfaced.push(duplicate);
       return JSON.stringify({ ...release, id: options.wrongId ? id + 1 : id, assets: surfaced });
     }
     mutations.push(args);
@@ -147,4 +153,14 @@ test('published retries verify the original assets without mutating the release'
   const changed = fixture(t, 'release/v1.2.3', { draft: false, corrupt: archive });
   await assert.rejects(changed.publish, { message: `Uploaded asset missing, duplicated or has a digest mismatch for release/v1.2.3: ${archive}` });
   assert.equal(changed.mutations.length, 0);
+});
+
+test('requires the complete official attachment set before upload and publication', async (t) => {
+  for (const options of [{ extra: 'existing' }, { extra: 'after-upload' }, { extra: 'existing', draft: false }] as const) {
+    const candidate = fixture(t, 'release/v1.2.3', options);
+    await assert.rejects(candidate.publish, /unexpected.*obsolete-installer\.exe/i);
+    if (options.extra === 'existing') assert.deepEqual(candidate.mutations, []);
+    else assert.ok(candidate.mutations.some((args) => args[2] === 'POST'));
+    assert.ok(candidate.mutations.every((args) => args[2] !== 'PATCH'));
+  }
 });

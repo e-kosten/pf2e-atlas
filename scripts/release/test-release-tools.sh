@@ -8,6 +8,45 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# The release-install entry point must finish the transfer before executing any bytes.
+download_bin="$tmp/download-bin"
+mkdir "$download_bin" "$tmp/install-downloads"
+cat > "$download_bin/curl" <<'CURL_FIXTURE'
+#!/bin/sh
+set -eu
+while [ "$1" != '-o' ]; do shift; done
+case "$TRANSFER" in
+  failed) exit 22 ;;
+  empty) : > "$2" ;;
+  partial|ok)
+    cat > "$2" <<'INSTALL_FIXTURE'
+#!/bin/sh
+printf '%s\n' "$@" > "$INSTALL_ARGS"
+exit "${INSTALL_EXIT:-0}"
+INSTALL_FIXTURE
+    [ "$TRANSFER" = ok ] || exit 18 ;;
+esac
+CURL_FIXTURE
+chmod +x "$download_bin/curl"
+run_release_install() {
+  PATH="$download_bin:$PATH" TMPDIR="$tmp/install-downloads" INSTALL_ARGS="$tmp/installer-args" \
+    sh "$repo_root/scripts/release/install-published.sh" v9.9.9 --install-dir "folder with spaces"
+}
+for transfer in failed partial empty; do
+  if TRANSFER="$transfer" run_release_install; then
+    echo "release-install accepted a $transfer transfer" >&2
+    exit 1
+  fi
+  [ ! -e "$tmp/installer-args" ]
+done
+TRANSFER=ok run_release_install
+printf '%s\n' --version release/v9.9.9 --install-dir 'folder with spaces' > "$tmp/expected-args"
+cmp "$tmp/expected-args" "$tmp/installer-args"
+status=0
+TRANSFER=ok INSTALL_EXIT=37 run_release_install || status=$?
+[ "$status" = 37 ]
+[ -z "$(ls -A "$tmp/install-downloads")" ]
+
 dist="$tmp/dist"
 mkdir -p "$dist"
 node "$repo_root/dev-tools/release/dist/src/cli/generate-notices.js" \

@@ -408,11 +408,22 @@ Function PageLeaveReinstall
       ExecWait '$R1' $0
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+      ; Execute a temporary copy in place. The child can delete the installed
+      ; uninstaller while holding its own lifecycle lock, before ExecWait returns.
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ${IfThen} $UpdateMode = 1 ${|} StrCpy $R1 "$R1 /UPDATE" ${|} ; append /UPDATE
-      ${IfThen} $PassiveMode = 1 ${|} StrCpy $R1 "$R1 /P" ${|} ; append /P
-      StrCpy $R1 "$R1 _?=$4" ; append uninstall directory
-      ExecWait '$R1' $0
+      ${If} $4 == ""
+      ${OrIf} $R1 != '"$4\uninstall.exe"'
+        SetErrors
+      ${Else}
+        InitPluginsDir
+        CopyFiles /SILENT "$4\uninstall.exe" "$PLUGINSDIR"
+      ${EndIf}
+      ${IfNot} ${Errors}
+        StrCpy $R1 '$\"$PLUGINSDIR\uninstall.exe$\"'
+        ${IfThen} $UpdateMode = 1 ${|} StrCpy $R1 "$R1 /UPDATE" ${|}
+        ${IfThen} $PassiveMode = 1 ${|} StrCpy $R1 "$R1 /P" ${|}
+        ExecWait '$R1 _?=$4' $0
+      ${EndIf}
     ${EndIf}
 
     BringToFront
@@ -437,14 +448,6 @@ Function PageLeaveReinstall
       Abort
     ${EndIf}
 
-    ; The NSIS uninstaller was run in place (`_?=`), so it cannot delete itself
-    ; and the install directory, clean them up here once the uninstall succeeded
-    ; https://nsis.sourceforge.io/Docs/Chapter3.html#:~:text=path%20contains%20spaces.-,3.2.3%20Examples,-installer.exe%20/NCRC
-    ${If} $WixMode = 0
-    ${AndIf} $4 != ""
-      Delete "$4\uninstall.exe"
-      RMDir "$4"
-    ${EndIf}
   reinst_done:
 FunctionEnd
 
@@ -719,6 +722,7 @@ Section WebView2
 SectionEnd
 
 Section Install
+  !insertmacro AtlasReserveInstallation
   SetOutPath $INSTDIR
 
   !ifmacrodef NSIS_HOOK_PREINSTALL
@@ -746,7 +750,8 @@ Section Install
     File /a "/oname={{this}}" "{{no-escape @key}}"
   {{/each}}
 
-  !insertmacro AtlasCommitPayload
+  WriteUninstaller "$PLUGINSDIR\atlas-payload\uninstall.exe"
+  !insertmacro AtlasPayload '-Payload "$PLUGINSDIR\atlas-payload"'
   SetOutPath $INSTDIR
 
   ; Create file associations
@@ -764,9 +769,6 @@ Section Install
     WriteRegStr SHCTX "Software\Classes\\{{protocol}}\shell\open\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
   {{/each}}
 
-  ; Create uninstaller
-  WriteUninstaller "$INSTDIR\uninstall.exe"
-
   ; Save $INSTDIR in registry for future installations
   WriteRegStr SHCTX "${MANUPRODUCTKEY}" "" $INSTDIR
 
@@ -776,12 +778,7 @@ Section Install
     WriteRegStr SHCTX "${UNINSTKEY}" $MultiUser.InstallMode 1
   !endif
 
-  ; Remove old main binary if it doesn't match new main binary name
   ReadRegStr $OldMainBinaryName SHCTX "${UNINSTKEY}" "MainBinaryName"
-  ${If} $OldMainBinaryName != ""
-  ${AndIf} $OldMainBinaryName != "${MAINBINARYNAME}.exe"
-    Delete "$INSTDIR\$OldMainBinaryName"
-  ${EndIf}
 
   ; Save current MAINBINARYNAME for future updates
   WriteRegStr SHCTX "${UNINSTKEY}" "MainBinaryName" "${MAINBINARYNAME}.exe"
@@ -806,6 +803,8 @@ Section Install
     WriteRegStr SHCTX "${UNINSTKEY}" "URLUpdateInfo" "${HOMEPAGE}"
     WriteRegStr SHCTX "${UNINSTKEY}" "HelpLink" "${HOMEPAGE}"
   !endif
+
+  !insertmacro AtlasPayload "-Finish"
 
   ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -863,6 +862,7 @@ Function un.onInit
 FunctionEnd
 
 Section Uninstall
+  !insertmacro AtlasReserveInstallation
 
   !ifmacrodef NSIS_HOOK_PREUNINSTALL
     !insertmacro NSIS_HOOK_PREUNINSTALL
@@ -870,14 +870,14 @@ Section Uninstall
 
   !insertmacro CheckIfAppIsRunning "$INSTDIR\${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
 
+  InitPluginsDir
+  !insertmacro AtlasPayload "-RemoveRuntime"
+
   ; Delete the app directory and its content from disk
   ; Copy main executable
   Delete "$INSTDIR\${MAINBINARYNAME}.exe"
 
-  ; Delete resources
-  {{#each resources}}
-    Delete "$INSTDIR\\{{this.[1]}}"
-  {{/each}}
+  Delete "$INSTDIR\THIRD-PARTY-NOTICES.md"
 
   ; Delete external binaries
   {{#each binaries}}

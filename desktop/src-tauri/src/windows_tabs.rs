@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{
     Desktop, current_product, display, lock, product_view, recent_product_views, run_on_main,
-    same_product_route, staged_setup, tab_links, window_host,
+    running_product, same_product_route, staged_setup, tab_links, window_host,
 };
 
 #[derive(Default)]
@@ -24,7 +24,7 @@ struct State {
     next_delivery: u64,
     delivery: Option<Delivery>,
     exit: Option<ExitCheck>,
-    update_handoff: bool,
+    window_handoff: bool,
     opening_windows: usize,
 }
 
@@ -33,24 +33,22 @@ pub(crate) struct OpeningWindow<'a>(&'a Mutex<State>);
 impl WindowsTabs {
     pub(crate) fn reserve_opening(&self) -> Result<OpeningWindow<'_>, String> {
         let mut state = lock(&self.0);
-        if state.update_handoff {
-            return Err("Wait for the Atlas update to finish.".into());
+        if state.window_handoff {
+            return Err("Wait for Atlas to finish checking its windows.".into());
         }
         state.opening_windows += 1;
         Ok(OpeningWindow(&self.0))
     }
 
-    fn begin_update(&self) -> Result<(), String> {
+    fn begin_handoff(&self) -> Result<(), String> {
         let mut state = lock(&self.0);
         if state.opening_windows != 0 {
-            return Err(
-                "A workspace window is still opening. Retry the update once it opens.".into(),
-            );
+            return Err("A workspace window is still opening. Try again once it opens.".into());
         }
-        if state.update_handoff || state.exit.is_some() {
+        if state.window_handoff || state.exit.is_some() {
             return Err("Atlas is already checking its windows.".into());
         }
-        state.update_handoff = true;
+        state.window_handoff = true;
         Ok(())
     }
 }
@@ -66,7 +64,7 @@ struct ExitCheck {
     waiting: HashMap<String, String>,
     dirty: bool,
     pending: bool,
-    update_reply: Option<mpsc::Sender<(bool, bool)>>,
+    reply: mpsc::Sender<(bool, bool)>,
 }
 
 struct AttachedTabs {
@@ -156,12 +154,7 @@ pub fn forget(app: &AppHandle, label: &str) -> bool {
 }
 
 pub fn ready(window: &WebviewWindow) -> bool {
-    let desktop = window.state::<Desktop>();
-    let token = lock(&desktop.windows_tabs.0)
-        .windows
-        .get(window.label())
-        .map(|entry| entry.token.clone());
-    token.is_some_and(|token| validate(window, &token).is_ok())
+    document_token(window).is_some()
 }
 
 pub fn send(window: &WebviewWindow, command: Command<'_>) -> Result<(), String> {
@@ -234,10 +227,14 @@ pub async fn desktop_tabs_state(
 }
 
 pub fn deliver(app: &AppHandle, route: &str) -> Result<(), String> {
-    if update_handoff_active(app) {
+    if window_handoff_active(app) {
         return Ok(());
     }
-    let (base, instance) = current_product(app)?;
+    // A cancelled Exit can release its guard while disconnected. Keep the
+    // unacknowledged link queued until Reconnect starts a new service.
+    let Some((base, instance)) = running_product(app)? else {
+        return Ok(());
+    };
     let destination = base.join(route).map_err(display)?;
     let desktop = app.state::<Desktop>();
     let windows = recent_product_views(app, &base, &instance);
@@ -369,8 +366,11 @@ pub async fn desktop_tabs_ack(
 pub async fn desktop_tabs_close(window: WebviewWindow, token: String) -> Result<(), String> {
     validate(&window, &token)?;
     let app = window.app_handle().clone();
-    run_on_main(&app, move |_| {
-        if let Err(error) = window.destroy() {
+    run_on_main(&app, move |app| {
+        if !window_handoff_active(app)
+            && validate(&window, &token).is_ok()
+            && let Err(error) = crate::destroy_window(&window)
+        {
             window_host::report("Could not close Atlas window", &display(error));
         }
     })
@@ -403,32 +403,76 @@ pub fn menu(app: &AppHandle, command: Command<'_>) -> Result<(), String> {
     Ok(())
 }
 
-pub fn exit(app: &AppHandle) -> Result<(), String> {
-    if update_handoff_active(app) {
-        return Ok(());
+fn workspace_window(window: &WebviewWindow) -> bool {
+    window.label() != "bootstrap"
+        && (window.label() != crate::opening::PRIMARY
+            || lock(&window.state::<Desktop>().primary).is_product())
+}
+
+pub fn handle_close(window: &WebviewWindow, api: &tauri::CloseRequestApi) {
+    api.prevent_close();
+    if !workspace_window(window) {
+        if let Err(error) = crate::destroy_window(window) {
+            window_host::report("Could not close Atlas window", &display(error));
+        }
+        return;
     }
-    let Ok((base, instance)) = current_product(app) else {
-        app.exit(0);
-        return Ok(());
+    if window_handoff_active(window.app_handle()) {
+        return;
+    }
+    let result = if ready(window) {
+        send(window, Command::CloseWindow)
+    } else if window_host::confirm_disconnected_close()
+        && workspace_window(window)
+        && !ready(window)
+        && !window_handoff_active(window.app_handle())
+    {
+        crate::destroy_window(window).map_err(display)
+    } else {
+        Ok(())
     };
-    let windows: Vec<_> = recent_product_views(app, &base, &instance)
-        .into_iter()
-        .filter(ready)
-        .collect();
-    if windows.is_empty() {
+    if let Err(error) = result {
+        window_host::report("Could not close Atlas window", &error);
+    }
+}
+
+pub fn exit(app: &AppHandle) -> Result<(), String> {
+    if window_handoff_active(app) {
+        return Ok(());
+    }
+    if !app.webview_windows().values().any(workspace_window) {
         app.exit(0);
         return Ok(());
     }
-    check_windows(app, &windows, None).map(|_| ())
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let check = || -> Result<(), String> {
+            let (guard, dirty, pending) = WindowHandoff::inspect(&app, false)?;
+            if pending {
+                return Err("Wait for the save to finish before exiting.".into());
+            }
+            let disconnected = guard.documents.values().any(Option::is_none);
+            if (dirty || disconnected) && !window_host::confirm_exit(disconnected) {
+                return Ok(());
+            }
+            guard.validate()?;
+            app.exit(0);
+            Ok(())
+        };
+        if let Err(error) = check() {
+            window_host::report("Could not exit Atlas", &error);
+        }
+    });
+    Ok(())
 }
 
 fn check_windows(
     app: &AppHandle,
     windows: &[WebviewWindow],
-    update_reply: Option<mpsc::Sender<(bool, bool)>>,
-) -> Result<HashMap<String, String>, String> {
+    reply: mpsc::Sender<(bool, bool)>,
+) -> Result<(), String> {
     let desktop = app.state::<Desktop>();
-    let (id, tokens) = {
+    let id = {
         let mut state = lock(&desktop.windows_tabs.0);
         let tokens = windows
             .iter()
@@ -444,12 +488,12 @@ fn check_windows(
         let id = state.next_delivery;
         state.exit = Some(ExitCheck {
             id,
-            waiting: tokens.clone(),
+            waiting: tokens,
             dirty: false,
             pending: false,
-            update_reply,
+            reply,
         });
-        (id, tokens)
+        id
     };
     for window in windows {
         if let Err(error) = send(window, Command::CheckExit { id }) {
@@ -457,7 +501,7 @@ fn check_windows(
             return Err(error);
         }
     }
-    Ok(tokens)
+    Ok(())
 }
 
 #[tauri::command]
@@ -490,48 +534,35 @@ pub async fn desktop_tabs_exit_status(
     let Some(exit) = ready else {
         return Ok(());
     };
-    if let Some(reply) = exit.update_reply {
-        let _ = reply.send((exit.dirty, exit.pending));
-        return Ok(());
-    }
-    run_on_main(window.app_handle(), move |app| {
-        if exit.pending {
-            window_host::report(
-                "Atlas is saving",
-                "Wait for the save to finish before exiting.",
-            );
-        } else if !exit.dirty || window_host::confirm_exit() {
-            app.exit(0);
-        }
-    })
+    let _ = exit.reply.send((exit.dirty, exit.pending));
+    Ok(())
 }
 
-pub fn update_handoff_active(app: &AppHandle) -> bool {
-    lock(&app.state::<Desktop>().windows_tabs.0).update_handoff
+pub fn window_handoff_active(app: &AppHandle) -> bool {
+    lock(&app.state::<Desktop>().windows_tabs.0).window_handoff
 }
 
-/// Hold native input stopped from the final draft report through installer handoff.
-/// Old service documents can still contain edits, so an unreportable window
-/// postpones installation until its user has dealt with it.
-pub struct UpdateHandoff {
+/// Freeze native input while every live workspace reports its drafts. Exit can
+/// confirm discarded work in a disconnected document; update requires all reports.
+pub struct WindowHandoff {
     app: AppHandle,
     disabled: Vec<WebviewWindow>,
-    tokens: HashMap<String, String>,
+    documents: HashMap<String, Option<String>>,
 }
 
-impl UpdateHandoff {
-    pub fn acquire(app: &AppHandle) -> Result<Self, String> {
-        let (prepared, prepared_rx) = mpsc::sync_channel(1);
-        let (reply, replies) = mpsc::channel();
-        run_on_main(app, move |app| {
-            let _ = prepared.send(Self::freeze(app, reply));
-        })?;
-        let guard = prepared_rx
-            .recv_timeout(Duration::from_secs(5))
-            .map_err(|_| "Atlas could not pause its windows. Retry the update.")??;
-        let (dirty, pending) = replies.recv_timeout(Duration::from_secs(5)).map_err(|_| {
-            "Atlas could not check every window. Finish or close the unresponsive window and retry."
-        })?;
+fn document_token(window: &WebviewWindow) -> Option<String> {
+    let token = lock(&window.state::<Desktop>().windows_tabs.0)
+        .windows
+        .get(window.label())?
+        .token
+        .clone();
+    validate(window, &token).ok()?;
+    Some(token)
+}
+
+impl WindowHandoff {
+    pub fn for_update(app: &AppHandle) -> Result<Self, String> {
+        let (guard, dirty, pending) = Self::inspect(app, true)?;
         if pending {
             return Err(
                 "Wait for Atlas to finish saving in all windows, then retry the update.".into(),
@@ -544,65 +575,84 @@ impl UpdateHandoff {
         Ok(guard)
     }
 
+    fn inspect(app: &AppHandle, updating: bool) -> Result<(Self, bool, bool), String> {
+        let (prepared, prepared_rx) = mpsc::sync_channel(1);
+        let (reply, replies) = mpsc::channel();
+        run_on_main(app, move |app| {
+            let _ = prepared.send(Self::freeze(app, reply, updating));
+        })?;
+        let guard = prepared_rx
+            .recv_timeout(Duration::from_secs(5))
+            .map_err(|_| "Atlas could not pause its windows. Try again.")??;
+        let (dirty, pending) = replies.recv_timeout(Duration::from_secs(5)).map_err(|_| {
+            "Atlas could not check every window. Finish or close the unresponsive window and retry."
+        })?;
+        guard.validate()?;
+        Ok((guard, dirty, pending))
+    }
+
     pub fn validate(&self) -> Result<(), String> {
-        let windows = self.app.webview_windows();
-        let mut product = windows
-            .values()
-            .filter(|window| window.label() != "bootstrap");
-        if product.clone().count() != self.tokens.len()
-            || !product.all(|window| {
-                self.tokens
-                    .get(window.label())
-                    .is_some_and(|token| validate(window, token).is_ok())
-            })
-        {
-            return Err("A workspace window changed while Atlas was preparing the update. Review it and retry.".into());
+        let current: HashMap<_, _> = self
+            .app
+            .webview_windows()
+            .into_values()
+            .filter(workspace_window)
+            .map(|window| (window.label().to_owned(), document_token(&window)))
+            .collect();
+        if current != self.documents {
+            return Err("A workspace window changed while Atlas was checking for edits. Review it and retry.".into());
         }
         Ok(())
     }
 
-    fn freeze(app: &AppHandle, reply: mpsc::Sender<(bool, bool)>) -> Result<Self, String> {
+    fn freeze(
+        app: &AppHandle,
+        reply: mpsc::Sender<(bool, bool)>,
+        updating: bool,
+    ) -> Result<Self, String> {
         let desktop = app.state::<Desktop>();
-        desktop.windows_tabs.begin_update()?;
+        desktop.windows_tabs.begin_handoff()?;
         let mut guard = Self {
             app: app.clone(),
             disabled: Vec::new(),
-            tokens: HashMap::new(),
+            documents: HashMap::new(),
         };
-        let windows: Vec<_> = app
-            .webview_windows()
-            .into_values()
-            .filter(|window| window.label() != "bootstrap")
-            .collect();
-        if windows.is_empty() || windows.iter().any(|window| !ready(window)) {
-            return Err("A workspace window is disconnected or still opening. Review or close it before updating.".into());
-        }
-        for window in &windows {
+        let mut live = Vec::new();
+        for window in app.webview_windows().into_values().filter(workspace_window) {
+            let token = document_token(&window);
+            if updating && token.is_none() {
+                return Err("A workspace window is disconnected or still opening. Review or close it before updating.".into());
+            }
             if window.is_enabled().map_err(display)? {
                 window.set_enabled(false).map_err(display)?;
                 guard.disabled.push(window.clone());
             }
+            if token.is_some() {
+                live.push(window.clone());
+            }
+            guard.documents.insert(window.label().to_owned(), token);
         }
-        guard.tokens = check_windows(app, &windows, Some(reply))?;
+        if live.is_empty() {
+            if updating {
+                return Err("Open a connected workspace window before updating.".into());
+            }
+            let _ = reply.send((false, false));
+        } else {
+            check_windows(app, &live, reply)?;
+        }
         Ok(guard)
     }
 }
 
-impl Drop for UpdateHandoff {
+impl Drop for WindowHandoff {
     fn drop(&mut self) {
         let disabled = std::mem::take(&mut self.disabled);
         let _ = run_on_main(&self.app, move |app| {
             let desktop = app.state::<Desktop>();
             {
                 let mut state = lock(&desktop.windows_tabs.0);
-                state.update_handoff = false;
-                if state
-                    .exit
-                    .as_ref()
-                    .is_some_and(|check| check.update_reply.is_some())
-                {
-                    state.exit = None;
-                }
+                state.window_handoff = false;
+                state.exit = None;
             }
             for window in disabled {
                 let _ = window.set_enabled(true);
@@ -623,11 +673,11 @@ mod tests {
         let tabs = WindowsTabs::default();
         let first = tabs.reserve_opening().unwrap();
         let second = tabs.reserve_opening().unwrap();
-        assert!(tabs.begin_update().is_err());
+        assert!(tabs.begin_handoff().is_err());
         drop(first);
-        assert!(tabs.begin_update().is_err());
+        assert!(tabs.begin_handoff().is_err());
         drop(second);
-        tabs.begin_update().unwrap();
+        tabs.begin_handoff().unwrap();
         assert!(tabs.reserve_opening().is_err());
     }
 }
