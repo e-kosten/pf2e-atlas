@@ -653,6 +653,7 @@ git switch -qc historical "$approved"
 printf 'Different historical notes\n\n' > "$custom"
 ln -s v0.1.0.md docs/releases/link.md
 : > docs/releases/empty.md
+printf ' \t\n' > docs/releases/blank.md
 git add docs/releases
 git commit -qm historical
 legacy=$(git rev-parse HEAD)
@@ -673,7 +674,7 @@ for kind in lightweight annotated; do
   run_prepare --recover-draft "$stable" "$legacy" --notes-file "$custom" --yes >/dev/null
   cmp "$custom" "$ATLAS_TEST_DRAFT_NOTES"
   : > "$log"
-  for path in docs/releases/link.md docs/releases/empty.md docs/releases/missing.md ../outside; do
+  for path in docs/releases/link.md docs/releases/empty.md docs/releases/blank.md docs/releases/missing.md ../outside; do
     expect_fail --recover-draft "$stable" "$legacy" --notes-file "$path" --yes
   done
   expect_log_absent 'gh release create' 'recovery accepted an invalid historical path'
