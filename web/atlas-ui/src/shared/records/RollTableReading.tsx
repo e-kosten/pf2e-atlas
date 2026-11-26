@@ -8,7 +8,14 @@ import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Button, Space, Table, Typography } from "antd";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { getEmbeddedReading } from "../../api/atlasApi";
 import type {
   EmbeddedReadingEntryView,
@@ -77,12 +84,16 @@ export function RollTableReading({
     if (next) highlightTimer.current = window.setTimeout(() => setHighlight([]), 2400);
   }, []);
   const entries = reading.data?.pages.flatMap((page) => page.entries) ?? [];
-  const rows = table.results.value ?? [];
+  const rowsByAddress = useMemo(
+    () =>
+      new Map(table.results.value?.map((row) => [address(row.link.navigation), row])),
+    [table.results.value],
+  );
   const availability = reading.data?.pages[0]?.availability ?? table.results.state;
   const matches = result?.matches ?? [];
   const data = entries.map((entry) => ({
     entry,
-    row: rows.find((row) => address(row.link.navigation) === address(entry.navigation)),
+    row: rowsByAddress.get(address(entry.navigation)),
   }));
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
@@ -102,7 +113,11 @@ export function RollTableReading({
       {matches.map((match) => (
         <section key={address(match.navigation)} className="roll-table-result-summary">
           <strong>{match.title}</strong>
-          <TableResultContent entry={match} onReference={onReference} />
+          <TableResultContent
+            entry={match}
+            authoredName={rowsByAddress.get(address(match.navigation))?.authored_name}
+            onReference={onReference}
+          />
         </section>
       ))}
       <Table
@@ -146,8 +161,12 @@ export function RollTableReading({
           {
             title: "Result",
             onCell: () => ({ style: { verticalAlign: "top" } }),
-            render: (_, { entry }) => (
-              <TableResultContent entry={entry} onReference={onReference} />
+            render: (_, { entry, row }) => (
+              <TableResultContent
+                entry={entry}
+                authoredName={row?.authored_name}
+                onReference={onReference}
+              />
             ),
           },
         ]}
@@ -172,67 +191,55 @@ export function RollTableReading({
 }
 function TableResultContent({
   entry,
+  authoredName,
   onReference,
 }: {
   entry: EmbeddedReadingEntryView;
+  authoredName?: string;
   onReference: RecordReferenceHandler;
 }) {
   const targets = entry.relationships.flatMap((link) => {
     const target = referenceRecordTarget(link.destination);
     return link.kind === "TableResult" && target ? [target] : [];
   });
-  const label = simpleResultLabel(entry);
-  if (targets.length === 1 && label) {
-    const target = targets[0];
-    return (
-      <Typography.Link
-        href={destinationHref(
-          recordDestination({
-            recordKey: target.record_key,
-            selection: target,
-          }),
-        )}
-        onClick={(event) => {
-          if (!isPrimaryActivation(event)) return;
-          event.preventDefault();
-          onReference(target.record_key, event.currentTarget, target);
-        }}
-      >
-        {label}
-      </Typography.Link>
-    );
+  const singleTarget = targets.length === 1 ? targets[0] : undefined;
+  const descriptionLabel =
+    !authoredName && singleTarget ? simpleResultLabel(entry) : undefined;
+  const label = authoredName ?? descriptionLabel;
+  function linkProps(target: RecordNavigationView) {
+    return {
+      href: destinationHref(
+        recordDestination({ recordKey: target.record_key, selection: target }),
+      ),
+      onClick: (event: MouseEvent<HTMLElement>) => {
+        if (!isPrimaryActivation(event)) return;
+        event.preventDefault();
+        onReference(target.record_key, event.currentTarget, target);
+      },
+    };
   }
   return (
     <>
-      {entry.content.map((content, index) => (
-        <PreparedContent
-          key={index}
-          content={content}
-          relationships={entry.relationships}
-          onReference={onReference}
-        />
-      ))}
-      {targets.map((target, index) => {
-        return (
-          <Button
+      {singleTarget && label ? (
+        <Typography.Link {...linkProps(singleTarget)}>{label}</Typography.Link>
+      ) : (
+        authoredName
+      )}
+      {!descriptionLabel &&
+        entry.content.map((content, index) => (
+          <PreparedContent
             key={index}
-            type="link"
-            href={destinationHref(
-              recordDestination({
-                recordKey: target.record_key,
-                selection: target,
-              }),
-            )}
-            onClick={(event) => {
-              if (!isPrimaryActivation(event)) return;
-              event.preventDefault();
-              onReference(target.record_key, event.currentTarget, target);
-            }}
-          >
+            content={content}
+            relationships={entry.relationships}
+            onReference={onReference}
+          />
+        ))}
+      {!(singleTarget && label) &&
+        targets.map((target, index) => (
+          <Button key={index} type="link" {...linkProps(target)}>
             Open record
           </Button>
-        );
-      })}
+        ))}
     </>
   );
 }
