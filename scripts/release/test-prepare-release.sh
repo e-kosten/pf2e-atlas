@@ -16,7 +16,7 @@ fake_bin="$tmp/bin"
 log="$tmp/commands.log"
 mkdir -p "$work/dev-tools/release" "$work/scripts/release" "$work/scripts/git-hooks" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
 mkdir -p "$work/dev-tools/release/src"
-cp "$repo_root/scripts/release/prep-state.mjs" "$work/scripts/release/"
+cp "$repo_root/scripts/release/prep-state.mjs" "$repo_root/scripts/release/release-notes.mjs" "$work/scripts/release/"
 cp "$repo_root/dev-tools/release/src/package-version.mjs" "$work/dev-tools/release/src/"
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
@@ -105,20 +105,6 @@ case "$1" in
     fi
     case "$2" in
       HEAD|origin/main) printf 'abc123\n' ;;
-      release/v0.1.0^{})
-        [ "${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\n' && exit 0
-        exit 1
-        ;;
-      release/v0.1.0)
-        [ "${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\n' && exit 0
-        exit 1
-        ;;
-      rc/v0.1.0-rc.1)
-        exit 1
-        ;;
-      rc/v0.1.0-rc.*)
-        exit 1
-        ;;
       release/v[0-9]*|rc/v[0-9]*)
         exit 1
         ;;
@@ -135,33 +121,22 @@ case "$1" in
     ;;
   show)
     case "$2" in
-      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:crates/atlas-cli/Cargo.toml)
-        printf '[package]\nversion = "0.1.0"\n' ;;
-      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:docs/releases/v0.1.0.md)
-        printf '# Tagged release notes\n' ;;
+      abc123:crates/atlas-cli/Cargo.toml) cat crates/atlas-cli/Cargo.toml ;;
       *) exit 1 ;;
     esac
     ;;
+  --literal-pathspecs)
+    [ -f "$6" ] || exit 0
+    printf '100644 blob aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\t%s\0' "$6"
+    ;;
+  cat-file) printf '1\n' ;;
+  show-ref) exit 1 ;;
   ls-remote)
-    if [ "$3" = origin ]; then
-      printf 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\t%s\n' "$4"
-      printf '%s\t%s\n' "${ATLAS_TEST_RECOVERY_SHA:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}" "$5"
-      exit 0
-    fi
     if [ "$2" = "--exit-code" ] && [ "$3" = "--heads" ]; then
       [ "${ATLAS_TEST_REMOTE_RELEASE_BRANCH_EXISTS:-0}" = 1 ] && printf 'abc123\trefs/heads/%s\n' "$5" && exit 0
       exit 2
     fi
-    [ "${ATLAS_TEST_REMOTE_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\trefs/tags/release/v0.1.0\n' && exit 0
     exit 2
-    ;;
-  ls-files)
-    [ "${ATLAS_TEST_UNTRACKED_NOTES:-0}" = 1 ] && exit 1
-    exit 0
-    ;;
-  diff)
-    [ "${ATLAS_TEST_DIRTY_NOTES:-0}" = 1 ] && exit 1
-    exit 0
     ;;
   tag)
     if [ "$2" = "-l" ]; then
@@ -207,8 +182,9 @@ case "$1 $2" in
     esac
     ;;
   "release create")
+    while [ "$1" != --notes-file ]; do shift; done
+    cp "$2" "$ATLAS_TEST_DRAFT_NOTES"
     [ "${ATLAS_TEST_DRAFT_FAIL:-0}" -eq 0 ] || exit 1
-    case "$*" in *"--notes-file - "*) cat >> "$ATLAS_TEST_COMMAND_LOG" ;; esac
     exit 0
     ;;
 esac
@@ -236,10 +212,6 @@ run_prepare() {
     ATLAS_TEST_COMMAND_LOG="$log" \
     ATLAS_TEST_BRANCH="${ATLAS_TEST_BRANCH:-}" \
     ATLAS_TEST_DIRTY="${ATLAS_TEST_DIRTY:-0}" \
-    ATLAS_TEST_UNTRACKED_NOTES="${ATLAS_TEST_UNTRACKED_NOTES:-0}" \
-    ATLAS_TEST_DIRTY_NOTES="${ATLAS_TEST_DIRTY_NOTES:-0}" \
-    ATLAS_TEST_LOCAL_TAG_EXISTS="${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" \
-    ATLAS_TEST_REMOTE_TAG_EXISTS="${ATLAS_TEST_REMOTE_TAG_EXISTS:-0}" \
     ATLAS_TEST_RELEASE_EXISTS="${ATLAS_TEST_RELEASE_EXISTS:-0}" \
     ATLAS_TEST_FETCH_FAIL="${ATLAS_TEST_FETCH_FAIL:-0}" \
     ATLAS_TEST_RELEASE_BRANCH_EXISTS="${ATLAS_TEST_RELEASE_BRANCH_EXISTS:-0}" \
@@ -254,7 +226,7 @@ run_prepare() {
 }
 
 expect_fail() {
-  if run_prepare "$@" >/dev/null 2>&1; then
+  if run_prepare "$@" >"$tmp/expected-failure.log" 2>&1; then
     echo "prepare-release unexpectedly passed: $*" >&2
     exit 1
   fi
@@ -276,12 +248,6 @@ expect_log_absent() {
 
 first_log_line() {
   matched_line=$(grep -n "$1" "$log" | sed -n '1s/:.*//p')
-  [ -n "$matched_line" ] || { echo "Missing expected command: $1" >&2; return 1; }
-  printf '%s\n' "$matched_line"
-}
-
-last_log_line() {
-  matched_line=$(grep -n "$1" "$log" | sed -n '$s/:.*//p')
   [ -n "$matched_line" ] || { echo "Missing expected command: $1" >&2; return 1; }
   printf '%s\n' "$matched_line"
 }
@@ -310,10 +276,6 @@ remove_fake_fzf() {
 reset_flags() {
   unset ATLAS_TEST_BRANCH
   unset ATLAS_TEST_DIRTY
-  unset ATLAS_TEST_UNTRACKED_NOTES
-  unset ATLAS_TEST_DIRTY_NOTES
-  unset ATLAS_TEST_LOCAL_TAG_EXISTS
-  unset ATLAS_TEST_REMOTE_TAG_EXISTS
   unset ATLAS_TEST_RELEASE_EXISTS
   unset ATLAS_TEST_FETCH_FAIL
   unset ATLAS_TEST_RELEASE_BRANCH_EXISTS
@@ -528,34 +490,84 @@ reset_flags
 printf '9\n' | ATLAS_RELEASE_TEST_PROMPTS=1 expect_fail --prepare-pr
 reset_flags
 
-ATLAS_TEST_DIRTY=1 expect_fail --publish --version 0.1.0
-reset_flags
-ATLAS_TEST_UNTRACKED_NOTES=1 expect_fail --publish --version 0.1.0
-reset_flags
-ATLAS_TEST_DIRTY_NOTES=1 expect_fail --publish --version 0.1.0
-reset_flags
-ATLAS_TEST_LOCAL_TAG_EXISTS=1 expect_fail --publish --version 0.1.0
-reset_flags
-ATLAS_TEST_REMOTE_TAG_EXISTS=1 expect_fail --publish --version 0.1.0
-reset_flags
-ATLAS_TEST_RELEASE_EXISTS=1 expect_fail --publish --version 0.1.0
-reset_flags
-expect_fail --publish --version 0.1.0 --notes-file docs/releases/missing.md
-
-cp "$work/crates/atlas-cli/Cargo.toml" "$tmp/Cargo.toml.good"
-sed 's/version = "0.1.0"/version = "0.2.0"/' "$tmp/Cargo.toml.good" > "$work/crates/atlas-cli/Cargo.toml"
-expect_fail --publish --version 0.1.0
-cp "$tmp/Cargo.toml.good" "$work/crates/atlas-cli/Cargo.toml"
-
-ATLAS_TEST_BRANCH=dev ATLAS_TEST_DIRTY=1 ATLAS_TEST_FETCH_FAIL=1 run_prepare --publish --version 0.1.0 --dry-run >/dev/null 2>&1
-expect_log_absent 'cargo fmt' "prepare-release dry-run ran cargo"
-expect_log_absent 'dist plan' "prepare-release dry-run ran dist"
-expect_log_absent 'git tag -a release/v0.1.0' "prepare-release dry-run created a tag"
-expect_log_absent 'git push origin release/v0.1.0' "prepare-release dry-run pushed a tag"
-expect_log_absent 'gh release create release/v0.1.0' "prepare-release dry-run created a release"
+: > "$log"
+ATLAS_TEST_BRANCH=dev ATLAS_TEST_DIRTY=1 ATLAS_TEST_FETCH_FAIL=1 run_prepare --publish --dry-run >/dev/null 2>&1
+expect_log_absent 'cargo fmt' 'publish dry-run ran cargo'
+expect_log_absent 'dist plan' 'publish dry-run ran dist'
+expect_log_absent 'git tag .* -a ' 'publish dry-run created a tag'
+expect_log_absent 'git push' 'publish dry-run pushed a tag'
+expect_log_absent 'gh release create' 'publish dry-run created a release'
 reset_flags
 
-printf 'y\n' | run_prepare --publish --version 0.1.0 >/dev/null
+# Publication uses actual tags and commits against a disposable bare origin.
+ATLAS_TEST_REAL_GIT=$(command -v git)
+ATLAS_TEST_DRAFT_NOTES="$tmp/draft.md"
+export ATLAS_TEST_REAL_GIT ATLAS_TEST_DRAFT_NOTES
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX
+cat > "$fake_bin/git" <<'EOF_REAL_GIT'
+#!/bin/sh
+printf 'git %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
+if [ "${ATLAS_TEST_LOST_PUSH:-0}" = 1 ] && [ "$1" = push ]; then
+  "$ATLAS_TEST_REAL_GIT" "$@" && exit 1
+fi
+exec "$ATLAS_TEST_REAL_GIT" "$@"
+EOF_REAL_GIT
+cd "$work"
+git init -q -b main
+git config user.name Fixture
+git config user.email fixture@example.invalid
+git init -q --bare -b main "$tmp/origin.git"
+git remote add origin "$tmp/origin.git"
+cp "$repo_root/.gitignore" .
+git add .
+git commit -qm initial
+git push -qu origin main
+stable=release/v0.1.0
+approved=$(git rev-parse HEAD)
+canonical=docs/releases/v0.1.0.md
+# Inject changes at the end of gates, after the displayed candidate was approved.
+cat > "$fake_bin/dist" <<'EOF_DIST'
+#!/bin/sh
+printf 'dist %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
+case "${ATLAS_TEST_GATE_CHANGE:-}" in
+  fail) exit 1 ;;
+  branch) git switch -q other ;;
+  advance) git merge -q --ff-only next ;;
+  origin) git push -q origin next:refs/heads/main ;;
+  dirty) echo dirty >> "$ATLAS_TEST_GATE_FILE" ;;
+esac
+EOF_DIST
+git branch other
+git switch -qc next
+git commit -q --allow-empty -m next
+git switch -q main
+expect_fail --publish --version 0.2.0 --yes
+expect_fail --publish --notes-file absent.md --yes
+ATLAS_TEST_RELEASE_EXISTS=1 expect_fail --publish --yes
+reset_flags
+printf 'temporary\n' > untracked
+expect_fail --publish --yes
+rm untracked
+git tag "$stable" next
+stale=$(git rev-parse "$stable")
+expect_fail --publish --yes
+for change in fail branch advance origin dirty; do
+  : > "$log"
+  printf 'y\n' | ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_TEST_GATE_CHANGE="$change" ATLAS_TEST_GATE_FILE="$canonical" expect_fail --publish --yes
+  grep -Fq 'dist plan' "$log" || { cat "$tmp/expected-failure.log" >&2; exit 1; }
+  expect_log_absent 'gh release create' 'draft created after candidate change'
+  [ "$(git rev-parse "$stable")" = "$stale" ]
+  [ -z "$(git ls-remote origin "refs/tags/$stable")" ]
+  case "$change" in
+    branch) git switch -q main ;;
+    advance) git reset -q --hard "$approved" ;;
+    origin) git --git-dir="$tmp/origin.git" update-ref refs/heads/main "$approved" "$stale" ;;
+    dirty) git restore -- "$canonical" ;;
+  esac
+done
+: > "$log"
+printf 'y\ny\n' | ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_TEST_LOST_PUSH=1 run_prepare --publish --version 0.1.0 >/dev/null
 expect_log_absent 'scripts/release/test-prepare-release.sh' "release checks invoked recursive smoke tests"
 expect_log_absent 'scripts/git-hooks/test-common.sh' "release checks invoked git-hook smoke tests"
 for check in \
@@ -565,130 +577,124 @@ for check in \
   'cargo test --workspace --doc --locked'; do
   grep -Fxq "$check" "$log" || { echo "missing release check: $check" >&2; exit 1; }
 done
-grep -q 'git tag -a release/v0.1.0 -m Release release/v0.1.0' "$log" || {
-  echo "prepare-release did not create the expected annotated tag" >&2
-  exit 1
-}
-grep -q 'git push --no-verify origin release/v0.1.0' "$log" || {
-  echo "prepare-release did not push the expected tag" >&2
-  exit 1
-}
-grep -q 'gh release create release/v0.1.0 --draft --verify-tag --notes-file docs/releases/v0.1.0.md --title release/v0.1.0' "$log" || {
-  echo "prepare-release did not create the expected draft release" >&2
-  exit 1
-}
-grep -q 'dist plan --verbose error --tag v0.1.0 --allow-dirty' "$log" || {
-  echo "prepare-release did not run dist plan" >&2
-  exit 1
-}
-dist_line=$(first_log_line 'dist plan --verbose error --tag v0.1.0 --allow-dirty')
-post_check_status_line=$(last_log_line 'git status --porcelain')
-tag_line=$(first_log_line 'git tag -a release/v0.1.0')
-if [ "$dist_line" -ge "$post_check_status_line" ] || [ "$post_check_status_line" -ge "$tag_line" ]; then
-  echo "prepare-release did not re-check worktree cleanliness after validation and before tagging" >&2
-  exit 1
-fi
 
+object=$(git rev-parse "refs/tags/$stable")
+[ "$(git cat-file -t "$object")" = tag ]
+[ "$(git rev-parse "$stable^{}")" = "$approved" ]
+[ "$(git ls-remote origin "refs/tags/$stable" | cut -f1)" = "$object" ]
+grep -Fq "git push --no-verify origin $object:refs/tags/$stable" "$log"
+git cat-file tag "$object" | grep -Fxq "Atlas-Release-Notes: $canonical"
+cmp "$canonical" "$ATLAS_TEST_DRAFT_NOTES"
+expect_fail --publish --yes
+# Recovery is independent of moved HEAD or replaced working files.
+custom='docs/releases/alternate notes.md'
+printf 'Alternate notes\n\n' > "$custom"
+cp "$canonical" "$tmp/stable-original"
+git add "$custom"
+git commit -qm alternate
+rm "$canonical"
+ln -s 'alternate notes.md' "$canonical"
 : > "$log"
-ATLAS_TEST_LOCAL_TAG_EXISTS=1
-export ATLAS_TEST_LOCAL_TAG_EXISTS
-printf 'y\ny\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --publish --version 0.1.0 >/dev/null
-grep -q 'git tag -d release/v0.1.0' "$log" || {
-  echo "prepare-release did not delete an approved local tag before publishing" >&2
-  exit 1
-}
-delete_tag_line=$(first_log_line 'git tag -d release/v0.1.0')
-create_tag_line=$(first_log_line 'git tag -a release/v0.1.0')
-if [ "$delete_tag_line" -ge "$create_tag_line" ]; then
-  echo "prepare-release recreated the publish tag before deleting the stale local tag" >&2
-  exit 1
-fi
-reset_flags
-
-: > "$log"
-cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_023'
-[package]
-name = "atlas-cli"
-version = "0.2.3"
-EOF_CARGO_023
-cat > "$work/docs/releases/v0.2.3.md" <<'EOF_NOTES_023'
-# v0.2.3
-
-## Summary
-
-Distinct version fixture.
-
-## Install Notes
-
-None.
-
-## Known Issues
-
-- None known.
-EOF_NOTES_023
-printf 'y\n' | run_prepare --publish >/dev/null
-grep -q 'git tag -a release/v0.2.3 -m Release release/v0.2.3' "$log" || {
-  echo "prepare-release without --version did not use the crate version" >&2
-  exit 1
-}
-grep -q 'git pull --ff-only origin main' "$log" || {
-  echo "prepare-release did not fast-forward main before tagging" >&2
-  exit 1
-}
-cp "$tmp/Cargo.toml.good" "$work/crates/atlas-cli/Cargo.toml"
-
-cp "$tmp/Cargo.toml.good" "$work/crates/atlas-cli/Cargo.toml"
-sed 's/version = "0.1.0"/version = "0.1.0-rc.1"/' "$tmp/Cargo.toml.good" > "$work/crates/atlas-cli/Cargo.toml"
-cat > "$work/docs/releases/v0.1.0-rc.1.md" <<'EOF_RC'
-# v0.1.0-rc.1
-
-## Summary
-
-Test release candidate.
-
-## Install Notes
-
-None.
-
-## Known Issues
-
-- None known.
-EOF_RC
-printf 'y\n' | run_prepare --publish --version 0.1.0-rc.1 >/dev/null
-grep -q 'gh release create rc/v0.1.0-rc.1 --draft --verify-tag --notes-file docs/releases/v0.1.0-rc.1.md --prerelease --latest=false --title rc/v0.1.0-rc.1' "$log" || {
-  echo "prepare-release did not create the expected prerelease draft" >&2
-  exit 1
-}
-
-# Recover the tagged version even after the working checkout has moved to an RC.
-: > "$log"
-if output=$(ATLAS_TEST_DRAFT_FAIL=1 run_prepare --publish --yes 2>&1); then
-  echo "publish accepted a draft creation failure" >&2
-  exit 1
-fi
-printf '%s\n' "$output" | grep -Fq 'retry with --recover-draft rc/v0.1.0-rc.1 abc123'
-[ "$(first_log_line 'git push --no-verify origin rc/v0.1.0-rc.1')" -lt "$(first_log_line 'gh release create rc/v0.1.0-rc.1')" ]
-
-release_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-: > "$log"
-run_prepare --recover-draft release/v0.1.0 "$release_sha" --dry-run >/dev/null
-expect_log_absent 'gh release create' 'dry-run recovery created a release'
-
-: > "$log"
-run_prepare --recover-draft release/v0.1.0 "$release_sha" --yes >/dev/null
-grep -Fq '# Tagged release notes' "$log"
-grep -Fq 'gh release create release/v0.1.0 --draft --verify-tag --notes-file -' "$log"
+run_prepare --recover-draft "$stable" "$approved" --dry-run >/dev/null
+expect_log_absent 'gh release create' 'dry-run recovery created a draft'
+run_prepare --recover-draft "$stable" "$approved" --yes >/dev/null
+cmp "$tmp/stable-original" "$ATLAS_TEST_DRAFT_NOTES"
 expect_log_absent 'git pull' 'recovery changed main'
 expect_log_absent 'git push' 'recovery pushed a tag'
-
 : > "$log"
-ATLAS_TEST_RELEASE_STATE=draft run_prepare --recover-draft release/v0.1.0 "$release_sha" --yes >/dev/null
-ATLAS_TEST_RELEASE_STATE=published expect_fail --recover-draft release/v0.1.0 "$release_sha" --yes
-ATLAS_TEST_RELEASE_STATE=unreachable expect_fail --recover-draft release/v0.1.0 "$release_sha" --yes
-ATLAS_TEST_RECOVERY_SHA=cccccccccccccccccccccccccccccccccccccccc \
-  expect_fail --recover-draft release/v0.1.0 "$release_sha" --yes
-expect_fail --recover-draft rc/v0.1.0 "$release_sha" --yes
-expect_log_absent 'gh release create' 'recovery tried to create a release after a failed check'
-
+(ATLAS_TEST_RELEASE_STATE=draft run_prepare --recover-draft "$stable" "$approved" --yes >/dev/null)
+(ATLAS_TEST_RELEASE_STATE=published expect_fail --recover-draft "$stable" "$approved" --yes)
+(ATLAS_TEST_RELEASE_STATE=unreachable expect_fail --recover-draft "$stable" "$approved" --yes)
+expect_fail --recover-draft "$stable" "$(git rev-parse HEAD)" --yes
+expect_fail --recover-draft rc/v0.1.0 "$approved" --yes
+expect_fail --recover-draft "$stable" "$approved" --notes-file "$custom" --yes
+expect_log_absent 'gh release create' 'recovery created a draft after a failed check or an existing draft'
+git restore -- "$canonical"
+# Select a custom-only path on an RC. Lose the draft response; retry the same
+# exact bytes from another checkout. The workflow fetches its tag object too.
+rc=rc/v0.1.0-rc.1
+sed 's/version = "0.1.0"/version = "0.1.0-rc.1"/' "$tmp/base.lock" > Cargo.lock
+sed 's/version = "0.1.0"/version = "0.1.0-rc.1"/' crates/atlas-cli/Cargo.toml > "$tmp/rc-manifest"
+cp "$tmp/rc-manifest" crates/atlas-cli/Cargo.toml
+git add Cargo.lock crates/atlas-cli/Cargo.toml
+git commit -qm rc
+git push -q origin main
+rc_sha=$(git rev-parse HEAD)
+if output=$(ATLAS_TEST_DRAFT_FAIL=1 run_prepare --publish --notes-file "./$custom" --yes 2>&1); then
+  echo "expected interrupted draft creation" >&2
+  exit 1
+fi
+printf '%s\n' "$output" | grep -Fq "retry with --recover-draft $rc $rc_sha"
+cmp "$custom" "$ATLAS_TEST_DRAFT_NOTES"
+cp "$custom" "$tmp/rc-original"
+echo changed > "$custom"
+: > "$log"
+run_prepare --recover-draft "$rc" "$rc_sha" --yes >/dev/null
+cmp "$tmp/rc-original" "$ATLAS_TEST_DRAFT_NOTES"
+grep -Fq -- "--prerelease --latest=false --title $rc" "$log"
+git clone -q --depth=1 --no-tags "file://$tmp/origin.git" "$tmp/shallow"
+(
+  cd "$tmp/shallow"
+  [ "$(git rev-parse --is-shallow-repository)" = true ]
+  git fetch -q --depth=1 --no-tags origin "refs/tags/$rc"
+  object=$(git rev-parse FETCH_HEAD)
+  blob=$(node scripts/release/prep-state.mjs remote-notes "$rc" "$rc_sha" "$object")
+  git cat-file blob "$blob" > "$tmp/shallow-notes"
+  cmp "$tmp/rc-original" "$tmp/shallow-notes"
+  if node scripts/release/prep-state.mjs remote-notes "$rc" "$rc_sha" "$rc_sha" >/dev/null 2>&1; then
+    echo "expected remote annotation identity mismatch" >&2
+    exit 1
+  fi
+)
+git restore -- "$custom"
+# Historical tags used either lightweight or unmarked annotations. Guard
+# malformed new markers and invalid tree entries before contacting gh.
+git switch -qc historical "$approved"
+printf 'Different historical notes\n\n' > "$custom"
+ln -s v0.1.0.md docs/releases/link.md
+: > docs/releases/empty.md
+git add docs/releases
+git commit -qm historical
+legacy=$(git rev-parse HEAD)
+git --git-dir="$tmp/origin.git" update-ref -d "refs/tags/$stable"
+git tag -d "$stable" >/dev/null
+for kind in lightweight annotated; do
+  case "$kind" in
+    lightweight) git tag "$stable" ;;
+    annotated) git tag -a "$stable" -m 'Historical release' ;;
+  esac
+  git push -q origin "refs/tags/$stable"
+  if node scripts/release/prep-state.mjs remote-notes "$stable" "$legacy" "$(git rev-parse "$stable")" >/dev/null 2>&1; then
+    echo 'workflow validation accepted missing tag metadata' >&2
+    exit 1
+  fi
+  run_prepare --recover-draft "$stable" "$legacy" --yes >/dev/null
+  cmp "$canonical" "$ATLAS_TEST_DRAFT_NOTES"
+  run_prepare --recover-draft "$stable" "$legacy" --notes-file "$custom" --yes >/dev/null
+  cmp "$custom" "$ATLAS_TEST_DRAFT_NOTES"
+  : > "$log"
+  for path in docs/releases/link.md docs/releases/empty.md docs/releases/missing.md ../outside; do
+    expect_fail --recover-draft "$stable" "$legacy" --notes-file "$path" --yes
+  done
+  expect_log_absent 'gh release create' 'recovery accepted an invalid historical path'
+  git --git-dir="$tmp/origin.git" update-ref -d "refs/tags/$stable"
+  git tag -d "$stable" >/dev/null
+done
+# A marked tag selects the custom blob even when canonical notes also exist.
+git tag -a "$stable" -m "Atlas-Release-Notes: $custom"
+git push -q origin "refs/tags/$stable"
+run_prepare --recover-draft "$stable" "$legacy" --yes >/dev/null
+cmp "$custom" "$ATLAS_TEST_DRAFT_NOTES"
+git --git-dir="$tmp/origin.git" update-ref -d "refs/tags/$stable"
+git tag -d "$stable" >/dev/null
+for marker in 'Atlas-Release-Notes: ' 'Atlas-Release-Notes: ../outside' 'Atlas-Release-Notes: docs/releases/empty.md' 'Atlas-Release-Notes: docs/releases/link.md' 'Atlas-Release-Notes bad' "$(printf 'Atlas-Release-Notes: %s\nAtlas-Release-Notes: %s' "$canonical" "$custom")"; do
+  git tag --cleanup=verbatim -a "$stable" -m "$marker"
+  git push -q origin "refs/tags/$stable"
+  : > "$log"
+  expect_fail --recover-draft "$stable" "$legacy" --yes
+  expect_log_absent 'gh release create' 'recovery accepted invalid tag metadata'
+  git --git-dir="$tmp/origin.git" update-ref -d "refs/tags/$stable"
+  git tag -d "$stable" >/dev/null
+done
 sh "$repo_root/scripts/release/test-prep-retries.sh"
 printf 'prepare-release smoke tests passed\n'

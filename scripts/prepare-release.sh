@@ -7,7 +7,7 @@ Usage:
   scripts/prepare-release.sh --prepare-pr [--version <X.Y.Z[-rc.N]>] [options]
   scripts/prepare-release.sh --open-pr [--version <X.Y.Z[-rc.N]>] [options]
   scripts/prepare-release.sh --publish [--version <X.Y.Z[-rc.N]>] [options]
-  scripts/prepare-release.sh --recover-draft <tag> <commit> [--yes] [--dry-run]
+  scripts/prepare-release.sh --recover-draft <tag> <commit> [--notes-file <path>] [--yes] [--dry-run]
   scripts/prepare-release.sh
 
 Prepares a release PR branch, opens the release-preparation PR, or creates an
@@ -21,7 +21,7 @@ Options:
   --recover-draft <tag> <commit>
                            Create a missing draft for an already-pushed release tag
   --version <version>      Version without leading v; optional guard for open-pr/publish
-  --notes-file <path>      Release notes file, default docs/releases/v<version>.md
+  --notes-file <path>      Repository-relative notes, default docs/releases/v<version>.md
   --yes                    Do not prompt before tagging/releasing
   --dry-run                Print planned actions without changing git/GitHub state
   --help                   Show this help
@@ -30,6 +30,8 @@ When --prepare-pr omits --version, the script prompts with semver bump choices
 based on the current atlas-cli crate version and existing release tags.
 Interactive prepare-pr opens the release notes in VISUAL, EDITOR, or git
 core.editor after creating or confirming the notes file.
+Recovery uses the path recorded in the tag. For historical tags without a
+recorded path, pass --notes-file to recover non-default notes.
 When open-pr or publish mode omits --version, the script uses the committed
 atlas-cli crate version.
 When no mode flag is passed, the script prompts for the mode. Interactive
@@ -69,6 +71,10 @@ validate_version() {
   fi
 }
 
+prep_state() {
+  node scripts/release/prep-state.mjs "$@"
+}
+
 set_release_vars() {
   validate_version "$version"
   package_tag="v$version"
@@ -77,7 +83,7 @@ set_release_vars() {
     *) tag="release/$package_tag" ;;
   esac
   [ -n "$notes_file" ] || notes_file="docs/releases/$package_tag.md"
-  if [ "$prepare_pr" -eq 1 ] || [ "$open_pr" -eq 1 ]; then
+  if [ -z "$recovery_tag" ]; then
     notes_file=$(prep_state notes-path "$notes_file") || exit 1
   fi
   release_branch="release-prep/$package_tag"
@@ -143,38 +149,28 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-create_release_draft() {
+create_release_draft() (
+  draft_notes=$(mktemp) || exit 1
+  trap 'rm -f "$draft_notes"' EXIT
+  git cat-file blob "$1" > "$draft_notes" || exit 1
   if [ "$tag" = "rc/$package_tag" ]; then
-    gh release create "$tag" --draft --verify-tag --notes-file "$1" --prerelease --latest=false --title "$tag"
+    gh release create "$tag" --draft --verify-tag --notes-file "$draft_notes" --prerelease --latest=false --title "$tag"
   else
-    gh release create "$tag" --draft --verify-tag --notes-file "$1" --title "$tag"
+    gh release create "$tag" --draft --verify-tag --notes-file "$draft_notes" --title "$tag"
   fi
-}
+)
 
 recover_release_draft() {
-  [ "$((prepare_pr + open_pr + publish))" -eq 0 ] && [ -z "$version$notes_file" ] ||
-    die "--recover-draft cannot be combined with another mode, --version, or --notes-file"
+  [ "$((prepare_pr + open_pr + publish))" -eq 0 ] && [ -z "$version" ] ||
+    die "--recover-draft cannot be combined with another mode or --version"
+  override=$notes_file
   version="${recovery_tag#*/v}"
   set_release_vars
   [ "$tag" = "$recovery_tag" ] || die "invalid official release tag: $recovery_tag"
   printf '%s\n' "$recovery_commit" | grep -Eq '^[0-9a-f]{40}$' &&
     [ "${#recovery_commit}" -eq 40 ] || die "pass the full release commit SHA"
-  ref="refs/tags/$tag"
-  refs=$(git ls-remote --exit-code origin "$ref" "$ref^{}") ||
-    die "could not resolve remote release tag $tag"
-  remote_commit=$(printf '%s\n' "$refs" | awk -v ref="$ref" '
-    $2 == ref { direct = $1 }
-    $2 == ref "^{}" { peeled = $1 }
-    END { print (peeled != "" ? peeled : direct) }
-  ')
-  [ "$remote_commit" = "$recovery_commit" ] ||
-    die "remote tag $tag resolves to $remote_commit, expected $recovery_commit"
-  tagged_manifest=$(git show "$recovery_commit:crates/atlas-cli/Cargo.toml") ||
-    die "could not read the tagged commit locally; fetch $tag from origin and retry"
-  tagged_version=$(printf '%s\n' "$tagged_manifest" | awk -F '"' '/^version = / { print $2; exit }')
-  [ "$tagged_version" = "$version" ] || die "tagged crate version $tagged_version does not match $tag"
-  notes=$(git show "$recovery_commit:$notes_file") || die "release notes are missing from the tagged commit"
-  [ -n "$notes" ] || die "release notes in the tagged commit are empty"
+  notes_blob=$(prep_state remote-notes "$tag" "$recovery_commit" "" "$override") ||
+    die "could not verify release notes; check the tag and commit and fetch the tagged objects from origin"
 
   release_state=$(gh api --paginate 'repos/{owner}/{repo}/releases?per_page=100' \
     --jq ".[] | select(.tag_name == \"$tag\") | .draft") ||
@@ -195,7 +191,7 @@ recover_release_draft() {
       *) die "draft recovery cancelled" ;;
     esac
   fi
-  printf '%s\n' "$notes" | create_release_draft - || die "could not create draft release $tag"
+  create_release_draft "$notes_blob" || die "could not create draft release $tag"
   info "Created draft release $tag. If its release workflow has failed, rerun the failed jobs."
 }
 
@@ -252,7 +248,8 @@ if [ "$prepare_pr" -eq 0 ] && [ "$open_pr" -eq 0 ] && [ "$publish" -eq 0 ]; then
 fi
 
 ensure_clean_worktree() {
-  if [ -n "$(git status --porcelain)" ]; then
+  status=$(git status --porcelain) || die "could not check worktree cleanliness"
+  if [ -n "$status" ]; then
     if [ "$dry_run" -eq 1 ]; then
       warn "real release work requires a clean working tree"
     else
@@ -408,13 +405,15 @@ ensure_release_identity_has_no_remote() {
   fi
 }
 
-prepare_publish_tag() {
-  if ! git rev-parse "$tag" >/dev/null 2>&1; then
+confirm_tag_replacement() {
+  existing_tag_object=""
+  if ! git show-ref --verify --quiet "refs/tags/$tag"; then
     return
   fi
+  existing_tag_object=$(git rev-parse "refs/tags/$tag")
 
   existing_target=$(git rev-parse "$tag^{}" 2>/dev/null || git rev-parse "$tag")
-  desired_target=$(git rev-parse HEAD)
+  desired_target=$head_sha
   if [ "$dry_run" -eq 1 ]; then
     warn "real publish would ask to delete and recreate local tag $tag"
     warn "local tag target: $existing_target"
@@ -434,7 +433,6 @@ prepare_publish_tag() {
     y|Y|yes|YES) ;;
     *) die "release cancelled; local tag $tag was left unchanged" ;;
   esac
-  git tag -d "$tag"
 }
 
 write_release_notes_template() {
@@ -476,10 +474,6 @@ open_release_notes_editor() {
   # shellcheck disable=SC2086
   set -- $editor
   "$@" "$notes_file"
-}
-
-prep_state() {
-  node scripts/release/prep-state.mjs "$@"
 }
 
 read_main_for_prep() {
@@ -686,27 +680,7 @@ if [ "$prepare_pr" -eq 1 ]; then
   exit 0
 fi
 
-crate_version=$(read_crate_version)
-[ "$crate_version" = "$version" ] || die "crates/atlas-cli version is $crate_version, expected $version"
-
-if [ ! -f "$notes_file" ]; then
-  die "release notes file is missing: $notes_file"
-fi
-
-if ! git ls-files --error-unmatch "$notes_file" >/dev/null 2>&1; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "real releases require tracked release notes: $notes_file"
-  else
-    die "release notes file must be tracked: $notes_file"
-  fi
-fi
-if ! git diff --quiet -- "$notes_file"; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "real releases require committed release notes: $notes_file"
-  else
-    die "release notes file has uncommitted changes: $notes_file"
-  fi
-fi
+notes_blob=$(prep_state notes-blob "$tag" "$head_sha" "$notes_file") || exit 1
 
 if ! gh auth status >/dev/null 2>&1; then
   if [ "$dry_run" -eq 1 ]; then
@@ -735,7 +709,7 @@ info "  npm --prefix web/atlas-ui ci"
 info "  npm --prefix web/atlas-ui run build"
 info "  scripts/verify.sh"
 info "  dist plan --verbose error --tag $package_tag --allow-dirty"
-prepare_publish_tag
+confirm_tag_replacement
 
 if [ "$dry_run" -eq 1 ]; then
   info "Dry run: would run checks, create annotated tag $tag, push it, and create draft GitHub release."
@@ -756,12 +730,27 @@ run_check npm --prefix web/atlas-ui run build
 run_check scripts/verify.sh
 run_check dist plan --verbose error --tag "$package_tag" --allow-dirty
 ensure_clean_worktree
+[ "$(git branch --show-current)" = main ] && [ "$(git rev-parse HEAD)" = "$head_sha" ] ||
+  die "the validated main checkout changed; restart publication"
+remote_main=$(git ls-remote --exit-code --heads origin refs/heads/main) || die "could not verify origin/main"
+[ "${remote_main%%[[:space:]]*}" = "$head_sha" ] || die "origin/main changed during validation; restart publication"
 
-git tag -a "$tag" -m "Release $tag"
-git push --no-verify origin "$tag"
+ref="refs/tags/$tag"
+if [ -n "$existing_tag_object" ]; then
+  git update-ref -d "$ref" "$existing_tag_object" || die "local release tag changed; restart publication"
+fi
+git tag --cleanup=verbatim -a "$tag" -m "Release $tag" -m "Atlas-Release-Notes: $notes_file" "$head_sha"
+tag_object=$(git rev-parse "$ref")
+verified=$(prep_state tag-notes "$tag" "$head_sha" "$tag_object" "$notes_file") || exit 1
+[ "$verified" = "$notes_blob" ] || die "tagged notes differ from the reviewed notes"
+if ! git push --no-verify origin "$tag_object:$ref"; then
+  warn "tag push returned an error; checking whether origin received the reviewed tag"
+fi
+prep_state remote-notes "$tag" "$head_sha" "$tag_object" "$notes_file" >/dev/null ||
+  die "could not verify the pushed release tag; check origin before recovering the draft"
 
-if ! create_release_draft "$notes_file"; then
-  die "tag $tag was pushed but draft creation failed; retry with --recover-draft $tag $head_sha"
+if ! create_release_draft "$notes_blob"; then
+  die "tag $tag records $notes_file, but draft creation failed; retry with --recover-draft $tag $head_sha"
 fi
 
 info "Created draft release $tag. GitHub Actions will upload assets and publish it after validation."
