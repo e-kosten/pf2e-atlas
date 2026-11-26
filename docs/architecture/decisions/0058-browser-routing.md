@@ -3,6 +3,9 @@
 Status: accepted.
 Date: 2026-10-25
 
+Schema 34 retired the trait-seeded Similar behavior described here. See the
+[artifact contract](../artifact-contract.md#native-embedding-storage) for the migration.
+
 ## Context
 
 Route recognition, path construction, native history writes and change events
