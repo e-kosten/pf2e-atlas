@@ -9763,58 +9763,6 @@
         ],
         "type": "object"
       },
-      "FactView_Vec_EmbeddedRecordLinkView": {
-        "properties": {
-          "state": {
-            "$ref": "#/components/schemas/QueryFieldState"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "items": {
-                  "properties": {
-                    "action_cost": {
-                      "$ref": "#/components/schemas/FactView_ActionCostView"
-                    },
-                    "family": {
-                      "type": "string"
-                    },
-                    "navigation": {
-                      "$ref": "#/components/schemas/RecordNavigationView"
-                    },
-                    "title": {
-                      "type": "string"
-                    },
-                    "usage": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "navigation",
-                    "title",
-                    "family",
-                    "usage",
-                    "action_cost"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "state",
-          "value"
-        ],
-        "type": "object"
-      },
       "FactView_Vec_HeighteningDamageView": {
         "properties": {
           "state": {
@@ -9880,6 +9828,52 @@
                     "magnitude",
                     "exceptions",
                     "double_against"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "value"
+        ],
+        "type": "object"
+      },
+      "FactView_Vec_JournalContentsEntryView": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/QueryFieldState"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "properties": {
+                    "is_heading_only": {
+                      "type": "boolean"
+                    },
+                    "link": {
+                      "$ref": "#/components/schemas/EmbeddedRecordLinkView"
+                    },
+                    "parent_index": {
+                      "description": "Index of the parent in the authored display order.",
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "link",
+                    "parent_index",
+                    "is_heading_only"
                   ],
                   "type": "object"
                 },
@@ -11815,6 +11809,35 @@
         ],
         "type": "object"
       },
+      "InlineJournalPageView": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/PreparedContentFieldView"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/JournalPagePresentationView"
+          },
+          "relationships": {
+            "items": {
+              "$ref": "#/components/schemas/RecordRelationshipView"
+            },
+            "type": "array"
+          },
+          "relationships_truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "page",
+          "content",
+          "relationships",
+          "relationships_truncated"
+        ],
+        "type": "object"
+      },
       "JournalPagePresentationView": {
         "properties": {
           "media_notice": {
@@ -11835,12 +11858,23 @@
       },
       "JournalPresentationView": {
         "properties": {
+          "inline_page": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/InlineJournalPageView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "pages": {
-            "$ref": "#/components/schemas/FactView_Vec_EmbeddedRecordLinkView"
+            "$ref": "#/components/schemas/FactView_Vec_JournalContentsEntryView"
           }
         },
         "required": [
-          "pages"
+          "pages",
+          "inline_page"
         ],
         "type": "object"
       },

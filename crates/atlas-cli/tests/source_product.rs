@@ -3754,3 +3754,86 @@ fn hazard_defenses_hide_legacy_sentinels_and_preserve_applicable_zeroes() {
         );
     }
 }
+
+#[test]
+fn journal_reader_preserves_page_ownership_and_expands_each_page_once() {
+    let f = Fixture::new();
+    let dir = f.root.join("packs/journals");
+    fs::create_dir_all(&dir).unwrap();
+    let manifest = f.root.join("module.json");
+    let mut packs: Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+    packs["packs"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "name":"journals", "label":"Journals", "type":"JournalEntry", "path":"packs/journals"
+        }));
+    fs::write(manifest, packs.to_string()).unwrap();
+    let page = |id, name, sort, level, text| {
+        serde_json::json!({
+            "_id":id, "name":name, "sort":sort, "type":"text",
+            "title":{"show":true, "level":level}, "text":{"format":1,"content":text},
+        })
+    };
+    let card = serde_json::json!({"_id":"card000000000018","name":"Card 18","pages":[
+        page("page000000000018", "Card 18", 0, 1,
+             "<p>Aching Back. @UUID[Compendium.pf2e.actions.Item.aaaaaaaaaaaaaaaa]{Treat Wounds}</p>")
+    ]});
+    let journal = serde_json::json!({"_id":"ancestries000001","name":"Ancestries","pages":[
+        page("dwarf00000000001", "Dwarf", 2, 2, "<p>Stone lore.</p>"),
+        page("common0000000001", "Common", 1, 1, "")
+    ]});
+    for (file, source) in [("card.json", card), ("ancestries.json", journal)] {
+        fs::write(dir.join(file), source.to_string()).unwrap();
+    }
+    let built = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(built.status.success(), "{built:?}");
+
+    let text = |key, mode| {
+        let output = f.command(&["record", "get", key, "--detail", mode], false);
+        assert!(output.status.success(), "{output:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let key = "journals:card000000000018";
+    for mode in ["standard", "full"] {
+        let rendered = text(key, mode);
+        assert_eq!(rendered.matches("Aching Back.").count(), 1, "{rendered}");
+        assert_eq!(rendered.matches("Card 18").count(), 1, "{rendered}");
+        assert!(
+            rendered.contains("Treat Wounds · actions:aaaaaaaaaaaaaaaa"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("Contents"), "{rendered}");
+
+        let grouped = text("journals:ancestries000001", mode);
+        assert!(grouped.contains("Contents\nCommon\n  Dwarf"), "{grouped}");
+        assert_eq!(grouped.matches("Common").count(), 1, "{grouped}");
+        assert_eq!(
+            grouped.matches("Stone lore.").count(),
+            usize::from(mode == "full"),
+            "{grouped}"
+        );
+    }
+    let ordinary = &f.data(&["record", "get", key, "--json"])["results"][0]["value"];
+    assert_eq!(ordinary["selected"]["embedded_path"], serde_json::json!([]));
+    let inline = &ordinary["facts"]["value"]["inline_page"]["rules"][0];
+    assert!(inline["text"].as_str().unwrap().contains("Aching Back."));
+    assert_eq!(
+        inline["links"][0]["target"]["target"]["record_key"],
+        "actions:aaaaaaaaaaaaaaaa"
+    );
+    let exact = &inline["navigation"];
+    assert_eq!(
+        exact["embedded_path"][0]["identity"]["Stable"],
+        "page000000000018"
+    );
+    assert_eq!(exact["field"], "/text/content");
+    let read = f.data(&[
+        "record",
+        "get",
+        "--navigation",
+        &exact.to_string(),
+        "--json",
+    ]);
+    assert_eq!(read["results"][0]["value"]["rules"][0], *inline);
+}

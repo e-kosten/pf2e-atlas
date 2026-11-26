@@ -108,14 +108,23 @@ impl Link<'_> {
 
 pub(super) fn append(out: &mut String, record: &RecordDetailView) -> Result<(), String> {
     let mut heading = false;
-    for field in &record.presentation.content {
-        for link in visible(field, &record.relationships)? {
-            if !heading {
-                out.push_str("\nReferences\n");
-                heading = true;
+    let inline = match &record.presentation.body {
+        atlas_app_model::RecordBodyView::Journal(journal) => journal.inline_page.as_ref(),
+        _ => None,
+    };
+    let host = (&record.presentation.content, &record.relationships);
+    for (content, relationships) in
+        std::iter::once(host).chain(inline.map(|page| (&page.content, &page.relationships)))
+    {
+        for field in content {
+            for link in visible(field, relationships)? {
+                if !heading {
+                    out.push_str("\nReferences\n");
+                    heading = true;
+                }
+                out.push_str(&link.text(&record.artifact_generation));
+                out.push('\n');
             }
-            out.push_str(&link.text(&record.artifact_generation));
-            out.push('\n');
         }
     }
     Ok(())

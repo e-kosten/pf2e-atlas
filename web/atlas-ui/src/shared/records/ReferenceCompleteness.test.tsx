@@ -116,7 +116,7 @@ it("distinguishes empty journals from unavailable collections and keeps selected
     <RecordPresentation
       presentation={{
         ...base,
-        body: { kind: "journal", value: { pages: knownFact([]) } },
+        body: { kind: "journal", value: { pages: knownFact([]), inline_page: null } },
       }}
       onReference={() => {}}
     />,
@@ -126,7 +126,10 @@ it("distinguishes empty journals from unavailable collections and keeps selected
     <RecordPresentation
       presentation={{
         ...base,
-        body: { kind: "journal", value: { pages: unavailableFact("invalid") } },
+        body: {
+          kind: "journal",
+          value: { pages: unavailableFact("invalid"), inline_page: null },
+        },
       }}
       onReference={() => {}}
     />,

@@ -22,8 +22,20 @@
   display: inline-block;
   padding-block: var(--space-control);
 }
-.journal-contents__pages:empty {
-  display: none;
+.journal-contents__group {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.journal-contents__group:not(:first-child) {
+  margin-block-start: var(--space-group);
+}
+.journal-contents__group > .journal-contents__pages {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: var(--space-group);
+}
+.journal-contents__group > :is(h4, h5, h6) > a {
+  font: inherit;
+  padding-block: 0;
 }
 .document-outline {
   padding-block-end: var(--space-group);

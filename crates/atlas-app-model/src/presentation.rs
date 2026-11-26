@@ -814,7 +814,26 @@ pub struct EffectDurationView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JournalPresentationView {
-    pub pages: FactView<Vec<EmbeddedRecordLinkView>>,
+    pub pages: FactView<Vec<JournalContentsEntryView>>,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub inline_page: Option<InlineJournalPageView>,
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct JournalContentsEntryView {
+    pub link: EmbeddedRecordLinkView,
+    /// Index of the parent in the authored display order.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub parent_index: Option<usize>,
+    pub is_heading_only: bool,
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InlineJournalPageView {
+    pub page: JournalPagePresentationView,
+    pub content: Vec<PreparedContentFieldView>,
+    pub relationships: Vec<crate::RecordRelationshipView>,
+    pub relationships_truncated: bool,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -606,7 +606,15 @@ export function RecordPresentation({
 }) {
   const { componentDisabled } = ConfigProvider.useConfig();
   const body = presentation.body;
-  const descriptions = presentation.content.filter(
+  const inlinePage = body.kind === "journal" ? body.value.inline_page : null;
+  const journalPage = body.kind === "journal_page" ? body.value : inlinePage?.page;
+  const inlineTitle =
+    body.kind === "journal" && inlinePage?.page.show_body_heading.value
+      ? body.value.pages.value?.[0]?.link.title
+      : undefined;
+  const showInlineTitle = inlineTitle && inlineTitle !== presentation.identity.title;
+  const proseFields = inlinePage?.content ?? presentation.content;
+  const descriptions = proseFields.filter(
     (field) => field.role === "description" && contentFieldVisible(field),
   );
   const actor =
@@ -641,17 +649,18 @@ export function RecordPresentation({
   const usedOwned =
     actor?.activities.value?.map((activity) => JSON.stringify(activity.navigation)) ??
     [];
-  const embedded = (
-    body.kind === "journal" ? (body.value.pages.value ?? []) : presentation.embedded
-  ).filter((link) => !usedOwned.includes(JSON.stringify(link.navigation)));
-  const flavorFields = presentation.content.filter(
+  const embedded = presentation.embedded.filter(
+    (link) => !usedOwned.includes(JSON.stringify(link.navigation)),
+  );
+  const flavorFields = proseFields.filter(
     (field) =>
       contentFieldVisible(field) &&
       (body.kind !== "hazard" || field.role === "description"),
   );
   const flavor =
-    flavorFields.length > 0 ? (
+    flavorFields.length > 0 || showInlineTitle ? (
       <div className="record-reference__flavor">
+        {showInlineTitle && <h3>{inlineTitle}</h3>}
         <ContentFields
           fields={flavorFields}
           introduction={
@@ -662,13 +671,12 @@ export function RecordPresentation({
               ? flavorFields[0]
               : undefined
           }
-          relationships={relationships}
+          relationships={inlinePage?.relationships ?? relationships}
           onReference={onReference}
-          documentNavigation={body.kind === "journal_page"}
+          documentNavigation={Boolean(journalPage)}
           sectionLanding={sectionLanding}
           hideDescriptionHeading={
-            (body.kind === "journal_page" &&
-              body.value.show_body_heading.value === false) ||
+            journalPage?.show_body_heading.value === false ||
             (body.kind !== "creature" &&
               descriptions.length === 1 &&
               descriptions[0].body.kind !== "unavailable")
@@ -814,9 +822,7 @@ export function RecordPresentation({
         ) : (
           <p>Pages unavailable {factText(body.value.pages)}</p>
         ))}
-      {body.kind === "journal_page" && body.value.media_notice && (
-        <p>{body.value.media_notice}</p>
-      )}
+      {journalPage?.media_notice && <p>{journalPage.media_notice}</p>}
       {body.kind === "table_result" && (
         <div className="record-fact-list">
           <FactLine label="Range" fact={body.value.range} required />
@@ -834,7 +840,7 @@ export function RecordPresentation({
             items={[{ key: "content", label: "Source description", children: content }]}
           />
         )}
-      {body.kind === "journal" && (
+      {body.kind === "journal" && !inlinePage && (
         <JournalContents
           key={recordReadingIdentity(presentation.identity.record_key, selection)}
           pages={body.value.pages}

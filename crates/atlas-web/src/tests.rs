@@ -3206,6 +3206,35 @@ async fn discovery_rejects_record_text_before_model_work_and_keeps_value_name_se
 }
 
 #[tokio::test]
+async fn journal_detail_embeds_the_sole_page_with_its_original_address() {
+    let fixture = Fixture::with_remaster(true);
+    let key = "journals:editionjournal01";
+    let (status, root) = fixture
+        .json(Method::GET, &format!("/api/records/{key}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{root}");
+    assert_eq!(root["selected"]["embedded_path"], json!([]));
+    let journal = &root["presentation"]["body"]["value"];
+    let entry = &journal["pages"]["value"][0];
+    assert_eq!(entry.get("parent_index"), Some(&Value::Null));
+    assert_eq!(entry["is_heading_only"], false);
+    let page_path = &entry["link"]["navigation"]["embedded_path"];
+    assert_eq!(page_path[0]["identity"]["Stable"], "editionpage00001");
+    let (status, page) = fixture
+        .json(
+            Method::POST,
+            "/api/records/detail",
+            Some(json!({"record_key": key, "embedded_path": page_path})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    let fields = &journal["inline_page"]["content"];
+    assert_eq!(fields, &page["presentation"]["content"]);
+    assert_eq!(fields[0]["locator"]["embedded_path"], *page_path);
+    assert_eq!(fields[0]["locator"]["field"], "/text/content");
+}
+
+#[tokio::test]
 async fn compact_remaster_context_crosses_record_and_related_http_with_exact_journal_navigation() {
     let fixture = Fixture::with_remaster(true);
     let (status, body) = fixture

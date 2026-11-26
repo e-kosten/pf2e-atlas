@@ -82,7 +82,7 @@ export function PreparedContent({
                     spell_rank: undefined,
                     field: null,
                     passage: null,
-                    source_fingerprint: null,
+                    source_fingerprint: content.source_fingerprint,
                   },
                 }),
               ),

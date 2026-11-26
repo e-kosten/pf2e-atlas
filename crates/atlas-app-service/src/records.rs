@@ -6,7 +6,8 @@ use atlas_app_model::{
 use atlas_domain::{QueryPredicate, RecordKey, SourcePassageAddress};
 use atlas_record::source_content::SourceContentLocator;
 use atlas_record::source_record::{
-    SourceContentFormat, SourceContentRole, SourceFieldView, recover_source_passage,
+    SourceContentFormat, SourceContentRole, SourceContentSelection, SourceFieldView,
+    SourceNodeView, recover_source_passage,
 };
 use atlas_search::{
     GetRecordRequest, GetRecordsRequest, RecordRefResolutionResult, ResolveRecordRefRequest,
@@ -403,7 +404,7 @@ impl<'a> LoadedRecordDetail<'a> {
         &self,
         key: &RecordKey,
         request: &RecordSelection,
-        selected: &[atlas_record::source_record::SourceContentSelection<'_>],
+        selected: &[SourceContentSelection<'_>],
         spell_rank: Option<u8>,
         include_section_rendering: bool,
     ) -> AppServiceResult<SelectedContent> {
@@ -547,6 +548,72 @@ impl<'a> LoadedRecordDetail<'a> {
         })
     }
 
+    fn read_relationships(
+        &self,
+        key: &RecordKey,
+        request: &RecordSelection,
+        mut occurrences: Vec<atlas_search::SourceStoredRelationship>,
+        spell_rank: Option<u8>,
+    ) -> AppServiceResult<(Vec<atlas_app_model::RecordRelationshipView>, bool)> {
+        let links = self
+            .retrieval
+            .read_non_content_relationships(&SourceRelationshipRequest {
+                record: key.clone(),
+                owners: Some(request.address.owners.clone()),
+                fields: request.fields.clone(),
+                direction: SourceRelationshipDirection::Outgoing,
+                limit: 1024,
+            })?;
+        occurrences.extend(links.occurrences);
+        let mut views = relationship_views(occurrences, self.retrieval.source_fingerprint());
+        for relationship in &mut views {
+            if relationship.kind == "CompendiumProvenance"
+                && let atlas_app_model::RecordReferenceDestinationView::ResolvedRecord { target } =
+                    &mut relationship.destination
+            {
+                target.spell_rank = spell_rank;
+            }
+        }
+        Ok((views, links.truncated))
+    }
+
+    fn inline_journal_page(
+        &self,
+        key: &RecordKey,
+        navigation: &RecordNavigationView,
+        include_section_rendering: bool,
+    ) -> AppServiceResult<atlas_app_model::InlineJournalPageView> {
+        let request = RecordSelection {
+            address: atlas_app_model::RecordAddress {
+                record_key: navigation.record_key.clone(),
+                owners: navigation.owners.clone(),
+                source_fingerprint: navigation.source_fingerprint.clone(),
+            },
+            spell_rank: None,
+            fields: Vec::new(),
+            passage: None,
+        };
+        let Some(node @ SourceNodeView::JournalPage(page)) =
+            self.source().node_at(&request.address.owners)
+        else {
+            return Err(AppServiceError::new(
+                AppErrorCode::InternalError,
+                "Journal page unavailable in the loaded record",
+            ));
+        };
+        let selected = selected_fields(node, &request.fields)?;
+        let content =
+            self.read_fields(key, &request, &selected, None, include_section_rendering)?;
+        let (relationships, links_truncated) =
+            self.read_relationships(key, &request, content.relationships, None)?;
+        Ok(atlas_app_model::InlineJournalPageView {
+            page: crate::presentation::journal::page_presentation(page),
+            content: content.fields,
+            relationships,
+            relationships_truncated: links_truncated || content.truncated,
+        })
+    }
+
     pub(crate) fn project(
         &self,
         request: RecordSelection,
@@ -579,38 +646,12 @@ impl<'a> LoadedRecordDetail<'a> {
                     "selected document does not exist in this source snapshot",
                 )
             })?;
-        let selections = node.content_selections();
-        if request
-            .fields
-            .iter()
-            .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
-        {
-            return Err(AppServiceError::invalid_request(
-                "selected field is not declared content of the selected document",
-            ));
-        }
-        let selected: Vec<_> = selections
-            .into_iter()
-            .filter(|s| {
-                if request.fields.is_empty() {
-                    s.role != SourceContentRole::Name
-                        && (matches!(s.text, SourceFieldView::Value(_))
-                            || s.role == SourceContentRole::Prerequisite)
-                } else {
-                    request.fields.iter().any(|f| f.as_str() == s.field)
-                }
-            })
-            .collect();
+        let selected = selected_fields(node, &request.fields)?;
         if !request.fields.is_empty() {
             request.fields = selected
                 .iter()
                 .map(|field| field.field.to_string())
                 .collect();
-        }
-        if selected.len() > 256 {
-            return Err(AppServiceError::invalid_request(
-                "select at most 256 content fields per detail request",
-            ));
         }
         let summary = crate::projection::localized_detail_summary_view(detail, r);
         let mut presentation = crate::presentation::record_presentation(
@@ -655,23 +696,24 @@ impl<'a> LoadedRecordDetail<'a> {
             SelectedContent::default()
         };
         presentation.content = content.fields;
-        let relationships = if include_content {
-            r.read_non_content_relationships(&SourceRelationshipRequest {
-                record: key.clone(),
-                owners: Some(request.address.owners.clone()),
-                fields: request.fields.clone(),
-                direction: SourceRelationshipDirection::Outgoing,
-                limit: 1024,
-            })?
+        let (relationships, grants_truncated) = if include_content {
+            self.read_relationships(&key, &request, content.relationships, spell_rank)?
         } else {
-            atlas_search::SourceRelationshipBundle {
-                occurrences: vec![],
-                truncated: false,
-            }
+            (Vec::new(), false)
         };
         let full = matches!(projection, ReadingProjection::Full);
         let whole_reference = full || matches!(projection, ReadingProjection::Standard { .. });
-        let grants_truncated = relationships.truncated;
+        if whole_document
+            && whole_reference
+            && let atlas_app_model::RecordBodyView::Journal(journal) = &mut presentation.body
+            && let Some([entry]) = journal.pages.value.as_deref()
+        {
+            journal.inline_page = Some(self.inline_journal_page(
+                &key,
+                &entry.link.navigation,
+                include_section_rendering,
+            )?);
+        }
         let equipment_family = if full && request.address.owners.is_empty() {
             match r.verified_equipment_family_reference(detail) {
                 Ok(family) => {
@@ -791,27 +833,8 @@ impl<'a> LoadedRecordDetail<'a> {
                 },
                 passage: request.passage,
             },
-            relationships: relationship_views(
-                content
-                    .relationships
-                    .into_iter()
-                    .chain(relationships.occurrences)
-                    .collect(),
-                r.source_fingerprint(),
-            )
-            .into_iter()
-            .map(|mut relationship| {
-                if relationship.kind == "CompendiumProvenance"
-                    && let atlas_app_model::RecordReferenceDestinationView::ResolvedRecord {
-                        target,
-                    } = &mut relationship.destination
-                {
-                    target.spell_rank = spell_rank;
-                }
-                relationship
-            })
-            .collect(),
-            relationships_truncated: relationships.truncated || content.truncated,
+            relationships,
+            relationships_truncated: grants_truncated || content.truncated,
         };
         if whole_reference {
             (view.remaster_relationships, view.source_remaster_context) =
@@ -844,6 +867,39 @@ impl<'a> LoadedRecordDetail<'a> {
         }
         Ok((view, content.excerpt))
     }
+}
+
+fn selected_fields<'a>(
+    node: SourceNodeView<'a>,
+    requested_fields: &[String],
+) -> AppServiceResult<Vec<SourceContentSelection<'a>>> {
+    let selections = node.content_selections();
+    if requested_fields
+        .iter()
+        .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
+    {
+        return Err(AppServiceError::invalid_request(
+            "selected field is not declared content of the selected document",
+        ));
+    }
+    let selected: Vec<_> = selections
+        .into_iter()
+        .filter(|s| {
+            if requested_fields.is_empty() {
+                s.role != SourceContentRole::Name
+                    && (matches!(s.text, SourceFieldView::Value(_))
+                        || s.role == SourceContentRole::Prerequisite)
+            } else {
+                requested_fields.iter().any(|f| f.as_str() == s.field)
+            }
+        })
+        .collect();
+    if selected.len() > 256 {
+        return Err(AppServiceError::invalid_request(
+            "select at most 256 content fields per detail request",
+        ));
+    }
+    Ok(selected)
 }
 
 fn validate_selection(
