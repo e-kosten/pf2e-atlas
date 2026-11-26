@@ -21,9 +21,13 @@ export const creatureFilter = encodeURIComponent(
 );
 export const landedSearch = `/search/records/${sentinel}?filter=${creatureFilter}&focus=${encodeReadingAddress(sentinel, landing, true)}`;
 
-export async function activate(control: Locator, info: TestInfo) {
-  if (info.project.use.hasTouch) await control.tap();
-  else await control.click();
+export async function activate(
+  control: Locator,
+  info: TestInfo,
+  position?: { x: number; y: number },
+) {
+  if (info.project.use.hasTouch) await control.tap({ position });
+  else await control.click({ position });
 }
 
 export async function showSearchFilters(page: Page, info: TestInfo) {

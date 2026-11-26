@@ -3518,13 +3518,11 @@ test("Kind rows keep selection and expansion adjoining and leave the scrollbar o
     await expect.poll(() => list.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
     await checkTargets();
   }
-  const box = (await expand.boundingBox())!;
-  const y = box.y + box.height / 2;
-  const press = (x: number) =>
-    info.project.use.hasTouch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y);
-  await press(box.x - 2);
+  const label = (await group.boundingBox())!;
+  await activate(group, info, { x: label.width - 3, y: label.height / 2 });
   await expect(group).toHaveAccessibleName(/included; activate to exclude/);
-  await press(box.x + 2);
+  // The row can move between taps. Resolve the chevron's current position.
+  await activate(expand, info, { x: 2, y: label.height / 2 });
   await expect(page.getByRole("button", { name: "Collapse All spells" })).toBeVisible();
   await expect(group).toHaveAccessibleName(/included; activate to exclude/);
 });
