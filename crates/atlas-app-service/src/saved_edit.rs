@@ -1,6 +1,15 @@
 use atlas_app_model::{AppError, AppErrorCode, FieldEdit};
 
-use crate::AppServiceResult;
+use crate::{AppServiceError, AppServiceResult};
+
+pub(crate) fn require_name(name: &str, resource: &str) -> AppServiceResult<()> {
+    if name.trim().is_empty() {
+        return Err(AppServiceError::invalid_request(format!(
+            "{resource} name is required."
+        )));
+    }
+    Ok(())
+}
 
 #[derive(Default)]
 pub(crate) struct SavedEditCheck {

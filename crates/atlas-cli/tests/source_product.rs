@@ -2140,6 +2140,69 @@ fn lists_create_rolls_back_list_when_item_storage_fails() {
 }
 
 #[test]
+fn blank_names_reject_cli_writes_and_portable_replacements_atomically() {
+    let f = Fixture::new();
+    let rejected = |args: &[&str]| {
+        let output = f.command(args, false);
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        let body: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(body["error"]["code"], "invalid_request", "{body}");
+    };
+    rejected(&[
+        "lists",
+        "create",
+        " ",
+        "--record",
+        "actions:aaaaaaaaaaaaaaaa",
+        "--json",
+    ]);
+    f.data(&[
+        "lists",
+        "create",
+        "Patrol",
+        "--record",
+        "actions:aaaaaaaaaaaaaaaa",
+        "--json",
+    ]);
+    f.data(&["encounters", "create", "Patrol", "--json"]);
+    for (collection, name_path, import_flag) in [
+        ("lists", "/list/name", "--id"),
+        ("encounters", "/snapshot/encounter/name", "--slug"),
+    ] {
+        rejected(&[collection, "create", "\t", "--json"]);
+        rejected(&[collection, "edit", "patrol", "--name", "  ", "--json"]);
+        let export = |slug: &str| {
+            let output = f.command(&[collection, "export", slug], false);
+            assert!(output.status.success(), "{output:?}");
+            serde_json::from_slice::<Value>(&output.stdout).unwrap()
+        };
+        let mut document = export("patrol");
+        assert_eq!(document.pointer(name_path).unwrap(), "Patrol");
+        let file = f.root.join(format!("{collection}.json"));
+        let input = file.to_str().unwrap();
+        *document.pointer_mut(name_path).unwrap() = " \t".into();
+        if collection == "lists" {
+            document["items"] = serde_json::json!([]);
+        }
+        fs::write(&file, serde_json::to_vec(&document).unwrap()).unwrap();
+        rejected(&[collection, "import", input, import_flag, "copy", "--json"]);
+        if collection == "lists" {
+            rejected(&[collection, "import", input, "--replace", "--json"]);
+            let original = export("patrol");
+            assert_eq!(original["list"]["name"], "Patrol");
+            assert_eq!(
+                original["items"][0]["record_key"],
+                "actions:aaaaaaaaaaaaaaaa"
+            );
+        }
+        *document.pointer_mut(name_path).unwrap() = "Repaired title".into();
+        fs::write(&file, serde_json::to_vec(&document).unwrap()).unwrap();
+        f.data(&[collection, "import", input, import_flag, "copy", "--json"]);
+        assert_eq!(export("copy").pointer(name_path).unwrap(), "Repaired title");
+    }
+}
+
+#[test]
 fn list_edit_flags_preserve_omitted_metadata_and_support_explicit_clears() {
     let f = Fixture::new();
     let original = f.data(&[
@@ -3415,7 +3478,7 @@ fn reviewed_encounter_commands_run_in_the_original_workspace_and_recover_from_co
 #[test]
 fn encounter_exchange_handles_collisions_without_overwriting() {
     let source = Fixture::new();
-    let note = "# Route\n\n[Lost shrine](record:locations:lostshrine)";
+    let note = "# Route\n\n[Lost shrine](record:locations:lostshrine) and [guard](record:creatures:dddddddddddddddd)";
     let created = source.data(&[
         "encounters",
         "create",
@@ -3511,6 +3574,49 @@ fn encounter_exchange_handles_collisions_without_overwriting() {
     );
     let list = source.data(&["encounters", "list", "--json"]);
     assert_eq!(list["encounters"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn encounter_exchange_identifies_changed_note_only_records() {
+    let f = Fixture::new();
+    let action = "actions:aaaaaaaaaaaaaaaa";
+    let missing = "locations:lostshrine";
+    let note = format!(
+        "[Treat Wounds](record:{action}), [again](record:{action}), [shrine](record:{missing})"
+    );
+    f.data(&["encounters", "create", "Aid", "--note", &note, "--json"]);
+    let file = f.root.join("aid.json");
+    let path = file.to_str().unwrap();
+    let export = f.command(&["encounters", "export", "aid", "--output", path], false);
+    assert!(export.status.success(), "{export:?}");
+    let mut document: Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    assert_eq!(document["version"], 4);
+    let hashes = document["record_sources"].as_array().unwrap();
+    assert_eq!(hashes.len(), 1);
+    assert_eq!(hashes[0]["record_key"], action);
+
+    let import = |slug: &str| f.data(&["encounters", "import", path, "--slug", slug, "--json"]);
+    let same = import("unchanged");
+    assert_eq!(same["reference_checked"], true);
+    assert_eq!(same["changed_records"], serde_json::json!([]));
+    assert_eq!(same["missing_records"], serde_json::json!([missing]));
+
+    let source = f.root.join("packs/actions/heal.json");
+    let mut record: Value = serde_json::from_slice(&fs::read(&source).unwrap()).unwrap();
+    record["system"]["description"]["value"] = "Updated treatment".into();
+    fs::write(source, serde_json::to_vec(&record).unwrap()).unwrap();
+    let rebuild = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(rebuild.status.success(), "{rebuild:?}");
+    let changed = import("changed");
+    assert_eq!(changed["changed_records"], serde_json::json!([action]));
+    assert_eq!(changed["missing_records"], serde_json::json!([missing]));
+
+    document["version"] = 3.into();
+    document["record_sources"] = serde_json::json!([]);
+    fs::write(&file, serde_json::to_vec(&document).unwrap()).unwrap();
+    let historical = import("historical");
+    assert_eq!(historical["changed_records"], serde_json::json!([]));
+    assert_eq!(historical["missing_records"], serde_json::json!([missing]));
 }
 
 #[test]

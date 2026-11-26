@@ -3,6 +3,73 @@ import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 import { expectControlGaps } from "./controlGeometry";
 
+test("blank encounter names keep Create and Settings drafts open for correction", async ({
+  page,
+}, info) => {
+  const name = `Patrol ${info.project.name} ${Date.now()}`;
+  const corrected = `${name} revised`;
+  await page.goto("/encounters");
+  await activate(
+    page.getByRole("button", { name: "New encounter", exact: true }),
+    info,
+  );
+  const create = page.getByRole("dialog", { name: "New encounter", exact: true });
+  const input = create.getByLabel("Name", { exact: true });
+  const submit = create.getByRole("button", { name: "Create encounter", exact: true });
+  await input.fill("   ");
+  await activate(submit, info);
+  await expect(create.getByText("Name is required.", { exact: true })).toBeVisible();
+  await expect(input).toHaveValue("   ");
+  await page.screenshot({
+    path: info.outputPath("encounter-create-blank-name.png"),
+    animations: "disabled",
+  });
+
+  await input.fill(name);
+  const created = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/encounters" &&
+      response.request().method() === "POST",
+  );
+  await activate(submit, info);
+  const response = await created;
+  expect(response.ok()).toBeTruthy();
+  const { encounter } = await response.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    await expect(page).toHaveURL(new RegExp(`/encounters/${encounter.slug}$`));
+    await page.goto("/encounters");
+    await activate(
+      page.getByRole("button", { name: `Edit ${name}`, exact: true }),
+      info,
+    );
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    const title = settings.getByLabel("Name", { exact: true });
+    const save = settings.getByRole("button", { name: "Save", exact: true });
+    const description = settings.getByRole("textbox", { name: "Description" });
+    await description.fill("Night patrol");
+    await title.fill("   ");
+    await activate(save, info);
+    await expect(
+      settings.getByText("Name is required.", { exact: true }),
+    ).toBeVisible();
+    await expect(title).toHaveValue("   ");
+    await expect(description).toHaveValue("Night patrol");
+    await page.screenshot({
+      path: info.outputPath("encounter-settings-blank-name.png"),
+      animations: "disabled",
+    });
+    await title.fill(corrected);
+    await activate(save, info);
+    await expect(settings).toBeHidden();
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.encounter.name).toBe(corrected);
+    expect(saved.encounter.description).toBe("Night patrol");
+  } finally {
+    await page.request.delete(path);
+  }
+});
+
 test("the hazard badge, reference and state action stay together through activation", async ({
   page,
 }, info) => {

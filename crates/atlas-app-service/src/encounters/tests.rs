@@ -673,6 +673,41 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
 }
 
 #[test]
+fn encounter_exchange_preserves_note_links_without_reference_data() {
+    let f = crate::test_support::fixture_worker();
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Offline".into(),
+            description: None,
+            note: Some("[Fountain](record:locations:fountain)".into()),
+        })
+        .unwrap()
+        .encounter;
+    atlas_search::test_support::invalidate_reference(
+        f.worker.workspace_path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
+    let bytes = f.worker.export_encounter(&encounter.encounter_key).unwrap();
+    let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(document["version"], 3);
+    assert_eq!(document["record_sources"], serde_json::json!([]));
+    assert!(document["source_fingerprint"].is_null());
+    let copy = f
+        .worker
+        .import_encounter(bytes.as_slice(), Some("offline-copy".into()))
+        .unwrap();
+    assert!(!copy.reference_checked);
+    assert_eq!(
+        serde_json::to_value(copy.missing_records).unwrap(),
+        serde_json::json!(["locations:fountain"])
+    );
+    assert!(copy.changed_records.is_empty());
+    assert!(copy.source_changed.is_none());
+}
+
+#[test]
 fn empty_list_import_remains_available_without_reference() {
     let f = crate::test_support::fixture_worker();
     atlas_search::test_support::invalidate_reference(

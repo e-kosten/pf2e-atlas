@@ -1284,6 +1284,13 @@ async fn draft_preview_can_be_abandoned_or_committed_once() {
     let mut addition = addition;
     addition["request_id"] = json!("create-with-two");
     let request = json!({"name":"Patrol", "expected_artifact_generation":preview["artifact_generation"], "addition":addition});
+    let mut blank = request.clone();
+    blank["name"] = json!("  ");
+    let (status, body) = fixture
+        .json(Method::POST, "/api/encounter-drafts/create", Some(blank))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["code"], "invalid_request");
     let (status, first) = fixture
         .json(
             Method::POST,
@@ -1975,6 +1982,47 @@ async fn encounter_settings_returns_only_editor_fields_without_reference_data() 
         let (ok, body) = fixture.json(Method::GET, read, None).await;
         assert_eq!(ok, StatusCode::OK, "{body}");
         assert_eq!(body, settings);
+    }
+}
+
+#[tokio::test]
+async fn blank_names_are_rejected_on_create_and_explicit_metadata_edits() {
+    let fixture = Fixture::new();
+    for (collection, domain, key) in [
+        ("lists", "list", &fixture.list_key),
+        ("encounters", "encounter", &fixture.encounter_key),
+    ] {
+        let collection = format!("/api/{collection}");
+        let path = format!("{collection}/{key}");
+        let (ok, original) = fixture.json(Method::GET, &path, None).await;
+        assert_eq!(ok, StatusCode::OK);
+        let (status, body) = fixture
+            .json(Method::POST, &collection, Some(json!({"name":" \t"})))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request");
+        for (expected, status, code) in [
+            (
+                json!("stale title"),
+                StatusCode::CONFLICT,
+                "saved_edit_conflict",
+            ),
+            (
+                original[domain]["name"].clone(),
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+            ),
+        ] {
+            let edit = json!({
+                "name":{"expected":expected,"value":" \t"},
+                "description":{"expected":original[domain]["description"],"value":"Changed"},
+            });
+            let (response, body) = fixture.json(Method::PATCH, &path, Some(edit)).await;
+            assert_eq!(response, status, "{body}");
+            assert_eq!(body["code"], code);
+        }
+        let (_, saved) = fixture.json(Method::GET, &path, None).await;
+        assert_eq!(saved[domain], original[domain]);
     }
 }
 

@@ -354,7 +354,11 @@ function ListEditor({
             help={nameConflict}
             validateStatus={nameConflict ? "error" : undefined}
             validateFirst
-            rules={[{ required: true, whitespace: true, message: "Name is required." }]}
+            rules={
+              !nameDirty && !saved.name.trim()
+                ? []
+                : [{ required: true, whitespace: true, message: "Name is required." }]
+            }
           >
             <Input
               aria-invalid={nameConflict ? true : undefined}

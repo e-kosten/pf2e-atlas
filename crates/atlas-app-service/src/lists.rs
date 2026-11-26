@@ -24,7 +24,7 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::saved_edit::SavedEditCheck;
+use crate::saved_edit::{SavedEditCheck, require_name};
 use crate::service::AtlasAppService;
 
 impl AtlasAppService {
@@ -296,6 +296,9 @@ impl AtlasAppService {
                 .get(list_ref)?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
             let edit = edit(&current)?;
+            if let Some(name) = &edit.name {
+                require_name(name, "List")?;
+            }
             let list = lists
                 .update(UpdateSavedList {
                     list_key: current.list_key,
@@ -583,6 +586,7 @@ impl AtlasAppService {
         request: ImportSavedListRequest,
     ) -> AppServiceResult<ImportSavedListView> {
         request.document.validate_format()?;
+        require_name(&request.document.list.name, "List")?;
         let id = request.id.unwrap_or(request.document.list.id);
         let imported = request
             .document
@@ -1133,9 +1137,7 @@ fn create_list(
     lists: &atlas_local_state::SavedListsWrite<'_>,
     request: CreateSavedListRequest,
 ) -> AppServiceResult<SavedList> {
-    if request.name.trim().is_empty() {
-        return Err(AppServiceError::invalid_request("List name is required."));
-    }
+    require_name(&request.name, "List")?;
     let generate_slug = request.slug.is_none();
     let list = NewSavedList {
         slug: request.slug.unwrap_or_default(),

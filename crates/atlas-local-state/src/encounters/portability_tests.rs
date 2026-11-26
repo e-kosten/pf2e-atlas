@@ -446,8 +446,61 @@ fn encounter_file_version_requires_matching_live_and_frozen_archive_fields() {
         }
     }
     let mut value = document;
-    value["version"] = 3.into();
-    assert!(EncounterDocument::read(value.to_string().as_bytes()).is_err());
+    for version in [3, 4] {
+        value["version"] = version.into();
+        assert!(EncounterDocument::read(value.to_string().as_bytes()).is_err());
+    }
+}
+
+#[test]
+fn encounter_fingerprints_cover_live_and_frozen_notes_and_reject_unrelated_records()
+-> crate::LocalStateResult<()> {
+    let mut historical = EncounterDocument::read(
+        include_bytes!("../../tests/fixtures/encounter-v1.json").as_slice(),
+    )?;
+    let mut value: serde_json::Value = serde_json::from_slice(&historical.encode()?)?;
+    let store = fixture("note-fingerprints")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("Goblin", Some(12), 24))?;
+    let mut row = serde_json::to_value(participant)?;
+    row["note"] = "[In play](record:spells:live)".into();
+    value["snapshot"]["participants"] = serde_json::json!([row]);
+    row["note"] = "[Last turn](record:spells:frozen)".into();
+    value["outgoing"]["turn"]["snapshot"]["participants"] = serde_json::json!([row]);
+    value["outgoing"]["turn"]["snapshot"]["encounter"]["note"] =
+        "[Hazard](record:hazards:trap)".into();
+    let sources = serde_json::json!([
+        {"record_key": "spells:live", "content_hash": "live"},
+        {"record_key": "spells:frozen", "content_hash": "frozen"},
+        {"record_key": "hazards:trap", "content_hash": "trap"}
+    ]);
+    value["record_sources"] = sources.clone();
+    assert!(
+        EncounterDocument::read(value.to_string().as_bytes()).is_err(),
+        "v3 only supports participant fingerprints"
+    );
+
+    value["version"] = 4.into();
+    let mut document = EncounterDocument::read(value.to_string().as_bytes())?;
+    assert_eq!(
+        serde_json::to_value(document.record_keys()?)?,
+        serde_json::json!([
+            "actors:goblinWarrior",
+            "hazards:trap",
+            "spells:frozen",
+            "spells:live"
+        ])
+    );
+    let encoded: serde_json::Value = serde_json::from_slice(&document.encode()?)?;
+    assert_eq!(encoded["version"], 4);
+    assert_eq!(encoded["record_sources"], sources);
+
+    for invalid_key in ["spells:unrelated", "spells:frozen"] {
+        value["record_sources"][0]["record_key"] = invalid_key.into();
+        assert!(EncounterDocument::read(value.to_string().as_bytes()).is_err());
+    }
+    Ok(())
 }
 
 #[test]

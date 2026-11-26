@@ -131,6 +131,49 @@ fn frozen_archive_restores_edits_exports_and_restores_offline() {
 }
 
 #[test]
+fn legacy_blank_titles_survive_recovery_and_allow_unrelated_edits_and_repairs() {
+    let temp = tempfile::tempdir().unwrap();
+    let db = temp.path().join("workspace.sqlite");
+    initialize_workspace(&db).unwrap();
+    let input = temp.path().join("legacy.json");
+    let mut archive: Value =
+        serde_json::from_str(include_str!("fixtures/workspace-archive-rich-1.0.json")).unwrap();
+    let owner = &mut archive["saved"]["owners"][1];
+    owner["lists"][0]["name"] = " ".into();
+    owner["encounters"][0]["snapshot"]["encounter"]["name"] = "\t".into();
+    write_archive(&input, &archive);
+    success(workspace_command(&db, "restore", &input, &[]));
+
+    for (collection, slug, blank, path) in [
+        ("lists", "shared", " ", "/list"),
+        ("encounters", "live", "\t", "/snapshot/encounter"),
+    ] {
+        let command = |args: &[&str]| {
+            Command::new(env!("CARGO_BIN_EXE_atlas"))
+                .arg(collection)
+                .args(args)
+                .arg("--index")
+                .arg(&db)
+                .output()
+                .unwrap()
+        };
+        let exported = || {
+            let output = command(&["export", slug]);
+            assert!(output.status.success(), "{output:?}");
+            let document: Value = serde_json::from_slice(&output.stdout).unwrap();
+            document.pointer(path).unwrap().clone()
+        };
+        assert_eq!(exported()["name"], blank);
+        success(command(&["edit", slug, "--description", "New description"]));
+        let edited = exported();
+        assert_eq!(edited["description"], "New description");
+        assert_eq!(edited["name"], blank);
+        success(command(&["edit", slug, "--name", "Repaired"]));
+        assert_eq!(exported()["name"], "Repaired");
+    }
+}
+
+#[test]
 fn archived_lists_survive_workspace_recovery_and_can_be_restored_from_the_cli() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path().join("workspace.sqlite");

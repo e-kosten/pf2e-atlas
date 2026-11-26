@@ -7,8 +7,7 @@ impl EncountersWrite<'_> {
         mut document: EncounterDocument,
         slug: Option<String>,
     ) -> LocalStateResult<Encounter> {
-        let mut identities = document.validate()?;
-        document.normalize_membership();
+        let mut identities = document.validate_and_normalize()?;
         let db = self.connection;
         crate::atomic_action::run(db, || {
             let root = &document.snapshot.encounter;

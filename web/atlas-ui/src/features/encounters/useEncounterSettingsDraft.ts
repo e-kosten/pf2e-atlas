@@ -195,6 +195,7 @@ export function useEncounterSettingsDraft({
 
   return {
     submit,
+    savedName: () => baseline.current.name,
     hasChanges: () => {
       const original = formValues(baseline.current);
       return fields.some(

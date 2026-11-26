@@ -25,13 +25,18 @@ fn validate_adjustments(adjustments: &[EncounterAdjustment]) -> LocalStateResult
 }
 
 impl EncounterDocument {
-    pub(super) fn validate(&mut self) -> LocalStateResult<Identities> {
-        if !matches!(self.version, LEGACY_VERSION | ADJUSTMENT_VERSION | VERSION)
-            || (self.version == LEGACY_VERSION && self.requires_adjustment_support())
+    pub(super) fn validate_and_normalize(&mut self) -> LocalStateResult<Identities> {
+        if !matches!(
+            self.version,
+            LEGACY_VERSION
+                | ADJUSTMENT_VERSION
+                | ARCHIVE_MEMBERSHIP_VERSION
+                | NOTE_FINGERPRINT_VERSION
+        ) || (self.version == LEGACY_VERSION && self.requires_adjustment_support())
         {
             return Err(invalid("unsupported encounter file version"));
         }
-        self.require_membership_shape(self.version < VERSION)?;
+        self.require_membership_shape(self.version < ARCHIVE_MEMBERSHIP_VERSION)?;
         let root = &self.snapshot.encounter;
         crate::slug::validate_slug(&root.slug)?;
         let participants = validate_snapshot(&self.snapshot)?;
@@ -149,12 +154,21 @@ impl EncounterDocument {
                 return Err(invalid("outgoing snapshot has no matching turn receipt"));
             }
         }
-        let record_keys: BTreeSet<_> = self.record_keys()?.into_iter().collect();
+        let mut record_keys = self.participant_record_keys()?;
+        let output_version = fingerprint_version(&record_keys, &self.record_sources);
+        if output_version == NOTE_FINGERPRINT_VERSION {
+            if self.version < NOTE_FINGERPRINT_VERSION {
+                return Err(invalid(
+                    "reference fingerprint has no matching participant record",
+                ));
+            }
+            record_keys.extend(self.markdown_record_keys());
+        }
         let mut sources = BTreeSet::new();
         for source in &self.record_sources {
             if !record_keys.contains(&source.record_key) {
                 return Err(invalid(
-                    "reference fingerprint has no matching participant record",
+                    "reference fingerprint has no matching encounter record",
                 ));
             }
             require_unique(&mut sources, &source.record_key, "reference fingerprint")?;
@@ -169,6 +183,8 @@ impl EncounterDocument {
         {
             return Err(invalid("participant and boundary keys must be nonempty"));
         }
+        self.normalize_membership();
+        self.version = output_version;
         Ok(ids)
     }
 }
