@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "atlas-cli"
-version = "0.1.0-rc.6"
+version = "0.1.0"
 dependencies = [
  "atlas-app-model",
  "atlas-app-service",
