@@ -1,15 +1,18 @@
 //! Whole-section navigation is independent of lexical labels and stored vectors.
 use crate::{IndexError, SqliteIndexReader};
-use atlas_domain::{RecordKey, SimilarityPartSelector, SourcePassageAddress};
+use atlas_domain::{SimilarityPartSelector, SimilaritySeed, SourcePassageAddress};
 use std::collections::BTreeMap;
 impl SqliteIndexReader {
     pub fn similarity_part_addresses(
         &self,
-        record: &RecordKey,
+        seed: &SimilaritySeed,
     ) -> Result<BTreeMap<SimilarityPartSelector, SourcePassageAddress>, IndexError> {
         self.count_statement();
-        let mut statement=self.native()?.prepare(&format!("SELECT {} FROM selected_sections ss JOIN records r USING(record_id) WHERE r.key=? AND r.document_kind<>'Macro' ORDER BY ss.section_id LIMIT 100001",crate::selected_sections::COLUMNS))?;
-        let mut rows = statement.query([record.to_string()])?;
+        let mut statement=self.native()?.prepare(&format!("SELECT {} FROM selected_sections ss JOIN records r USING(record_id) WHERE r.key=?1 AND (?2 IS NULL OR ss.owners_json=?2) AND r.document_kind<>'Macro' ORDER BY ss.section_id LIMIT 100001",crate::selected_sections::COLUMNS))?;
+        let mut rows = statement.query(rusqlite::params![
+            seed.record_key().to_string(),
+            crate::read_similarity::document_owner_filter(seed)?
+        ])?;
         let mut output = BTreeMap::new();
         while let Some(row) = rows.next()? {
             if output.len() == 100_000 {

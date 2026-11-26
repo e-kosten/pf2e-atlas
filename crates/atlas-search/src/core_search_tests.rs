@@ -75,9 +75,7 @@ fn fixture() -> atlas_index::IndexBuildInput {
 #[test]
 fn core_candidate_scope_excludes_carried_matches_and_preserves_standalone_prose() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::default();
     let mut query = request(&seed, &options);
     query.source_sections = Some(SimilaritySourceSections::Core);
@@ -121,9 +119,7 @@ fn core_candidate_scope_excludes_carried_matches_and_preserves_standalone_prose(
 #[test]
 fn custom_prose_only_keeps_its_recipe_and_core_enables_identity_in_all_candidates() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::Passages {
         decay: 0.5,
         parts: Some(
@@ -209,9 +205,7 @@ fn all_sources_include_identity_once_and_match_exact_custom_components_for_both_
         unit.vector[axis] = 1.;
     }
     let (service, _artifact) = open_input_fixture(data).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     for profile in ["bge-base", "embeddinggemma"] {
         let profile = atlas_domain::SearchProfileId::new(profile);
         let inventory = service.similarity_parts(&seed, Some(&profile)).unwrap();
@@ -299,9 +293,7 @@ fn identity_only_fallback_keeps_each_content_method_and_reports_why() {
             CoreFallbackReason::UnmodelledKind,
         ),
     ] {
-        let seed = SimilaritySeed::Record {
-            record_key: key.parse().unwrap(),
-        };
+        let seed = SimilaritySeed::root(key.parse().unwrap());
         for options in [
             SimilarityOptions::default(),
             SimilarityOptions::ContentAverage {
@@ -339,9 +331,7 @@ fn identity_only_fallback_keeps_each_content_method_and_reports_why() {
 #[test]
 fn explicit_identity_custom_is_preserved_and_conflicting_source_authorities_are_rejected() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     let inventory = service.similarity_parts(&seed, None).unwrap();
     let identity = inventory
         .parts
@@ -388,9 +378,7 @@ fn explicit_identity_custom_is_preserved_and_conflicting_source_authorities_are_
 #[test]
 fn baseline_core_masks_candidates_but_rejects_every_source_preset() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::Baseline {};
     let mut query = request(&seed, &options);
     query.content_scope = SearchContentScope::Core;
@@ -560,9 +548,7 @@ fn identity_consumes_one_of_the_existing_seed_vector_slots() {
             true,
         );
         let (service, _artifact) = open_input_fixture(data).unwrap();
-        let seed = SimilaritySeed::Record {
-            record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-        };
+        let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
         let options = SimilarityOptions::default();
         let prose_only = SimilarityOptions::Passages {
             decay: 0.5,
@@ -601,7 +587,7 @@ fn identity_consumes_one_of_the_existing_seed_vector_slots() {
                 );
             } else {
                 let error = service.configurable_similar(query).unwrap_err();
-                assert_eq!(error.kind(), SearchErrorKind::InvalidOptions);
+                assert_eq!(error.kind(), SearchErrorKind::SimilaritySourceLimit);
                 assert!(error.to_string().contains("128"));
                 assert!(
                     error
@@ -619,9 +605,7 @@ fn core_without_stored_profile_vectors_is_an_explicit_readiness_failure() {
     data.context.search_profiles.clear();
     data.semantic_units.clear();
     let (service, _artifact) = open_input_fixture(data).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::default();
     let mut query = request(&seed, &options);
     query.source_sections = Some(SimilaritySourceSections::Core);

@@ -1,5 +1,7 @@
 import { DEFAULT_SEARCH_PREFERENCES } from "../search/searchPreferences";
-import type { ResultSort } from "../../generated/atlas";
+import { documentSeed, seedSearchFields } from "../search/similaritySource";
+import { encodeReadingAddress } from "../../app/readingUrl";
+import type { RecordNavigationView, ResultSort } from "../../generated/atlas";
 import type { QueryRelationship } from "../../generated/atlas";
 import { encodeFilterUrl } from "./filterUrl";
 import {
@@ -524,5 +526,68 @@ describe("Core search content and source preset state", () => {
       "search_content",
       "core",
     );
+  });
+});
+
+describe("document-scoped similarity URLs", () => {
+  const page: RecordNavigationView = {
+    record_key: "journals:classes",
+    embedded_path: [{ collection: "/pages", identity: { Stable: "psychic" } }],
+    field: "/text/content",
+    passage: null,
+    spell_rank: 3,
+    source_fingerprint: null,
+  };
+  it("carries only the document through copying, execution identity and the search request", () => {
+    const search = { ...DEFAULT_SEARCH_STATE, ...seedSearchFields(documentSeed(page)) };
+    const url = new URLSearchParams(searchStateQueryString(search));
+    expect(url.get("similar")).toBe(page.record_key);
+    expect(url.has("similar_at")).toBe(true);
+    const decoded = decodeSearchStateFromParams(url);
+    expect(decoded.filterError).toBeNull();
+    expect(buildSearchRequest(decoded, 1).criteria).toMatchObject({
+      kind: "similar_records",
+      seed_record_key: page.record_key,
+      embedded_path: page.embedded_path,
+    });
+    expect(encodeSearchExecutionState(decoded)).not.toBe(
+      encodeSearchExecutionState({ ...decoded, similarLocation: undefined }),
+    );
+    expect(searchStateQueryString(decoded)).not.toContain("similarity_part=");
+    const positional = {
+      ...page,
+      embedded_path: [
+        { collection: "/pages", identity: { SnapshotLocal: { index: 1 } } },
+      ],
+      source_fingerprint: "snapshot",
+    };
+    const pinned = { ...search, ...seedSearchFields(documentSeed(positional)) };
+    const restored = decodeSearchStateFromParams(
+      new URLSearchParams(searchStateQueryString(pinned)),
+    );
+    expect(buildSearchRequest(restored, 1).criteria).toMatchObject({
+      embedded_path: positional.embedded_path,
+      source_fingerprint: "snapshot",
+    });
+  });
+  it("cannot execute a malformed, passage-specific or unpinned positional address as a parent search", () => {
+    const positional = {
+      ...page,
+      field: null,
+      embedded_path: [
+        { collection: "/pages", identity: { SnapshotLocal: { index: 1 } } },
+      ],
+    };
+    for (const value of [
+      "broken",
+      encodeReadingAddress(page.record_key, page, false)!,
+      encodeReadingAddress(page.record_key, positional, false)!,
+    ]) {
+      const decoded = decodeSearchStateFromParams(
+        new URLSearchParams({ similar: page.record_key, similar_at: value }),
+      );
+      expect(hasExecutableSearch(decoded)).toBe(false);
+      expect(() => buildSearchRequest(decoded, 1)).toThrow("source link");
+    }
   });
 });

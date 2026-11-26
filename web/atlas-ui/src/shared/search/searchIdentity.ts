@@ -1,3 +1,4 @@
+import { sameSimilaritySeed } from "./similaritySource";
 import { AtlasApiError } from "../../api/atlasApi";
 import type {
   ResultSort,
@@ -13,6 +14,30 @@ import type {
 export function assertKeywordSearch(page: SearchResultsPage) {
   if (page.mode.kind !== "text_search" || page.mode.mode !== "lexical")
     throw new Error("The search response did not use keyword search");
+}
+
+export function matchesSimilaritySource(
+  page: SearchResultsPage,
+  expected: SimilaritySeed | null,
+) {
+  const mode = page.mode;
+  if (!expected) return mode.kind !== "similar_records";
+  return (
+    mode.kind === "similar_records" &&
+    mode.seed.record_key === expected.record_key &&
+    sameSimilaritySeed(
+      mode.source?.seed ?? { kind: "record", record_key: mode.seed.record_key },
+      expected,
+    )
+  );
+}
+
+export function assertSimilarityResultSource(
+  page: SearchResultsPage,
+  expected: SimilaritySeed,
+) {
+  if (!matchesSimilaritySource(page, expected))
+    throw new Error("The similar records do not match this source.");
 }
 
 /** Ordering and paging may retain a labelled prior page; eligibility and source identity may not. */
@@ -124,7 +149,10 @@ export function assertSimilarityInventoryIdentity(
   generation?: string | null,
 ) {
   if (
-    JSON.stringify(inventory.seed) !== JSON.stringify(seed) ||
+    !sameSimilaritySeed(inventory.seed, seed) ||
+    (inventory.source
+      ? !sameSimilaritySeed(inventory.source.seed, seed)
+      : Boolean(seed.embedded_path?.length)) ||
     inventory.search_profile !== profile
   )
     throw new Error("The comparison sections do not match this source. Retry.");

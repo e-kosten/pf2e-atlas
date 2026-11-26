@@ -89,6 +89,22 @@ pub struct OwnedContentLocator {
     pub identity: OwnedContentIdentity,
 }
 
+impl OwnedContentLocator {
+    pub fn requires_fingerprint(owners: &[Self]) -> bool {
+        owners
+            .iter()
+            .any(|o| matches!(o.identity, OwnedContentIdentity::SnapshotLocal { .. }))
+    }
+
+    pub fn within_address_bounds(owners: &[Self]) -> bool {
+        owners.len() <= 32
+            && owners.iter().all(|o| {
+                o.collection.len() <= 512
+                    && !matches!(&o.identity, OwnedContentIdentity::Stable(id) if id.len() > 512)
+            })
+    }
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum OwnedContentIdentity {

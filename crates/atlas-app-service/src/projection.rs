@@ -35,6 +35,16 @@ fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
     record_summary_view_with_display(record, None)
 }
 
+pub(crate) fn summary_title<'a>(
+    record: &'a SourceRecordSummary,
+    display: Option<&'a atlas_search::CreatureDisplay>,
+) -> &'a str {
+    display
+        .and_then(|display| display.label.as_deref())
+        .or_else(|| record.name.as_value().map(String::as_str))
+        .unwrap_or("Unnamed record")
+}
+
 pub(crate) fn record_summary_view_with_display(
     record: &SourceRecordSummary,
     display: Option<atlas_search::CreatureDisplay>,
@@ -44,14 +54,12 @@ pub(crate) fn record_summary_view_with_display(
         .as_value()
         .map(|k| k.as_str().to_owned())
         .unwrap_or_else(|| record.document_kind.to_lowercase());
-    let source_title = record.name.as_value().cloned();
-    let (title, source_title) = match display.as_ref().and_then(|display| display.label.as_ref()) {
-        Some(label) => (label.clone(), source_title.filter(|name| name != label)),
-        None => (
-            source_title.unwrap_or_else(|| "Unnamed record".into()),
-            None,
-        ),
-    };
+    let title = summary_title(record, display.as_ref()).to_owned();
+    let source_title = record
+        .name
+        .as_value()
+        .filter(|name| *name != &title)
+        .cloned();
     RecordSummaryView {
         creature_display: display
             .and_then(|display| crate::creature_family::creature_display(record, display)),
@@ -431,7 +439,7 @@ pub(crate) fn navigation_fingerprint(
     owners: &[atlas_domain::OwnedContentLocator],
     fingerprint: &str,
 ) -> Option<String> {
-    crate::records::address_requires_fingerprint(owners).then(|| fingerprint.to_owned())
+    atlas_domain::OwnedContentLocator::requires_fingerprint(owners).then(|| fingerprint.to_owned())
 }
 
 /// Labels use the verified indexing locale while identifiers remain authored values.

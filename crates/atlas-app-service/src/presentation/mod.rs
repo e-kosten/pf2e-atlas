@@ -617,7 +617,7 @@ fn table_range(lo: &serde_json::Number, hi: &serde_json::Number) -> String {
         format!("{lo}–{hi}")
     }
 }
-fn node_title(node: SourceNodeView<'_>) -> String {
+pub(crate) fn node_title(node: SourceNodeView<'_>) -> String {
     node.name().value().cloned().unwrap_or_else(|| match node {
         SourceNodeView::Result(r) => SourceFieldView::from(&r.range)
             .value()

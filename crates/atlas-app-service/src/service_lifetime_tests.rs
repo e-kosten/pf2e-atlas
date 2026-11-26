@@ -115,9 +115,7 @@ fn sole_gemma_manifest_resolves_omitted_requests_and_readiness_without_model_ass
     let inventory = service
         .similarity_parts(
             atlas_app_model::SimilarityPartsRequest {
-                seed: atlas_domain::SimilaritySeed::Record {
-                    record_key: "items:0000000000000000".parse().unwrap(),
-                },
+                seed: atlas_domain::SimilaritySeed::root("items:0000000000000000".parse().unwrap()),
                 search_profile: None,
                 expected_artifact_generation: readiness.artifact_generation.clone(),
             },
@@ -140,6 +138,8 @@ fn sole_gemma_manifest_resolves_omitted_requests_and_readiness_without_model_ass
                     search_content: None,
                     source_sections: None,
                     seed_record_key: "items:0000000000000000".into(),
+                    embedded_path: vec![],
+                    source_fingerprint: None,
                     similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
                     filter: None,
                 },

@@ -11,6 +11,13 @@ export type SimilarityMethod = "passages" | "content-average" | "baseline";
 export type MatchDisplay = "hidden" | "sections" | "detailed";
 export const DEFAULT_MATCH_DISPLAY: MatchDisplay = "hidden";
 
+export function effectiveMatchDisplay(
+  choice: MatchDisplay | null,
+  similar: boolean,
+): MatchDisplay {
+  return choice ?? (similar ? "sections" : DEFAULT_MATCH_DISPLAY);
+}
+
 export type CandidateParts = "any" | "corresponding";
 export type SimilarityPreferences = {
   method: SimilarityMethod;
@@ -23,7 +30,7 @@ export type SearchPreferences = {
   ranking: SearchRanking;
   searchContent: SearchContentScope;
   sourceSectionsByFamily: Partial<Record<CoreSectionFamily, "all" | "core">>;
-  matchDisplay: MatchDisplay;
+  matchDisplay: MatchDisplay | null;
   showSmallerWeights: boolean;
   recordSimilarity: SimilarityPreferences;
 };
@@ -41,7 +48,7 @@ export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   ranking: "score",
   searchContent: "all",
   sourceSectionsByFamily: {},
-  matchDisplay: DEFAULT_MATCH_DISPLAY,
+  matchDisplay: null,
   showSmallerWeights: false,
   recordSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
 };
@@ -97,7 +104,9 @@ export function readSearchPreferences(): SearchPreferences {
             ? input.matchDisplay
             : input.showSimilarityDetails === true
               ? "detailed"
-              : DEFAULT_MATCH_DISPLAY,
+              : input.showSimilarityDetails === false
+                ? "hidden"
+                : null,
         showSmallerWeights: input.showSmallerWeights === true,
         recordSimilarity: similarity(input.recordSimilarity),
       };

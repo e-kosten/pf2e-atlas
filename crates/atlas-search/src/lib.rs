@@ -35,6 +35,7 @@ pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};
 mod similar;
 mod similarity_evaluation;
 mod similarity_scoring;
+mod similarity_source;
 pub use configurable_similarity::{
     ConfigurableSimilarRequest, ConfigurableSimilarResult, SimilarityDiagnostics,
     SimilarityEvidence, SimilarityPair, SimilarityPartScore, SimilarityRoleScore,
@@ -44,6 +45,7 @@ pub use similarity_evaluation::{
     SimilarityEvaluationEvidence, SimilarityEvaluationRequest, SimilarityEvaluationResult,
     SimilarityEvaluationRow, SimilarityEvaluationRun, SimilarityEvaluationVariant,
 };
+pub use similarity_source::CheckedSimilaritySource;
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 #[cfg(test)]

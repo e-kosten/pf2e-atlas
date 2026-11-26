@@ -1,6 +1,7 @@
 import { Checkbox, Typography } from "antd";
 import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { seedNavigation } from "./similaritySource";
 import { recordDestination } from "../../app/destinations";
 
 export function SimilaritySectionChoices({
@@ -70,7 +71,7 @@ export function SimilaritySectionChoices({
                       href={destinationHref(
                         recordDestination({
                           recordKey: seed.record_key,
-                          selection: part.navigation ?? undefined,
+                          selection: part.navigation ?? seedNavigation(seed),
                         }),
                       )}
                       onClick={(event) => {

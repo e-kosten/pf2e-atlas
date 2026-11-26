@@ -1,5 +1,13 @@
 import { useDismissOnReadingNavigation } from "../ui/overlays/useDismissOnReadingNavigation";
-import { Activity, useEffect, useId, useRef, useState } from "react";
+import {
+  Activity,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import { useDesktopTab } from "../../app/DesktopTabContext";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -36,6 +44,7 @@ import {
   DEFAULT_SOURCE_SECTIONS,
   DEFAULT_SIMILARITY_PREFERENCES,
   type SimilarityPreferences,
+  effectiveMatchDisplay,
   type MatchDisplay,
 } from "./searchPreferences";
 import {
@@ -62,14 +71,18 @@ type SettingsDraft = {
   ranking: SearchRanking;
   searchContent: SearchContentScope;
   sourceSections: SimilaritySourceSections;
-  matchDisplay: MatchDisplay;
+  matchDisplay: MatchDisplay | null;
   showSmallerWeights: boolean;
   similarity: SimilarityPreferences;
   parts: string[] | null;
   generation?: string;
 };
 
+type SettingsTarget = "settings" | "sections" | "reselect";
+export type SearchSettingsHandle = { open: (target: SettingsTarget) => void };
+
 export function SearchSettings({
+  ref,
   search,
   seed = null,
   seedTitle,
@@ -77,6 +90,7 @@ export function SearchSettings({
   onApply,
   disabled = false,
 }: {
+  ref?: Ref<SearchSettingsHandle>;
   search: SearchFormState;
   seed?: SimilaritySeed | null;
   seedTitle?: string;
@@ -104,6 +118,7 @@ export function SearchSettings({
     search.sourceSections ?? (appliedParts ? "custom" : "all");
   const searchContent = search.searchContent ?? "all";
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
+  const display = effectiveMatchDisplay(draft?.matchDisplay ?? null, Boolean(seed));
   const [partsOpen, setPartsOpen] = useState(false);
   const chooseSectionsRef = useRef<HTMLButtonElement>(null);
   const editorHeadingRef = useRef<HTMLDivElement>(null);
@@ -117,6 +132,7 @@ export function SearchSettings({
     generation: string;
   } | null>(null);
   const seedIdentity = JSON.stringify(seed);
+  const embedded = Boolean(seed?.embedded_path?.length);
   if (draft && draft.seedIdentity !== seedIdentity) setDraft(null);
   const [reloadInventory, setReloadInventory] = useState(0);
   const [sourceRetired, setSourceRetired] = useState(false);
@@ -127,15 +143,20 @@ export function SearchSettings({
       reloadInventory ? null : (draft?.generation ?? generation),
       reloadInventory,
     ),
+    ...(reloadInventory ? { staleTime: 0, refetchOnWindowFocus: false } : {}),
     enabled:
       draft !== null &&
       seed !== null &&
       draft.similarity.method !== "baseline" &&
       draft.model !== null,
   });
-  const inventoryRetired =
-    sourceRetired || isArtifactGenerationChanged(inventory.error);
-  if (isArtifactGenerationChanged(inventory.error) && !sourceRetired) {
+  const inventoryChanged =
+    isArtifactGenerationChanged(inventory.error) ||
+    (draft?.generation &&
+      inventory.data &&
+      draft.generation !== inventory.data.artifact_generation);
+  const inventoryRetired = sourceRetired || Boolean(inventoryChanged);
+  if (inventoryChanged && !sourceRetired) {
     setSourceRetired(true);
     setSourceSnapshot(null);
     setSourceTarget(null);
@@ -144,7 +165,7 @@ export function SearchSettings({
   const available = allParts.filter((part) => part.has_vectors);
   const selectedParts =
     draft?.sourceSections === "core"
-      ? (inventory.data?.core.selectors ?? [])
+      ? (inventory.data?.core?.selectors ?? [])
       : draft?.sourceSections === "all"
         ? available.map((part) => part.selector)
         : (draft?.parts ?? []);
@@ -162,11 +183,19 @@ export function SearchSettings({
   const identitySelected = allParts.some(
     (part) => part.kind === "identity" && selectedParts.includes(part.selector),
   );
+  const unsupportedSource =
+    embedded &&
+    (draft?.similarity.method === "baseline" || draft?.sourceSections === "core");
   const usesParts = draft !== null && draft.similarity.method !== "baseline";
   const missingAllIdentity =
     usesParts &&
     draft.sourceSections === "all" &&
     allParts.some((part) => part.kind === "identity" && !part.has_vectors);
+  const missingAllSections =
+    usesParts &&
+    draft.sourceSections === "all" &&
+    allParts.some((part) => part.kind === "section" && !part.has_vectors);
+  const unavailableSections = missingCore || missingAllIdentity || missingAllSections;
   const showingSource = Boolean(seed && usesParts && partsOpen);
   if (
     draft &&
@@ -186,7 +215,7 @@ export function SearchSettings({
           : null) ??
         draft?.generation ??
         generation);
-  const sourceIdentity = JSON.stringify([seed, sourceGeneration]);
+  const sourceIdentity = JSON.stringify([seed, sourceGeneration, draft?.model]);
   const [targetIdentity, setTargetIdentity] = useState<string | null>(null);
   const currentTarget = targetIdentity === sourceIdentity ? sourceTarget : null;
   const invalidParts =
@@ -240,13 +269,17 @@ export function SearchSettings({
     .join("; ");
   useDismissOnReadingNavigation(draft !== null, () => setDraft(null));
 
-  function openSettings() {
+  useImperativeHandle(ref, () => ({ open: openSettings }));
+
+  function openSettings(target: SettingsTarget = "settings") {
+    const sections = target !== "settings";
+    const reselect = target === "reselect";
     setSourceView("sections");
     setSourceTarget(null);
     setSourceSnapshot(null);
-    setPartsOpen(false);
-    setSourceVisited(false);
-    setReloadInventory(0);
+    setPartsOpen(sections);
+    setSourceVisited(sections);
+    setReloadInventory((current) => (reselect ? current + 1 : 0));
     setSourceRetired(false);
     setDraft({
       seedIdentity,
@@ -257,8 +290,8 @@ export function SearchSettings({
       matchDisplay: profile.preferences.matchDisplay,
       showSmallerWeights: profile.preferences.showSmallerWeights,
       similarity: appliedPreferences,
-      parts: appliedParts,
-      generation: search.similarityGeneration,
+      parts: reselect ? [] : appliedParts,
+      generation: reselect ? undefined : search.similarityGeneration,
     });
   }
   function reloadSections() {
@@ -282,8 +315,8 @@ export function SearchSettings({
       !draft ||
       !validModel ||
       invalidParts ||
-      missingCore ||
-      missingAllIdentity ||
+      unsupportedSource ||
+      unavailableSections ||
       staleParts ||
       uncheckedParts ||
       invalidDecay
@@ -315,7 +348,8 @@ export function SearchSettings({
       model: changedModel ?? profile.preferences.model,
       searchContent: draft.searchContent,
       sourceSectionsByFamily:
-        inventory.data &&
+        !embedded &&
+        inventory.data?.core &&
         draft.sourceSections !== "custom" &&
         draft.similarity.method !== "baseline"
           ? {
@@ -394,7 +428,9 @@ export function SearchSettings({
       ? `Uses ${sourcePossessive} name and identity plus the core sections chosen for this record kind.`
       : draft?.sourceSections === "custom"
         ? `Uses only the selected content from ${sourceName}.`
-        : `Uses ${sourcePossessive} name and identity plus all available document sections.`;
+        : embedded
+          ? `Uses all indexed sections of ${sourceName}.`
+          : `Uses ${sourcePossessive} name and identity plus all available document sections.`;
   const partsHelp = `Choose which sections of this record to use when finding similar records.`;
   const methodHelp =
     draft?.similarity.method === "passages"
@@ -406,7 +442,7 @@ export function SearchSettings({
     <>
       {" "}
       {draft.sourceSections === "core" &&
-        inventory.data?.core.representation === "identity_only" && (
+        inventory.data?.core?.representation === "identity_only" && (
           <Typography.Text type="secondary">
             <SearchSettingLabel
               label="Name and identity only"
@@ -428,6 +464,12 @@ export function SearchSettings({
         <Typography.Paragraph type="danger" role="alert">
           Name and identity is unavailable for this model. Choose another model or
           update the collection.
+        </Typography.Paragraph>
+      )}
+      {missingAllSections && (
+        <Typography.Paragraph type="danger" role="alert">
+          Some sections are unavailable for this model. Choose available sections or
+          change the model.
         </Typography.Paragraph>
       )}
       {(invalidParts || staleParts) && (
@@ -545,8 +587,8 @@ export function SearchSettings({
             !draft ||
             !validModel ||
             invalidParts ||
-            missingCore ||
-            missingAllIdentity ||
+            unsupportedSource ||
+            unavailableSections ||
             staleParts ||
             uncheckedParts ||
             invalidDecay,
@@ -606,7 +648,7 @@ export function SearchSettings({
                         <Typography.Text strong>{selectionSummary}</Typography.Text>
                       </div>
                       {sectionStatus}
-                      {inventory.data && (
+                      {inventory.data && !uncheckedParts && (
                         <>
                           <Checkbox
                             checked={allSelected}
@@ -663,6 +705,18 @@ export function SearchSettings({
                             }
                           />
                         )}
+                      {unsupportedSource && (
+                        <Alert
+                          type="warning"
+                          showIcon
+                          title="This setting requires a whole record"
+                          description={
+                            draft.similarity.method === "baseline"
+                              ? "Choose a content comparison method in Advanced settings."
+                              : "Choose All sections or Custom to compare this document."
+                          }
+                        />
+                      )}
                       {seed &&
                         (usesParts ? (
                           <Form.Item
@@ -683,8 +737,17 @@ export function SearchSettings({
                                 value={draft.sourceSections}
                                 options={[
                                   { value: "all", label: "All sections" },
-                                  { value: "core", label: "Core sections" },
-                                  { value: "custom", label: "Custom" },
+                                  ...(embedded
+                                    ? []
+                                    : [{ value: "core", label: "Core sections" }]),
+                                  {
+                                    value: "custom",
+                                    label: "Custom",
+                                    disabled:
+                                      !inventory.data ||
+                                      inventory.isFetching ||
+                                      inventoryRetired,
+                                  },
                                 ]}
                                 onChange={(
                                   sourceSections: SimilaritySourceSections,
@@ -750,7 +813,12 @@ export function SearchSettings({
                         />
                       </Form.Item>
                       <Collapse
-                        defaultActiveKey={!validModel ? ["advanced"] : []}
+                        defaultActiveKey={
+                          !validModel ||
+                          (embedded && draft.similarity.method === "baseline")
+                            ? ["advanced"]
+                            : []
+                        }
                         items={[
                           {
                             key: "advanced",
@@ -819,6 +887,7 @@ export function SearchSettings({
                                     onChange={(similarity) =>
                                       setDraft({ ...draft, similarity })
                                     }
+                                    allowIdentity={!embedded}
                                     methodHelp={methodHelp}
                                     selectedCount={selectedCount}
                                     identitySelected={identitySelected}
@@ -838,9 +907,9 @@ export function SearchSettings({
                                     <SearchSettingLabel
                                       label="Match display"
                                       help={
-                                        draft.matchDisplay === "hidden"
+                                        display === "hidden"
                                           ? "Hides match information. Results and ranking stay the same."
-                                          : draft.matchDisplay === "detailed"
+                                          : display === "detailed"
                                             ? "Shows matching sections, plus scores, weights and excerpts for Similar results."
                                             : "Lists matching sections and excerpts."
                                       }
@@ -851,18 +920,18 @@ export function SearchSettings({
                                   <Select
                                     id={`${id}-match-display`}
                                     aria-label="Match display"
-                                    value={draft.matchDisplay}
+                                    value={display}
                                     options={[
                                       { value: "hidden", label: "Hidden" },
                                       { value: "sections", label: "Matching sections" },
                                       { value: "detailed", label: "Detailed" },
                                     ]}
-                                    onChange={(matchDisplay: MatchDisplay) =>
+                                    onSelect={(matchDisplay: MatchDisplay) =>
                                       setDraft({ ...draft, matchDisplay })
                                     }
                                   />
                                 </Form.Item>
-                                {seed && draft.matchDisplay === "detailed" && (
+                                {seed && display === "detailed" && (
                                   <Form.Item
                                     layout="horizontal"
                                     labelAlign="left"

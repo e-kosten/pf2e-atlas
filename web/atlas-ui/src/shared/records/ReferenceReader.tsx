@@ -44,6 +44,7 @@ export type ReaderFooter = {
 type ReferenceReaderProps = {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
+  selectedDocument?: RecordNavigationView;
   readerContext?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
@@ -69,6 +70,7 @@ type ReferenceReaderProps = {
 export function ReferenceReader({
   reading,
   selectedRecordKey = null,
+  selectedDocument,
   recordActions,
   readerContext,
   status,
@@ -461,7 +463,7 @@ export function ReferenceReader({
     (recordReadingIdentity(
       reading.request.navigation.record_key,
       reading.request.navigation,
-    ) !== recordReadingIdentity(selectedRecordKey) ||
+    ) !== recordReadingIdentity(selectedRecordKey, selectedDocument) ||
       reading.request.match ||
       reading.request.landing),
   );
@@ -531,7 +533,7 @@ export function ReferenceReader({
             onClick={() => {
               rememberPosition();
               reading.select(
-                { navigation: rootNavigation(selectedRecordKey) },
+                { navigation: selectedDocument ?? rootNavigation(selectedRecordKey) },
                 detail?.artifact_generation,
               );
             }}

@@ -1,6 +1,7 @@
 import type { ResultSort } from "../../generated/atlas";
 import {
   assertSearchIdentity,
+  assertSimilarityResultSource,
   assertSimilarityIdentity,
   assertSimilarityInventoryIdentity,
   sameSearchPageContext,
@@ -186,4 +187,42 @@ it("rejects a stale or differently addressed source inventory", () => {
   expect(() =>
     assertSimilarityInventoryIdentity(inventory, inventory.seed, "bge-base", "retired"),
   ).toThrow("reference collection changed");
+});
+
+it("requires the acknowledged document on results and section inventories even within one root and generation", () => {
+  const record_key = "journals:classes";
+  const root = { kind: "record" as const, record_key };
+  const psychic = {
+    ...root,
+    embedded_path: [{ collection: "/pages", identity: { Stable: "psychic" } }],
+  };
+  const wizard = {
+    ...root,
+    embedded_path: [{ collection: "/pages", identity: { Stable: "wizard" } }],
+  };
+  const mode = {
+    kind: "similar_records" as const,
+    seed: { record_key },
+    source: { seed: wizard, title: "Wizard" },
+  };
+  const inventory = {
+    seed: psychic,
+    source: mode.source,
+    search_profile: "profile",
+    artifact_generation: "g",
+  };
+  expect(() =>
+    assertSimilarityResultSource(
+      { mode } as import("../../generated/atlas").SearchResultsPage,
+      psychic,
+    ),
+  ).toThrow("do not match");
+  expect(() =>
+    assertSimilarityInventoryIdentity(
+      inventory as import("../../generated/atlas").SimilarityPartsView,
+      psychic,
+      "profile",
+      "g",
+    ),
+  ).toThrow("do not match");
 });

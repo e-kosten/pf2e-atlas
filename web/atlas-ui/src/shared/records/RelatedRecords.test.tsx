@@ -9,6 +9,7 @@ import type { SearchResultsRequest, SearchResultRow } from "../../generated/atla
 import type { ResultSort } from "../../generated/atlas";
 import { linkLeaf } from "../filters/linkPredicates";
 import { decodeFilterUrl } from "../filters/filterUrl";
+import { SimilarityFailure } from "../search/SimilarityFailure";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   act,
@@ -172,6 +173,18 @@ function page(
         ? {
             kind: "similar_records",
             seed: summaryFixture(request.criteria.seed_record_key),
+            ...(request.criteria.embedded_path?.length
+              ? {
+                  source: {
+                    seed: {
+                      kind: "record" as const,
+                      record_key: request.criteria.seed_record_key,
+                      embedded_path: request.criteria.embedded_path,
+                    },
+                    title: "Checked ability",
+                  },
+                }
+              : {}),
           }
         : { kind: "list_records" },
     rows,
@@ -424,9 +437,24 @@ it.each([false, true])(
     if (embedded) {
       expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
       await selectTab("Similar");
-      expect(
-        await screen.findByText("Similar to parent record: Viewed creature"),
-      ).toBeVisible();
+      const link = await screen.findByRole("link", { name: "Search similar records" });
+      const state = decodeSearchStateFromParams(
+        new URL(link.getAttribute("href")!, location.origin).searchParams,
+      );
+      expect(state.similarLocation).toEqual({
+        embedded_path: detail.selected.embedded_path,
+      });
+      expect(await screen.findByText("No similar records found.")).toBeVisible();
+      expect(api.searchPage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          criteria: expect.objectContaining({
+            seed_record_key: detail.record.record_key,
+            embedded_path: detail.selected.embedded_path,
+            source_sections: "all",
+          }),
+        }),
+        expect.any(AbortSignal),
+      );
     }
   },
 );
@@ -1330,4 +1358,126 @@ it("names multiple root comparison actions and keeps them below the relationship
   expect(
     within(dialog).getByRole("heading", { name: "Viewed creature" }),
   ).toBeVisible();
+});
+
+it("discards matches returned for a sibling document in the same record and generation", async () => {
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  detail.selected.embedded_path = [
+    { collection: "/items", identity: { Stable: "first" } },
+  ];
+  api.searchPage.mockImplementation(async (request: SearchResultsRequest) => {
+    if (request.criteria.kind !== "similar_records") return preview(request);
+    const result = page(request, [row("actors:other", "Wrong sibling match")]);
+    if (result.mode.kind === "similar_records" && result.mode.source)
+      result.mode.source.seed.embedded_path = [
+        { collection: "/items", identity: { Stable: "second" } },
+      ];
+    return result;
+  });
+  renderRelated(detail);
+  openRelated();
+  await selectTab("Similar");
+  expect(await screen.findByText("Couldn’t load similar records")).toBeVisible();
+  expect(screen.queryByText("Wrong sibling match")).toBeNull();
+});
+
+it.each([
+  ["similarity_source_limit", "Choose sections", "sections"],
+  ["similarity_candidate_limit", "Narrow results", "filters"],
+] as const)("opens the relevant Search control after %s", async (code, label, open) => {
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  const embedded_path = [
+    { collection: "/items", identity: { Stable: "checked-ability" } },
+  ];
+  detail.selected.embedded_path = embedded_path;
+  api.searchPage.mockImplementation(async (request: SearchResultsRequest) => {
+    if (request.criteria.kind === "similar_records")
+      throw new AtlasApiError(400, "fixture", { code, message: "fixture" });
+    return preview(request);
+  });
+  const router = createAtlasRouter(
+    createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
+  );
+  renderRelated(detail, undefined, router);
+  openRelated();
+  await selectTab("Similar");
+  fireEvent.click(await screen.findByRole("button", { name: label }));
+  await waitFor(() => expect(router.latestLocation.pathname).toBe("/search"));
+  expect(router.latestLocation.state.atlasComparisonControl).toEqual({
+    open,
+    seed: { kind: "record", record_key: "actors:seed", embedded_path },
+  });
+  expect(
+    decodeSearchStateFromParams(new URLSearchParams(router.latestLocation.searchStr))
+      .similarLocation,
+  ).toEqual({ embedded_path });
+});
+
+it("keeps the parent comparison disabled while retrying its failed Core lookup", async () => {
+  const parent = { kind: "record" as const, record_key: "hazards:b" };
+  const seed = {
+    ...parent,
+    embedded_path: [{ collection: "/items", identity: { Stable: "action" } }],
+  };
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const generation = "current";
+  const key = ["similarity-parts", parent, "bge-base", generation, 0];
+  client.setQueryData(
+    key,
+    requestedInventory({ seed: parent, expected_artifact_generation: generation }),
+  );
+  await client.invalidateQueries({ queryKey: key });
+  api.getSimilarityParts
+    .mockResolvedValueOnce({
+      ...requestedInventory({ seed: parent, expected_artifact_generation: generation }),
+      seed,
+    })
+    .mockImplementation(requestedInventory);
+  const recover = vi.fn();
+  render(
+    <QueryClientProvider client={client}>
+      <SearchProfileProvider
+        preferences={{
+          ...DEFAULT_SEARCH_PREFERENCES,
+          sourceSectionsByFamily: { hazard: "core" },
+        }}
+      >
+        <SimilarityFailure
+          seed={seed}
+          search={{
+            ...DEFAULT_SEARCH_STATE,
+            similarSeed: seed.record_key,
+            similarLocation: { embedded_path: seed.embedded_path },
+          }}
+          error={
+            new AtlasApiError(409, "readiness", {
+              code: "vector_readiness_required",
+              message: "readiness",
+            })
+          }
+          generation={generation}
+          parentTitle="Brown Mold"
+          fallback={null}
+          onRecover={recover}
+        />
+      </SearchProfileProvider>
+    </QueryClientProvider>,
+  );
+  const error = await screen.findByText("Unable to load parent comparison settings");
+  expect(screen.getByRole("button", { name: "Compare Brown Mold" })).toBeDisabled();
+  fireEvent.click(
+    within(error.closest<HTMLElement>('[role="alert"]')!).getByRole("button", {
+      name: "Retry",
+    }),
+  );
+  const compare = screen.getByRole("button", { name: "Compare Brown Mold" });
+  await waitFor(() => expect(compare).toBeEnabled());
+  fireEvent.click(compare);
+  expect(recover).toHaveBeenCalledWith(
+    expect.objectContaining({
+      similarSeed: parent.record_key,
+      similarLocation: undefined,
+      sourceSections: "core",
+    }),
+  );
 });

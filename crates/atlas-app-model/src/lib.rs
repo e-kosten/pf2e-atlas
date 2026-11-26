@@ -166,6 +166,7 @@ pub use similarity::{
     SimilarityComponentView, SimilarityConfigurationView, SimilarityDiagnosticsView,
     SimilarityEvidenceView, SimilarityPairView, SimilarityPartScoreView, SimilarityPartView,
     SimilarityPartsRequest, SimilarityPartsView, SimilarityRoleScoreView,
+    SimilaritySourceDescriptor, SimilaritySourceRequest, SimilaritySourceView,
 };
 
 pub use embedded_reading::{

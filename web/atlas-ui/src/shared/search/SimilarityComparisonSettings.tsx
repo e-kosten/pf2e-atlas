@@ -6,6 +6,7 @@ import { SearchSettingLabel } from "./SearchSettingLabel";
 export function SimilarityComparisonSettings({
   value,
   onChange,
+  allowIdentity,
   methodHelp,
   selectedCount,
   identitySelected,
@@ -13,6 +14,7 @@ export function SimilarityComparisonSettings({
 }: {
   value: SimilarityPreferences;
   onChange: (value: SimilarityPreferences) => void;
+  allowIdentity: boolean;
   methodHelp: string;
   selectedCount: number;
   identitySelected: boolean;
@@ -42,6 +44,7 @@ export function SimilarityComparisonSettings({
             {
               value: "baseline",
               label: "Name and identity",
+              disabled: !allowIdentity,
             },
           ]}
           onChange={(method) => onChange({ ...value, method })}

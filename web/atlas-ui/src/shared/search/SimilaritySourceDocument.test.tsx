@@ -442,3 +442,41 @@ it.each([
     });
   },
 );
+
+it("opens and returns to the addressed page when reading one of its sections", async () => {
+  const key = "journals:classes";
+  const path = [{ collection: "/pages", identity: { Stable: "psychic" } }];
+  const nav = { ...rootNavigation(key), embedded_path: path };
+  const source = { kind: "record" as const, record_key: key, embedded_path: path };
+  const sectionNav = { ...nav, field: "/text/content" };
+  const section = { ...part, owners: path, navigation: sectionNav };
+  api.detail.mockImplementation((_key: string, request: RecordDetailRequest) => {
+    const projected = content(
+      detailFixture(key, "Classes"),
+      request.fields?.length ? "Selected page section" : "Complete page",
+    );
+    projected.presentation.identity = { ...projected.record, title: "Psychic" };
+    projected.selected = request.fields?.length ? sectionNav : nav;
+    return Promise.resolve(projected);
+  });
+  const presentation = (
+    target: { part: SimilarityComponentView; visit: number } | null,
+  ) => (
+    <SimilaritySourceDocument
+      seed={source}
+      generation="test-generation"
+      target={target}
+      onReloadSections={vi.fn()}
+      active
+    />
+  );
+  const view = render(presentation(null), { wrapper });
+  expect(await screen.findByText("Complete page")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Whole document" })).toBeNull();
+  view.rerender(presentation({ part: section, visit: 1 }));
+  expect(await screen.findByText("Selected page section")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Whole document" }));
+  expect(await screen.findByText("Complete page")).toBeVisible();
+  for (const [, request] of api.detail.mock.calls)
+    expect(request.embedded_path).toEqual(path);
+});

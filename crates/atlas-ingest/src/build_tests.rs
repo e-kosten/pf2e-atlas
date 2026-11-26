@@ -2819,7 +2819,9 @@ fn retired_preparation_and_predecessor_skip_unreadable_cached_dtos_before_source
         let reader = atlas_index::test_support::open_reader(&rebuilt.output_path).unwrap();
         assert_eq!(
             reader
-                .similarity_part_addresses(&"items:aaaaaaaaaaaaaaaa".parse().unwrap())
+                .similarity_part_addresses(&atlas_domain::SimilaritySeed::root(
+                    "items:aaaaaaaaaaaaaaaa".parse().unwrap()
+                ))
                 .unwrap()
                 .len(),
             1

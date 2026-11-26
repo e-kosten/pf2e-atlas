@@ -215,6 +215,12 @@ pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
         | PartyConflict
         | InvalidRequest
         | InvalidRecordKey
+        | SimilaritySourceLimit
+        | SimilarityCandidateLimit
+        | SimilarityNoContent
+        | SimilarityMethodUnavailable
+        | SimilaritySourceStale
+        | SimilaritySectionsStale
         | FilterInvalid
         | FilterFieldInvalid
         | FilterOptionInvalid
