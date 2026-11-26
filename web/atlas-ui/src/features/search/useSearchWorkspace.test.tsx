@@ -1576,6 +1576,7 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.setPageNumber(2));
     await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
     expect(apiMocks.searchPage.mock.calls[1][0]).toEqual({
+      result_detail: "evidence",
       search_profile: "bge-base",
       criteria: {
         kind: "similar_records",

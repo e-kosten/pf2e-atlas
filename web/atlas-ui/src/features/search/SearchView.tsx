@@ -27,6 +27,7 @@ import {
   type SearchSettingsHandle,
 } from "../../shared/search/SearchSettings";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
+import { effectiveMatchDisplay } from "../../shared/search/searchPreferences";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import {
   hasExecutableSearch,
@@ -264,7 +265,10 @@ export function SearchView({
           }
           rows={workspace.resultPage?.rows ?? []}
           showMatchContext={!workspace.evidencePending}
-          matchDisplay={profile.preferences.matchDisplay}
+          matchDisplay={effectiveMatchDisplay(
+            profile.preferences.matchDisplay,
+            mode?.kind === "similar_records",
+          )}
           showSmallerWeights={profile.preferences.showSmallerWeights}
           query={
             workspace.resultPage?.mode.kind === "text_search"

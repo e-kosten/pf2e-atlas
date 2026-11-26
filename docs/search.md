@@ -121,8 +121,7 @@ See [CLI reference searches](cli-examples.md#follow-references) for commands.
 Open **Search settings** to compare ways of finding results. Atlas remembers your
 browser preferences; opening a shared search link uses the settings in that link.
 
-Match explanations are hidden by default. Choose **Matching sections** to load
-links and excerpts for the current results. **Detailed** also shows how sections
+Similar defaults to **Matching sections**, which shows links and excerpts for the current results. Other searches default to **Hidden**. Choosing a match display in Search settings saves it for both. **Detailed** also shows how sections
 contributed to a Similar result. Turning explanations on searches the current
 page again and keeps your place. Once loaded, you can switch between the two
 views or hide explanations immediately.

@@ -86,6 +86,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { currentSearchLocation } from "../../app/searchLocation";
 import {
   DEFAULT_SEARCH_PREFERENCES,
+  effectiveMatchDisplay,
   type SearchPreferences,
 } from "../../shared/search/searchPreferences";
 import {
@@ -425,7 +426,11 @@ export function useSearchWorkspace({
   ];
   const client = useQueryClient();
   const workspaceId = useId();
-  const visible = searchPreferences.matchDisplay !== "hidden";
+  const visible =
+    effectiveMatchDisplay(
+      searchPreferences.matchDisplay,
+      Boolean(activeSearch.similarSeed),
+    ) !== "hidden";
   const context = JSON.stringify(baseResultsKey(null));
   const [projection, setProjection] = useState({
     context,

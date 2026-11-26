@@ -44,6 +44,7 @@ import {
   DEFAULT_SOURCE_SECTIONS,
   DEFAULT_SIMILARITY_PREFERENCES,
   type SimilarityPreferences,
+  effectiveMatchDisplay,
   type MatchDisplay,
 } from "./searchPreferences";
 import {
@@ -70,7 +71,7 @@ type SettingsDraft = {
   ranking: SearchRanking;
   searchContent: SearchContentScope;
   sourceSections: SimilaritySourceSections;
-  matchDisplay: MatchDisplay;
+  matchDisplay: MatchDisplay | null;
   showSmallerWeights: boolean;
   similarity: SimilarityPreferences;
   parts: string[] | null;
@@ -117,6 +118,7 @@ export function SearchSettings({
     search.sourceSections ?? (appliedParts ? "custom" : "all");
   const searchContent = search.searchContent ?? "all";
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
+  const display = effectiveMatchDisplay(draft?.matchDisplay ?? null, Boolean(seed));
   const [partsOpen, setPartsOpen] = useState(false);
   const chooseSectionsRef = useRef<HTMLButtonElement>(null);
   const editorHeadingRef = useRef<HTMLDivElement>(null);
@@ -905,9 +907,9 @@ export function SearchSettings({
                                     <SearchSettingLabel
                                       label="Match display"
                                       help={
-                                        draft.matchDisplay === "hidden"
+                                        display === "hidden"
                                           ? "Hides match information. Results and ranking stay the same."
-                                          : draft.matchDisplay === "detailed"
+                                          : display === "detailed"
                                             ? "Shows matching sections, plus scores, weights and excerpts for Similar results."
                                             : "Lists matching sections and excerpts."
                                       }
@@ -918,7 +920,7 @@ export function SearchSettings({
                                   <Select
                                     id={`${id}-match-display`}
                                     aria-label="Match display"
-                                    value={draft.matchDisplay}
+                                    value={display}
                                     options={[
                                       { value: "hidden", label: "Hidden" },
                                       { value: "sections", label: "Matching sections" },
@@ -929,7 +931,7 @@ export function SearchSettings({
                                     }
                                   />
                                 </Form.Item>
-                                {seed && draft.matchDisplay === "detailed" && (
+                                {seed && display === "detailed" && (
                                   <Form.Item
                                     layout="horizontal"
                                     labelAlign="left"

@@ -173,17 +173,17 @@ function chooseMatchDisplay(label: string) {
   fireEvent.click(screen.getByText(label, { exact: true }));
 }
 
-it("defaults to Hidden and discards a canceled display change", async () => {
+it("defaults Similar to Matching sections and discards a canceled display change", async () => {
   const { apply, remember } = setup();
   openMatchDisplay();
   await waitFor(() =>
     expect(
       within(screen.getByRole("dialog", { name: "Search settings" })).getByTitle(
-        "Hidden",
+        "Matching sections",
       ),
     ).toBeVisible(),
   );
-  chooseMatchDisplay("Matching sections");
+  chooseMatchDisplay("Hidden");
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(remember).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
@@ -193,7 +193,7 @@ it("defaults to Hidden and discards a canceled display change", async () => {
   await waitFor(() =>
     expect(
       within(screen.getByRole("dialog", { name: "Search settings" })).getByTitle(
-        "Hidden",
+        "Matching sections",
       ),
     ).toBeVisible(),
   );
@@ -212,14 +212,14 @@ it("remembers a display-only change without submitting another search", async ()
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("resets match display to Hidden", async () => {
+it("resets Similar match display to Matching sections", async () => {
   setup();
   chooseMatchDisplay("Detailed");
   fireEvent.click(screen.getByRole("button", { name: "Reset" }));
   await waitFor(() =>
     expect(
       within(screen.getByRole("dialog", { name: "Search settings" })).getByTitle(
-        "Hidden",
+        "Matching sections",
       ),
     ).toBeVisible(),
   );
