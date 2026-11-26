@@ -630,6 +630,97 @@ describe("useSearchWorkspace", () => {
     expect(result.current.resultsError).toBeNull();
   });
 
+  it("retains the acknowledged document title after a failed lookup and a later failed ranking", async () => {
+    const seed = {
+      kind: "record" as const,
+      record_key: "journals:classes",
+      embedded_path: [{ collection: "/pages", identity: { Stable: "psychic" } }],
+    };
+    history.replaceState(
+      null,
+      "",
+      "/search" +
+        searchStateQueryString({
+          ...DEFAULT_SEARCH_STATE,
+          similarSeed: seed.record_key,
+          similarLocation: { embedded_path: seed.embedded_path },
+        }),
+    );
+    apiMocks.getSimilaritySource.mockRejectedValue(new Error("Lookup timed out"));
+    const first = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockReturnValueOnce(first.promise)
+      .mockRejectedValue(new Error("Ranking timed out"));
+    let workspace!: ReturnType<typeof useSearchWorkspace>;
+    function Workspace() {
+      workspace = useSearchWorkspace({ searchProfile: "bge-base" });
+      return <SearchView workspace={workspace} />;
+    }
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <App>
+          <SearchProfileProvider>
+            <Workspace />
+          </SearchProfileProvider>
+        </App>
+      </ConfigProvider>,
+      { wrapper: queryClientWrapper() },
+    );
+    await screen.findByText("Couldn’t load source name");
+    await act(async () =>
+      first.resolve({
+        ...searchResultsPage([], { similarity: recordSimilarity }),
+        mode: {
+          kind: "similar_records",
+          seed: summaryFixture(seed.record_key, "Classes"),
+          source: { seed, title: "Psychic", parent_title: "Classes" },
+        },
+      }),
+    );
+    await screen.findByRole("link", { name: "Psychic" });
+    act(() =>
+      workspace.setSearch({
+        ...workspace.search,
+        sort: { kind: "attributes", rules: [{ field: "level", direction: "desc" }] },
+      }),
+    );
+    await screen.findByText("Unable to update results");
+    expect(workspace.resultPage).toBeUndefined();
+    expect(apiMocks.getSimilaritySource).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("link", { name: "Psychic" })).toBeVisible();
+    expect(screen.queryByText("Couldn’t load source name")).toBeNull();
+  });
+
+  it.each([
+    "record_not_found",
+    "similarity_source_stale",
+    "artifact_generation_changed",
+  ] as const)(
+    "preserves a confirmed source lookup failure (%s) across ranking acknowledgement",
+    async (code) => {
+      history.replaceState(null, "", "/search?similar=items:armor");
+      apiMocks.getSimilaritySource.mockRejectedValue(
+        new AtlasApiError(409, "Source changed", { code, message: "Source changed" }),
+      );
+      apiMocks.searchPage.mockResolvedValue({
+        ...searchResultsPage([], { similarity: recordSimilarity }),
+        mode: {
+          kind: "similar_records",
+          seed: summaryFixture("items:armor", "Old Armor"),
+        },
+      });
+      const { result } = renderHook(
+        () => useSearchWorkspace({ searchProfile: "bge-base" }),
+        { wrapper: queryClientWrapper() },
+      );
+      await waitFor(() =>
+        expect(result.current.referenceGeneration).toBe("generation-a"),
+      );
+      await waitFor(() => expect(result.current.similaritySource?.isError).toBe(true));
+      expect(result.current.similaritySource?.data).toBeUndefined();
+    },
+  );
+
   it("retains loaded Similar rows and the seed title as updating while a new order is pending", async () => {
     history.replaceState(null, "", "/search?similar=items:armor");
     const original: SearchResultsPage = {

@@ -1009,12 +1009,22 @@ for (const width of [1440, 390]) {
     });
     const handoff = explore.getByRole("link", { name: "Search similar records" });
     const copied = await handoff.getAttribute("href");
+    const fullRanking = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/search/page") &&
+        response.request().postDataJSON()?.criteria?.kind === "similar_records",
+    );
     await handoff.click();
     await expect(
       page
         .locator(".reference-search-entry--similar")
         .getByRole("link", { name: "Psychic", exact: true }),
     ).toBeVisible();
+    const full: SearchResultsPage = await (await fullRanking).json();
+    expect(full.mode).toEqual(preview.mode);
+    expect(full.rows.slice(0, 5).map((row) => row.record.record_key)).toEqual(
+      preview.rows.map((row) => row.record.record_key),
+    );
     const restored = await context.newPage();
     await restored.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
     await restored.goto(new URL(copied!, page.url()).href);
@@ -1041,6 +1051,10 @@ for (const width of [1440, 390]) {
     await expect(
       dialog.getByRole("checkbox", { name: "Roleplaying the Psychic", exact: true }),
     ).toBeVisible();
+    if (width === 1440)
+      await expect(
+        dialog.getByRole("heading", { name: "Psychic", exact: true }),
+      ).toBeVisible();
     await info.attach("Psychic sections", {
       body: await restored.screenshot(),
       contentType: "image/png",

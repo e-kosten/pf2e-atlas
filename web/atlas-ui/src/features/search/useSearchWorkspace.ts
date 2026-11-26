@@ -36,7 +36,10 @@ import {
   assertSimilarityResultSource,
   matchesSimilaritySource,
 } from "../../shared/search/searchIdentity";
-import { useSimilaritySource } from "../../shared/search/similarityQueries";
+import {
+  rememberRankedSimilaritySource,
+  useSimilaritySource,
+} from "../../shared/search/similarityQueries";
 import { sameSimilaritySeed, searchSeed } from "../../shared/search/similaritySource";
 import type {
   FilterEditorView,
@@ -491,6 +494,7 @@ export function useSearchWorkspace({
         : undefined,
     queryFn: async ({ signal }) => {
       const ticket = retrieval.capture(signal);
+      const version = searchVersion.current;
       const page = await searchPage(
         {
           ...buildSearchRequest(
@@ -530,6 +534,23 @@ export function useSearchWorkspace({
         page.ranking !== (activeSearch.ranking ?? "score")
       )
         throw new Error("Search response used a different ranking");
+      const owner = retrieval.current(ticket);
+      if (
+        source &&
+        page.mode.kind === "similar_records" &&
+        owner &&
+        (!owner.generation || owner.generation === page.artifact_generation) &&
+        version === searchVersion.current
+      ) {
+        rememberRankedSimilaritySource(
+          client,
+          {
+            artifact_generation: page.artifact_generation,
+            source: page.mode.source ?? { seed: source, title: page.mode.seed.title },
+          },
+          retrieval.generation,
+        );
+      }
       retrieval.adopt(ticket, page.artifact_generation, {
         queryKey: resultsKeyForGeneration(page.artifact_generation),
         data: { page, filter: activeSearch.filter },

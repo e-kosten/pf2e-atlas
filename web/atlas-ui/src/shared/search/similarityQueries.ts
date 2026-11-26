@@ -12,6 +12,7 @@ import {
 } from "../../api/atlasApi";
 import { sameSimilaritySeed } from "./similaritySource";
 import type { SimilaritySeed, SimilaritySourceView } from "../../generated/atlas";
+import { appError } from "../feedback/errorMessages";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { assertSimilarityInventoryIdentity } from "./searchIdentity";
 
@@ -59,13 +60,38 @@ function knownView(seed: SimilaritySeed, known: KnownSource): SimilaritySourceVi
   };
 }
 
-function rememberSource(client: QueryClient, view: SimilaritySourceView) {
-  // Both a fresh Search and one bound to this generation can reuse the reader's identity.
-  for (const generation of [null, view.artifact_generation]) {
-    const queryKey = sourceKey(view.source.seed, generation);
-    client.getQueryCache().build(client, { queryKey, meta: referenceQueryMeta });
-    client.setQueryData(queryKey, view);
+function cacheSource(
+  client: QueryClient,
+  view: SimilaritySourceView,
+  generation: string | null,
+) {
+  const queryKey = sourceKey(view.source.seed, generation);
+  client.getQueryCache().build(client, { queryKey, meta: referenceQueryMeta });
+  client.setQueryData(queryKey, view);
+}
+
+export function rememberRankedSimilaritySource(
+  client: QueryClient,
+  view: SimilaritySourceView,
+  lookupGeneration: string | null,
+) {
+  const lookup = client.getQueryState(sourceKey(view.source.seed, lookupGeneration));
+  if (!lookup?.error) return;
+  const key = sourceKey(view.source.seed, view.artifact_generation);
+  const pinned = client.getQueryState(key);
+  if (pinned?.status === "success") return;
+  for (const state of [lookup, pinned]) {
+    const code = appError(state?.error)?.code;
+    if (
+      code === "record_not_found" ||
+      code === "similarity_source_stale" ||
+      code === "artifact_generation_changed"
+    )
+      return;
   }
+  // A successful ranking acknowledges this generation only. Keep the unpinned
+  // lookup independent so refresh can resolve the title in the next collection.
+  cacheSource(client, view, view.artifact_generation);
 }
 
 export function useRememberSimilaritySource(
@@ -74,7 +100,12 @@ export function useRememberSimilaritySource(
 ) {
   const client = useQueryClient();
   const remember = useEffectEvent(() => {
-    if (seed && known) rememberSource(client, knownView(seed, known));
+    if (seed && known) {
+      const view = knownView(seed, known);
+      // Both a fresh Search and one bound to this generation can reuse the reader's identity.
+      cacheSource(client, view, null);
+      cacheSource(client, view, view.artifact_generation);
+    }
   });
   const address = JSON.stringify(seed);
   useEffect(() => {
