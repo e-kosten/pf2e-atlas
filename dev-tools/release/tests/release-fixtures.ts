@@ -1,10 +1,12 @@
 /** Fixture construction shared by shell and PowerShell smoke tests. */
 import { execFileSync } from 'node:child_process';
-import { createWriteStream, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, createWriteStream, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { ZipFile } from 'yazl';
-import { cli, object, readJson, writeJson, type Json } from '../src/release-data.js';
+import { generateManifest } from '../src/generate-release-manifest.js';
+import { generateDesktopUpdater } from '../src/desktop-updater.js';
+import { cli, object, publicAssetNames, readJson, sha256, windowsInstaller, writeJson, type Json } from '../src/release-data.js';
 
 export const windowsRuntimeFixture = (root: string) => Object.fromEntries(
   ['msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'atlas-windows-runtime.json']
@@ -18,10 +20,48 @@ export async function writeZip(file: string, entries: Record<string, string | Bu
   zip.end();
   await done;
 }
+// Models the metadata emitted by signing. Native rehearsals verify real signatures.
+export async function writeUpdaterFixture(dist: string, tag: string): Promise<void> {
+  const version = tag.slice(1);
+  const nightly = /-nightly\.(\d{14}\.g([0-9a-f]{12}))$/.exec(tag);
+  const compatibility = { workspaceSchema: 12, foundryCommit: '1'.repeat(40), foundryVersion: '8.7.0' };
+  const mac = 'atlas-desktop-aarch64-apple-darwin.app.tar.gz';
+  writeFileSync(path.join(dist, mac), 'fixture Mac update package');
+  for (const name of [mac, windowsInstaller]) {
+    const file = path.join(dist, name);
+    const descriptor = file + '.transition.json';
+    writeJson(file + '.compatibility.json', { version, ...compatibility });
+    writeJson(descriptor, {
+      protocol: 2, channel: nightly ? 'nightly' : 'stable', tag: nightly ? `nightly/${nightly[1]}` : `release/${tag}`,
+      version, commit: (nightly?.[2] ?? '').padEnd(40, '1'), asset: name, sha256: await sha256(file),
+      ...compatibility,
+      migrationLedger: { applicationId: 1, entries: [{ version: 12, name: 'baseline', checksum: 'a'.repeat(64) }] },
+    });
+    for (const signed of [file, descriptor]) {
+      const metadata = `untrusted comment: fixture\nfixture\ntrusted comment: timestamp:1\tfile:${path.basename(signed)}\tversion:${version}\nfixture\n`;
+      writeFileSync(signed + '.sig', Buffer.from(metadata).toString('base64'));
+    }
+  }
+  generateDesktopUpdater(tag, dist);
+}
+
+function copyPublicRelease(dist: string, tag: string, destination: string): void {
+  mkdirSync(destination);
+  for (const name of publicAssetNames(tag)) copyFileSync(path.join(dist, name), path.join(destination, name));
+}
+
 export async function fixture(args: string[]): Promise<void> {
   const [action, file, extra, notices] = args;
   if (!action || !file) throw new Error('Fixture action and path are required');
   switch (action) {
+    case 'updater': await writeUpdaterFixture(file, extra); break;
+    case 'public-release': copyPublicRelease(file, extra, notices); break;
+    case 'build-public-release': {
+      if (!extra.includes('-rc.')) await writeUpdaterFixture(file, extra);
+      await generateManifest(extra, file);
+      copyPublicRelease(file, extra, notices);
+      break;
+    }
     case 'windows-archive': {
       if (!extra || !notices) throw new Error('Repository root and generated notices are required');
       const root = path.basename(file, '.zip');

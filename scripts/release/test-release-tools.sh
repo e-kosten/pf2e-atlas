@@ -112,6 +112,8 @@ printf '{}\n' > "$dist/dist-manifest.json"
 printf 'desktop image fixture\n' > "$dist/atlas-desktop-aarch64-apple-darwin.dmg"
 printf 'desktop installer fixture\n' > "$dist/atlas-desktop-x86_64-pc-windows-msvc-setup.exe"
 
+fixtures="$repo_root/dev-tools/release/dist/tests/release-fixtures.js"
+node "$fixtures" updater "$dist" v9.9.9
 node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v9.9.9 "$dist"
 node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" dist-manifest "$dist/dist-manifest.json"
 node "$repo_root/dev-tools/release/dist/src/cli/validate-release-assets.js" v9.9.9 "$dist"
@@ -162,6 +164,9 @@ case "$(uname -s):$(uname -m)" in
 esac
 
 if [ -n "$host_target" ]; then
+  assembly="$dist"
+  dist="$tmp/public"
+  node "$fixtures" public-release "$assembly" v9.9.9 "$dist"
   fake_bin="$tmp/bin"
   install_dir="$tmp/install"
   mkdir -p "$fake_bin" "$install_dir"
@@ -263,7 +268,8 @@ EOF_CURL
   rc_dist="$tmp/rc-dist"
   cp -R "$dist" "$rc_dist"
   make_unix_archive "$host_target" full "9.9.9-rc.1" "$rc_dist"
-  node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v9.9.9-rc.1 "$rc_dist" >/dev/null
+  node "$fixtures" build-public-release "$rc_dist" v9.9.9-rc.1 "$tmp/rc-public"
+  rc_dist="$tmp/rc-public"
   awk '/^```bash$/ { code = ""; next }
        /^```$/ { if (code ~ /--version VERSION/) { print code; exit }; next }
        { code = code $0 "\n" }' "$repo_root/docs/installation.md" |
@@ -390,7 +396,8 @@ DETACHED_INSTALLER
   nightly_dist="$tmp/nightly-dist"
   cp -R "$dist" "$nightly_dist"
   make_unix_archive "$host_target" full "$nightly_version" "$nightly_dist"
-  node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" "v$nightly_version" "$nightly_dist" >/dev/null
+  node "$fixtures" build-public-release "$nightly_dist" "v$nightly_version" "$tmp/nightly-public"
+  nightly_dist="$tmp/nightly-public"
   nightly_install="$tmp/nightly-install"
   printf '%s\n' "$nightly_tag" > "$nightly_dist/nightly-version.txt"
   url_log="$tmp/nightly-urls"
@@ -429,7 +436,8 @@ DETACHED_INSTALLER
 
   identity_dist="$tmp/identity-dist"
   cp -R "$dist" "$identity_dist"
-  node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v1.2.3 "$identity_dist" >/dev/null
+  node "$fixtures" build-public-release "$identity_dist" v1.2.3 "$tmp/identity-public"
+  identity_dist="$tmp/identity-public"
   for version in v9.9.9 v1.2.3; do
     cp "$install_dir/atlas" "$tmp/before-mismatch"
     if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$identity_dist" \
@@ -514,6 +522,7 @@ ROLLBACK_BINARY
     echo "installer accepted a checksum mismatch" >&2
     exit 1
   fi
+  dist="$assembly"
 fi
 
 bad_archive_dist="$tmp/bad-archive-dist"

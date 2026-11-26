@@ -2,10 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { coverageArchive, coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
+import { coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
 import { validateAssets } from './validate-release-assets.js';
 import { desktopAssets, macosDmg, nightlyChannel, nightlyRef, nightlyTag, object, readJson, windowsInstaller } from './release-data.js';
-import { releaseAssetNames, releaseEndpoint, releases, uploadDraftAssets, verifyReleaseSource, verifyUploadedDesktop, type Release, type Run } from './release-upload.js';
+import { expectedAssetDigests, readRelease, releaseEndpoint, releases, uploadDraftAssets, verifyReleaseSource, verifyUploadedAssets, type Release, type Run } from './release-upload.js';
 import { cliVersion, lockPath, manifestPath, versionFiles, writeVersionFiles } from './package-version.mjs';
 export type { Run } from './release-upload.js';
 
@@ -64,14 +64,11 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
   return `build=true\nsha=${sha}\ntag=${tag}\npackage-tag=${packageTag}\n`;
 }
 
-function nightlyDraft(run: Run, tag: string, sha: string, version: string, notes: string, existing?: Release): Release {
-  const request = existing
-    ? ['--method', 'PATCH', `${releaseEndpoint}/${existing.id}`]
-    : ['--method', 'POST', releaseEndpoint, '-f', `tag_name=${tag}`, '-f', `target_commitish=${sha}`,
-      '-f', `name=Nightly ${version}`, '-F', 'draft=true', '-F', 'prerelease=true', '-f', 'make_latest=false'];
-  const draft: Release = JSON.parse(run('gh', ['api', ...request, '-f', `body=${notes}`]));
-  if (!Number.isSafeInteger(draft.id) || draft.id <= 0 || (existing && existing.id !== draft.id)
-    || !draft.draft || !draft.prerelease) {
+function createNightlyDraft(run: Run, tag: string, sha: string, version: string, notes: string): Release {
+  const draft: Release = JSON.parse(run('gh', ['api', '--method', 'POST', releaseEndpoint,
+    '-f', `tag_name=${tag}`, '-f', `target_commitish=${sha}`, '-f', `name=Nightly ${version}`,
+    '-F', 'draft=true', '-F', 'prerelease=true', '-f', 'make_latest=false', '-f', `body=${notes}`]));
+  if (!Number.isSafeInteger(draft.id) || draft.id <= 0 || !draft.draft || !draft.prerelease) {
     throw new Error('Expected the dated nightly draft before uploading assets');
   }
   verifyReleaseSource(run, draft, tag, sha, true);
@@ -79,11 +76,11 @@ function nightlyDraft(run: Run, tag: string, sha: string, version: string, notes
 }
 
 export async function publishNightly(root: string, tag: string, sha: string, dist: string, coveragePath: string,
-  run = commandRunner(root), validate: (directory: string) => Promise<void> = validateAssets): Promise<void> {
+  run = commandRunner(root), validate: (directory: string, packageTag: string) => Promise<void> = validateAssets): Promise<void> {
   const packageTag = nightlyPackageTag(root, tag);
   const version = nightlyVersion(packageTag);
   if (!/^[0-9a-f]{40}$/.test(sha) || !tag.endsWith(`.g${sha.slice(0, 12)}`)) throw new Error('Nightly tag does not identify the source SHA');
-  await validate(dist);
+  await validate(dist, packageTag);
   if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== packageTag) throw new Error('Release manifest version mismatch');
   const coverage = await validateNightlyCoverage(root, dist, coveragePath, packageTag, sha);
   const existing = releases(run);
@@ -99,14 +96,6 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     if (!currentDate) throw new Error('Invalid nightly channel pointer');
     if (currentDate > nightlyRef.exec(tag)![1]) return;
     alreadyCurrent = current === tag && !channel.draft;
-  }
-  // Recheck drafts by ID before mutating them. The list may lag publication too.
-  const release: Release | undefined = listed?.draft
-    ? JSON.parse(run('gh', ['api', `${releaseEndpoint}/${listed.id}`]))
-    : listed;
-  if (release) {
-    if (release.id !== listed?.id) throw new Error('Dated nightly lookup returned a different release ID');
-    verifyReleaseSource(run, release, tag, sha, true);
   }
   const notes = [
     'Not a stable release',
@@ -149,28 +138,27 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     `Built from main commit ${sha}.`,
     '',
   ].join('\n');
-  let published: Release;
-  if (!release || release.draft) {
-    // Carry GitHub's draft ID forward even if the release list still omits it.
-    const draft = nightlyDraft(run, tag, sha, version, notes, release);
-    const uploaded = uploadDraftAssets(run, draft, dist, releaseAssetNames(dist));
-    await verifyUploadedDesktop({ ...draft, assets: uploaded }, dist);
-    published = JSON.parse(run('gh', ['api', '--method', 'PATCH', `${releaseEndpoint}/${draft.id}`,
-      '-F', 'draft=false', '-F', 'prerelease=true', '-f', 'make_latest=false']));
-    if (published.id !== draft.id) throw new Error('Published nightly ID differs from the draft');
-  } else {
-    const remote = release.assets?.find((asset) => asset.name === coverageArchive);
-    if (remote?.digest !== `sha256:${coverage.archiveSha256}`) {
-      throw new Error('Published nightly archive differs from the validated coverage report');
-    }
-    if (coverage.notice ? !release.body?.includes(coverage.notice) : release.body?.includes(coverageHeading)) {
-      throw new Error('Published nightly notes differ from the validated coverage report');
-    }
-    published = release;
+  const expected = await expectedAssetDigests(dist, packageTag);
+  const { id } = listed ?? createNightlyDraft(run, tag, sha, version, notes);
+  // The listing may lag creation or publication. Bind every check to the draft's ID.
+  const readDated = () => readRelease(run, id, tag, sha, expected);
+  let release = readDated();
+  if (!release.prerelease) throw new Error('Expected a dated nightly prerelease');
+  if (release.draft) {
+    uploadDraftAssets(run, release, dist, expected.keys());
+    release = readDated();
+    if (!release.draft || !release.prerelease) throw new Error('Expected the dated nightly draft after uploading assets');
+    verifyUploadedAssets(release, expected);
+    const published: Release = JSON.parse(run('gh', ['api', '--method', 'PATCH', `${releaseEndpoint}/${id}`,
+      '-F', 'draft=false', '-F', 'prerelease=true', '-f', 'make_latest=false', '-f', `body=${notes}`]));
+    if (published.id !== id) throw new Error('Published nightly ID differs from the draft');
+    release = readDated();
   }
-  if (published.draft || !published.prerelease) throw new Error('Expected a published dated nightly');
-  verifyReleaseSource(run, published, tag, sha, true);
-  await verifyUploadedDesktop(published, dist);
+  if (release.draft || !release.prerelease) throw new Error('Expected a published dated nightly');
+  verifyUploadedAssets(release, expected);
+  if (coverage.notice ? !release.body?.includes(coverage.notice) : release.body?.includes(coverageHeading)) {
+    throw new Error('Published nightly notes differ from the validated coverage report');
+  }
   const channelNotes = [
     'Latest verified Nightly',
     '',

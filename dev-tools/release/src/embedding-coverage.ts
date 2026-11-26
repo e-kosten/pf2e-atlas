@@ -15,7 +15,7 @@ function exactKeys(value: { [key: string]: Json }, keys: readonly string[]): voi
 
 export async function validateNightlyCoverage(
   root: string, dist: string, receipt: string, tag: string, sourceSha: string,
-): Promise<{ archiveSha256: string; notice: string }> {
+): Promise<{ notice: string }> {
   const report = object(readJson(receipt));
   exactKeys(report, ['version', 'source_sha', 'tag', 'archive_sha256', 'pins', 'profiles']);
   if (report.version !== 2 || report.tag !== tag || report.source_sha !== sourceSha) {
@@ -75,5 +75,5 @@ export async function validateNightlyCoverage(
     'If setup needs these embeddings, choose **Build embeddings locally** or run `atlas setup --build-embeddings-locally`.',
     'This can take an hour or more. You can also wait for a nightly with updated embeddings.',
   ].join('\n') : '';
-  return { archiveSha256, notice };
+  return { notice };
 }

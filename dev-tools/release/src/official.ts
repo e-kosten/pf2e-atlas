@@ -1,41 +1,23 @@
 import path from 'node:path';
-import { macosDmg, object, officialPackageTag, readJson, sha256, windowsInstaller } from './release-data.js';
-import { releaseAssetNames, releaseEndpoint, releases, uploadDraftAssets, verifyReleaseSource, type Release, type Run } from './release-upload.js';
+import { macosDmg, object, officialPackageTag, readJson, windowsInstaller } from './release-data.js';
+import { expectedAssetDigests, readRelease, releaseEndpoint, releases, uploadDraftAssets, verifyUploadedAssets, type Run } from './release-upload.js';
 
 export async function publishOfficial(tag: string, sha: string, dist: string, run: Run): Promise<void> {
-  if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== officialPackageTag(tag)) {
+  const packageTag = officialPackageTag(tag);
+  if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== packageTag) {
     throw new Error('Release manifest version mismatch');
   }
   const listed = releases(run).find((item) => item.tag_name === tag);
-  if (!listed || !Number.isSafeInteger(listed.id) || listed.id <= 0) throw new Error(`Missing release ID for ${tag}`);
+  if (!listed) throw new Error(`Missing release ID for ${tag}`);
   const endpoint = `${releaseEndpoint}/${listed.id}`;
-  const names = releaseAssetNames(dist);
-  const expected = new Map(await Promise.all(names.map(async (name) =>
-    [name, `sha256:${await sha256(path.join(dist, name))}`] as const)));
-  const readRelease = (): Release => {
-    const release: Release = JSON.parse(run('gh', ['api', endpoint]));
-    if (release.id !== listed.id) throw new Error('Official release lookup returned a different ID');
-    verifyReleaseSource(run, release, tag, sha);
-    const pages: NonNullable<Release['assets']>[] = JSON.parse(run('gh', [
-      'api', '--paginate', '--slurp', endpoint + '/assets?per_page=100',
-    ]));
-    const assets = pages.flat();
-    const extras = assets.filter((asset) => !expected.has(asset.name));
-    if (extras.length) throw new Error(`Unexpected assets for ${tag}: ${extras.map((asset) => asset.name).join(', ')}`);
-    return { ...release, assets };
-  };
-  const release = readRelease();
+  const expected = await expectedAssetDigests(dist, packageTag);
+  const release = readRelease(run, listed.id, tag, sha, expected);
   const prerelease = tag.startsWith('rc/');
   if (!release.draft && release.prerelease !== prerelease) throw new Error('Published release channel mismatch');
-  if (release.draft) uploadDraftAssets(run, release, dist, names);
-  const uploaded = release.draft ? readRelease() : release;
+  if (release.draft) uploadDraftAssets(run, release, dist, expected.keys());
+  const uploaded = release.draft ? readRelease(run, listed.id, tag, sha, expected) : release;
   if (release.draft && !uploaded.draft) throw new Error('Expected an official draft after uploading assets');
-  for (const [name, digest] of expected) {
-    const matching = uploaded.assets?.filter((asset) => asset.name === name);
-    if (matching?.length !== 1 || matching[0].digest !== digest) {
-      throw new Error(`Uploaded asset missing, duplicated or has a digest mismatch for ${tag}: ${name}`);
-    }
-  }
+  verifyUploadedAssets(uploaded, expected);
   if (!release.draft) return;
   const notes = uploaded.body ?? '';
   const downloads = [
