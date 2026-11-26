@@ -210,10 +210,12 @@ atlas similar 'Lich' --sections core --search-content core --json
 atlas similar 'Brown Mold' --method passages --decay 0.5 --explain --json
 ```
 
-Similar uses stored vectors and needs no model weights. Records default to
-Passage matches. Source
-comparison options without `--method` select Passage matches. Candidate scope
-alone (`--search-content`) keeps the seed's method default. `--method passages`
+Start Similar from a record key or a strictly resolved record name. For a trait,
+use `atlas record definition trait:agile` to read the definition or
+`atlas search --trait agile` for members. Similar uses stored vectors and needs
+no model weights. Records default to Passage matches. Source comparison options
+without `--method` select Passage matches. Candidate scope alone
+(`--search-content`) keeps the seed's method default. `--method passages`
 compares selected content with geometric rank decay from the strongest logical
 part (0) through equal-part contribution (1). `--method content-average` compares
 content centroids; it does not accept decay. `--method baseline` preserves root
@@ -228,12 +230,11 @@ for the seed's kind. The source preset and repeated `--part` conflict. Discover
 Core's exact resolved components with `--list-parts --sections core`; ordinary
 `--list-parts` also exposes the identity component for a Custom selection. A
 record without allowed Core prose retains identity only, with an explicit reason;
-missing required vectors are errors. Trait presets retain their existing definition
-or clearly labelled label-only representation without adding a second identity.
+missing required vectors are errors.
 Never construct selectors from labels or silently replace stale or unavailable
 explicit components. `--candidate-parts any`
 allows matches anywhere; `corresponding` restricts comparisons to shared content
-roles across kinds. Trait definitions support only any-content matching.
+roles across kinds.
 `--search-content all|core` independently chooses eligible candidate content in
 Similar and ordinary text search. Each candidate uses its own kind's Core recipe,
 not the seed's recipe. For example, `atlas similar 'Lich' --sections core --search-content all` compares the Lich's identity/description with all candidate

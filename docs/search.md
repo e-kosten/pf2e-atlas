@@ -50,8 +50,8 @@ choose **Sections to compare** to use all of that entry's content, its main sect
 
 The default **Passage matches** method looks for matches to individual passages.
 **Content average** compares the selected content as a whole. **Name and identity**
-uses the entry's name and basic details rather than its descriptions. Starting
-from a trait uses **Trait definition** by default.
+uses the entry's name and basic details. To find entries with a particular trait,
+select that trait in the Search filters.
 
 **Sections to compare** chooses content from the entry you started with.
 **Search content** chooses which parts of the other entries can match it.
