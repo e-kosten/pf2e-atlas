@@ -155,13 +155,7 @@ impl EncounterDocument {
             }
         }
         let mut record_keys = self.participant_record_keys()?;
-        let output_version = fingerprint_version(&record_keys, &self.record_sources);
-        if output_version == NOTE_FINGERPRINT_VERSION {
-            if self.version < NOTE_FINGERPRINT_VERSION {
-                return Err(invalid(
-                    "reference fingerprint has no matching participant record",
-                ));
-            }
+        if self.version >= NOTE_FINGERPRINT_VERSION && !self.record_sources.is_empty() {
             record_keys.extend(self.markdown_record_keys());
         }
         let mut sources = BTreeSet::new();
@@ -184,7 +178,7 @@ impl EncounterDocument {
             return Err(invalid("participant and boundary keys must be nonempty"));
         }
         self.normalize_membership();
-        self.version = output_version;
+        self.version = CURRENT_VERSION;
         Ok(ids)
     }
 }

@@ -391,8 +391,7 @@ fn creation_receipts_remain_with_the_owner_after_copy_and_deletion() -> crate::L
 }
 
 #[test]
-fn legacy_encounter_import_maps_each_saved_phase_and_exports_only_v3() -> crate::LocalStateResult<()>
-{
+fn legacy_encounter_import_maps_each_saved_phase_and_exports_v4() -> crate::LocalStateResult<()> {
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("../../tests/fixtures/encounter-v1.json"))?;
     let target = TestStore::open(temp_path("legacy-archive-membership"))?;
@@ -413,7 +412,7 @@ fn legacy_encounter_import_maps_each_saved_phase_and_exports_only_v3() -> crate:
             let new: serde_json::Value = serde_json::from_slice(
                 &writer.export_document(&imported.encounter_key)?.encode()?,
             )?;
-            assert_eq!(new["version"], 3);
+            assert_eq!(new["version"], 4);
             let frozen = new.pointer("/outgoing/turn/snapshot/encounter").unwrap();
             assert_eq!(frozen["archived"], false);
             assert_eq!(frozen["revision"], 6);
@@ -475,6 +474,15 @@ fn encounter_fingerprints_cover_live_and_frozen_notes_and_reject_unrelated_recor
         {"record_key": "spells:frozen", "content_hash": "frozen"},
         {"record_key": "hazards:trap", "content_hash": "trap"}
     ]);
+    value["version"] = 3.into();
+    let participant_sources =
+        serde_json::json!([{"record_key": "actors:goblinWarrior", "content_hash": "goblin"}]);
+    value["record_sources"] = participant_sources.clone();
+    let mut old = EncounterDocument::read(value.to_string().as_bytes())?;
+    let reexport: serde_json::Value = serde_json::from_slice(&old.encode()?)?;
+    assert_eq!(reexport["version"], 4);
+    assert_eq!(reexport["record_sources"], participant_sources);
+
     value["record_sources"] = sources.clone();
     assert!(
         EncounterDocument::read(value.to_string().as_bytes()).is_err(),
@@ -520,7 +528,7 @@ fn direct_document_encode_and_import_check_the_declared_membership_version()
 
     let mut old: EncounterDocument = serde_json::from_str(fixture)?;
     let encoded: serde_json::Value = serde_json::from_slice(&old.encode()?)?;
-    assert_eq!(encoded["version"], 3);
+    assert_eq!(encoded["version"], 4);
     assert_eq!(encoded["snapshot"]["encounter"]["archived"], true);
     let old: EncounterDocument = serde_json::from_str(fixture)?;
     let copy = writer.import_document(old, None)?;

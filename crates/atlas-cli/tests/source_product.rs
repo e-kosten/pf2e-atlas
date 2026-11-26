@@ -3511,7 +3511,7 @@ fn encounter_exchange_handles_collisions_without_overwriting() {
     assert!(export.status.success(), "{export:?}");
     let bytes = fs::read(&file).unwrap();
     let mut document: Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["version"], 3);
+    assert_eq!(document["version"], 4);
     assert_eq!(document["snapshot"]["encounter"]["archived"], false);
     assert!(document.get("status").is_none());
     let collision = source.command(

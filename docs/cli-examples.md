@@ -471,11 +471,12 @@ atlas encounters show garden-sentries-copy
 ```
 
 Export writes JSON to stdout by default. It preserves archive membership, the saved
-round and the current participant. The export uses version 4 when it includes a
-content fingerprint for a record linked only in a GM or participant note. Reading
-that file requires a version 4 reader. Other new exports use version 3. Atlas
-also reads earlier supported versions. Older exports can report a missing linked
-record. Detecting a change to its content requires its original fingerprint.
+round and the current participant. Every new standalone encounter file uses
+version 4. To share one, the recipient needs Atlas 0.1.0 or another build that
+reads version 4. Atlas can still import encounter files in versions 1–3.
+When reference data is available, the export includes fingerprints for records
+linked in GM and participant notes. Detecting a content change on import
+requires the record’s original fingerprint.
 
 A named output file must be new. Import uses the exported slug unless you supply `--slug`
 and fails if that slug is already in use. The result reports missing or

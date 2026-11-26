@@ -24,7 +24,7 @@ impl AtlasAppService {
             match session.exact_records() {
                 Ok(reader) => {
                     document.source_fingerprint = Some(reader.source_fingerprint().into());
-                    let sources = reader
+                    document.record_sources = reader
                         .summaries(&document.record_keys()?)?
                         .into_iter()
                         .map(|record| EncounterRecordSource {
@@ -32,7 +32,6 @@ impl AtlasAppService {
                             content_hash: record.content_hash,
                         })
                         .collect();
-                    document.set_record_sources(sources)?;
                 }
                 Err(error) if error.reference_unavailable() => {}
                 Err(error) => return Err(error.into()),
@@ -65,7 +64,7 @@ impl AtlasAppService {
                         .map(|record| (record.key, record.content_hash))
                         .collect();
                     let source: BTreeMap<_, _> = document
-                        .record_sources()
+                        .record_sources
                         .iter()
                         .map(|record| (&record.record_key, &record.content_hash))
                         .collect();

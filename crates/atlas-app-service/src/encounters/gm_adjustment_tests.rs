@@ -205,7 +205,7 @@ fn timed_gm_adjustment_expires_once_and_standalone_import_remaps_its_anchor() {
     );
     let exported = f.worker.export_encounter(&encounter).unwrap();
     let mut document: serde_json::Value = serde_json::from_slice(&exported).unwrap();
-    assert_eq!(document["version"], 3);
+    assert_eq!(document["version"], 4);
     for path in ["/snapshot/encounter", "/outgoing/turn/snapshot/encounter"] {
         if let Some(root) = document
             .pointer_mut(path)

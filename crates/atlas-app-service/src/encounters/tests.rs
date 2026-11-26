@@ -691,7 +691,7 @@ fn encounter_exchange_preserves_note_links_without_reference_data() {
     .unwrap();
     let bytes = f.worker.export_encounter(&encounter.encounter_key).unwrap();
     let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(document["version"], 3);
+    assert_eq!(document["version"], 4);
     assert_eq!(document["record_sources"], serde_json::json!([]));
     assert!(document["source_fingerprint"].is_null());
     let copy = f
