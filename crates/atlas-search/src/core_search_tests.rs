@@ -587,7 +587,7 @@ fn identity_consumes_one_of_the_existing_seed_vector_slots() {
                 );
             } else {
                 let error = service.configurable_similar(query).unwrap_err();
-                assert_eq!(error.kind(), SearchErrorKind::InvalidOptions);
+                assert_eq!(error.kind(), SearchErrorKind::SimilaritySourceLimit);
                 assert!(error.to_string().contains("128"));
                 assert!(
                     error
