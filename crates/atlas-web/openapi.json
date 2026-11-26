@@ -1092,6 +1092,12 @@
           "artifact_not_ready",
           "artifact_incompatible",
           "vector_readiness_required",
+          "similarity_source_limit",
+          "similarity_candidate_limit",
+          "similarity_no_content",
+          "similarity_method_unavailable",
+          "similarity_source_stale",
+          "similarity_sections_stale",
           "embedding_model_unavailable",
           "workspace_access_failed",
           "workspace_maintenance_required",
@@ -18171,6 +18177,12 @@
           {
             "additionalProperties": false,
             "properties": {
+              "embedded_path": {
+                "items": {
+                  "$ref": "#/components/schemas/OwnedContentLocator"
+                },
+                "type": "array"
+              },
               "filter": {
                 "oneOf": [
                   {
@@ -18209,6 +18221,12 @@
                   {
                     "type": "null"
                   }
+                ]
+              },
+              "source_fingerprint": {
+                "type": [
+                  "string",
+                  "null"
                 ]
               },
               "source_sections": {
@@ -18354,6 +18372,9 @@
               },
               "seed": {
                 "$ref": "#/components/schemas/RecordSummaryView"
+              },
+              "source": {
+                "$ref": "#/components/schemas/SimilaritySourceDescriptor"
               }
             },
             "required": [
@@ -19684,7 +19705,14 @@
             "type": "string"
           },
           "core": {
-            "$ref": "#/components/schemas/CoreSectionSelection"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CoreSectionSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "parts": {
             "items": {
@@ -19700,6 +19728,9 @@
           },
           "seed": {
             "$ref": "#/components/schemas/SimilaritySeed"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SimilaritySourceDescriptor"
           },
           "supports_corresponding_parts": {
             "type": "boolean"
@@ -19766,6 +19797,12 @@
           {
             "additionalProperties": false,
             "properties": {
+              "embedded_path": {
+                "items": {
+                  "$ref": "#/components/schemas/OwnedContentLocator"
+                },
+                "type": "array"
+              },
               "kind": {
                 "enum": [
                   "record"
@@ -19774,6 +19811,12 @@
               },
               "record_key": {
                 "$ref": "#/components/schemas/RecordKey"
+              },
+              "source_fingerprint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -19784,6 +19827,42 @@
           }
         ]
       },
+      "SimilaritySourceDescriptor": {
+        "properties": {
+          "parent_title": {
+            "type": "string"
+          },
+          "seed": {
+            "$ref": "#/components/schemas/SimilaritySeed"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "seed",
+          "title"
+        ],
+        "type": "object"
+      },
+      "SimilaritySourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_artifact_generation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "seed": {
+            "$ref": "#/components/schemas/SimilaritySeed"
+          }
+        },
+        "required": [
+          "seed"
+        ],
+        "type": "object"
+      },
       "SimilaritySourceSections": {
         "enum": [
           "all",
@@ -19791,6 +19870,21 @@
           "custom"
         ],
         "type": "string"
+      },
+      "SimilaritySourceView": {
+        "properties": {
+          "artifact_generation": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SimilaritySourceDescriptor"
+          }
+        },
+        "required": [
+          "artifact_generation",
+          "source"
+        ],
+        "type": "object"
       },
       "SortDirection": {
         "enum": [
@@ -27922,6 +28016,53 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SimilarityPartsView"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/search/similarity/source": {
+      "post": {
+        "operationId": "similaritySource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimilaritySourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilaritySourceView"
                 }
               }
             },

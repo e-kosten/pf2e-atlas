@@ -19,6 +19,10 @@ fn actual_work_limits_keep_exact_boundaries_and_explain_how_to_reduce_work() {
             .contains(LIMIT_RECOVERY)
     );
     let error = vectors.include(1, 1, 1, 1, true).unwrap_err();
+    assert_eq!(
+        error.kind(),
+        crate::SearchErrorKind::SimilarityCandidateLimit
+    );
     assert!(error.to_string().contains("65536"));
     assert!(error.to_string().contains(LIMIT_RECOVERY));
 
@@ -26,6 +30,10 @@ fn actual_work_limits_keep_exact_boundaries_and_explain_how_to_reduce_work() {
     passages.include(62_500, 128, 128, 128, true).unwrap();
     assert_eq!(passages.comparisons, MAX_COMPARISONS);
     let error = passages.include(1, 128, 128, 1, true).unwrap_err();
+    assert_eq!(
+        error.kind(),
+        crate::SearchErrorKind::SimilarityCandidateLimit
+    );
     assert!(error.to_string().contains("8000000"));
     assert!(error.to_string().contains(LIMIT_RECOVERY));
 
@@ -34,6 +42,10 @@ fn actual_work_limits_keep_exact_boundaries_and_explain_how_to_reduce_work() {
         averages.include(128, 128, 128, 128, false).unwrap();
     }
     let error = averages.include(128, 128, 128, 128, false).unwrap_err();
+    assert_eq!(
+        error.kind(),
+        crate::SearchErrorKind::SimilarityCandidateLimit
+    );
     assert!(error.to_string().contains("8000000"));
     assert!(error.to_string().contains(LIMIT_RECOVERY));
 }
@@ -74,9 +86,7 @@ fn complete_candidate_union_above_4096_is_scored_when_actual_work_fits() {
         unit.vector[axis] = 1.;
     }
     let (service, _artifact) = open_input_fixture(data).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("actors:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::Passages {
         parts: None,
         candidate_parts: SimilarityCandidateParts::Corresponding,
@@ -117,7 +127,7 @@ fn complete_candidate_union_above_4096_is_scored_when_actual_work_fits() {
 }
 
 #[test]
-fn index_vector_read_limits_keep_actionable_section_recovery() {
+fn candidate_vector_read_limits_keep_actionable_filter_recovery() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
     let error = service
         .index
@@ -130,7 +140,10 @@ fn index_vector_read_limits_keep_actionable_section_recovery() {
         )
         .unwrap_err();
     let error = SearchError::from(error);
-    assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
+    assert_eq!(
+        error.kind(),
+        crate::SearchErrorKind::SimilarityCandidateLimit
+    );
     assert!(error.to_string().contains("Vector limit: 1"));
     assert!(error.to_string().contains(LIMIT_RECOVERY));
 }
@@ -183,9 +196,7 @@ fn compact_explanations_keep_first_32_rows_but_score_and_rank_all_65_components(
     }
     let (service, _artifact) = open_input_fixture(data).unwrap();
     let key: RecordKey = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: key.clone(),
-    };
+    let seed = SimilaritySeed::root(key.clone());
     let options = SimilarityOptions::Passages {
         parts: None,
         candidate_parts: SimilarityCandidateParts::Corresponding,
@@ -371,9 +382,11 @@ fn section_navigation_combines_overlapping_chunks_across_profiles_without_hydrat
     });
     data.semantic_units.extend(chunks);
     let (service, _artifact) = open_input_fixture(data).unwrap();
-    let key = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
+    let key: RecordKey = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
     service.reset_read_metrics();
-    let addresses = service.similarity_part_addresses(&key).unwrap();
+    let addresses = service
+        .similarity_part_addresses(&SimilaritySeed::root(key.clone()))
+        .unwrap();
     assert_eq!(addresses.len(), 1);
     let metrics = service.read_metrics();
     assert_eq!(metrics.sql_statements, 1);
@@ -394,7 +407,7 @@ fn section_navigation_combines_overlapping_chunks_across_profiles_without_hydrat
         }
     );
     assert!(label.is_none());
-    let seed = SimilaritySeed::Record { record_key: key };
+    let seed = SimilaritySeed::root(key);
     for profile in ["bge-base", "embeddinggemma"] {
         let inventory = service
             .similarity_parts(&seed, Some(&SearchProfileId::new(profile)))
@@ -498,9 +511,7 @@ fn corresponding_roles_filter_before_the_bounded_knn_and_other_never_corresponds
 #[test]
 fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let inventory = service.similarity_parts(&seed, None).unwrap();
     let reset = inventory
         .parts
@@ -590,9 +601,7 @@ fn selecting_a_small_part_of_a_large_seed_reads_only_selected_vectors() {
         unit.vector[0] = 1.;
     }
     let (service, _artifact) = open_input_fixture(input).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let reset = service
         .similarity_parts(&seed, None)
         .unwrap()
@@ -622,7 +631,7 @@ fn selecting_a_small_part_of_a_large_seed_reads_only_selected_vectors() {
     };
     assert!(
         run(&SimilarityOptions::default()).unwrap_err().kind()
-            == crate::SearchErrorKind::InvalidOptions
+            == crate::SearchErrorKind::SimilaritySourceLimit
     );
     let options = SimilarityOptions::Passages {
         decay: 0.5,
@@ -635,9 +644,7 @@ fn selecting_a_small_part_of_a_large_seed_reads_only_selected_vectors() {
 #[test]
 fn stale_parts_and_cancellation_are_explicit() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::Passages {
         decay: 0.5,
         parts: Some(vec![SimilarityPartSelector("stale".into())]),
@@ -659,7 +666,7 @@ fn stale_parts_and_cancellation_are_explicit() {
     };
     assert_eq!(
         service.configurable_similar(request).unwrap_err().kind(),
-        crate::SearchErrorKind::InvalidOptions
+        crate::SearchErrorKind::SimilaritySelectionStale
     );
     let cancelled = || true;
     let request = ConfigurableSimilarRequest {
@@ -698,7 +705,7 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
         })
         .unwrap()
         .unwrap();
-    let seed = SimilaritySeed::Record { record_key: key };
+    let seed = SimilaritySeed::root(key);
     let configured = service
         .configurable_similar(ConfigurableSimilarRequest {
             result_detail: atlas_domain::SearchResultDetail::Evidence,
@@ -754,9 +761,7 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
         }
     }
     let (service, _artifact) = open_input_fixture(input).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "characters:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("characters:aaaaaaaaaaaaaaaa".parse().unwrap());
     let options = SimilarityOptions::Passages {
         decay: 0.5,
         parts: Some(

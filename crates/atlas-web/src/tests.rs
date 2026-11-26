@@ -13,6 +13,7 @@ mod character_sheet;
 mod definitions;
 mod fixture;
 mod read_abandonment_tests;
+mod similarity_documents;
 mod wire_conversion;
 use fixture::{ACTION, ACTOR, Fixture, SECOND_ACTION, TABLE};
 
@@ -2707,6 +2708,7 @@ async fn similar_page_transport_carries_exact_seed_and_body_free_summary() {
     assert_eq!(body["mode"]["kind"], "similar_records");
     assert_eq!(body["mode"]["seed"]["record_key"], ACTION);
     assert!(body["mode"]["seed"].get("presentation").is_none());
+    assert!(body["mode"].get("source").is_none());
     assert_eq!(body["page"]["number"], 2);
 }
 

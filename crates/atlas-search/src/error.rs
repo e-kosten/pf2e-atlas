@@ -10,6 +10,13 @@ pub enum SearchErrorKind {
     ArtifactContractViolation,
     InvalidFilter,
     InvalidOptions,
+    SimilaritySourceLimit,
+    SimilarityCandidateLimit,
+    SimilarityNoContent,
+    SimilarityMethodUnavailable,
+    SimilaritySourceStale,
+    SimilaritySourceMissing,
+    SimilaritySelectionStale,
     InvalidLexicalQuery(atlas_index::LexicalQueryError),
     VectorReadinessRequired,
     EmbeddingUnavailable,
@@ -50,6 +57,21 @@ impl SearchError {
     pub(crate) fn invalid_search_options(message: impl Into<String>) -> Self {
         Self::new(SearchErrorKind::InvalidOptions, message)
     }
+    pub(crate) fn similarity_source_limit(limit: usize) -> Self {
+        Self::new(
+            SearchErrorKind::SimilaritySourceLimit,
+            format!(
+                "This comparison is too broad to complete. Deselect some sections under Sections to compare. (Vector limit: {limit}.)"
+            ),
+        )
+    }
+
+    pub(crate) fn similarity_source_read(error: IndexError) -> Self {
+        match error {
+            IndexError::SimilarityUnitLimit(limit) => Self::similarity_source_limit(limit),
+            error => error.into(),
+        }
+    }
     pub(crate) fn embedding(message: impl Into<String>) -> Self {
         Self::new(SearchErrorKind::EmbeddingUnavailable, message)
     }
@@ -80,7 +102,7 @@ impl SearchError {
             | EmbeddingError::PreparedInputMismatch) => Self::query_failed(error.to_string()),
         }
     }
-    fn new(kind: SearchErrorKind, message: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: SearchErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
             message: message.into(),
@@ -113,6 +135,12 @@ impl From<IndexError> for SearchError {
             IndexError::LexicalQuery(reason) => Self::new(
                 SearchErrorKind::InvalidLexicalQuery(reason),
                 reason.to_string(),
+            ),
+            IndexError::SimilarityUnitLimit(limit) => Self::new(
+                SearchErrorKind::SimilarityCandidateLimit,
+                format!(
+                    "This comparison is too broad to complete. Add filters to narrow the results. (Vector limit: {limit}.)"
+                ),
             ),
             IndexError::Limit(message) => Self::invalid_search_options(message),
             IndexError::Query(e) => e.into(),

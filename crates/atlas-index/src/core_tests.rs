@@ -268,12 +268,7 @@ fn inventory_and_units_distinguish_identity_and_exact_core_prose() {
     let profile = SearchProfileId::new("bge-base");
     let key = input.records[0].record.key();
     let inventory = reader
-        .similarity_parts(
-            &SimilaritySeed::Record {
-                record_key: key.clone(),
-            },
-            Some(&profile),
-        )
+        .similarity_parts(&SimilaritySeed::root(key.clone()), Some(&profile))
         .unwrap();
     assert_eq!(
         inventory
@@ -284,10 +279,13 @@ fn inventory_and_units_distinguish_identity_and_exact_core_prose() {
         1
     );
     assert_eq!(
-        inventory.core.representation,
+        inventory.core.as_ref().unwrap().representation,
         CoreSectionRepresentation::IdentityAndProse
     );
-    assert_eq!(inventory.core.recipe, CORE_SECTIONS_RECIPE);
+    assert_eq!(
+        inventory.core.as_ref().unwrap().recipe,
+        CORE_SECTIONS_RECIPE
+    );
     let units = reader
         .similarity_units(
             &profile,
@@ -538,12 +536,7 @@ fn required_identity_vector_absence_is_a_readiness_failure() {
     let reader = crate::test_support::open_reader(&path).unwrap();
     let profile = SearchProfileId::new("bge-base");
     let inventory = reader
-        .similarity_parts(
-            &SimilaritySeed::Record {
-                record_key: key.clone(),
-            },
-            Some(&profile),
-        )
+        .similarity_parts(&SimilaritySeed::root(key.clone()), Some(&profile))
         .unwrap();
     assert!(
         !inventory

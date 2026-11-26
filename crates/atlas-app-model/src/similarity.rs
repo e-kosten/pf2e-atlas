@@ -9,6 +9,31 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct SimilaritySourceRequest {
+    pub seed: SimilaritySeed,
+    pub expected_artifact_generation: Option<String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SimilaritySourceDescriptor {
+    pub seed: SimilaritySeed,
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub parent_title: Option<String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SimilaritySourceView {
+    pub artifact_generation: String,
+    pub source: SimilaritySourceDescriptor,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SimilarityPartsRequest {
     pub seed: SimilaritySeed,
     pub search_profile: Option<SearchProfileId>,
@@ -22,7 +47,11 @@ pub struct SimilarityPartsView {
     pub search_profile: SearchProfileId,
     pub seed: SimilaritySeed,
     pub parts: Vec<SimilarityComponentView>,
-    pub core: CoreSectionSelection,
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub core: Option<CoreSectionSelection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub source: Option<SimilaritySourceDescriptor>,
     pub role_recipe: String,
     pub supports_corresponding_parts: bool,
 }

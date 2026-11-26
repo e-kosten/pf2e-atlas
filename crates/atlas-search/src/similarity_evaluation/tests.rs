@@ -82,9 +82,7 @@ fn variants() -> Vec<SimilarityEvaluationVariant> {
 #[test]
 fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let keys = [
         "hazards:aaaaaaaaaaaaaaaa",
         "hazards:bbbbbbbbbbbbbbbb",
@@ -188,9 +186,7 @@ fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
 fn explicit_selection_has_exact_role_coverage_and_filtering_reports_each_key() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
     let profile = SearchProfileId::new("bge-base");
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let reset = service
         .similarity_parts(&seed, Some(&profile))
         .unwrap()
@@ -276,9 +272,7 @@ fn direct_oracle_finds_a_winner_absent_from_every_bounded_knn_lane() {
         }
     }
     let (service, _artifact) = open_input_fixture(input).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let profile = SearchProfileId::new("bge-base");
     let prose = service
         .similarity_parts(&seed, Some(&profile))
@@ -341,9 +335,7 @@ fn direct_oracle_finds_a_winner_absent_from_every_bounded_knn_lane() {
 #[test]
 fn duplicate_keys_and_cancellation_are_explicit_failures() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let profile = SearchProfileId::new("bge-base");
     let variants = variants();
     let keys = [
@@ -398,9 +390,7 @@ fn undefined_seed_and_candidate_centroids_are_distinguished_from_zero_matches() 
             }
         }
         let (service, _artifact) = open_input_fixture(data).unwrap();
-        let seed = SimilaritySeed::Record {
-            record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-        };
+        let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
         let profile = SearchProfileId::new("bge-base");
         let prose = service
             .similarity_parts(&seed, Some(&profile))
@@ -442,9 +432,7 @@ fn undefined_seed_and_candidate_centroids_are_distinguished_from_zero_matches() 
 #[test]
 fn cancellation_during_a_matrix_does_not_return_a_partial_success() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let profile = SearchProfileId::new("bge-base");
     let variants = variants();
     let keys = [
@@ -474,9 +462,7 @@ fn cancellation_during_a_matrix_does_not_return_a_partial_success() {
 #[test]
 fn exact_custom_identity_is_scored_and_versioned_instead_of_silently_dropped() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let seed = SimilaritySeed::Record {
-        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-    };
+    let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
     let identity = service
         .similarity_parts(&seed, None)
         .unwrap()

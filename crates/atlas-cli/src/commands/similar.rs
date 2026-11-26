@@ -80,9 +80,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             Ok(record_key) => record_key,
             Err(error) => return resolve_error(error),
         };
-    let seed = SimilaritySeed::Record {
-        record_key: record_key.clone(),
-    };
+    let seed = SimilaritySeed::root(record_key.clone());
     let rediscovery = recovery::command(&o, Some(&seed));
     let explicit_parts = !o.parts.is_empty();
     let options = options.unwrap_or_default();
@@ -104,10 +102,14 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             std::ops::ControlFlow::Continue(value) => value,
             std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
-        if matches!(o.sections, Some(crate::cli::args::CliSearchContent::Core)) {
+        let core = inventory
+            .core
+            .as_ref()
+            .filter(|_| matches!(o.sections, Some(crate::cli::args::CliSearchContent::Core)));
+        if let Some(core) = core {
             inventory
                 .parts
-                .retain(|part| inventory.core.selectors.contains(part.selector()));
+                .retain(|part| core.selectors.contains(part.selector()));
         }
         if o.json {
             write_json_data(super::search::locators::parts(&inventory))?;
@@ -115,10 +117,10 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             println!("Comparison content for {}", o.record_ref);
             println!("Generation: {}", inventory.artifact_generation);
             println!("Model: {}\n", inventory.search_profile);
-            if matches!(o.sections, Some(crate::cli::args::CliSearchContent::Core)) {
+            if let Some(core) = core {
                 println!(
                     "Core selection: {}\n",
-                    core_representation_label(inventory.core.representation)
+                    core_representation_label(core.representation)
                 );
             }
             for part in inventory.parts {
@@ -145,6 +147,8 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         source_sections: o.sections.map(Into::into),
         search_content: o.search_content.map(Into::into),
         seed_record_key: record_key.to_string(),
+        embedded_path: vec![],
+        source_fingerprint: None,
         filter,
         similarity: Some(options),
     };
@@ -259,7 +263,7 @@ fn invalid(message: impl Into<String>) -> AppError {
 }
 
 fn print_results(result: &SearchResultsPage, explain: bool) {
-    if let SearchModeSummary::SimilarRecords { seed } = &result.mode {
+    if let SearchModeSummary::SimilarRecords { seed, .. } = &result.mode {
         println!("Similar to {}", seed.title);
     }
     if let Some(configuration) = &result.similarity {

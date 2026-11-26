@@ -1,5 +1,8 @@
 //! Stored-vector similarity workflows shared by terminal and browser consumers.
-use crate::{RecordScope, SearchError, SearchPage, SearchWitness, TextSearchResult};
+use crate::{
+    CheckedSimilaritySource, RecordScope, SearchError, SearchErrorKind, SearchPage, SearchWitness,
+    TextSearchResult,
+};
 use atlas_domain::{
     CORE_SECTIONS_RECIPE, CoreSectionSelection, QueryPredicate, RecordKey, ResultSort,
     SIMILARITY_COMPONENT_RECIPE, SIMILARITY_RECIPE, SIMILARITY_ROLE_RECIPE, SearchContentScope,
@@ -8,6 +11,7 @@ use atlas_domain::{
     SimilaritySourceSections,
 };
 use atlas_index::{SourceSimilarityUnit, SourceUnitLocation};
+use atlas_record::source_record::SourceBackedRecord;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 const MAX_SEED_UNITS: usize = 128;
@@ -15,8 +19,7 @@ const MAX_CANDIDATE_UNITS: usize = 65_536;
 const MAX_COMPARISONS: usize = 8_000_000;
 const CANDIDATE_WINDOW: usize = 256;
 const MAX_EXPLANATION_PARTS: usize = 32;
-const LIMIT_RECOVERY: &str =
-    "Deselect some sections under Sections to compare, or add filters to narrow the results.";
+const LIMIT_RECOVERY: &str = "Add filters to narrow the results.";
 
 #[derive(Default)]
 struct CandidateWorkBudget {
@@ -28,9 +31,12 @@ impl CandidateWorkBudget {
     fn remaining_vectors(&self) -> Result<usize, SearchError> {
         let remaining = MAX_CANDIDATE_UNITS.saturating_sub(self.vectors);
         if remaining == 0 {
-            return Err(SearchError::invalid_search_options(format!(
-                "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector limit: {MAX_CANDIDATE_UNITS}.)"
-            )));
+            return Err(SearchError::new(
+                SearchErrorKind::SimilarityCandidateLimit,
+                format!(
+                    "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector limit: {MAX_CANDIDATE_UNITS}.)"
+                ),
+            ));
         }
         Ok(remaining)
     }
@@ -44,14 +50,17 @@ impl CandidateWorkBudget {
         passages: bool,
     ) -> Result<(), SearchError> {
         let total_vectors = self.vectors.checked_add(vectors).ok_or_else(|| {
-            SearchError::invalid_search_options(format!(
+            SearchError::new(SearchErrorKind::SimilarityCandidateLimit, format!(
                 "This comparison is too broad to complete. {LIMIT_RECOVERY} (Workload exceeds the supported range.)"
             ))
         })?;
         if total_vectors > MAX_CANDIDATE_UNITS {
-            return Err(SearchError::invalid_search_options(format!(
-                "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector limit: {MAX_CANDIDATE_UNITS}.)"
-            )));
+            return Err(SearchError::new(
+                SearchErrorKind::SimilarityCandidateLimit,
+                format!(
+                    "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector limit: {MAX_CANDIDATE_UNITS}.)"
+                ),
+            ));
         }
         let workload = if passages {
             vectors.checked_mul(seed_units)
@@ -65,14 +74,17 @@ impl CandidateWorkBudget {
         let comparisons = workload
             .and_then(|count| self.comparisons.checked_add(count))
             .ok_or_else(|| {
-                SearchError::invalid_search_options(format!(
+                SearchError::new(SearchErrorKind::SimilarityCandidateLimit, format!(
                     "This comparison is too broad to complete. {LIMIT_RECOVERY} (Workload exceeds the supported range.)"
                 ))
             })?;
         if comparisons > MAX_COMPARISONS {
-            return Err(SearchError::invalid_search_options(format!(
-                "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector-pair limit: {MAX_COMPARISONS}.)"
-            )));
+            return Err(SearchError::new(
+                SearchErrorKind::SimilarityCandidateLimit,
+                format!(
+                    "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector-pair limit: {MAX_COMPARISONS}.)"
+                ),
+            ));
         }
         self.vectors = total_vectors;
         self.comparisons = comparisons;
@@ -96,6 +108,7 @@ pub struct ConfigurableSimilarRequest<'a> {
 }
 #[derive(Debug)]
 pub struct ConfigurableSimilarResult {
+    pub embedded_source: Option<SourceBackedRecord>,
     pub seed: atlas_domain::SourceRecordSummary,
     pub results: TextSearchResult,
     pub evidence: Vec<(RecordKey, SimilarityEvidence)>,
@@ -298,30 +311,6 @@ impl ConfigurableSimilarRequest<'_> {
 }
 
 impl crate::AtlasRetrievalService {
-    pub fn similarity_part_addresses(
-        &self,
-        record: &RecordKey,
-    ) -> Result<BTreeMap<SimilarityPartSelector, atlas_domain::SourcePassageAddress>, SearchError>
-    {
-        Ok(self.index.similarity_part_addresses(record)?)
-    }
-
-    pub fn similarity_parts(
-        &self,
-        seed: &SimilaritySeed,
-        profile: Option<&SearchProfileId>,
-    ) -> Result<SimilarityParts, SearchError> {
-        if let SimilaritySeed::Record { record_key } = seed
-            && self.index.read_summary(record_key)?.is_none()
-        {
-            return Err(SearchError::invalid_search_options(format!(
-                "comparison seed {record_key} was not found"
-            )));
-        }
-        let profile = self.resolve_search_profile(profile, false)?;
-        Ok(self.index.similarity_parts(seed, Some(&profile))?)
-    }
-
     pub fn configurable_similar(
         &self,
         request: ConfigurableSimilarRequest<'_>,
@@ -361,11 +350,39 @@ impl crate::AtlasRetrievalService {
                 request.source_sections,
             )?)
         };
-        let SimilaritySeed::Record { record_key } = request.seed;
-        let Some(seed) = self.index.read_summary(record_key)? else {
+        let Some(CheckedSimilaritySource {
+            record: seed,
+            embedded_source,
+        }) = self.similarity_source(request.seed)?
+        else {
             return Ok(None);
         };
         let profile = self.resolve_search_profile(request.search_profile, true)?;
+        if embedded_source.is_some()
+            && (matches!(request.options, SimilarityOptions::Baseline {})
+                || source_sections == Some(SimilaritySourceSections::Core))
+        {
+            let parts = self
+                .index
+                .similarity_parts(request.seed, Some(&profile))?
+                .parts;
+            let error = if parts.is_empty() {
+                SearchError::new(
+                    SearchErrorKind::SimilarityNoContent,
+                    "This document has no indexed text to compare.",
+                )
+            } else if !parts.iter().any(SimilarityComponent::has_vectors) {
+                SearchError::vector_readiness_required(
+                    "This document has no stored comparison vectors for the selected profile.",
+                )
+            } else {
+                SearchError::new(
+                    SearchErrorKind::SimilarityMethodUnavailable,
+                    "This comparison setting requires a whole record. Choose a content comparison or compare the parent record.",
+                )
+            };
+            return Err(error);
+        }
         if matches!(request.options, SimilarityOptions::Baseline {}) {
             let (roots, window) = self.rank_similar_seed(
                 &seed,
@@ -384,6 +401,7 @@ impl crate::AtlasRetrievalService {
                 request.result_detail,
             )?;
             return Ok(Some(ConfigurableSimilarResult {
+                embedded_source,
                 seed,
                 results,
                 evidence: vec![],
@@ -423,20 +441,28 @@ impl crate::AtlasRetrievalService {
                 "a selected comparison component has no stored vectors; refresh the sections inventory or update the reference workspace",
             ));
         }
+        // Every selected component above has at least one vector. Reject oversized
+        // inventories before binding their complete selector list in SQLite.
+        if selected.len() > MAX_SEED_UNITS {
+            return Err(SearchError::similarity_source_limit(MAX_SEED_UNITS));
+        }
         let source_identity = inventory
             .parts
             .iter()
             .any(|component| component.is_identity() && selected.contains(component.selector()));
         let candidate_identity =
             source_identity || request.content_scope == SearchContentScope::Core;
-        let mut seed_units = self.index.selected_similarity_units(
-            &profile,
-            std::slice::from_ref(&seed.key),
-            Some(&selected.iter().cloned().collect::<Vec<_>>()),
-            SearchContentScope::All,
-            source_identity,
-            MAX_SEED_UNITS,
-        )?;
+        let mut seed_units = self
+            .index
+            .selected_similarity_units(
+                &profile,
+                std::slice::from_ref(&seed.key),
+                Some(&selected.iter().cloned().collect::<Vec<_>>()),
+                SearchContentScope::All,
+                source_identity,
+                MAX_SEED_UNITS,
+            )
+            .map_err(SearchError::similarity_source_read)?;
         seed_units.retain(|unit| selected.contains(unit.component.selector()));
         if selected.iter().any(|selector| {
             !seed_units
@@ -448,8 +474,9 @@ impl crate::AtlasRetrievalService {
             ));
         }
         if seed_units.is_empty() {
-            return Err(SearchError::invalid_search_options(
-                "this seed has no indexed prose to compare; choose Name and identity instead",
+            return Err(SearchError::new(
+                SearchErrorKind::SimilarityNoContent,
+                "This document has no indexed text to compare.",
             ));
         }
         let seed_parts = crate::similarity_scoring::parts(&seed_units)?;
@@ -757,6 +784,7 @@ impl crate::AtlasRetrievalService {
             Some(hydration_started.elapsed().as_secs_f64() * 1000.0);
         diagnostics.timings.total_ms = Some(started.elapsed().as_secs_f64() * 1000.0);
         Ok(Some(ConfigurableSimilarResult {
+            embedded_source,
             seed,
             results,
             evidence,
@@ -769,7 +797,9 @@ impl crate::AtlasRetrievalService {
                 || request.content_scope == SearchContentScope::Core)
                 .then(|| CORE_SECTIONS_RECIPE.into()),
             resolved_selectors: selected.into_iter().collect(),
-            core: (source_sections == SimilaritySourceSections::Core).then_some(inventory.core),
+            core: inventory
+                .core
+                .filter(|_| source_sections == SimilaritySourceSections::Core),
             recipe: if source_sections == SimilaritySourceSections::Core
                 || candidate_identity
                 || request.content_scope == SearchContentScope::Core
@@ -941,7 +971,19 @@ pub(crate) fn selected_components(
             .iter()
             .map(|component| component.selector().clone())
             .collect(),
-        SimilaritySourceSections::Core => inventory.core.selectors.iter().cloned().collect(),
+        SimilaritySourceSections::Core => inventory
+            .core
+            .as_ref()
+            .ok_or_else(|| {
+                SearchError::new(
+                    SearchErrorKind::SimilarityMethodUnavailable,
+                    "Core sections requires a whole record.",
+                )
+            })?
+            .selectors
+            .iter()
+            .cloned()
+            .collect(),
         SimilaritySourceSections::Custom => options
             .parts()
             .ok_or_else(|| {
@@ -954,12 +996,14 @@ pub(crate) fn selected_components(
             .collect(),
     };
     if selected.is_empty() {
-        return Err(SearchError::invalid_search_options(
-            "this seed has no indexed prose; choose Core sections or Name and identity instead",
+        return Err(SearchError::new(
+            SearchErrorKind::SimilarityNoContent,
+            "This document has no indexed text to compare.",
         ));
     }
     if !selected.is_subset(&available) {
-        return Err(SearchError::invalid_search_options(
+        return Err(SearchError::new(
+            SearchErrorKind::SimilaritySelectionStale,
             "a selected comparison section is stale or unavailable; refresh the sections inventory",
         ));
     }
@@ -971,3 +1015,6 @@ mod tests;
 
 #[cfg(test)]
 mod eligibility_tests;
+
+#[cfg(test)]
+mod document_tests;

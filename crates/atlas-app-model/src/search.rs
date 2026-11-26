@@ -103,6 +103,10 @@ pub enum ConnectionScopeUnavailableReason {
 pub enum SearchCriteria {
     SimilarRecords {
         seed_record_key: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        embedded_path: Vec<atlas_domain::OwnedContentLocator>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_fingerprint: Option<String>,
         filter: Option<QueryPredicate>,
         #[serde(default)]
         /// Omission or null uses passage similarity, decay 0.5, and any candidate part.
@@ -132,6 +136,9 @@ pub enum SearchCriteria {
 pub enum SearchModeSummary {
     SimilarRecords {
         seed: Box<RecordSummaryView>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "openapi", schema(nullable = false))]
+        source: Option<crate::SimilaritySourceDescriptor>,
     },
     ListRecords,
     TextSearch {

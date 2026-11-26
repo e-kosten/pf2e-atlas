@@ -1099,6 +1099,12 @@ export const AppErrorCode = {
   artifact_not_ready: 'artifact_not_ready',
   artifact_incompatible: 'artifact_incompatible',
   vector_readiness_required: 'vector_readiness_required',
+  similarity_source_limit: 'similarity_source_limit',
+  similarity_candidate_limit: 'similarity_candidate_limit',
+  similarity_no_content: 'similarity_no_content',
+  similarity_method_unavailable: 'similarity_method_unavailable',
+  similarity_source_stale: 'similarity_source_stale',
+  similarity_sections_stale: 'similarity_sections_stale',
   embedding_model_unavailable: 'embedding_model_unavailable',
   workspace_access_failed: 'workspace_access_failed',
   workspace_maintenance_required: 'workspace_maintenance_required',
@@ -5715,11 +5721,14 @@ export const SimilaritySourceSections = {
 } as const;
 
 export type SearchCriteria = {
+  embedded_path?: OwnedContentLocator[];
   filter?: QueryPredicateInputSchema | null;
   kind: 'similar_records';
   search_content?: SearchContentScope | null;
   seed_record_key: string;
   similarity?: SimilarityOptionsInputSchema | null;
+  /** @nullable */
+  source_fingerprint?: string | null;
   source_sections?: SimilaritySourceSections | null;
 } | {
   filter?: QueryPredicateInputSchema | null;
@@ -5747,9 +5756,24 @@ export interface SearchMatchSectionView {
   preview: MatchPreviewView | null;
 }
 
+export type SimilaritySeed = {
+  embedded_path?: OwnedContentLocator[];
+  kind: 'record';
+  record_key: RecordKey;
+  /** @nullable */
+  source_fingerprint?: string | null;
+};
+
+export interface SimilaritySourceDescriptor {
+  parent_title?: string;
+  seed: SimilaritySeed;
+  title: string;
+}
+
 export type SearchModeSummary = {
   kind: 'similar_records';
   seed: RecordSummaryView;
+  source?: SimilaritySourceDescriptor;
 } | {
   kind: 'list_records';
 } | {
@@ -5996,11 +6020,6 @@ export interface SetEncounterTurnRequest {
   participant_key: string;
 }
 
-export type SimilaritySeed = {
-  kind: 'record';
-  record_key: RecordKey;
-};
-
 export interface SimilarityPartsRequest {
   /** @nullable */
   expected_artifact_generation?: string | null;
@@ -6010,12 +6029,24 @@ export interface SimilarityPartsRequest {
 
 export interface SimilarityPartsView {
   artifact_generation: string;
-  core: CoreSectionSelection;
+  core: CoreSectionSelection | null;
   parts: SimilarityComponentView[];
   role_recipe: string;
   search_profile: SearchProfileId;
   seed: SimilaritySeed;
+  source?: SimilaritySourceDescriptor;
   supports_corresponding_parts: boolean;
+}
+
+export interface SimilaritySourceRequest {
+  /** @nullable */
+  expected_artifact_generation?: string | null;
+  seed: SimilaritySeed;
+}
+
+export interface SimilaritySourceView {
+  artifact_generation: string;
+  source: SimilaritySourceDescriptor;
 }
 
 export interface TableRollMatchView {
@@ -9805,6 +9836,41 @@ return fetchGenerated<SimilarityPartsView>(getSimilarityPartsUrl(),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(similarityPartsRequest)
+  }
+);}
+
+
+
+export const getSimilaritySourceUrl = () => {
+
+
+
+
+  return `/api/search/similarity/source`
+}
+
+export const similaritySource = async (similaritySourceRequest: SimilaritySourceRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<SimilaritySourceView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<SimilaritySourceView>(getSimilaritySourceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(similaritySourceRequest)
   }
 );}
 

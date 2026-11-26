@@ -15,7 +15,7 @@ pub(super) fn missing_generation(options: &SimilarOptions) -> Option<String> {
 
 pub(super) fn command(options: &SimilarOptions, seed: Option<&SimilaritySeed>) -> String {
     let identity = match seed {
-        Some(SimilaritySeed::Record { record_key }) => record_key.to_string(),
+        Some(seed) => seed.record_key().to_string(),
         None => options.record_ref.clone(),
     };
     let mut words = vec![
@@ -55,10 +55,10 @@ pub(super) fn command(options: &SimilarOptions, seed: Option<&SimilaritySeed>) -
 }
 
 pub(super) fn enrich(mut error: AppError, rediscovery: &str, explicit_parts: bool) -> AppError {
-    // InvalidRequest has no selector-specific subtype. For an explicit selection,
-    // offer rediscovery as context without replacing the actual failure reason.
-    if error.code == AppErrorCode::ArtifactGenerationChanged
-        || (explicit_parts && error.code == AppErrorCode::InvalidRequest)
+    if matches!(
+        error.code,
+        AppErrorCode::ArtifactGenerationChanged | AppErrorCode::SimilaritySectionsStale
+    ) || (explicit_parts && error.code == AppErrorCode::InvalidRequest)
     {
         append_command(&mut error, rediscovery);
     }
@@ -98,9 +98,7 @@ mod tests {
         else {
             panic!("expected Similar");
         };
-        let seed = SimilaritySeed::Record {
-            record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
-        };
+        let seed = SimilaritySeed::root("hazards:aaaaaaaaaaaaaaaa".parse().unwrap());
         let actual = command(&options, Some(&seed));
         assert!(actual.starts_with("atlas similar hazards:aaaaaaaaaaaaaaaa --list-parts --sections core --search-profile embeddinggemma --path-mode repo --index "));
         assert!(actual.ends_with(" --json"));
@@ -121,6 +119,7 @@ mod tests {
         for (code, explicit) in [
             (AppErrorCode::ArtifactGenerationChanged, false),
             (AppErrorCode::InvalidRequest, true),
+            (AppErrorCode::SimilaritySectionsStale, true),
         ] {
             let mut original = AppError::new(code, "Refresh required").with_details(
                 json!({"expected_artifact_generation":"old","actual_artifact_generation":"new"}),

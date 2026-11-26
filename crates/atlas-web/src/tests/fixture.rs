@@ -138,7 +138,7 @@ impl Fixture {
         .collect();
         Self::with_reference_data(false, None, None, 16, records)
     }
-    fn with_reference_data(
+    pub(super) fn with_reference_data(
         remaster: bool,
         adjustment: Option<&str>,
         coverage: Option<bool>,
@@ -202,6 +202,19 @@ impl Fixture {
         }
         let mut data = input(records, true);
         if remaster {
+            // Give the journal's prose a known positive match to its referenced action.
+            let matching_vector = data
+                .semantic_units
+                .iter()
+                .find(|unit| unit.record.to_string() == ACTION && unit.field.is_some())
+                .unwrap()
+                .vector
+                .clone();
+            for passage in data.semantic_units.iter_mut().filter(|unit| {
+                unit.record.to_string() == "journals:editionjournal01" && unit.field.is_some()
+            }) {
+                passage.vector.clone_from(&matching_vector);
+            }
             data.remaster_pairs
                 .push(atlas_index::SourceRemasterPairInput {
                     legacy: ACTION.parse().unwrap(),

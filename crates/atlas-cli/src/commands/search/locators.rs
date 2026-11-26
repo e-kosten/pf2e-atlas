@@ -64,7 +64,7 @@ pub(in crate::commands) fn parts(inventory: &SimilarityPartsView) -> Value {
 pub(in crate::commands) fn page(result: &SearchResultsPage) -> Value {
     let mut value = json!(result);
     let generation = &result.artifact_generation;
-    if let SearchModeSummary::SimilarRecords { seed } = &result.mode {
+    if let SearchModeSummary::SimilarRecords { seed, .. } = &result.mode {
         summary(&mut value["mode"]["seed"], seed, generation);
     }
     for (i, clause) in result.relationship_clauses.iter().enumerate() {

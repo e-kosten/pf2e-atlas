@@ -3,7 +3,6 @@ use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     AppErrorCode, RecordDetailRequest, RecordDetailView, RecordNavigationView, RecordSelection,
 };
-use atlas_domain::OwnedContentIdentity;
 use atlas_domain::{QueryPredicate, RecordKey, SourcePassageAddress};
 use atlas_record::source_content::SourceContentLocator;
 use atlas_record::source_record::{
@@ -866,29 +865,18 @@ fn validate_selection(
     }
     Ok(key)
 }
-pub(crate) fn address_requires_fingerprint(owners: &[atlas_domain::OwnedContentLocator]) -> bool {
-    owners
-        .iter()
-        .any(|owner| matches!(owner.identity, OwnedContentIdentity::SnapshotLocal { .. }))
-}
-
 pub(crate) fn address_fingerprint_matches(
     owners: &[atlas_domain::OwnedContentLocator],
     supplied: Option<&str>,
     current: &str,
 ) -> bool {
-    !address_requires_fingerprint(owners) || supplied == Some(current)
+    !atlas_domain::OwnedContentLocator::requires_fingerprint(owners) || supplied == Some(current)
 }
 
 pub(crate) fn validate_address_bounds(
     owners: &[atlas_domain::OwnedContentLocator],
 ) -> AppServiceResult<()> {
-    if owners.len() > 32
-        || owners.iter().any(|owner| {
-            owner.collection.len() > 512
-                || matches!(&owner.identity, OwnedContentIdentity::Stable(id) if id.len() > 512)
-        })
-    {
+    if !atlas_domain::OwnedContentLocator::within_address_bounds(owners) {
         return Err(AppServiceError::invalid_request(
             "detail selection exceeds its embedded path or field bounds",
         ));

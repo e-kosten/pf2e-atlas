@@ -96,36 +96,36 @@ impl SqliteIndexReader {
     ) -> Result<SimilarityParts, IndexError> {
         let c = self.native()?;
         self.count_statement();
-        let parts = match seed {
-            SimilaritySeed::Record { record_key } => {
-                let sql = format!(
-                    "SELECT {},EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) WHERE sl.section_id=ss.section_id AND su.profile_id=?2) FROM selected_sections ss JOIN records r USING(record_id) WHERE r.key=?1 AND r.document_kind<>'Macro' ORDER BY ss.owners_json,ss.field_path,ss.section_ordinal",
-                    crate::selected_sections::COLUMNS
-                );
-                let mut statement = c.prepare(&sql)?;
-                let mut rows = statement.query(rusqlite::params![
-                    record_key.to_string(),
-                    profile.map(SearchProfileId::as_str)
-                ])?;
-                let mut parts = Vec::new();
-                while let Some(row) = rows.next()? {
-                    let mut section = crate::selected_sections::SelectedSection::read(row, 0)?;
-                    section.part.has_vectors = row.get(15)?;
-                    parts.push(SimilarityComponent::Section { part: section.part });
-                }
-                let identity = self
-                    .identity_components(std::slice::from_ref(record_key), profile)?
-                    .remove(record_key)
-                    .ok_or_else(|| {
-                        IndexError::Unavailable(format!("record {record_key} was not found"))
-                    })?;
-                parts.insert(0, identity);
-                parts
-            }
+        let record_key = seed.record_key();
+        let owners = document_owner_filter(seed)?;
+        let sql = format!(
+            "SELECT {},EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) WHERE sl.section_id=ss.section_id AND su.profile_id=?2) FROM selected_sections ss JOIN records r USING(record_id) WHERE r.key=?1 AND r.document_kind<>'Macro' AND (?3 IS NULL OR ss.owners_json=?3) ORDER BY ss.owners_json,ss.field_path,ss.section_ordinal",
+            crate::selected_sections::COLUMNS
+        );
+        let mut statement = c.prepare(&sql)?;
+        let mut rows = statement.query(rusqlite::params![
+            record_key.to_string(),
+            profile.map(SearchProfileId::as_str),
+            owners
+        ])?;
+        let mut parts = Vec::new();
+        let core = if owners.is_none() {
+            let identity = self
+                .identity_components(std::slice::from_ref(record_key), profile)?
+                .remove(record_key)
+                .ok_or_else(|| {
+                    IndexError::Unavailable(format!("record {record_key} was not found"))
+                })?;
+            parts.push(identity);
+            Some(self.core_selection(record_key, profile)?)
+        } else {
+            None
         };
-        let core = match seed {
-            SimilaritySeed::Record { record_key } => self.core_selection(record_key, profile)?,
-        };
+        while let Some(row) = rows.next()? {
+            let mut section = crate::selected_sections::SelectedSection::read(row, 0)?;
+            section.part.has_vectors = row.get(15)?;
+            parts.push(SimilarityComponent::Section { part: section.part });
+        }
         Ok(SimilarityParts {
             seed: seed.clone(),
             parts,
@@ -248,9 +248,7 @@ impl SqliteIndexReader {
         let mut units = Vec::new();
         while let Some(row) = rows.next()? {
             if units.len() == max_units {
-                return Err(IndexError::Limit(format!(
-                    "This comparison is too broad to complete. Deselect some sections under Sections to compare, or add filters to narrow the results. (Vector limit: {max_units}.)"
-                )));
+                return Err(IndexError::SimilarityUnitLimit(max_units));
             }
             let location = crate::read_units::location_at(row, 15)?;
             let address = location
@@ -276,5 +274,13 @@ impl SqliteIndexReader {
             });
         }
         Ok(units)
+    }
+}
+
+pub(crate) fn document_owner_filter(seed: &SimilaritySeed) -> Result<Option<String>, IndexError> {
+    if seed.embedded_path().is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(serde_json::to_string(seed.embedded_path())?))
     }
 }

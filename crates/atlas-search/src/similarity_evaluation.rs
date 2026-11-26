@@ -157,18 +157,19 @@ impl AtlasRetrievalService {
                 super::configurable_similarity::resolve_source_sections(&variant.options, None)?,
             )?;
             let selectors = selected.iter().cloned().collect::<Vec<_>>();
-            let mut units = match request.seed {
-                SimilaritySeed::Record { record_key } => self.index.selected_similarity_units(
+            let mut units = self
+                .index
+                .selected_similarity_units(
                     request.profile,
-                    std::slice::from_ref(record_key),
+                    std::slice::from_ref(request.seed.record_key()),
                     Some(&selectors),
                     atlas_domain::SearchContentScope::All,
                     inventory.parts.iter().any(|component| {
                         component.is_identity() && selected.contains(component.selector())
                     }),
                     128,
-                )?,
-            };
+                )
+                .map_err(SearchError::similarity_source_read)?;
             units.retain(|unit| selected.contains(unit.component.selector()));
             if units.is_empty()
                 || selected.iter().any(|selector| {
@@ -216,18 +217,21 @@ impl AtlasRetrievalService {
             .iter()
             .any(|v| matches!(v.options, SimilarityOptions::Baseline {}))
         {
+            if !request.seed.embedded_path().is_empty() {
+                return Err(SearchError::new(
+                    crate::SearchErrorKind::SimilarityMethodUnavailable,
+                    "Name and identity requires a whole record.",
+                ));
+            }
             Some(
-                match request.seed {
-                    SimilaritySeed::Record { record_key } => self
-                        .index
-                        .seed_identity_vector(request.profile, record_key)?
-                        .map(|value| value.vector),
-                }
-                .ok_or_else(|| {
-                    SearchError::vector_readiness_required(
-                        "baseline evaluation seed has no stored legacy vector",
-                    )
-                })?,
+                self.index
+                    .seed_identity_vector(request.profile, request.seed.record_key())?
+                    .map(|value| value.vector)
+                    .ok_or_else(|| {
+                        SearchError::vector_readiness_required(
+                            "baseline evaluation seed has no stored legacy vector",
+                        )
+                    })?,
             )
         } else {
             None
@@ -246,7 +250,11 @@ impl AtlasRetrievalService {
                 0,
                 1024,
             )?;
-            eligible.extend(page.keys.into_iter().filter(|key| !matches!(request.seed, SimilaritySeed::Record { record_key } if record_key == key)));
+            eligible.extend(
+                page.keys
+                    .into_iter()
+                    .filter(|key| request.seed.record_key() != key),
+            );
         }
         let mut result = SimilarityEvaluationResult {
             artifact_generation: self.artifact_generation()?,
