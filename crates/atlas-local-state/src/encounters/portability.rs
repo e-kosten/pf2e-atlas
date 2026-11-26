@@ -20,6 +20,7 @@ use std::{
 
 const ARCHIVE_MEMBERSHIP_VERSION: u32 = 3;
 const NOTE_FINGERPRINT_VERSION: u32 = 4;
+const CURRENT_VERSION: u32 = NOTE_FINGERPRINT_VERSION;
 const LEGACY_VERSION: u32 = 1;
 const ADJUSTMENT_VERSION: u32 = 2;
 const BYTE_LIMIT: usize = 64 * 1024 * 1024;
@@ -37,7 +38,7 @@ pub struct EncounterDocument {
     receipts: Vec<Receipt>,
     outgoing: Option<Outgoing>,
     pub source_fingerprint: Option<String>,
-    record_sources: Vec<EncounterRecordSource>,
+    pub record_sources: Vec<EncounterRecordSource>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -164,19 +165,6 @@ impl EncounterDocument {
         &self.snapshot.encounter.name
     }
 
-    pub fn record_sources(&self) -> &[EncounterRecordSource] {
-        &self.record_sources
-    }
-
-    pub fn set_record_sources(
-        &mut self,
-        sources: Vec<EncounterRecordSource>,
-    ) -> LocalStateResult<()> {
-        self.version = fingerprint_version(&self.participant_record_keys()?, &sources);
-        self.record_sources = sources;
-        Ok(())
-    }
-
     pub fn record_keys(&self) -> LocalStateResult<Vec<atlas_domain::RecordKey>> {
         let mut keys = self.participant_record_keys()?;
         keys.extend(self.markdown_record_keys());
@@ -206,20 +194,6 @@ impl EncounterDocument {
                 .iter()
                 .flat_map(|row| snapshot_markdown_keys(&row.turn.snapshot)),
         )
-    }
-}
-
-fn fingerprint_version(
-    participants: &BTreeSet<atlas_domain::RecordKey>,
-    sources: &[EncounterRecordSource],
-) -> u32 {
-    if sources
-        .iter()
-        .any(|source| !participants.contains(&source.record_key))
-    {
-        NOTE_FINGERPRINT_VERSION
-    } else {
-        ARCHIVE_MEMBERSHIP_VERSION
     }
 }
 

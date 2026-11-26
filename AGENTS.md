@@ -20,6 +20,8 @@ matches the task; read those sections before changing that behavior.
   tooling); browser checks target affected
   behavior. CI owns the full applicable platform/browser matrix by default.
   Reuse valid checks for unchanged inputs; report the candidate actually tested.
+- Call out every compatibility change in the GitHub PR description. Follow the
+  [contributor guidance](CONTRIBUTING.md#compatibility-changes-in-pull-requests).
 - Keep related review fixes on the same PR. Verify CI on the published candidate
   before reporting it ready to merge. Implementation, local validation, human
   acceptance and hosted CI are separate outcomes.

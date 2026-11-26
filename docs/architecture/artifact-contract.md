@@ -1044,8 +1044,8 @@ schema captures the saved state before the adjustment table exists.
 
 Historical standalone exports used version 2 and workspace archives required at
 least version 3.0 when carrying adjustment state or history. Schema 51 stores
-archive membership on live and frozen encounters. Current standalone exports
-use version 3 and workspace backups containing encounters use version 7.0. Earlier supported versions
-remain readable. Encounter import remaps turn anchors with participant identity.
+archive membership on live and frozen encounters. New standalone encounter exports
+use version 4. Atlas still reads standalone versions 1–3. Workspace backups
+containing encounters use version 7.0. Encounter import remaps turn anchors with participant identity.
 See [ADR0051](decisions/0051-persistent-workspace.md) and
 [ADR0055](decisions/0055-encounter-condition-evaluation.md).
