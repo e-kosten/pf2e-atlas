@@ -1,4 +1,4 @@
-import { Alert, Button, Popover, Space, Typography } from "antd";
+import { Alert, Button, Flex, Popover, Space, Typography } from "antd";
 import { Info } from "lucide-react";
 import { useEffect } from "react";
 import { rollTable } from "../../api/atlasApi";
@@ -32,27 +32,29 @@ export function TableRollControl({
     <Space orientation="vertical" size="small" style={{ width: "100%" }}>
       <Space wrap>
         {formula && <span>{formula}</span>}
-        <Button
-          disabled={roll.busy || !resultsAvailable || !hasFormula}
-          loading={roll.busy && !roll.animating ? { delay: 300 } : false}
-          onClick={() =>
-            void roll.run(() =>
-              rollTable({ selection, artifact_generation: artifactGeneration }),
-            )
-          }
-        >
-          {result ? "Reroll" : "Roll"}
-        </Button>
+        <Flex align="center">
+          <Button
+            disabled={roll.busy || !resultsAvailable || !hasFormula}
+            loading={roll.busy && !roll.animating ? { delay: 300 } : false}
+            onClick={() =>
+              void roll.run(() =>
+                rollTable({ selection, artifact_generation: artifactGeneration }),
+              )
+            }
+          >
+            {result ? "Reroll" : "Roll"}
+          </Button>
+          <Popover content={rollNote} trigger={["click", "hover", "focus"]}>
+            <Button
+              type="text"
+              aria-label="About table rolls"
+              icon={<Info size={16} />}
+            />
+          </Popover>
+        </Flex>
         {!hasFormula && (
           <Typography.Text type="secondary">Roll formula unavailable</Typography.Text>
         )}
-        <Popover content={rollNote} trigger={["click", "hover", "focus"]}>
-          <Button
-            type="text"
-            aria-label="About table rolls"
-            icon={<Info size={16} />}
-          />
-        </Popover>
         {result && <RollResult outcome={result.outcome} pending={roll.animating} />}
       </Space>
       {roll.error && (

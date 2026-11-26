@@ -2774,6 +2774,53 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
   }
 });
 
+test("table rolls show the authored document name before its reading page loads", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-tables:table00000000002");
+  const more = page.getByRole("button", { name: "Load more results", exact: true });
+  await expect(more).toBeVisible();
+  const name = "Quartermaster's Longsword";
+  const rowLink = page.getByRole("table").getByRole("link", { name, exact: true });
+  await expect(rowLink).toHaveCount(0);
+
+  const summary = page.locator(".roll-table-result-summary");
+  const matchLink = summary.getByRole("link", { name, exact: true });
+  for (const label of ["Roll", "Reroll"]) {
+    const response = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/rolls/table" &&
+        response.request().method() === "POST",
+    );
+    await activate(page.getByRole("button", { name: label, exact: true }), info);
+    expect((await response).ok()).toBe(true);
+    await expect(summary.getByText("Result 33", { exact: true })).toBeVisible();
+    await expect(matchLink).toBeVisible();
+    await expect(rowLink).toHaveCount(0);
+  }
+  const href = await matchLink.getAttribute("href");
+  expect(new URL(href!, page.url()).pathname).toBe(
+    "/records/browser-equipment:sword00000000001",
+  );
+  if (info.project.use.hasTouch) await matchLink.tap();
+  else {
+    await matchLink.focus();
+    await matchLink.press("Enter");
+  }
+  const preview = page.getByRole("dialog", { name: /^Glossary Sword/ });
+  await expect(preview).toBeVisible();
+  await activate(
+    preview.getByRole("button", { name: "Close reference preview" }),
+    info,
+  );
+  await expect(preview).toBeHidden();
+  if (!info.project.use.hasTouch) await expect(matchLink).toBeFocused();
+
+  await activate(more, info);
+  await expect(rowLink).toBeVisible();
+  await expect(rowLink).toHaveAttribute("href", href!);
+});
+
 test("Other editions keeps exact source citation navigation and comparison", async ({
   page,
   context,
