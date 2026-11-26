@@ -364,7 +364,11 @@ export function ChoicePicker({
       data-reference-picker={!!optionAction || undefined}
       data-reading={isReading || undefined}
     >
-      <div inert={isReading || undefined} className="common-choice-view">
+      <div
+        inert={isReading || undefined}
+        className="common-choice-view"
+        data-hierarchical={!!onToggleGroup || undefined}
+      >
         {menuContent}
       </div>
       {reading && (

@@ -121,7 +121,25 @@
 .common-choice-option > .common-choice-row {
   flex: 1;
 }
+.common-choice-view[data-hierarchical] {
+  container-type: inline-size;
+}
+.common-choice-view[data-hierarchical] .common-choice-options {
+  scrollbar-gutter: stable;
+}
+.common-choice-view[data-hierarchical] .common-choice-option {
+  /* Leave room for overlay scrollbars. Classic scrollbars already consume layout width. */
+  inline-size: min(100%, calc(100cqi - var(--space-section)));
+  align-items: stretch;
+  gap: 0;
+}
+.common-choice-option:has(> .common-choice-disclosure) > .common-choice-row {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
 .common-choice-disclosure {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
   flex-shrink: 0;
   align-self: stretch;
   height: auto;

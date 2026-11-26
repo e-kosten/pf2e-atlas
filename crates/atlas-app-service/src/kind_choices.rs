@@ -13,7 +13,7 @@ pub(crate) fn record_selector(record: &atlas_domain::SourceRecordSummary) -> Opt
 pub(crate) fn label(id: &str) -> String {
     match id {
         "journal" => "All journals".into(),
-        "all_deities" => "All deity entries".into(),
+        "all_deities" => "Deities".into(),
         "all_spells" => "All spells".into(),
         "all_equipment" => "All equipment".into(),
         "character_advancement" => "Character advancement".into(),

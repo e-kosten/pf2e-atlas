@@ -3452,3 +3452,79 @@ test("Kind groups and child exceptions survive search, dismissal and reload", as
   await expect(included).toBeVisible();
   await expect(excluded).toHaveCount(0);
 });
+
+test("Kind rows keep selection and expansion adjoining and leave the scrollbar operable", async ({
+  page,
+}, info) => {
+  await page.goto("/search");
+  await showSearchFilters(page, info);
+  await activate(page.getByRole("button", { name: "Edit Kind filter" }), info);
+  const group = page.getByRole("button", { name: /^Kind: All spells,/ });
+  const expand = page.getByRole("button", { name: "Expand All spells" });
+  const list = page.locator(".common-choice-options").filter({ has: expand });
+  const checkTargets = async () => {
+    await expand.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        expand.evaluate((disclosure) => {
+          const option = disclosure.parentElement!;
+          const list = option.parentElement!.getBoundingClientRect();
+          const choose = option.querySelector("button")!;
+          const label = choose.getBoundingClientRect();
+          const arrow = disclosure.getBoundingClientRect();
+          const hit = (x: number, y: number) =>
+            document.elementFromPoint(x, y)?.closest("button");
+          return (
+            Math.abs(label.right - arrow.left) < 1 &&
+            [arrow.top + 3, arrow.bottom - 3].every(
+              (y) =>
+                hit(label.right - 2, y) === choose &&
+                hit(arrow.left + 2, y) === disclosure &&
+                hit(arrow.right - 3, y) === disclosure &&
+                !hit(list.right - 8, y),
+            )
+          );
+        }),
+      )
+      .toBe(true);
+  };
+  await checkTargets();
+  if (info.project.name === "desktop-chromium") {
+    // Exercise a persistent native scrollbar even on hosts that default to overlays.
+    await page.addStyleTag({
+      content: `
+      .common-choice-options { overflow-y: scroll; max-block-size: 124px; }
+      .common-choice-options::-webkit-scrollbar { width: 20px; background: Canvas; }
+      .common-choice-options::-webkit-scrollbar-thumb { background: currentColor; }
+    `,
+    });
+    await checkTargets();
+    await list.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    const rail = await list.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return {
+        width: node.offsetWidth - node.clientWidth,
+        overflow: node.scrollHeight - node.clientHeight,
+        x: box.right - 8,
+        y: box.top + box.height / 2,
+      };
+    });
+    expect(rail.width).toBe(20);
+    expect(rail.overflow).toBeGreaterThan(0);
+    await page.mouse.move(rail.x, rail.y);
+    await page.mouse.wheel(0, 64);
+    await expect.poll(() => list.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    await checkTargets();
+  }
+  const box = (await expand.boundingBox())!;
+  const y = box.y + box.height / 2;
+  const press = (x: number) =>
+    info.project.use.hasTouch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y);
+  await press(box.x - 2);
+  await expect(group).toHaveAccessibleName(/included; activate to exclude/);
+  await press(box.x + 2);
+  await expect(page.getByRole("button", { name: "Collapse All spells" })).toBeVisible();
+  await expect(group).toHaveAccessibleName(/included; activate to exclude/);
+});

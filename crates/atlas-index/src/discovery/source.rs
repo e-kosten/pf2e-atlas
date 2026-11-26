@@ -669,9 +669,6 @@ fn matching_display_names(
         if "companion".contains(text) {
             matching.insert("familiar".into());
         }
-        if "all deity entries".contains(text) {
-            matching.insert("all_deities".into());
-        }
         if "all journals".contains(text) {
             matching.insert("journal".into());
         }
