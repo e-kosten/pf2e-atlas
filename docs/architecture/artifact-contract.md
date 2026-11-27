@@ -288,7 +288,10 @@ root and immediate equipment fields.
 
 Root `kind` selectors describe reference categories and selectable groups.
 Eligibility, facets and result summaries use the same root classification from the
-record, spell and ability projections. Groups count distinct eligible roots.
+record, spell, ability, and root trait projections. Groups count distinct eligible
+roots. All spells groups the mutually exclusive Cantrip, Spell, and Ritual choices.
+The indexed ritual discriminator takes precedence. The root Cantrip trait determines
+Cantrip membership for the remaining spells.
 The journal group admits all JournalEntry roots. `journal_pack/<pack-id>` selects
 a journal pack using source identity. Static discovery describes this namespace.
 Workspace discovery supplies present pack IDs and labels. Embedded kind predicates
@@ -306,6 +309,10 @@ Workspace migration 52 adds the kind-specific filter rows. Catalog v12 and
 published root Disable check sidecar. The refresh preserves saved work and
 existing native vectors. Memberships use the same closed vocabularies, source
 states and executors as other query projections.
+
+Catalog v13 adds the Cantrip choice using the existing authored-query/v6
+projections. The standard offline catalog refresh rebuilds query rows and
+publishes the updated fingerprint. Saved work and stored vectors are preserved.
 
 Background skill training covers authored named skills and finite choices with
 a verified skill-rank binding. Hazard Disable skills use the artifact audience

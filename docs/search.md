@@ -29,7 +29,10 @@ on the button shows how many conditions are applied.
 
 Open **Kind** and type the label from a result, such as **Background** or
 **Class Feature**. You can also expand a group or select its name to include every
-kind beneath it. For example, **All spells** includes both Spell and Ritual.
+kind beneath it. Expand **All spells** and choose **Cantrip** to browse cantrips,
+including composition cantrips. Choose **Spell** or **Ritual** for those records,
+or select **All spells** to include all three. The rank in **Cantrip 1** is the
+entry’s printed base rank.
 To browse equipment except weapons, include **All equipment** and exclude **Weapon**.
 
 **All journals** contains the journal packs provided by Foundry. To find the

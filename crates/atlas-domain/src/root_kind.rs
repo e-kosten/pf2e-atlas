@@ -36,7 +36,7 @@ pub const ROOT_KINDS: &[RootKindChoice] = choices! {
     "kingdom_and_warfare" => ["army", "army_tactic", "army_war_action",
         "kingdom_activity", "kingdom_feat", "kingdom_feature"],
     "roll_table" => [],
-    "all_spells" => ["ritual", "spell"],
+    "all_spells" => ["cantrip", "ritual", "spell"],
     "vehicle" => [],
 };
 
