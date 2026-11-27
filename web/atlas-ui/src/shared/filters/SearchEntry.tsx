@@ -12,6 +12,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import type { SimilaritySeed } from "../../generated/atlas";
 import { SimilaritySeedLink } from "../search/SimilaritySeedLink";
 import { CloseCircleFilled } from "@ant-design/icons";
+import scrollIntoView from "scroll-into-view-if-needed";
 import {
   useId,
   useLayoutEffect,
@@ -258,12 +259,17 @@ function SuggestedSearchInput({
       onCompositionStart={() => setComposing(true)}
       onCompositionEnd={() => setComposing(false)}
       onKeyDown={(event) => {
-        if (composing || event.nativeEvent.isComposing || !rows.length) return;
+        if (composing || event.nativeEvent.isComposing) return;
         if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
           dismissSuggestions();
-        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          if (rows.length) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        } else if (
+          rows.length &&
+          (event.key === "ArrowDown" || event.key === "ArrowUp")
+        ) {
           event.preventDefault();
           const direction = event.key === "ArrowDown" ? 1 : -1;
           const index =
@@ -273,6 +279,16 @@ function SuggestedSearchInput({
                 : rows.length - 1
               : (activeOption + direction + rows.length) % rows.length;
           setHighlighted(rows[index].record.record_key);
+          const option = event.currentTarget.ownerDocument.getElementById(
+            `${suggestionId}-${index}`,
+          );
+          const list = option?.parentElement;
+          if (option && list)
+            scrollIntoView(option, {
+              boundary: list,
+              block: "nearest",
+              scrollMode: "if-needed",
+            });
         }
       }}
       onChange={(event) => {

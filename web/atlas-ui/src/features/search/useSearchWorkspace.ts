@@ -337,14 +337,16 @@ export function useSearchWorkspace({
   // A transient title failure still permits ranking to supply a verified descriptor.
   const awaitingSource =
     activeSource !== null && (!sameSource || similaritySource.isPending);
-  const canRunResultSearch =
+  const canUseResults =
     enabled &&
     initialRoute !== null &&
     !failedTransport &&
     !resetPending &&
+    hasExecutableSearch(activeSearch);
+  const canRunResultSearch =
+    canUseResults &&
     !waitingForDefault &&
     activeSearchReady &&
-    hasExecutableSearch(activeSearch) &&
     sameSource &&
     !awaitingSource;
   const reading = useReferenceReading(
@@ -965,14 +967,6 @@ export function useSearchWorkspace({
       generation ?? result?.page.artifact_generation ?? retrieval.generation,
     );
   }
-  const canDisplayResult =
-    canRunResultSearch ||
-    (enabled &&
-      initialRoute !== null &&
-      !failedTransport &&
-      !resetPending &&
-      !activeSearchReady &&
-      hasExecutableSearch(activeSearch));
   const candidateResult = resultsQuery.data ?? heldPage;
   const result =
     candidateResult && matchesSimilaritySource(candidateResult.page, visibleSource)
@@ -993,15 +987,22 @@ export function useSearchWorkspace({
     (searchDebouncing ||
       resultsQuery.isPlaceholderData ||
       (resultsQuery.isFetching && !resultsQuery.isLoading));
-  const resultPage = canDisplayResult ? result?.page : undefined;
   const hasCurrentPage =
-    resultPage &&
+    result &&
     !searchDebouncing &&
     !resultsQuery.isPlaceholderData &&
-    resultPage.page.number === pageNumber &&
-    resultPage.artifact_generation === requestGeneration;
+    result.page.page.number === pageNumber &&
+    result.page.artifact_generation === requestGeneration;
+  const canDisplayResult =
+    canRunResultSearch ||
+    (canUseResults &&
+      (!activeSearchReady ||
+        (waitingForDefault && hasCurrentPage && !retrieval.recovering)));
+  const resultPage = canDisplayResult ? result?.page : undefined;
   const earlyExactMatches =
-    !hasCurrentPage && exactMatches?.matches.length ? exactMatches : undefined;
+    !(canDisplayResult && hasCurrentPage) && exactMatches?.matches.length
+      ? exactMatches
+      : undefined;
   return {
     search,
     setSearch,
@@ -1101,7 +1102,7 @@ export function useSearchWorkspace({
       ((resultsQuery.isLoading && !heldPage) ||
         awaitingSource ||
         searchDebouncing ||
-        waitingForDefault),
+        (waitingForDefault && !hasCurrentPage)),
     resultsRefreshing,
     resultsPaused,
     resultsRecovering: retrieval.recovering,

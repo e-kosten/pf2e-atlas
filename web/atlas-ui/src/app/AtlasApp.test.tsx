@@ -650,7 +650,7 @@ describe("AtlasApp routing", () => {
     },
   );
 
-  it("retires previous pagination when a submission is waiting for readiness", async () => {
+  it("keeps pagination for the current query only while a submission waits for readiness", async () => {
     history.replaceState(null, "", "/search?q=fire");
     const ready = { ...readinessFixture(), search_profiles: [] };
     apiMocks.getReadiness.mockResolvedValue(ready);
@@ -673,8 +673,18 @@ describe("AtlasApp routing", () => {
     await waitFor(() => expect(next).toBeEnabled());
 
     const readiness = pendingReadiness();
+    const readinessCalls = apiMocks.getReadiness.mock.calls.length;
     apiMocks.getReadiness.mockReturnValue(readiness.promise);
     const input = screen.getByRole("combobox", { name: "Search records" });
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+    fireEvent.keyUp(input, { key: "Enter", keyCode: 13 });
+    await waitFor(() =>
+      expect(apiMocks.getReadiness).toHaveBeenCalledTimes(readinessCalls + 1),
+    );
+    expect(next).toBeVisible();
+    expect(next).toBeEnabled();
+    expect(input).toHaveValue("fire");
+
     fireEvent.change(input, { target: { value: "frost" } });
     fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
     await waitFor(() =>

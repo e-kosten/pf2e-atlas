@@ -305,6 +305,35 @@ test("opens a name suggestion without submitting the draft", async ({ page }, in
       new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
   );
   await expect(query).toHaveAttribute("aria-expanded", "false");
+  const pendingSuggestion = Promise.withResolvers<void>();
+  const releaseSuggestion = Promise.withResolvers<void>();
+  const completedSuggestion = Promise.withResolvers<void>();
+  await page.route("**/api/search/page", async (route) => {
+    const criteria = route.request().postDataJSON().criteria;
+    if (criteria.query !== "atlas sent" || criteria.lexical?.fields !== "record_names")
+      return route.fallback();
+    const response = await route.fetch();
+    pendingSuggestion.resolve();
+    await releaseSuggestion.promise;
+    try {
+      await route.fulfill({ response });
+    } finally {
+      completedSuggestion.resolve();
+    }
+  });
+  await query.fill("atlas sent");
+  try {
+    await pendingSuggestion.promise;
+    await query.press("Escape");
+  } finally {
+    releaseSuggestion.resolve();
+  }
+  await completedSuggestion.promise;
+  await page.evaluate(
+    () =>
+      new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
+  await expect(query).toHaveAttribute("aria-expanded", "false");
   await query.fill("atlas sentin");
   const option = page.getByRole("option", { name: /^Atlas Sentinel/ });
   await expect(option).toBeVisible();
