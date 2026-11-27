@@ -140,6 +140,13 @@ retained random seed keeps ordering consistent between pages; omit `--seed` to
 generate one. See [model selection details](#search-model-selection) for defaults,
 missing model files and keyword-only setup.
 
+To find backgrounds that offer Medicine and can give a Charisma boost, group the
+two boost alternatives.
+
+```bash
+atlas search --kind background --where '"medicine" in background.skill_training && ("cha" in background.restricted_attribute_boosts || background.has_free_attribute_boost == true)'
+```
+
 ## Discover filters
 
 List available fields, inspect a field, or find values to filter by:

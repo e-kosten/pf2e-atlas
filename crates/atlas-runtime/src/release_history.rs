@@ -76,6 +76,12 @@ pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
             sql: include_str!("../../atlas-local-state/src/release/encounter_archiving.sql"),
             backfill: None,
         },
+        Migration {
+            version: 52,
+            name: "kind-specific-search-filters",
+            sql: include_str!("../../atlas-index/src/kind_filter_projections.sql"),
+            backfill: None,
+        },
     ],
     baseline_provenance: Some(PROVENANCE),
 };

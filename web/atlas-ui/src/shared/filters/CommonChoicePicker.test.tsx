@@ -295,8 +295,17 @@ describe("compact common choice picker", () => {
         screen.queryByRole("button", { name: /^Kind: Weapon,/ }),
       ).not.toBeInTheDocument();
       expect(screen.queryByText("No matching values")).not.toBeInTheDocument();
+      if (countLimit >= field.choices.length) {
+        const search = screen.getByRole("textbox", { name: "Search kind choices" });
+        search.focus();
+        fireEvent.keyDown(search, { key: "ArrowDown" });
+        expect(search).toHaveFocus();
+      }
       await act(async () => finishCounts?.());
       if (countLimit >= field.choices.length) {
+        expect(
+          await screen.findByRole("button", { name: /^Kind: All equipment,/ }),
+        ).toHaveFocus();
         fireEvent.click(
           await screen.findByRole("button", { name: "Expand All equipment" }),
         );

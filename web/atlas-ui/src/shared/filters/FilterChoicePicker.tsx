@@ -39,6 +39,7 @@ type DiscoveryProps = {
   countLimit?: number;
   selectionContainer?: HTMLElement | null;
   inlineSelections?: boolean;
+  applied?: boolean;
 };
 
 type ChoiceEdit =
@@ -96,6 +97,7 @@ function FilterChoicePicker({
   countLimit = 0,
   selectionContainer,
   inlineSelections,
+  applied,
 }: DiscoveryProps & { label?: string; edit: ChoiceEdit }) {
   const selected =
     edit.kind === "condition"
@@ -356,6 +358,15 @@ function FilterChoicePicker({
     : extraCounts;
   const awaitingKindCount = (value: string) =>
     !text.trim() && (pendingValues?.has(value) ?? false);
+  const kindCountsPending = kindRows?.some(({ value }) => awaitingKindCount(value));
+  const visibleKindRows = kindRows?.filter(
+    (option) =>
+      text.trim() ||
+      selected.includes(option.value) ||
+      (!awaitingKindCount(option.value) && counts.get(option.value) !== 0) ||
+      // Keep the parent reachable when a selected child has zero results.
+      selected.some((value) => hierarchy?.parents.get(value) === option.value),
+  );
   // Contextual pages and the Actions catalog can carry off-search selections.
   // The Advanced operand already displays these in its field.
   const searchTerm = search.trim().toLowerCase();
@@ -482,17 +493,11 @@ function FilterChoicePicker({
         id={field.definition.id}
         label={label}
         choices={displayedChoices}
-        visibleChoices={kindRows?.filter(
-          (option) =>
-            text.trim() ||
-            selected.includes(option.value) ||
-            (!awaitingKindCount(option.value) && counts.get(option.value) !== 0) ||
-            // Keep the parent reachable when a selected child has zero results.
-            selected.some((value) => hierarchy?.parents.get(value) === option.value),
-        )}
+        visibleChoices={visibleKindRows}
         onToggleGroup={isRootKind ? toggleGroup : undefined}
         counts={counts}
         selected={selected}
+        applied={applied}
         stateOf={(value) =>
           edit.kind === "condition"
             ? choiceValueState(edit.clause, value)
@@ -515,11 +520,12 @@ function FilterChoicePicker({
         onTextChange={searchValues}
         emptyMessage={query.error && !closedChoices ? null : "No matching values"}
         filterChoices={closedChoices}
-        loading={
-          (!closedChoices && query.isFetching) ||
-          (kindRows?.some(({ value }) => awaitingKindCount(value)) ?? false)
-        }
+        loading={(!closedChoices && query.isFetching) || kindCountsPending}
         loadingLabel={isRootKind ? "Loading kinds…" : undefined}
+        searchPending={
+          (!closedChoices && (text !== search || (query.isFetching && !query.data))) ||
+          (kindCountsPending && !visibleKindRows?.length)
+        }
         pageKey={query.data?.pageKey}
         valueEditing={
           edit.kind === "operand"

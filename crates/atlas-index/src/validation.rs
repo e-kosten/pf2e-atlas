@@ -179,12 +179,14 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
                 }
             }
         }
+        let (field_count, content) = validate_content(c, id, &record, &context)?;
+        prepared_fields += field_count;
         let input = SourceArtifactRecordInput {
             record,
             source_path: path,
             content_hash: hash,
             preparation_context_hash: context.preparation_sha256()?,
-            content: vec![],
+            content,
             relationships: vec![],
             diagnostics: vec![],
         };
@@ -234,8 +236,6 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         if ids.end() > end {
             return Err(bad("projection allocation overflow"));
         }
-        let (field_count, content) = validate_content(c, id, &input.record, &context)?;
-        prepared_fields += field_count;
         validate_admission_diagnostics(c, id)?;
         relationships += validate_relationships(c, id, &input.record, &reference_index)?;
         crate::validation_units::validate_selection(
@@ -244,7 +244,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             &input.record,
             &context,
             &label,
-            &content,
+            &input.content,
         )?;
         if roots.is_multiple_of(500) || roots == total_roots {
             tracing::info!(target:"atlas_progress",phase="artifact_coherence",current=roots as u64,total=total_roots as u64,unit="records","Checking records and search content");
@@ -340,6 +340,18 @@ const PROJECTION_TABLES: &[&str] = &[
     "deity_projection",
     "deity_domains",
     "deity_fonts",
+    "background_projection",
+    "background_restricted_boosts",
+    "background_skill_training",
+    "ancestry_projection",
+    "ancestry_default_boosts",
+    "ancestry_default_flaws",
+    "class_projection",
+    "class_key_attributes",
+    "deity_favored_weapons",
+    "deity_divine_skills",
+    "deity_sanctification_options",
+    "hazard_disable_skills",
 ];
 fn count(c: &Connection, table: &str) -> Result<usize, IndexError> {
     Ok(c.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))?)
@@ -496,7 +508,45 @@ fn validate_content(
                 });
             }
             ("prepared", None) => return Err(bad("missing prepared HTML")),
-            (_, None) if controls.is_empty() && field_references.is_empty() => {}
+            (_, None) if controls.is_empty() && field_references.is_empty() => {
+                // Disable queries distinguish a successfully prepared empty field from
+                // one whose content could not be prepared.
+                if role == atlas_record::source_record::SourceContentRole::Disable
+                    && locator.owners.is_empty()
+                {
+                    let status = match outcome.as_str() {
+                        "empty" if metadata.is_prepared() => {
+                            SourceContentStatus::Prepared(Box::new(PreparedSourceContent {
+                                locator,
+                                interpretation_version: context
+                                    .content_interpretation_version
+                                    .clone(),
+                                authored_markup_sha256: hash,
+                                html,
+                                text: String::new(),
+                                references: Vec::new(),
+                                interactions: Vec::new(),
+                                diagnostics: Vec::new(),
+                            }))
+                        }
+                        "format_unavailable" => SourceContentStatus::FormatUnavailable {
+                            locator,
+                            availability: selection.format.availability(),
+                        },
+                        "preparation_failed" => SourceContentStatus::PreparationFailed {
+                            locator,
+                            message: String::new(),
+                        },
+                        _ => return Err(bad("unexpected Disable cache outcome")),
+                    };
+                    content.push(SourceContentOutcome {
+                        role,
+                        visibility,
+                        visibility_availability: FieldAvailability::Value,
+                        status,
+                    });
+                }
+            }
             _ => return Err(bad("failed cache has HTML or controls")),
         }
     }
