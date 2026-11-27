@@ -508,7 +508,7 @@ test("focused titles and list text filters follow their primary page", async ({
     }
     await page.goto("/search");
     await expect(page).toHaveTitle("Search · Atlas");
-    const search = page.getByRole("searchbox", { name: "Search records" });
+    const search = page.getByRole("combobox", { name: "Search records" });
     await search.fill(sentinel);
     await search.press("Enter");
     await expect(
@@ -692,7 +692,7 @@ test("range filter focus follows the opening input and Escape closes only the ra
 
   await trigger.press("Space");
   await expect(minimum).toBeFocused();
-  const search = page.getByRole("searchbox", { name: "Search records" });
+  const search = page.getByRole("combobox", { name: "Search records" });
   await activate(search, info);
   await expect(range).toBeHidden();
   await expect(search).toBeFocused();
@@ -747,7 +747,7 @@ test("filters, exact late activity, preview dismissal and Results remain usable"
   if (await results.isVisible()) {
     await activate(results, info);
     await expect(page.locator('[data-record-key][aria-current="true"]')).toBeFocused();
-    await expect(page.getByRole("searchbox", { name: "Search records" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Search records" })).toBeVisible();
   }
 });
 
@@ -2054,7 +2054,7 @@ test(
         (url) => url.pathname === "/search" && url.search === "",
       );
       await expect(
-        page.getByRole("searchbox", { name: "Search records", exact: true }),
+        page.getByRole("combobox", { name: "Search records", exact: true }),
       ).toHaveValue("");
       await expect(page.locator("[data-record-key]")).toHaveCount(0);
       expect(executed).toEqual([]);

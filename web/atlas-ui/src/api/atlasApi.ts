@@ -21,6 +21,8 @@ import type {
   EncounterDetailView,
   EncounterIndexView,
   EncounterMutationView,
+  ExactSearchRequest,
+  ExactSearchView,
   FilterEditorView,
   FilterSavedListRequest,
   FilterValueListView,
@@ -105,6 +107,13 @@ export async function searchPage(
   return checkSearchResults(
     await http.searchPage(checkRequest(request), { signal, intent: "read" }),
   );
+}
+
+export function searchExact(
+  request: ExactSearchRequest,
+  signal?: AbortSignal,
+): Promise<ExactSearchView> {
+  return http.searchExact(checkRequest(request), { signal, intent: "read" });
 }
 
 export function getSimilaritySource(

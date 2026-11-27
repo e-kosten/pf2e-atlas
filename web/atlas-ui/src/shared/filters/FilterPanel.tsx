@@ -91,6 +91,7 @@ import { FilterEditorPopover } from "../ui/pickers/FilterEditorPopover";
 import { CompactSelect } from "../ui/pickers/CompactSelect";
 import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
+import type { NameSuggestionContext } from "../search/useNameSuggestions";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
@@ -153,6 +154,7 @@ export function FilterControls({
   searchInputRef,
   searchInputError,
   searchEntryKey,
+  nameSuggestions,
   similarSearch,
   additionalFilters,
   children,
@@ -169,6 +171,7 @@ export function FilterControls({
   searchInputRef?: RefObject<InputRef | null>;
   searchInputError?: string;
   searchEntryKey?: number;
+  nameSuggestions?: NameSuggestionContext;
   similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
   children?: ReactNode;
@@ -403,6 +406,7 @@ export function FilterControls({
       query={search.query}
       similar={similarSearch}
       acceptedSubmission={workspace.acceptedSearchSubmission}
+      nameSuggestions={nameSuggestions}
       onSearch={(query, submission) =>
         setSearch(
           {

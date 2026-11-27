@@ -32,7 +32,7 @@ export async function activate(
 
 export async function showSearchFilters(page: Page, info: TestInfo) {
   await expect(
-    page.getByRole("searchbox", { name: "Search records", exact: true }),
+    page.getByRole("combobox", { name: "Search records", exact: true }),
   ).toBeVisible();
   const disclosure = page.getByRole("button", { name: /^Filters(?: \(\d+\))?$/ });
   if (

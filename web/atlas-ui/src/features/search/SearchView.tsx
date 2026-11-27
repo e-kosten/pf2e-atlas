@@ -15,6 +15,7 @@ import {
 } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
+import { ExactMatches } from "./ExactMatches";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { appError } from "../../shared/feedback/errorMessages";
 import {
@@ -172,6 +173,7 @@ export function SearchView({
           ref={filters}
           filterState={workspace}
           searchInputError={workspace.searchInputError}
+          nameSuggestions={workspace.nameSuggestions}
           layout="toolbar"
           collapseToolbar
           similarSearch={
@@ -288,6 +290,15 @@ export function SearchView({
           reading={workspace.reading}
           positions={workspace.positions}
           resultsHeader={<ResultPaneHeader workspace={workspace} />}
+          resultsLeadIn={
+            workspace.exactMatches?.matches.length && workspace.nameSuggestions ? (
+              <ExactMatches
+                page={workspace.exactMatches}
+                selectedRecordKey={workspace.selectedRecordKey}
+                onSelect={workspace.nameSuggestions.onSelect}
+              />
+            ) : undefined
+          }
           recordActions={(record) => (
             <AddToRecordButton
               key={record.record_key}

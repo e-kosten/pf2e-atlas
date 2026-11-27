@@ -9,8 +9,13 @@ Try “a guardian for an enchanted forest,” “magic for a haunted-house adven
 or “ways to get through locked doors.” Open a result to read its details and
 follow linked names to explore related entries.
 
-When you know the name, enter it directly—for example, “Treat Wounds.” You can
-also leave the text empty to browse entries using filters alone.
+When you know the name, enter it directly. Typing “cat fal” offers **Cat Fall**
+as a suggestion you can open in the reader. Use the arrow keys to highlight a
+suggestion and Enter to open it. With no suggestion highlighted, Enter runs a
+search. Exact names and aliases appear above the first results page as soon as
+Atlas finds them. Your filters apply to both suggestions and exact matches.
+
+Leave the text empty to browse entries using filters alone.
 
 ## Search selected text
 

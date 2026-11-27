@@ -21,6 +21,7 @@ import type {
   RecordDetailView,
   SearchResultsPage,
   AppReadinessView,
+  ExactSearchRequest,
   SearchResultsRequest,
   RecordDetailRequest,
 } from "../generated/atlas";
@@ -62,6 +63,7 @@ const apiMocks = vi.hoisted(() => ({
   previewEncounterDifficulty: vi.fn(),
   getSavedLists: vi.fn(),
   filterSavedList: vi.fn(),
+  searchExact: vi.fn(),
   searchPage: vi.fn(),
 }));
 
@@ -82,6 +84,7 @@ vi.mock("../api/atlasApi", async (original) => ({
   previewEncounterDifficulty: apiMocks.previewEncounterDifficulty,
   getSavedLists: apiMocks.getSavedLists,
   filterSavedList: apiMocks.filterSavedList,
+  searchExact: apiMocks.searchExact,
   searchPage: apiMocks.searchPage,
 }));
 
@@ -91,7 +94,7 @@ describe("AtlasApp routing", () => {
       wrapper: queryClientWrapper(),
     });
     const input = await screen.findByRole(
-      "searchbox",
+      "combobox",
       { name: "Search records" },
       { timeout: 5_000 },
     );
@@ -137,7 +140,7 @@ describe("AtlasApp routing", () => {
       await waitFor(() => expect(reference).toHaveFocus());
       fireEvent.keyDown(document.activeElement!, { key: "Delete" });
       expect(screen.queryByRole("tablist")).toBeNull();
-      expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+      expect(screen.getByRole("combobox", { name: "Search records" })).toBe(input);
       expect(input).toHaveValue("Retained search draft");
     } finally {
       view.unmount();
@@ -157,7 +160,7 @@ describe("AtlasApp routing", () => {
       });
       try {
         const input = await screen.findByRole(
-          "searchbox",
+          "combobox",
           { name: "Search records" },
           { timeout: 5_000 },
         );
@@ -171,7 +174,7 @@ describe("AtlasApp routing", () => {
         expect(screen.queryByRole("tablist")).toBeNull();
         fireEvent.keyDown(input, { key: "t", ctrlKey: true });
         const openedSearch = await screen.findByRole(
-          "searchbox",
+          "combobox",
           { name: "Search records" },
           { timeout: 5_000 },
         );
@@ -182,9 +185,9 @@ describe("AtlasApp routing", () => {
           once: true,
         });
         fireEvent.keyDown(openedSearch, { key: "Tab", ctrlKey: true });
-        expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+        expect(screen.getByRole("combobox", { name: "Search records" })).toBe(input);
         fireEvent.keyDown(input, { key: "Tab", ctrlKey: true, shiftKey: true });
-        expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(
+        expect(screen.getByRole("combobox", { name: "Search records" })).toBe(
           openedSearch,
         );
         fireEvent.keyDown(openedSearch, { key: "w", ctrlKey: true });
@@ -220,6 +223,11 @@ describe("AtlasApp routing", () => {
       matching_record_count: 0,
       options: [],
     });
+    apiMocks.searchExact.mockImplementation(async (request: ExactSearchRequest) => ({
+      artifact_generation: request.expected_artifact_generation ?? "generation-a",
+      matches: [],
+      total: 0,
+    }));
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
       ...searchResultsPage(),
       sort:
@@ -270,7 +278,7 @@ describe("AtlasApp routing", () => {
     await waitFor(() => expect(location.pathname).toBe("/search"));
     await waitFor(() => expect(document.getElementById("atlas-main")).toHaveFocus());
     expect(
-      await screen.findByRole("searchbox", { name: "Search records" }),
+      await screen.findByRole("combobox", { name: "Search records" }),
     ).not.toHaveFocus();
     expect(document.getElementById("atlas-main")).toHaveAttribute("tabindex", "-1");
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
@@ -301,7 +309,7 @@ describe("AtlasApp routing", () => {
     expect(history.length).toBe(length);
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
-    expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Search records" })).toHaveValue("");
     fireEvent.click(
       within(notice.closest("[role=alert]")!).getByRole("button", { name: "close" }),
     );
@@ -320,7 +328,7 @@ describe("AtlasApp routing", () => {
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
       await screen.findByText("This link couldn’t be restored. Search has been reset.");
       await waitFor(() => expect(location.pathname).toBe("/search"));
-      expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+      expect(screen.getByRole("combobox", { name: "Search records" })).toHaveValue("");
       expect(apiMocks.searchPage).not.toHaveBeenCalled();
       expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
       expect(apiMocks.filterSavedList).not.toHaveBeenCalled();
@@ -341,7 +349,7 @@ describe("AtlasApp routing", () => {
         sort: { kind: "relevance" },
       }));
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
-      const input = await screen.findByRole("searchbox", { name: "Search records" });
+      const input = await screen.findByRole("combobox", { name: "Search records" });
       await screen.findByRole("heading", { name: "heal" });
       await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalled());
       fireEvent.change(input, { target: { value: "Unsubmitted draft" } });
@@ -353,7 +361,7 @@ describe("AtlasApp routing", () => {
       });
       await screen.findByText("This link couldn’t be restored. Search has been reset.");
       await waitFor(() => expect(location.pathname).toBe("/search"));
-      expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+      expect(screen.getByRole("combobox", { name: "Search records" })).toHaveValue("");
       expect(screen.queryByRole("heading", { name: "heal" })).toBeNull();
       expect(new URLSearchParams(location.search).get("page")).toBeNull();
       expect(new URLSearchParams(location.search).get("q")).toBeNull();
@@ -419,7 +427,7 @@ describe("AtlasApp routing", () => {
     });
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
     expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const input = screen.getByRole("combobox", { name: "Search records" });
     fireEvent.change(input, { target: { value: "unfinished local draft" } });
     const retained = location.pathname + location.search + location.hash;
     fireEvent.click(screen.getByRole("link", { name: "Lists" }));
@@ -435,7 +443,7 @@ describe("AtlasApp routing", () => {
       expect(location.pathname + location.search + location.hash).toBe(retained),
     );
     expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-    expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+    expect(screen.getByRole("combobox", { name: "Search records" })).toHaveValue(
       "unfinished local draft",
     );
     expect(history.state.atlasSearchReset).toBe("retained-session");
@@ -444,7 +452,7 @@ describe("AtlasApp routing", () => {
   it("refreshes readiness after desktop setup without dropping the open search draft", async () => {
     history.replaceState(null, "", "/search");
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
-    const input = await screen.findByRole("searchbox", { name: "Search records" });
+    const input = await screen.findByRole("combobox", { name: "Search records" });
     fireEvent.change(input, { target: { value: "Unsubmitted idea" } });
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
 
@@ -489,7 +497,7 @@ describe("AtlasApp routing", () => {
     );
     try {
       expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-      const input = screen.getByRole("searchbox", { name: "Search records" });
+      const input = screen.getByRole("combobox", { name: "Search records" });
       fireEvent.change(input, { target: { value: "Unsubmitted draft" } });
       fireEvent.click(screen.getByRole("button", { name: "Settings" }));
       fireEvent.click(
@@ -510,7 +518,7 @@ describe("AtlasApp routing", () => {
         within(settings.parentElement!).getByRole("button", { name: "Close tab" }),
       );
       expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-      expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+      expect(screen.getByRole("combobox", { name: "Search records" })).toBe(input);
       expect(input).toHaveValue("Unsubmitted draft");
     } finally {
       view.unmount();
@@ -537,7 +545,7 @@ describe("AtlasApp routing", () => {
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
       expect(await screen.findByText("Keyword search", { exact: true })).toBeVisible();
       expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-      const input = screen.getByRole("searchbox", { name: "Search records" });
+      const input = screen.getByRole("combobox", { name: "Search records" });
       fireEvent.change(input, { target: { value: "draft" } });
       const searches = apiMocks.searchPage.mock.calls.length;
 
@@ -605,7 +613,7 @@ describe("AtlasApp routing", () => {
       await screen.findByText("Keyword search");
       const readiness = pendingReadiness();
       apiMocks.getReadiness.mockReturnValue(readiness.promise);
-      const input = screen.getByRole("searchbox", { name: "Search records" });
+      const input = screen.getByRole("combobox", { name: "Search records" });
       const enter = () => {
         fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
         fireEvent.keyUp(input, { key: "Enter", keyCode: 13 });
@@ -642,7 +650,7 @@ describe("AtlasApp routing", () => {
     },
   );
 
-  it("leaves a pending query editable when paging cancels its submission", async () => {
+  it("retires previous pagination when a submission is waiting for readiness", async () => {
     history.replaceState(null, "", "/search?q=fire");
     const ready = { ...readinessFixture(), search_profiles: [] };
     apiMocks.getReadiness.mockResolvedValue(ready);
@@ -666,20 +674,22 @@ describe("AtlasApp routing", () => {
 
     const readiness = pendingReadiness();
     apiMocks.getReadiness.mockReturnValue(readiness.promise);
-    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const input = screen.getByRole("combobox", { name: "Search records" });
     fireEvent.change(input, { target: { value: "frost" } });
     fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
-    fireEvent.click(next);
     await waitFor(() =>
-      expect(new URLSearchParams(location.search).get("page")).toBe("2"),
+      expect(new URLSearchParams(location.search).get("q")).toBe("frost"),
     );
+    expect(next).not.toBeInTheDocument();
+    expect(input).toHaveValue("frost");
+    fireEvent.change(input, { target: { value: "" } });
     await act(async () => readiness.resolve(ready));
 
-    expect(new URLSearchParams(location.search).get("q")).toBe("fire");
-    expect(input).toHaveValue("frost");
+    expect(new URLSearchParams(location.search).get("q")).toBeNull();
+    expect(input).toHaveValue("");
     expect(
       apiMocks.searchPage.mock.calls.map(([request]) => request.criteria.query),
-    ).toEqual(["fire", "fire"]);
+    ).toEqual(["fire"]);
   });
 
   it("commits the visible draft using the current profile when readiness refresh fails", async () => {
@@ -689,11 +699,11 @@ describe("AtlasApp routing", () => {
     await screen.findByText("Keyword search");
     const readiness = pendingReadiness();
     apiMocks.getReadiness.mockReturnValueOnce(readiness.promise);
-    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const input = screen.getByRole("combobox", { name: "Search records" });
 
     fireEvent.change(input, { target: { value: " sentinel " } });
     fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
-    expect(input).toHaveValue(" sentinel ");
+    expect(input).toHaveValue("sentinel");
     await act(async () => readiness.reject(new Error("Readiness unavailable")));
 
     await waitFor(() =>
@@ -711,7 +721,7 @@ describe("AtlasApp routing", () => {
   it("consumes a canonical record address while retaining the committed text search", async () => {
     history.replaceState(null, "", "/search?q=fire");
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
-    const input = await screen.findByRole("searchbox", { name: "Search records" });
+    const input = await screen.findByRole("combobox", { name: "Search records" });
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalled());
     apiMocks.searchPage.mockClear();
 
@@ -830,7 +840,7 @@ describe("AtlasApp routing", () => {
       expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
         "embeddinggemma",
       );
-      const input = screen.getByRole("searchbox", { name: "Search records" });
+      const input = screen.getByRole("combobox", { name: "Search records" });
       fireEvent.change(input, { target: { value: "frost" } });
       fireEvent.keyDown(input, { key: "Enter", code: "Enter", keyCode: 13 });
       await waitFor(() =>
@@ -872,7 +882,7 @@ describe("AtlasApp routing", () => {
           "embeddinggemma",
         );
         expect(apiMocks.searchPage).not.toHaveBeenCalled();
-        fireEvent.change(screen.getByRole("searchbox", { name: "Search records" }), {
+        fireEvent.change(screen.getByRole("combobox", { name: "Search records" }), {
           target: { value: "Unsubmitted after reload" },
         });
         fireEvent.click(screen.getByRole("button", { name: "Reset search link" }));
@@ -887,7 +897,7 @@ describe("AtlasApp routing", () => {
         expect(
           new URLSearchParams(window.location.search).get("search_profile"),
         ).toBeNull();
-        expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+        expect(screen.getByRole("combobox", { name: "Search records" })).toHaveValue(
           "Unsubmitted after reload",
         );
       } else {
@@ -1035,26 +1045,31 @@ describe("AtlasApp routing", () => {
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
     expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const input = screen.getByRole("combobox", { name: "Search records" });
     expect(input.closest(".filter-controls__search-row")).toContainElement(
       screen.getByRole("button", { name: "Search settings" }),
     );
+    const submittedPages = () =>
+      apiMocks.searchPage.mock.calls
+        .map(([request]) => request as SearchResultsRequest)
+        .filter(
+          (request) =>
+            request.criteria.kind !== "text_search" || !request.criteria.lexical,
+        );
     fireEvent.change(input, { target: { value: "unsubmitted dragon" } });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     fireEvent.click(await screen.findByRole("button", { name: "Add group" }));
     expect(screen.getAllByRole("combobox", { name: "Add condition" })).toHaveLength(2);
-    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(submittedPages()).toHaveLength(1));
     fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
     fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
     fireEvent.click(await screen.findByText("EmbeddingGemma"));
-    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    expect(submittedPages()).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(submittedPages()).toHaveLength(2));
     await waitFor(() =>
-      expect(
-        apiMocks.searchPage.mock.calls[apiMocks.searchPage.mock.calls.length - 1]?.[0],
-      ).toMatchObject({
+      expect(submittedPages().slice(-1)[0]).toMatchObject({
         search_profile: "embeddinggemma",
         criteria: { query: "heal" },
         page: { number: 1 },
@@ -1121,7 +1136,7 @@ describe("AtlasApp routing", () => {
       /model|EmbeddingGemma|BGE Base/i,
     );
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search records" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Search records" }), {
       target: { value: "Unsubmitted draft" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Reset search link" }));
@@ -1137,7 +1152,7 @@ describe("AtlasApp routing", () => {
     expect(params.get("q")).toBe("heal");
     expect(params.get("filter")).toBe(filter);
     expect(window.location.pathname).toBe("/search/records/spell:heal");
-    expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+    expect(screen.getByRole("combobox", { name: "Search records" })).toHaveValue(
       "Unsubmitted draft",
     );
     expect(screen.getByRole("heading", { name: "heal" })).toBeVisible();
@@ -1232,7 +1247,7 @@ describe("AtlasApp routing", () => {
       "bge-base",
     );
     expect(row).toBeVisible();
-    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const input = screen.getByRole("combobox", { name: "Search records" });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
     expect(await screen.findByText("Keyword search", { exact: true })).toBeVisible();
     await waitFor(() => {
@@ -1401,7 +1416,7 @@ describe("AtlasApp routing", () => {
       const nested = await screen.findByRole("link", { name: "Nested Rule" });
       const reader = document.querySelector<HTMLElement>(".reference-reader__scroll")!;
       reader.scrollTop = 425;
-      const input = screen.getByRole("searchbox", { name: "Search records" });
+      const input = screen.getByRole("combobox", { name: "Search records" });
       fireEvent.change(input, { target: { value: "Unsubmitted idea" } });
       const url = location.href;
       fireEvent.click(nested);

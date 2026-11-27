@@ -2,12 +2,44 @@ use crate::projection::{localized_summary_view, search_page_view, search_results
 use crate::retrieval::retrieval_mode;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    AppErrorCode, SearchCriteria, SearchModeSummary, SearchResultRow, SearchResultsPage,
-    SearchResultsRequest,
+    AppErrorCode, ExactSearchRequest, ExactSearchView, SearchCriteria, SearchModeSummary,
+    SearchResultRow, SearchResultsPage, SearchResultsRequest,
 };
-use atlas_search::{ListRecordsRequest, RecordScope, SearchPage, TextSearchRequest};
+use atlas_search::{
+    ListRecordsRequest, RecordResolutionMatchKind, RecordScope, SearchPage, TextSearchRequest,
+};
 
 impl AtlasAppService {
+    pub fn search_exact(
+        &self,
+        request: ExactSearchRequest,
+        execution: &ReadExecutionContext,
+    ) -> AppServiceResult<ExactSearchView> {
+        let projection_execution = execution.clone();
+        self.with_retrieval(execution, move |retrieval| {
+            let artifact_generation = retrieval.artifact_generation()?;
+            crate::connection_scope::check_generation(
+                request.expected_artifact_generation.as_deref(),
+                &artifact_generation,
+            )?;
+            let mut matches =
+                retrieval.resolve_search_name(&request.query, request.filter.as_ref())?;
+            projection_execution.check()?;
+            let total = matches.len();
+            matches.sort_by_key(|hit| hit.match_kind == RecordResolutionMatchKind::Alias);
+            let matches = matches
+                .into_iter()
+                .take(5)
+                .map(|hit| crate::projection::resolution_view(hit, retrieval))
+                .collect();
+            Ok(ExactSearchView {
+                artifact_generation,
+                matches,
+                total,
+            })
+        })
+    }
+
     pub fn search_page(
         &self,
         request: SearchResultsRequest,

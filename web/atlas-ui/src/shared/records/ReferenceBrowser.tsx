@@ -25,6 +25,7 @@ export function ReferenceBrowser({
   onSelect,
   reading,
   resultsHeader,
+  resultsLeadIn,
   clearBesideSelection = false,
   recordActions,
   readerStatus,
@@ -59,6 +60,7 @@ export function ReferenceBrowser({
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
   reading: ReferenceReading;
   resultsHeader?: ReactNode;
+  resultsLeadIn?: ReactNode;
   clearBesideSelection?: boolean;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
@@ -96,6 +98,7 @@ export function ReferenceBrowser({
         reading={reading}
         selectedRecordKey={selectedRecordKey}
         resultsHeader={resultsHeader}
+        resultsLeadIn={resultsLeadIn}
         resultsLabel="Search results"
         resultsIdentity={rows}
         resultsLoading={loading}

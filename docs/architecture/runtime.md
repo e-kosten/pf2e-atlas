@@ -635,7 +635,13 @@ Lexical text searches can select `lexical.fields: record_names` to search
 indexed names and verified aliases. With `lexical.match: last_token_prefix`,
 the last word being typed can match the start of an indexed word anywhere in a
 label. Trailing whitespace completes that word. Each option works independently.
-The Markdown editor combines them for inline completion without model inference.
+The main Search field and Markdown editor combine them for inline completion
+without model inference. Main Search applies its current filter.
+`POST /api/search/exact` uses the shared strict name and alias resolver with the
+typed filter in one generation-checked workspace read. It returns up to five
+distinct root records and the eligible exact count without model inference.
+The browser can start this read before workspace-default profile selection
+finishes. The full ranked page continues to own ranking, coverage and pagination.
 An omitted Similar method selects Passage matches, Any content and decay 0.5.
 Explicit options and record preferences retain their meaning.
 Configurable Similar carries typed method, decay, part and candidate-role options

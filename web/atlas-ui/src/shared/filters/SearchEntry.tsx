@@ -1,9 +1,30 @@
-import { Tooltip, Button, Input, Space, Tag, theme, type InputRef } from "antd";
+import {
+  Tooltip,
+  Button,
+  Input,
+  Popover,
+  Space,
+  Tag,
+  theme,
+  type InputRef,
+} from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { SimilaritySeed } from "../../generated/atlas";
 import { SimilaritySeedLink } from "../search/SimilaritySeedLink";
 import { CloseCircleFilled } from "@ant-design/icons";
-import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type RefObject,
+} from "react";
+import {
+  useNameSuggestions,
+  type NameSuggestionContext,
+} from "../search/useNameSuggestions";
+import { SearchNameLabel } from "../search/SearchNameLabel";
 
 import type { SearchSubmission } from "./filterControls";
 
@@ -24,6 +45,7 @@ export function SearchEntry({
   similar,
   inputRef,
   errorId,
+  nameSuggestions,
 }: {
   query: string;
   onSearch: (query: string, submission: SearchSubmission) => void;
@@ -34,6 +56,7 @@ export function SearchEntry({
   similar?: SimilarSearchCriterion;
   inputRef?: RefObject<InputRef | null>;
   errorId?: string;
+  nameSuggestions?: NameSuggestionContext;
 }) {
   const { token } = theme.useToken();
   const [field] = useState(() => ({}));
@@ -122,25 +145,52 @@ export function SearchEntry({
         </Tooltip>
       </Space.Compact>
     );
+  const inputProps: SearchTextInputProps = {
+    ref: input,
+    "aria-label": label,
+    "aria-invalid": errorId && value === query ? true : undefined,
+    "aria-describedby": value === query ? errorId : undefined,
+    placeholder,
+    disabled,
+    value,
+    onClear: clear,
+    onChange: (event) => {
+      const next = event.target.value;
+      if (next) setEntry({ ...entry, draft: { value: next } });
+      else submit("");
+    },
+    onSearch: submit,
+  };
+  return nameSuggestions ? (
+    <SuggestedSearchInput
+      input={inputProps}
+      draft={entry.draft?.submission ? "" : (entry.draft?.value ?? "")}
+      context={nameSuggestions}
+    />
+  ) : (
+    <SearchTextInput {...inputProps} />
+  );
+}
+
+type SearchTextInputProps = ComponentProps<typeof Input.Search> & {
+  onClear: () => void;
+};
+
+function SearchTextInput({ onClear, ...input }: SearchTextInputProps) {
+  const { token } = theme.useToken();
   return (
     <Input.Search
-      ref={input}
+      {...input}
       className="reference-search-entry"
-      aria-label={label}
-      aria-invalid={errorId && value === query ? true : undefined}
-      aria-describedby={value === query ? errorId : undefined}
-      placeholder={placeholder}
       autoComplete="off"
-      disabled={disabled}
-      value={value}
       suffix={
         <Tooltip title="Clear search" trigger={["hover", "focus"]}>
           <Button
             type="text"
-            disabled={disabled}
+            disabled={input.disabled}
             aria-label="Clear search"
-            aria-hidden={!value}
-            tabIndex={value ? 0 : -1}
+            aria-hidden={!input.value}
+            tabIndex={input.value ? 0 : -1}
             icon={<CloseCircleFilled aria-hidden="true" />}
             styles={{
               root: {
@@ -151,22 +201,131 @@ export function SearchEntry({
                 padding: 0,
                 fontSize: token.fontSizeSM,
                 color: token.colorTextQuaternary,
-                visibility: value ? "visible" : "hidden",
+                visibility: input.value ? "visible" : "hidden",
               },
             }}
             onMouseDown={(event) => event.preventDefault()}
-            onClick={clear}
+            onClick={onClear}
           />
         </Tooltip>
       }
       // Opening the narrow reader moves focus to Results; Enter must not activate it.
       onPressEnter={(event) => event.preventDefault()}
-      onChange={(event) => {
-        const next = event.target.value;
-        if (next) setEntry({ ...entry, draft: { value: next } });
-        else submit("");
-      }}
-      onSearch={submit}
     />
+  );
+}
+
+function SuggestedSearchInput({
+  input,
+  draft,
+  context,
+}: {
+  input: SearchTextInputProps;
+  draft: string;
+  context: NameSuggestionContext;
+}) {
+  const { token } = theme.useToken();
+  const suggestionId = useId();
+  const [suggesting, setSuggesting] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const suggestions = useNameSuggestions(
+    context,
+    suggesting && !composing && !input.disabled ? draft : "",
+  );
+  const rows = suggestions?.rows ?? [];
+  const activeOption = rows.findIndex((row) => row.record.record_key === highlighted);
+  function dismissSuggestions() {
+    setSuggesting(false);
+    setHighlighted(null);
+  }
+  function openSuggestion(key: string) {
+    if (!suggestions) return;
+    dismissSuggestions();
+    context.onSelect(key, suggestions.artifact_generation);
+  }
+  const searchInput = (
+    <SearchTextInput
+      {...input}
+      role="combobox"
+      aria-autocomplete="list"
+      aria-expanded={rows.length > 0}
+      aria-controls={rows.length > 0 ? suggestionId : undefined}
+      aria-activedescendant={
+        activeOption >= 0 ? `${suggestionId}-${activeOption}` : undefined
+      }
+      onBlur={dismissSuggestions}
+      onCompositionStart={() => setComposing(true)}
+      onCompositionEnd={() => setComposing(false)}
+      onKeyDown={(event) => {
+        if (composing || event.nativeEvent.isComposing || !rows.length) return;
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          dismissSuggestions();
+        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          const direction = event.key === "ArrowDown" ? 1 : -1;
+          const index =
+            activeOption < 0
+              ? direction === 1
+                ? 0
+                : rows.length - 1
+              : (activeOption + direction + rows.length) % rows.length;
+          setHighlighted(rows[index].record.record_key);
+        }
+      }}
+      onChange={(event) => {
+        setSuggesting(Boolean(event.target.value));
+        setHighlighted(null);
+        input.onChange?.(event);
+      }}
+      onSearch={(next, event, info) => {
+        if (event?.type === "keydown" && activeOption >= 0) {
+          openSuggestion(rows[activeOption].record.record_key);
+          return;
+        }
+        dismissSuggestions();
+        input.onSearch?.(next, event, info);
+      }}
+    />
+  );
+  return (
+    <Popover
+      open={rows.length > 0}
+      trigger={[]}
+      placement="bottomLeft"
+      align={{ overflow: { shiftX: true, adjustY: true } }}
+      arrow={false}
+      styles={{ container: { padding: token.paddingXXS } }}
+      content={
+        <div
+          className="search-name-suggestions"
+          id={suggestionId}
+          role="listbox"
+          aria-label="Name suggestions"
+        >
+          {rows.map(({ record }, index) => (
+            <Button
+              color="default"
+              variant="text"
+              block
+              className="search-name-suggestion"
+              id={`${suggestionId}-${index}`}
+              key={record.record_key}
+              role="option"
+              tabIndex={-1}
+              aria-selected={activeOption === index}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => openSuggestion(record.record_key)}
+            >
+              <SearchNameLabel record={record} />
+            </Button>
+          ))}
+        </div>
+      }
+    >
+      <div className="reference-search-entry">{searchInput}</div>
+    </Popover>
   );
 }
