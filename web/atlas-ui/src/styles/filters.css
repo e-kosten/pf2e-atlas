@@ -299,6 +299,13 @@
   grid-row: 4;
   overflow-wrap: anywhere;
 }
+@container (width < 480px) {
+  .advanced-filters
+    .rule:not([data-filter-layout="relationship"]):not(:has(> .rule-operators))
+    > .filter-rule-value {
+    grid-row: 2;
+  }
+}
 @container (min-width: 480px) {
   .advanced-filters .rule {
     grid-template-columns: minmax(0, 1fr) fit-content(36%) minmax(0, 1.4fr) auto;
@@ -327,10 +334,7 @@
     grid-column: 1 / -2;
   }
   .advanced-filters
-    .rule:is(
-      [data-filter-layout="grouped"],
-      [data-filter-layout="wide-label"]:has(> .rule-operators)
-    ) {
+    .rule:is([data-filter-layout="grouped"], [data-filter-layout="wide-label"]) {
     grid-template-columns: fit-content(36%) minmax(0, 1fr) auto;
   }
   .advanced-filters
@@ -341,13 +345,15 @@
     width: fit-content;
   }
   .advanced-filters
-    .rule:is(
-      [data-filter-layout="grouped"],
-      [data-filter-layout="wide-label"]:has(> .rule-operators)
-    )
+    .rule:is([data-filter-layout="grouped"], [data-filter-layout="wide-label"])
     > .filter-rule-value {
     grid-column: 2 / -2;
     grid-row: 2;
+  }
+  .advanced-filters
+    .rule[data-filter-layout="wide-label"]:not(:has(> .rule-operators))
+    > .filter-rule-value {
+    grid-column: 1 / -2;
   }
   .filter-link-summary {
     grid-row: 2;

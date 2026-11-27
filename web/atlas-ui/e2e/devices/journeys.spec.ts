@@ -3205,6 +3205,63 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
   }
 });
 
+test("long Boolean filter labels leave both controls reachable", async ({
+  page,
+}, info) => {
+  const label = "Has a free attribute boost";
+  await page.goto(
+    `/search?filter=${encodeFilterUrl({
+      kind: "compare",
+      field: "background.has_free_attribute_boost",
+      op: "eq",
+      value: true,
+    })}`,
+  );
+  await showSearchFilters(page, info);
+  await activate(
+    page.getByRole("button", { name: "Advanced filters", exact: true }),
+    info,
+  );
+  const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const row = advanced.locator(".rule").filter({
+    has: page.getByRole("combobox", { name: label, exact: true }),
+  });
+  const value = row.getByRole("combobox", { name: label, exact: true });
+  const field = row.getByRole("combobox", { name: "Filter field", exact: true });
+  const valueGap = () =>
+    row.evaluate((element) => {
+      const fieldBox = element.querySelector(".rule-fields")!.getBoundingClientRect();
+      const valueBox = element
+        .querySelector(".filter-rule-value")!
+        .getBoundingClientRect();
+      return Math.round(valueBox.top - fieldBox.bottom);
+    });
+
+  await expect.poll(valueGap).toBe(8);
+  await activate(field, info);
+  await expect(field).toHaveAttribute("aria-expanded", "true");
+  await field.press("Escape");
+  await expect(field).toHaveAttribute("aria-expanded", "false");
+  await activate(value, info);
+  const choices = page.locator(".ant-select-dropdown:visible");
+  await activate(choices.getByText("No", { exact: true }), info);
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "compare",
+      field: "background.has_free_attribute_boost",
+      op: "eq",
+      value: false,
+    });
+
+  if (info.project.name === "desktop-chromium") {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await expect(value).toBeVisible();
+    await expect.poll(valueGap).toBe(8);
+    await noPageOverflow(page);
+  }
+});
+
 test("field vocabulary Read preserves selected values and unfinished filter drafts @engine", async ({
   page,
 }, info) => {
