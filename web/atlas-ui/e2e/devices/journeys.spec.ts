@@ -3205,6 +3205,37 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
   }
 });
 
+test("type and select a trait with the keyboard @engine", async ({ page }, info) => {
+  await page.goto("/search");
+  await showSearchFilters(page, info);
+  const trigger = page.getByRole("button", { name: "Edit Traits filter", exact: true });
+  await activate(trigger, info);
+
+  const search = page.getByRole("textbox", { name: "Search traits choices" });
+  const magical = page.getByRole("button", { name: /^Traits: Magical, neutral/ });
+  await expect(
+    page.getByRole("button", { name: /^Traits: Fire, neutral/ }),
+  ).toBeVisible();
+  await search.fill("magi");
+  await page.keyboard.press("ArrowDown");
+  await expect(magical).toBeFocused();
+  await expect(magical.and(page.locator(":focus-visible"))).toBeVisible();
+  await test.info().attach("Keyboard-highlighted trait", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page.keyboard.press("ArrowUp");
+  await expect(search).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("button", { name: /^Traits: Magical, included/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Remove included Magical/ }),
+  ).toBeVisible();
+});
+
 test("long Boolean filter labels leave both controls reachable", async ({
   page,
 }, info) => {
