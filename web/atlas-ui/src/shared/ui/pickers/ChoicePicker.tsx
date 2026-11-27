@@ -22,6 +22,8 @@ import {
   type ReactNode,
 } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
+type ChoiceArrow = "ArrowDown" | "ArrowUp";
+
 export type ChoiceState = "neutral" | "include" | "exclude";
 export type ChoiceOption = {
   value: string;
@@ -47,6 +49,7 @@ export function ChoicePicker({
   onTextChange,
   filterChoices = true,
   loading = false,
+  searchPending = false,
   children,
   emptyMessage = "No matching values",
   labelForValue = (value) => value,
@@ -73,6 +76,7 @@ export function ChoicePicker({
   onTextChange: (text: string) => void;
   filterChoices?: boolean;
   loading?: boolean;
+  searchPending?: boolean;
   children?: ReactNode;
   emptyMessage?: ReactNode;
   labelForValue?: (value: string) => string;
@@ -97,6 +101,8 @@ export function ChoicePicker({
   const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
   const input = useRef<InputRef>(null);
+  const optionList = useRef<HTMLDivElement>(null);
+  const pendingArrow = useRef<ChoiceArrow | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const initialFocusPending = useRef(false);
   const menuId = useId();
@@ -123,6 +129,16 @@ export function ChoicePicker({
       }
     }
   }, [isReading, origin, narrow]);
+  useLayoutEffect(() => {
+    if (searchPending || !pendingArrow.current) return;
+    const arrow = pendingArrow.current;
+    pendingArrow.current = null;
+    if (open && document.activeElement === input.current?.input) {
+      const buttons =
+        optionList.current?.querySelectorAll<HTMLButtonElement>(".common-choice-row");
+      buttons?.[arrow === "ArrowDown" ? 0 : buttons.length - 1]?.focus();
+    }
+  }, [open, searchPending]);
   // Keep the server's search page authoritative for advanced operands.
   // Retained rows still support editing on the unsearched page.
   const retained =
@@ -144,6 +160,7 @@ export function ChoicePicker({
       readOrigin.current = null;
       reading.onDismiss();
     }
+    pendingArrow.current = null;
     initialFocusPending.current = next;
     if (next) setSessionValues(selected);
     else {
@@ -176,6 +193,39 @@ export function ChoicePicker({
       trigger.current?.focus();
     }
   }
+  function moveChoiceFocus(event: KeyboardEvent<HTMLElement>) {
+    const { key, target } = event;
+    if (
+      (key !== "ArrowDown" && key !== "ArrowUp") ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing ||
+      event.keyCode === 229
+    )
+      return;
+
+    const fromSearch = target === input.current?.input;
+    const buttons = Array.from(
+      optionList.current?.querySelectorAll<HTMLButtonElement>(".common-choice-row") ??
+        [],
+    );
+    const index = buttons.findIndex((button) => button === target);
+    if (!fromSearch && index < 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (fromSearch) {
+      // Results can still belong to the previous text during the debounce.
+      if (searchPending) pendingArrow.current = key;
+      else buttons[key === "ArrowDown" ? 0 : buttons.length - 1]?.focus();
+    } else if (key === "ArrowUp" && index === 0) {
+      input.current?.focus();
+    } else {
+      buttons[index + (key === "ArrowDown" ? 1 : -1)]?.focus();
+    }
+  }
   const menuContent = (
     <>
       <Input
@@ -187,17 +237,30 @@ export function ChoicePicker({
         autoCorrect="off"
         value={text}
         allowClear
+        onBlur={() => {
+          pendingArrow.current = null;
+        }}
         onChange={(event) => {
+          pendingArrow.current = null;
           onTextChange(event.target.value);
         }}
         onPressEnter={(event) => {
+          if (pendingArrow.current) {
+            event.preventDefault();
+            return;
+          }
           if (!valueEditing?.enterValue || event.nativeEvent.isComposing) return;
           event.preventDefault();
           change(valueEditing.enterValue, "include");
         }}
         onKeyDown={closeOnEscape}
       />
-      <div key={pageKey} className="common-choice-options" aria-busy={loading}>
+      <div
+        key={pageKey}
+        ref={optionList}
+        className="common-choice-options"
+        aria-busy={loading}
+      >
         {rows.map((option) => {
           const action = optionAction?.(option);
           const state = stateOf(option.value);
@@ -364,6 +427,7 @@ export function ChoicePicker({
       {...menuProps}
       role={narrow ? "group" : "dialog"}
       onKeyDownCapture={closeOnEscape}
+      onKeyDown={moveChoiceFocus}
       data-reference-picker={!!optionAction || undefined}
       data-reading={isReading || undefined}
     >
