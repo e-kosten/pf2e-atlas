@@ -38,6 +38,7 @@ export function ChoicePicker({
   visibleChoices,
   onToggleGroup,
   selected,
+  applied = selected.length > 0,
   stateOf,
   onChange,
   open,
@@ -63,6 +64,7 @@ export function ChoicePicker({
   visibleChoices?: ChoiceOption[];
   onToggleGroup?: (value: string) => void;
   selected: string[];
+  applied?: boolean;
   stateOf: (value: string) => ChoiceState;
   onChange: (value: string, state: ChoiceState) => void | "close";
   open: boolean;
@@ -517,6 +519,9 @@ export function ChoicePicker({
     <Button
       {...openerProps}
       className="common-choice-trigger"
+      color={applied ? "primary" : "default"}
+      variant="outlined"
+      aria-description={applied ? "Filter applied" : undefined}
       block
       icon={<DownOutlined aria-hidden="true" />}
       iconPlacement="end"

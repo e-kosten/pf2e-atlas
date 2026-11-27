@@ -38,6 +38,7 @@ type DiscoveryProps = {
   countLimit?: number;
   selectionContainer?: HTMLElement | null;
   inlineSelections?: boolean;
+  applied?: boolean;
 };
 
 type ChoiceEdit =
@@ -95,6 +96,7 @@ function FilterChoicePicker({
   countLimit = 0,
   selectionContainer,
   inlineSelections,
+  applied,
 }: DiscoveryProps & { label?: string; edit: ChoiceEdit }) {
   const selected =
     edit.kind === "condition"
@@ -465,6 +467,7 @@ function FilterChoicePicker({
         onToggleGroup={isRootKind ? toggleGroup : undefined}
         counts={counts}
         selected={selected}
+        applied={applied}
         stateOf={(value) =>
           edit.kind === "condition"
             ? choiceValueState(edit.clause, value)
