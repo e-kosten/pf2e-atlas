@@ -182,6 +182,7 @@ export function ChoicePicker({
         name={id + "-choices"}
         placeholder={"Search " + label.toLowerCase() + "…"}
         autoComplete="off"
+        autoCorrect="off"
         value={text}
         allowClear
         onChange={(event) => {
