@@ -183,6 +183,9 @@ fn fallback_label(definition: &QueryFieldDefinition, value: &QueryLiteral) -> Op
     let QueryLiteral::String(value) = value else {
         return None;
     };
+    if let Some(label) = crate::discovery::kind_field_choice_label(&definition.path, value) {
+        return Some(label);
+    }
     if definition.path == "physical.base_type" {
         return Some(crate::physical_labels::base_type(value));
     }
@@ -192,9 +195,6 @@ fn fallback_label(definition: &QueryFieldDefinition, value: &QueryLiteral) -> Op
             .find(|(key, _)| key == value)
     {
         return Some((*label).into());
-    }
-    if definition.path == "kind" {
-        return Some(crate::projection::kind_label(value));
     }
     if definition.choices.contains(value) {
         return Some(crate::discovery::words(value));

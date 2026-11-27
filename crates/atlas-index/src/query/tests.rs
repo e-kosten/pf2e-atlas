@@ -12,8 +12,11 @@ fn available<T: std::fmt::Debug>(outcome: atlas_domain::QueryFacetOutcome<T>) ->
 
 pub(super) fn database() -> Connection {
     let db = Connection::open_in_memory().unwrap();
-    db.execute_batch(include_str!("../release_schema.sql"))
-        .unwrap();
+    db.execute_batch(concat!(
+        include_str!("../release_schema.sql"),
+        include_str!("../kind_filter_projections.sql"),
+    ))
+    .unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db
@@ -2068,7 +2071,7 @@ fn filtered_links_preserve_direction_scope_and_unknown_witnesses() {
 #[test]
 fn static_kind_catalog_declares_groups_dynamic_syntax_and_independent_embedded_choices() {
     let catalog = query_capabilities().unwrap();
-    assert_eq!(catalog.version, 11);
+    assert_eq!(catalog.version, 12);
     let kind = catalog
         .fields
         .iter()

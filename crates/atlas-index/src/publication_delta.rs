@@ -77,6 +77,9 @@ pub(crate) fn clear_query(c: &Connection, id: i64) -> Result<(), IndexError> {
         "effect_projection",
         "condition_projection",
         "deity_projection",
+        "background_projection",
+        "ancestry_projection",
+        "class_projection",
     ] {
         c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
     }

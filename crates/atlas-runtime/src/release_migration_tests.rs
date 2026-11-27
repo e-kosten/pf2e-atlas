@@ -52,6 +52,52 @@ fn archived_json(archive: WorkspaceArchive) -> serde_json::Value {
     serde_json::from_slice(&data).unwrap()
 }
 
+fn expect_new_filter_storage(
+    tables: &mut std::collections::BTreeMap<String, Vec<Vec<rusqlite::types::Value>>>,
+) {
+    use rusqlite::types::Value::{Null, Text};
+    let missing = Text("missing".into());
+    for (table, columns) in [
+        ("actor_projection", vec![missing.clone()]),
+        (
+            "deity_projection",
+            vec![
+                missing.clone(),
+                Null,
+                missing.clone(),
+                missing.clone(),
+                missing.clone(),
+                Null,
+                missing.clone(),
+            ],
+        ),
+        (
+            "spell_projection",
+            vec![missing.clone(), Null, missing, Null],
+        ),
+    ] {
+        for row in tables.get_mut(table).unwrap() {
+            row.extend_from_slice(&columns);
+        }
+    }
+    for name in [
+        "ancestry_default_boosts",
+        "ancestry_default_flaws",
+        "ancestry_projection",
+        "background_projection",
+        "background_restricted_boosts",
+        "background_skill_training",
+        "class_key_attributes",
+        "class_projection",
+        "deity_divine_skills",
+        "deity_favored_weapons",
+        "deity_sanctification_options",
+        "hazard_disable_skills",
+    ] {
+        assert_eq!(tables.insert(name.into(), vec![]), None);
+    }
+}
+
 #[test]
 fn schema_42_migrates_in_place_and_archives_only_saved_work() {
     let directory = tempfile::tempdir().unwrap();
@@ -139,6 +185,7 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
             rusqlite::types::Value::Null
         ]])
     );
+    expect_new_filter_storage(&mut reference_rows);
     let changed: Vec<_> = reference_rows
         .keys()
         .chain(migrated.keys())
@@ -237,6 +284,7 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
         list.push(rusqlite::types::Value::Integer(0));
     }
     expected.insert("encounter_adjustments".into(), vec![]);
+    expect_new_filter_storage(&mut expected);
     assert_eq!(
         atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap(),
         expected
@@ -308,6 +356,46 @@ fn schema_44_upgrade_preserves_active_participant_and_conditions() {
     );
 }
 
+fn publish_schema_42_reference_fixture(
+    workspace: &Workspace,
+    input: &atlas_index::IndexBuildInput,
+) {
+    // The current fixture publisher clears every root family even for these legacy
+    // NPC/action fixtures. Supply empty targets during fixture construction, then
+    // remove them so the migration sees the authentic schema 42 table inventory.
+    let tables = [
+        "background_projection",
+        "ancestry_projection",
+        "class_projection",
+    ];
+    {
+        let write = workspace.write(42).unwrap();
+        for table in tables {
+            write
+                .connection()
+                .execute_batch(&format!("CREATE TABLE {table}(root_record_id INTEGER)"))
+                .unwrap();
+        }
+        write.commit().unwrap();
+    }
+    atlas_index::test_support::publish_input_in(workspace, 42, input).unwrap();
+    let write = workspace.write(42).unwrap();
+    for table in tables {
+        let count: usize = write
+            .connection()
+            .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(count, 0);
+        write
+            .connection()
+            .execute_batch(&format!("DROP TABLE {table}"))
+            .unwrap();
+    }
+    write.commit().unwrap();
+}
+
 #[test]
 fn schema_42_vector_bytes_and_generation_survive_upgrade() {
     let directory = tempfile::tempdir().unwrap();
@@ -319,7 +407,7 @@ fn schema_42_vector_bytes_and_generation_survive_upgrade() {
             serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Goblin","type":"npc","system":{"traits":{"value":["goblin"]}}}),
         ),
     ]);
-    atlas_index::test_support::publish_input_in(&workspace, 42, &input).unwrap();
+    publish_schema_42_reference_fixture(&workspace, &input);
     let read = workspace.read(42).unwrap();
     let vectors = occurrence_vector_bits(read.connection());
     assert_eq!(vectors.len(), 2);
@@ -471,7 +559,7 @@ fn schema_42_rejects_corruption_under_the_current_source_contract() {
     ] {
         let directory = tempfile::tempdir().unwrap();
         let workspace = schema_42(&directory.path().join("workspace.sqlite"));
-        atlas_index::test_support::publish_input_in(&workspace, 42, &input).unwrap();
+        publish_schema_42_reference_fixture(&workspace, &input);
         let write = workspace.write(42).unwrap();
         let ledger = sql_rows(write.connection(), LEDGER);
         let revision = write.reference_revision().unwrap();

@@ -5,7 +5,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 11;
+pub const QUERY_CAPABILITY_VERSION: u32 = 12;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -318,6 +318,16 @@ fn field(
                 "heritage.versatile" => "typed ancestry object false; explicit null true; omission unavailable",
                 "defenses.immunities" | "defenses.weaknesses" | "defenses.resistances" => "authored collection; omission-only empty default inside known system/attributes",
                 p if p.starts_with("effect.duration.") => "authored duration in the selected fixed unit; other known units not applicable",
+                "background.restricted_attribute_boosts" => "attributes offered by authored fixed or limited-choice boost slots",
+                "background.has_free_attribute_boost" => "a standard authored boost slot listing all six attributes",
+                "background.skill_training" => "directly named skills and verified finite skill-training choices",
+                "ancestry.default_boosts" => "named choices in authored default restricted boost slots",
+                "ancestry.default_flaws" => "named choices in authored default attribute flaw slots",
+                "class.key_attributes" => "attributes named on the base class",
+                "deity.sanctification.requirement" => "authored optional or required sanctification, or none for explicit null",
+                "hazard.disable_skills" => "canonical skills in audience-visible check tags in the Disable field",
+                "spell.cast_range" => "explicit authored casting distance in feet, including touch-or-distance alternatives",
+                "spell.touch_range" => "explicit authored touch range, including touch-or-distance alternatives",
                 _ => "authored source; known values only",
             }.to_owned(),
             value_discovery: match ty {
@@ -652,6 +662,187 @@ fn build() -> Result<Vec<Descriptor>, String> {
             None,
         ));
     }
+    fields.push(field(
+        "background.restricted_attribute_boosts",
+        Set,
+        &["background"],
+        set(
+            family("background_projection", "restricted_boosts"),
+            "background_restricted_boosts",
+            "background_id",
+            None,
+        ),
+        choices::<PhysicalSystemSourceApexAttribute>()?,
+        None,
+    ));
+    fields.push(field(
+        "background.has_free_attribute_boost",
+        Boolean,
+        &["background"],
+        family("background_projection", "has_free_boost"),
+        Vec::new(),
+        None,
+    ));
+    fields.push(field(
+        "background.skill_training",
+        Set,
+        &["background"],
+        set(
+            family("background_projection", "skill_training"),
+            "background_skill_training",
+            "background_id",
+            None,
+        ),
+        choices::<SkillSlug>()?,
+        None,
+    ));
+    fields.push(field(
+        "ancestry.vision",
+        String,
+        &["ancestry"],
+        family("ancestry_projection", "vision"),
+        choices::<AncestryVision>()?,
+        None,
+    ));
+    fields.push(field(
+        "ancestry.land_speed",
+        Number,
+        &["ancestry"],
+        family("ancestry_projection", "land_speed"),
+        Vec::new(),
+        Some("feet"),
+    ));
+    fields.push(field(
+        "ancestry.starting_hp",
+        Number,
+        &["ancestry"],
+        family("ancestry_projection", "starting_hp"),
+        Vec::new(),
+        Some("hit points"),
+    ));
+    fields.push(field(
+        "ancestry.default_boosts",
+        Set,
+        &["ancestry"],
+        set(
+            family("ancestry_projection", "default_boosts"),
+            "ancestry_default_boosts",
+            "ancestry_id",
+            None,
+        ),
+        choices::<PhysicalSystemSourceApexAttribute>()?,
+        None,
+    ));
+    fields.push(field(
+        "ancestry.default_flaws",
+        Set,
+        &["ancestry"],
+        set(
+            family("ancestry_projection", "default_flaws"),
+            "ancestry_default_flaws",
+            "ancestry_id",
+            None,
+        ),
+        choices::<PhysicalSystemSourceApexAttribute>()?,
+        None,
+    ));
+    fields.push(field(
+        "class.key_attributes",
+        Set,
+        &["class"],
+        set(
+            family("class_projection", "key_attributes"),
+            "class_key_attributes",
+            "class_id",
+            None,
+        ),
+        choices::<PhysicalSystemSourceApexAttribute>()?,
+        None,
+    ));
+    for (path, column, _) in crate::projections::CLASS_PROFICIENCIES {
+        fields.push(field(
+            path,
+            String,
+            &["class"],
+            family("class_projection", column),
+            atlas_record::source_record::PROFICIENCY_RANKS
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+            None,
+        ));
+    }
+    fields.push(field(
+        "deity.category",
+        String,
+        &["deity"],
+        family("deity_projection", "category"),
+        choices::<DeityCategory>()?,
+        None,
+    ));
+    fields.push(field(
+        "deity.favored_weapons",
+        Set,
+        &["deity"],
+        set(
+            family("deity_projection", "favored_weapons"),
+            "deity_favored_weapons",
+            "deity_id",
+            None,
+        ),
+        choices::<WeaponSystemSourceBaseItem>()?,
+        None,
+    ));
+    fields.push(field(
+        "deity.divine_skills",
+        Set,
+        &["deity"],
+        set(
+            family("deity_projection", "divine_skills"),
+            "deity_divine_skills",
+            "deity_id",
+            None,
+        ),
+        choices::<SkillSlug>()?,
+        None,
+    ));
+    fields.push(field(
+        "deity.sanctification.requirement",
+        String,
+        &["deity"],
+        family("deity_projection", "sanctification_requirement"),
+        ["optional", "required", "none"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        None,
+    ));
+    fields.push(field(
+        "deity.sanctification.options",
+        Set,
+        &["deity"],
+        set(
+            family("deity_projection", "sanctification_options"),
+            "deity_sanctification_options",
+            "deity_id",
+            None,
+        ),
+        choices::<Sanctification>()?,
+        None,
+    ));
+    fields.push(field(
+        "hazard.disable_skills",
+        Set,
+        &["hazard"],
+        set(
+            family("actor_projection", "disable_skills"),
+            "hazard_disable_skills",
+            "record_id",
+            None,
+        ),
+        choices::<SkillSlug>()?,
+        None,
+    ));
     let mut item_fields = Vec::new();
     for (path, col, ty, values, unit) in [
         ("spell.rank", "rank", Number, Vec::new(), Some("rank")),
@@ -719,6 +910,20 @@ fn build() -> Result<Vec<Descriptor>, String> {
             Number,
             Vec::new(),
             Some("feet"),
+        ),
+        (
+            "spell.cast_range",
+            "cast_range",
+            Number,
+            Vec::new(),
+            Some("feet"),
+        ),
+        (
+            "spell.touch_range",
+            "touch_range",
+            Boolean,
+            Vec::new(),
+            None,
         ),
         ("spell.sustained", "sustained", Boolean, Vec::new(), None),
         (

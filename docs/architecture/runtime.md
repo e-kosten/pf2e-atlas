@@ -369,12 +369,12 @@ active reference output. Explicit setup overrides update that intent; omitted
 options preserve it. Adding a profile retains already requested profiles.
 
 Runtime composes reference and saved-domain SQL into the release checkpoint and
-one ordered migration ledger. Storage creates new workspaces at schema 51 and
-upgrades authenticated schema 42 through 50 workspaces after runtime captures saved
+one ordered migration ledger. Storage creates new workspaces at schema 52 and
+upgrades authenticated schema 42 through 51 workspaces after runtime captures saved
 state in a recovery archive. See
 [release schema and migration admission](decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
-Supported query-catalog changes rebuild typed projections from retained DTOs
-without source admission or inference. Other component changes require their corresponding
+Supported query-catalog changes rebuild typed projections from retained DTOs and
+validated prepared checks without source admission or inference. Other component changes require their corresponding
 preparation work; physical schema version alone is not an inference invalidation.
 
 The reference-entry migration moves existing trait content/evidence to its canonical
@@ -1029,7 +1029,8 @@ editor. The index owns its separate awaited deletion and action-local feedback.
 ## Deferred work
 
 New query projections are added only for useful product cases, with typed bindings,
-catalog/SQL/facet evidence and consumer tests. Skills, nuanced affliction filters,
+catalog/SQL/facet evidence and consumer tests. General character skill eligibility,
+nuanced affliction filters,
 frequency/aggregate gameplay models and tag-artifact search are deferred. Tag-file
 validation remains independent; HasMetric is explicitly unsupported rather than
 recreating a metric store.

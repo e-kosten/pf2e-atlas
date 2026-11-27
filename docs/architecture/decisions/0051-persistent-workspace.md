@@ -41,7 +41,7 @@ transaction.
 ### Release schema and migration admission
 
 Fresh workspaces apply the frozen schema 42 baseline and subsequent migrations
-through schema 51. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+through schema 52. Schema 42 is the minimum direct upgrade. The schema 42 checksum
 still binds the original domain SQL and the retired cutover inputs, including
 the schema 41 ledger fingerprint and bridge identity. Earlier builds can
 upgrade an older workspace to schema 42.

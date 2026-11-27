@@ -70,6 +70,9 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM deity_domains;
          DELETE FROM deity_fonts;
          DELETE FROM deity_projection;
+         DELETE FROM background_projection;
+         DELETE FROM ancestry_projection;
+         DELETE FROM class_projection;
          DELETE FROM records;
          DELETE FROM packs;
          DELETE FROM artifact_context;
