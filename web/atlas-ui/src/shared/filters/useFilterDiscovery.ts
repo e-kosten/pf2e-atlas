@@ -1,7 +1,13 @@
+import { useState } from "react";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { userErrorMessage } from "../feedback/errorMessages";
 import { isSharedFailure } from "../feedback/errorMessages";
-import { useQuery } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useQueries,
+  useQuery,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { assertSearchIdentity } from "../search/searchIdentity";
 import {
   discoverFilterCounts,
@@ -122,18 +128,16 @@ export function existingClauseId(
   };
   return visit(context?.filter ?? null) ? clauseId : null;
 }
-export function useFilterOptionCounts(
+function optionCountQuery(
   context: FilterDiscoveryContext | undefined,
   fieldId: string,
   clauseId: string | null,
-  values: QueryLiteral[],
+  literals: QueryLiteral[],
   enabled: boolean,
-  literalLimit: number,
-  queryKeyPrefix: readonly unknown[] = [],
+  queryKeyPrefix: readonly unknown[],
 ) {
-  const literals = [...new Set(values)].slice(0, literalLimit);
   const addressedClause = existingClauseId(context, clauseId);
-  const query = useQuery<FilterCountsView>({
+  return queryOptions({
     queryKey: [
       ...(queryKeyPrefix.length ? queryKeyPrefix : ["filter-discovery"]),
       "option-counts",
@@ -154,12 +158,6 @@ export function useFilterOptionCounts(
       fieldId,
       discoveryIdentity: context && discoveryIdentity({ context, clauseId: null }),
     },
-    placeholderData: (previous, previousQuery) =>
-      previousQuery?.meta?.fieldId === fieldId &&
-      JSON.stringify(previousQuery.meta.discoveryIdentity) ===
-        JSON.stringify(context && discoveryIdentity({ context, clauseId: null }))
-        ? previous
-        : undefined,
     retry: false,
     queryFn: async ({ signal }) => {
       if (!context) throw new Error("Missing filter count context");
@@ -175,15 +173,111 @@ export function useFilterOptionCounts(
       return response;
     },
   });
-  const counts = query.data?.counts;
-  return counts?.status === "available" && !query.error && enabled
-    ? new Map(
-        counts.value.options.map((option) => [
-          String(option.value),
-          option.distinct_roots,
-        ]),
-      )
-    : new Map<string, number>();
+}
+
+function optionCountResult(
+  query: UseQueryResult<FilterCountsView>,
+  literals: QueryLiteral[],
+  enabled: boolean,
+) {
+  const result = query.data?.counts;
+  const counts =
+    result?.status === "available" && !query.error && enabled
+      ? new Map(
+          result.value.options.map((option) => [
+            String(option.value),
+            option.distinct_roots,
+          ]),
+        )
+      : new Map<string, number>();
+  // The previous response can still annotate its rows while a new batch arrives.
+  const pendingValues =
+    enabled && query.isFetching && (query.isPending || query.isPlaceholderData)
+      ? new Set(literals.map(String).filter((value) => !counts.has(value)))
+      : undefined;
+  return { counts, pendingValues };
+}
+
+export function useFilterOptionCounts(
+  context: FilterDiscoveryContext | undefined,
+  fieldId: string,
+  clauseId: string | null,
+  values: QueryLiteral[],
+  enabled: boolean,
+  literalLimit: number,
+  queryKeyPrefix: readonly unknown[] = [],
+) {
+  const literals = [...new Set(values)].slice(0, literalLimit);
+  const query = useQuery({
+    ...optionCountQuery(context, fieldId, clauseId, literals, enabled, queryKeyPrefix),
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.meta?.fieldId === fieldId &&
+      JSON.stringify(previousQuery.meta.discoveryIdentity) ===
+        JSON.stringify(context && discoveryIdentity({ context, clauseId: null }))
+        ? previous
+        : undefined,
+  });
+  return optionCountResult(query, literals, enabled);
+}
+
+/** Fixed catalog batches preserve known zeros when more groups are opened. */
+export function useKindOverflowCounts(
+  context: FilterDiscoveryContext | undefined,
+  clauseId: string | null,
+  catalogValues: string[],
+  displayedValues: string[],
+  literalLimit: number,
+  queryKeyPrefix: readonly unknown[] = [],
+) {
+  const batches: string[][] = [];
+  if (literalLimit > 0 && displayedValues.length) {
+    const catalog = [...new Set(catalogValues)];
+    const displayed = new Set(displayedValues);
+    for (let offset = 0; offset < catalog.length; offset += literalLimit) {
+      const batch = catalog.slice(offset, offset + literalLimit);
+      if (batch.some((value) => displayed.has(value))) batches.push(batch);
+    }
+  }
+  // A saved list's request key includes the edited filter. Its discovery
+  // identity already includes the list, without tying placeholders to that edit.
+  const identity = batches.length
+    ? JSON.stringify([
+        context?.kind === "saved_list" ? [] : queryKeyPrefix,
+        context && discoveryIdentity({ context, clauseId: null }),
+      ])
+    : null;
+  const [retained, setRetained] = useState<{
+    identity: string | null;
+    batches: ReadonlyMap<string, FilterCountsView>;
+  }>();
+  const previous = retained?.identity === identity ? retained.batches : undefined;
+  const batchKeys = batches.map((batch) => JSON.stringify(batch));
+  const replies = useQueries({
+    queries: batches.map((batch, index) => ({
+      ...optionCountQuery(context, "kind", clauseId, batch, true, queryKeyPrefix),
+      placeholderData: previous?.get(batchKeys[index]),
+    })),
+  });
+  const counts = new Map<string, number>();
+  const pendingValues = new Set<string>();
+  let settled: Map<string, FilterCountsView> | undefined;
+  for (const [index, reply] of replies.entries()) {
+    const result = optionCountResult(reply, batches[index], true);
+    for (const [value, count] of result.counts) counts.set(value, count);
+    for (const value of result.pendingValues ?? []) pendingValues.add(value);
+    if (reply.isPending || reply.isPlaceholderData) continue;
+    const key = batchKeys[index];
+    const data = !reply.error ? reply.data : undefined;
+    if (data !== previous?.get(key)) {
+      settled ??= new Map(previous);
+      if (data) settled.set(key, data);
+      else settled.delete(key);
+    }
+  }
+  // useQueries has no previous-query placeholder callback. Only retain settled
+  // data within the same discovery scope, as the single-batch picker does.
+  if (settled) setRetained({ identity, batches: settled });
+  return { counts, pendingValues };
 }
 
 function discoveryIdentity(value?: {

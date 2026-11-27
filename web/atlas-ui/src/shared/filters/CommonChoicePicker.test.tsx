@@ -13,6 +13,7 @@ import { AtlasApiError } from "../../api/atlasApi";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import type {
+  FilterEditorFieldView,
   FilterVocabularyScope,
   SearchConnectionScope,
   QueryPredicate,
@@ -74,20 +75,26 @@ function picker({
   scope = { kind: "artifact" },
   withCounts = false,
   connectionScope,
+  field: fieldOverride,
+  countLimit = 128,
 }: {
   closed?: boolean;
   initial?: QueryPredicate | null;
   scope?: FilterVocabularyScope;
   withCounts?: boolean;
   connectionScope?: SearchConnectionScope;
+  field?: FilterEditorFieldView;
+  countLimit?: number;
 } = {}) {
   const definition = {
     ...fieldFixture("traits", "set", "Traits"),
     choices: closed ? ["fire", "cold", "magical"] : [],
   };
-  const field = editorFixture([definition], {
-    traits: { fire: "Fire", cold: "Cold", magical: "Magical" },
-  }).groups[0].fields[0];
+  const field =
+    fieldOverride ??
+    editorFixture([definition], {
+      traits: { fire: "Fire", cold: "Cold", magical: "Magical" },
+    }).groups[0].fields[0];
   const onChange = vi.fn();
   function Harness() {
     const [clause, setClause] = useState(initial);
@@ -96,15 +103,20 @@ function picker({
         field={field}
         clause={clause}
         scope={scope}
-        countLimit={128}
+        countLimit={countLimit}
         countContext={
           withCounts
             ? {
-                kind: "filtered",
+                ...(scope.kind === "saved_list" ? scope : { kind: "filtered" }),
                 filter: clause,
                 text: null,
                 connection_scope: connectionScope,
               }
+            : undefined
+        }
+        countQueryKey={
+          scope.kind === "saved_list"
+            ? ["saved-list-filter-discovery", scope.list_ref, JSON.stringify(clause)]
             : undefined
         }
         onChange={(next) => {
@@ -202,6 +214,114 @@ describe("compact common choice picker", () => {
     });
     expect(screen.queryByLabelText("4 matching records")).not.toBeInTheDocument();
   });
+  it.each([
+    { countLimit: 128, scope: { kind: "artifact" } },
+    { countLimit: 3, scope: { kind: "artifact" } },
+    { countLimit: 3, scope: { kind: "saved_list", list_ref: "research" } },
+  ] satisfies { countLimit: number; scope: FilterVocabularyScope }[])(
+    "keeps matching Kind rows stable with a $countLimit-value limit in $scope.kind scope",
+    async ({ countLimit, scope }) => {
+      const field = editorFixture([
+        {
+          ...fieldFixture("kind", "string", "Kind"),
+          choices: [
+            "all_equipment",
+            "creature",
+            "armor",
+            "weapon",
+            "kit",
+            "journal",
+            "journal_pack/deck",
+          ],
+        },
+      ]).groups[0].fields[0];
+      field.choices = [
+        { value: "all_equipment", label: "All equipment" },
+        { value: "creature", label: "Creature" },
+        { value: "armor", label: "Armor", parent_kind: "all_equipment" },
+        { value: "weapon", label: "Weapon", parent_kind: "all_equipment" },
+        { value: "kit", label: "Kit", parent_kind: "all_equipment" },
+        { value: "journal", label: "All journals" },
+        { value: "journal_pack/deck", label: "Deck", parent_kind: "journal" },
+      ];
+      let finishCounts: (() => void) | undefined;
+      const heldRefresh: (() => void)[] = [];
+      api.discoverFilterCounts.mockImplementation(({ context, values }) => {
+        const response: FilterCountsView = {
+          search_profile: "bge-base",
+          artifact_generation: "generation-a",
+          counts: {
+            status: "available",
+            value: {
+              field: "kind",
+              options: values.map((value) => ({
+                value,
+                distinct_roots: ["all_equipment", "creature", "weapon"].includes(
+                  String(value),
+                )
+                  ? 3
+                  : 0,
+                selected: false,
+              })),
+              total_values: values.length,
+              exhaustive: true,
+              count_basis: "exact counterfactual displayed roots",
+            },
+          },
+        };
+        if (context.filter) {
+          return new Promise((resolve) => {
+            heldRefresh.push(() => resolve(response));
+          });
+        }
+        return values.includes("weapon")
+          ? new Promise((resolve) => {
+              finishCounts = () => resolve(response);
+            })
+          : Promise.resolve(response);
+      });
+      picker({ field, countLimit, scope, withCounts: true });
+      fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
+      if (countLimit < field.choices.length) {
+        fireEvent.click(
+          await screen.findByRole("button", { name: "Expand All equipment" }),
+        );
+      }
+      await waitFor(() => expect(finishCounts).toBeDefined());
+      expect(
+        screen.queryByRole("button", { name: /^Kind: Armor,/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^Kind: Weapon,/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("No matching values")).not.toBeInTheDocument();
+      await act(async () => finishCounts?.());
+      if (countLimit >= field.choices.length) {
+        fireEvent.click(
+          await screen.findByRole("button", { name: "Expand All equipment" }),
+        );
+        expect(
+          screen.getByRole("button", { name: /^Kind: Weapon,/ }),
+        ).toBeInTheDocument();
+        expect(api.discoverFilterCounts).toHaveBeenCalledTimes(1);
+      }
+      const weapon = await screen.findByRole("button", { name: /^Kind: Weapon,/ });
+      expect(within(weapon).getByLabelText("3 matching records")).toHaveTextContent(
+        /^3$/,
+      );
+      expect(
+        screen.queryByRole("button", { name: /^Kind: Armor,/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^Kind: All journals,/ }),
+      ).not.toBeInTheDocument();
+      const creature = screen.getByRole("button", { name: /^Kind: Creature,/ });
+      fireEvent.click(weapon);
+      await waitFor(() => expect(heldRefresh.length).toBeGreaterThan(0));
+      expect(screen.getByRole("button", { name: /^Kind: Creature,/ })).toBe(creature);
+      await act(async () => heldRefresh.forEach((finish) => finish()));
+    },
+  );
   it("counts the displayed open vocabulary page and selected literals independently", async () => {
     picker({
       closed: false,
