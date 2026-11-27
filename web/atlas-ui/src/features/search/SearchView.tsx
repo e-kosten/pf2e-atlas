@@ -294,6 +294,7 @@ export function SearchView({
           generation={page?.artifact_generation ?? early?.artifact_generation}
           onRefreshResults={workspace.refreshResults}
           loading={loading && !early}
+          loadingMoreLabel={loading && early ? "Loading more results…" : undefined}
           selectedRecordKey={workspace.selectedRecordKey}
           onSelect={(row, request) =>
             workspace.selectRecord(

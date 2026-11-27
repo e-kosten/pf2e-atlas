@@ -24,7 +24,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
       <span>
         {exactOverflow
           ? `${early.matches.length} of ${early.total} exact matches`
-          : workspace.resultsRefreshing || (early && workspace.resultsLoading)
+          : workspace.resultsRefreshing && !early
             ? "Updating results"
             : page
               ? similar

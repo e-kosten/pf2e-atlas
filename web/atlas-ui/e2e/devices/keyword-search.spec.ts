@@ -168,6 +168,7 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
   await query.fill("Atlas Sentinel");
   const readiness = await holdResponse(page, "**/api/readiness");
   const card = page.locator(`[data-record-key="${sentinel}"]`);
+  const loadingMore = page.getByRole("status", { name: "Loading more results…" });
   let submittedRequests = 0;
   const results = await holdResponse(page, "**/api/search/page", (request) => {
     const criteria = request.postDataJSON().criteria;
@@ -202,6 +203,8 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
 
   try {
     await results.arrived;
+    await expect(loadingMore).toBeVisible();
+    await expect(card).toBeVisible();
     expect(new URL(page.url()).searchParams.get("q")).toBe("Atlas Sentinel");
     await expect(query).toHaveValue("new draft during readiness");
     await query.fill("new draft during results");
@@ -209,6 +212,7 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
     results.release();
   }
   await expect(page.getByRole("group", { name: "Result pages" })).toBeVisible();
+  await expect(loadingMore).toBeHidden();
   await expect(card).toHaveCount(1);
   await expect(card).toBeVisible();
   await expect(query).toHaveValue("new draft during results");

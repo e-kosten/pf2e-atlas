@@ -48,6 +48,7 @@ export function ReferenceBrowser({
   readerFooter,
   showMatchContext = true,
   loadingLabel = "Searching…",
+  loadingMoreLabel,
 }: {
   rows: SearchResultRow[];
   query?: string;
@@ -78,6 +79,7 @@ export function ReferenceBrowser({
   readerFooter?: ReaderFooter;
   showMatchContext?: boolean;
   loadingLabel?: string;
+  loadingMoreLabel?: string;
 }) {
   const selected = rows.find((row) => row.record.record_key === selectedRecordKey);
   const detail = reading.detail;
@@ -155,6 +157,12 @@ export function ReferenceBrowser({
                 }}
               />
             ))}
+            {loadingMoreLabel && (
+              <LoadingStatus
+                className="reference-loading-more"
+                label={loadingMoreLabel}
+              />
+            )}
           </>
         )}
       </BrowseReader>
