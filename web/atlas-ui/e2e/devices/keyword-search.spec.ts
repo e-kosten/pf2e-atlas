@@ -167,6 +167,7 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
   const query = page.getByRole("combobox", { name: "Search records" });
   await query.fill("Atlas Sentinel");
   const readiness = await holdResponse(page, "**/api/readiness");
+  const card = page.locator(`[data-record-key="${sentinel}"]`);
   let submittedRequests = 0;
   const results = await holdResponse(page, "**/api/search/page", (request) => {
     const criteria = request.postDataJSON().criteria;
@@ -185,8 +186,9 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
     await readiness.arrived;
     expect(await query.inputValue()).toBe("Atlas Sentinel");
     await expect(page).toHaveURL(/[?&]q=Atlas(?:\+|%20)Sentinel/);
-    const exact = page.getByRole("region", { name: "Exact matches" });
-    await activate(exact.getByRole("link", { name: /^Atlas Sentinel/ }), info);
+    await expect(card).toHaveClass(/reference-result__summary--search/);
+    await expect(page.getByRole("group", { name: "Result pages" })).toBeHidden();
+    await activate(card, info);
     await expect(
       page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
     ).toBeVisible();
@@ -206,7 +208,9 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
   } finally {
     results.release();
   }
-  await expect(page.locator(`[data-record-key="${sentinel}"]`)).toBeVisible();
+  await expect(page.getByRole("group", { name: "Result pages" })).toBeVisible();
+  await expect(card).toHaveCount(1);
+  await expect(card).toBeVisible();
   await expect(query).toHaveValue("new draft during results");
   expect(submittedRequests).toBe(1);
   expect(new URL(page.url()).pathname).toBe(`/search/records/${sentinel}`);

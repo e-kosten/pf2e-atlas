@@ -128,11 +128,15 @@ export type SearchWorkspaceState = {
   applySettings?: (next: SearchFormState, profile: string | null) => void;
   recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
-  selectRecord: (recordKey: string | null, request?: ReadingRequest) => void;
+  selectRecord: (
+    recordKey: string | null,
+    request?: ReadingRequest,
+    generation?: string,
+  ) => void;
   pageNumber: number;
   setPageNumber: (page: number) => void;
   resultPage: SearchResultsPage | undefined;
-  exactMatches?: ExactSearchView;
+  earlyExactMatches?: ExactSearchView;
   nameSuggestions?: NameSuggestionContext;
   resultFilter: QueryPredicate | null;
   filterEditor: FilterEditorView | undefined;
@@ -500,6 +504,7 @@ export function useSearchWorkspace({
     });
   }
   const heldPage =
+    projection.context === context &&
     projection.retained?.page.artifact_generation === retrieval.generation &&
     !retrieval.recovering
       ? projection.retained
@@ -988,6 +993,15 @@ export function useSearchWorkspace({
     (searchDebouncing ||
       resultsQuery.isPlaceholderData ||
       (resultsQuery.isFetching && !resultsQuery.isLoading));
+  const resultPage = canDisplayResult ? result?.page : undefined;
+  const hasCurrentPage =
+    resultPage &&
+    !searchDebouncing &&
+    !resultsQuery.isPlaceholderData &&
+    resultPage.page.number === pageNumber &&
+    resultPage.artifact_generation === requestGeneration;
+  const earlyExactMatches =
+    !hasCurrentPage && exactMatches?.matches.length ? exactMatches : undefined;
   return {
     search,
     setSearch,
@@ -1043,7 +1057,8 @@ export function useSearchWorkspace({
       : reading,
     positions,
     selectedRecordKey,
-    selectRecord,
+    selectRecord: (key, request, generation) =>
+      selectRecord(key, request, undefined, generation),
     pageNumber,
     setPageNumber: (nextPage) => {
       if (!resultsPaused && !retrieval.recovering && nextPage !== pageNumber) {
@@ -1058,8 +1073,8 @@ export function useSearchWorkspace({
         });
       }
     },
-    resultPage: canDisplayResult ? result?.page : undefined,
-    exactMatches,
+    resultPage: earlyExactMatches ? undefined : resultPage,
+    earlyExactMatches,
     nameSuggestions: {
       enabled: allowNameLookup,
       filter: search.filter,
@@ -1068,7 +1083,8 @@ export function useSearchWorkspace({
       onSelect: (key, generation) =>
         selectRecord(key, undefined, undefined, generation),
     },
-    resultFilter: canDisplayResult ? (result?.filter ?? null) : null,
+    resultFilter:
+      canDisplayResult && !earlyExactMatches ? (result?.filter ?? null) : null,
     filterEditor: filterDiscovery.filterEditor,
     refreshFilterInformation: refreshResults,
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,

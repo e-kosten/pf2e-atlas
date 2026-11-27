@@ -13,8 +13,8 @@ When you know the name, enter it directly. Search offers suggestions when the
 text matches up to five names. For example, typing “cat fal” offers **Cat Fall**
 as a suggestion you can open in the reader. Use the arrow keys to highlight a
 suggestion and Enter to open it. With no suggestion highlighted, Enter runs a
-search. Exact names and aliases appear above the first results page as soon as
-Atlas finds them. Your filters apply to both suggestions and exact matches.
+search. Exact names and aliases can appear as result cards while Atlas finishes
+ranking the page. Your filters apply to both suggestions and exact matches.
 
 Leave the text empty to browse entries using filters alone.
 

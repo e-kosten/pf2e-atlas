@@ -15,7 +15,7 @@ import {
 } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
-import { ExactMatches } from "./ExactMatches";
+import type { SearchResultRow } from "../../generated/atlas";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { appError } from "../../shared/feedback/errorMessages";
 import {
@@ -95,6 +95,18 @@ export function SearchView({
     });
   }, [request, seed, atlasRouter]);
   const page = workspace.resultPage;
+  const early = workspace.earlyExactMatches;
+  const rows = useMemo<SearchResultRow[]>(
+    () =>
+      page?.rows ??
+      early?.matches.map(({ record }) => ({
+        record,
+        matches: [],
+        relationship_evidence: [],
+      })) ??
+      [],
+    [page, early],
+  );
   const mode = page?.mode;
   const acknowledged =
     page &&
@@ -255,7 +267,7 @@ export function SearchView({
           clearBesideSelection
           searchCards
           previewOnEnter
-          showReaderPrompt={Boolean(workspace.resultPage?.rows.length)}
+          showReaderPrompt={rows.length > 0}
           emptyMessage={
             failed
               ? null
@@ -265,7 +277,7 @@ export function SearchView({
                   : null
                 : "Search or choose filters."
           }
-          rows={workspace.resultPage?.rows ?? []}
+          rows={rows}
           showMatchContext={!workspace.evidencePending}
           matchDisplay={effectiveMatchDisplay(
             profile.preferences.matchDisplay,
@@ -279,26 +291,21 @@ export function SearchView({
           }
           relationshipClauses={workspace.resultPage?.relationship_clauses}
           filter={workspace.resultFilter}
-          generation={workspace.resultPage?.artifact_generation}
+          generation={page?.artifact_generation ?? early?.artifact_generation}
           onRefreshResults={workspace.refreshResults}
-          loading={loading}
+          loading={loading && !early}
           selectedRecordKey={workspace.selectedRecordKey}
           onSelect={(row, request) =>
-            workspace.selectRecord(row.record.record_key, request)
+            workspace.selectRecord(
+              row.record.record_key,
+              request,
+              early?.artifact_generation,
+            )
           }
           onClearSelection={() => workspace.selectRecord(null)}
           reading={workspace.reading}
           positions={workspace.positions}
           resultsHeader={<ResultPaneHeader workspace={workspace} />}
-          resultsLeadIn={
-            workspace.exactMatches?.matches.length && workspace.nameSuggestions ? (
-              <ExactMatches
-                page={workspace.exactMatches}
-                selectedRecordKey={workspace.selectedRecordKey}
-                onSelect={workspace.nameSuggestions.onSelect}
-              />
-            ) : undefined
-          }
           recordActions={(record) => (
             <AddToRecordButton
               key={record.record_key}

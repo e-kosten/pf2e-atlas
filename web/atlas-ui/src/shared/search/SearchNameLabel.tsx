@@ -1,12 +1,6 @@
 import type { RecordSummaryView } from "../../generated/atlas";
 
-export function SearchNameLabel({
-  record,
-  alias,
-}: {
-  record: RecordSummaryView;
-  alias?: string;
-}) {
+export function SearchNameLabel({ record }: { record: RecordSummaryView }) {
   const edition =
     record.edition === "legacy"
       ? "Legacy"
@@ -19,7 +13,6 @@ export function SearchNameLabel({
       <strong>{record.title}</strong>
       <span className="search-name-label__source">
         {[record.kind_label, source, edition].filter(Boolean).join(" · ")}
-        {alias && <> · Matched “{alias}”</>}
       </span>
     </span>
   );

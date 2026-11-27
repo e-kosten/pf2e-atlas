@@ -421,20 +421,6 @@
   height: auto;
   flex: 1;
 }
-.search-exact-matches {
-  padding: var(--space-control) var(--browse-pane-inset);
-  border-block-end: 1px solid var(--line);
-}
-.search-exact-matches h2 {
-  margin: 0 0 var(--space-control);
-  font-size: inherit;
-}
-.search-exact-matches ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.search-exact-matches .search-exact-matches__link,
 .search-name-suggestions .search-name-suggestion {
   height: auto;
   justify-content: start;
@@ -458,8 +444,7 @@
   overflow-y: auto;
 }
 .search-name-suggestion:hover,
-.search-name-suggestion[aria-selected="true"],
-.search-exact-matches__link[aria-current="true"] {
+.search-name-suggestion[aria-selected="true"] {
   background: var(--selection-bg);
   color: var(--selection-text);
 }

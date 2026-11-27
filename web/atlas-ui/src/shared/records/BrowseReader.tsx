@@ -14,7 +14,6 @@ import { BrowsePaneHeader } from "./BrowsePaneHeader";
 export function BrowseReader({
   children,
   resultsHeader,
-  resultsLeadIn,
   renderResultsPaneHeader,
   resultsLabel,
   resultsIdentity,
@@ -39,7 +38,6 @@ export function BrowseReader({
 }: {
   children: ReactNode | ((rowAction: ReactNode) => ReactNode);
   resultsHeader?: ReactNode;
-  resultsLeadIn?: ReactNode;
   renderResultsPaneHeader?: (actions: ReactNode) => ReactNode;
   resultsLabel: string;
   resultsIdentity: unknown;
@@ -125,7 +123,7 @@ export function BrowseReader({
   function rememberOpener(target: EventTarget) {
     const element =
       target instanceof Element
-        ? target.closest<HTMLElement>("[data-record-key], [data-reader-opener]")
+        ? target.closest<HTMLElement>("[data-record-key]")
         : null;
     if (element) {
       beforePreview.current = element;
@@ -235,7 +233,7 @@ export function BrowseReader({
       <div
         className="reference-results__scroll"
         ref={listRef}
-        aria-busy={paneHeader || resultsLeadIn ? undefined : resultsLoading}
+        aria-busy={paneHeader ? undefined : resultsLoading}
         onScroll={(event) => {
           if (
             layoutActive.current &&
@@ -253,12 +251,6 @@ export function BrowseReader({
             >
               {renderResultsPaneHeader(narrow ? resultsAction : null)}
             </div>
-            {resultsLeadIn}
-            <div aria-busy={resultsLoading}>{rows}</div>
-          </>
-        ) : resultsLeadIn ? (
-          <>
-            {resultsLeadIn}
             <div aria-busy={resultsLoading}>{rows}</div>
           </>
         ) : (

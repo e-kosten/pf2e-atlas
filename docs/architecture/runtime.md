@@ -641,7 +641,8 @@ without model inference. Main Search applies its current filter.
 typed filter in one generation-checked workspace read. It returns up to five
 distinct root records and the eligible exact count without model inference.
 The browser can start this read before workspace-default profile selection
-finishes. The full ranked page continues to own ranking, coverage and pagination.
+finishes. It renders these records in the results list until the current ranked
+page supplies the list, coverage and pagination.
 An omitted Similar method selects Passage matches, Any content and decay 0.5.
 Explicit options and record preferences retain their meaning.
 Configurable Similar carries typed method, decay, part and candidate-role options
