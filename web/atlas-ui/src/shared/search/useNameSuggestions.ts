@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { searchPage } from "../../api/atlasApi";
+import { searchExact, searchPage } from "../../api/atlasApi";
 import type { QueryPredicate } from "../../generated/atlas";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { useReferenceQueryRetirement } from "../queries/useReferenceQueryRetirement";
@@ -54,11 +54,17 @@ export function useNameSuggestions(
       );
       assertKeywordSearch(page);
       assertSearchIdentity(page, undefined, generation);
-      return page;
+      const { artifact_generation } = page;
+      if (!page.page.has_more) return { artifact_generation, rows: page.rows };
+
+      const exact = await searchExact(
+        { query: draft, filter, expected_artifact_generation: artifact_generation },
+        signal,
+      );
+      assertSearchIdentity(exact, undefined, artifact_generation);
+      return exact.total === 1 ? { artifact_generation, rows: exact.matches } : null;
     },
   });
   useReferenceQueryRetirement(key);
-  return enabled && result.isSuccess && !result.isFetching && !result.data.page.has_more
-    ? result.data
-    : undefined;
+  return enabled && result.isSuccess && !result.isFetching ? result.data : undefined;
 }

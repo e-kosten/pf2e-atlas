@@ -281,6 +281,13 @@ test("opens a name suggestion without submitting the draft", async ({ page }, in
   await page.goto("/search");
   await expect(page.getByText("Keyword search", { exact: true })).toBeVisible();
   const query = page.getByRole("combobox", { name: "Search records" });
+  const exactResponse = (text: string) =>
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/search/exact") &&
+        response.request().postDataJSON().query === text,
+    );
+  const noExact = exactResponse("Watchtower Patrol");
   const broad = page.waitForResponse((response) => {
     if (!response.url().endsWith("/api/search/page")) return false;
     const criteria = response.request().postDataJSON().criteria;
@@ -291,6 +298,7 @@ test("opens a name suggestion without submitting the draft", async ({ page }, in
   });
   await query.fill("Watchtower Patrol");
   expect((await (await broad).json()).page.total).toBeGreaterThan(5);
+  expect((await (await noExact).json()).total).toBe(0);
   // Give the successful response a chance to open the popover.
   await page.evaluate(
     () =>
@@ -303,8 +311,28 @@ test("opens a name suggestion without submitting the draft", async ({ page }, in
   await query.press("Escape");
   await expect(option).toBeHidden();
   await expect(query).toHaveValue("atlas sentin");
-  await query.fill("Atlas Sentin");
+  // Keep the fixture's real exact identity while exercising the overflow path.
+  await page.route("**/api/search/page", async (route) => {
+    const criteria = route.request().postDataJSON().criteria;
+    if (
+      criteria.query !== "Atlas Sentinel" ||
+      criteria.lexical?.fields !== "record_names"
+    )
+      return route.fallback();
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({
+      response,
+      json: { ...body, page: { ...body.page, total: 6, has_more: true, next_page: 2 } },
+    });
+  });
+  const uniqueExact = exactResponse("Atlas Sentinel");
+  await query.fill("Atlas Sentinel");
+  expect((await (await uniqueExact).json()).total).toBe(1);
   await expect(option).toBeVisible();
+  await expect(
+    page.getByRole("listbox", { name: "Name suggestions" }).getByRole("option"),
+  ).toHaveCount(1);
   if (info.project.use.hasTouch) {
     await activate(option, info);
   } else {
@@ -318,7 +346,7 @@ test("opens a name suggestion without submitting the draft", async ({ page }, in
   expect(new URL(page.url()).searchParams.get("q")).toBeNull();
   const back = page.getByRole("button", { name: "Results", exact: true });
   if (await back.isVisible()) await activate(back, info);
-  await expect(query).toHaveValue("Atlas Sentin");
+  await expect(query).toHaveValue("Atlas Sentinel");
 });
 
 test("keeps newer search text in the Add records picker", async ({ page }, info) => {
