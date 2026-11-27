@@ -45,6 +45,7 @@ describe("application navigation and accessibility", () => {
   });
   it("provides native destinations and handles ordinary navigation once", async () => {
     renderShell();
+    expect(screen.queryByRole("group", { name: "Tab history" })).toBeNull();
     const entries = history.length;
     const brand = screen.getByRole("link", { name: "PF2e Atlas" });
     expect(brand).toHaveAttribute("href", "/search");

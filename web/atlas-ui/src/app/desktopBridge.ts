@@ -15,9 +15,12 @@ export type ReferenceStatus = {
   models?: { id: string; label: string; installed: boolean; usable: boolean }[];
   preferred?: string | null;
 };
+export type HistoryDirection = "back" | "forward";
+
 export type DesktopAttachment = Pick<UpdateAttachment, "channel" | "update"> & {
   token: string;
   settingsWindow?: boolean;
+  historyNavigation?: "macos" | "windows";
   settingsRequest?: { id: number; destination: SettingsDestination } | null;
   referenceLoading?: boolean;
   reference?: ReferenceStatus | null;
@@ -36,8 +39,13 @@ export type DesktopAttachment = Pick<UpdateAttachment, "channel" | "update"> & {
 type DesktopWindow = Window & {
   __ATLAS_DESKTOP_SETUP__?: DesktopAttachment;
   __ATLAS_WINDOWS_TABS__?: boolean;
+  __ATLAS_MAC_HISTORY__?: boolean;
   __TAURI__?: { core: { invoke<T>(command: string, args: object): Promise<T> } };
 };
+
+export function macHistoryEnabled() {
+  return (window as DesktopWindow).__ATLAS_MAC_HISTORY__ === true;
+}
 
 export function windowsTabsEnabled() {
   return (window as DesktopWindow).__ATLAS_WINDOWS_TABS__ === true;
