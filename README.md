@@ -1,88 +1,72 @@
 # PF2e Atlas
 
-**Find Pathfinder content by idea.**
-
-PF2e Atlas helps you find Pathfinder Second Edition creatures, spells, equipment,
-and rules by describing what you have in mind. Try “a guardian for an enchanted
-forest” or “magic for a haunted-house adventure.” Search matches meaning as well
-as names, and filters help you narrow the results by level, traits, and other
-game details.
-
-Explore the results in your browser, save options for a session, and build and run
-encounters. Atlas also includes a command-line interface and a bundled skill that
-lets AI agents search and reference PF2e content while helping you prepare.
-
-Reference content comes from the [Foundry PF2e project](https://github.com/foundryvtt/pf2e).
-The supported reference release is **8.7.0**; setup downloads the pinned source for you.
+PF2e Atlas is a local Pathfinder Second Edition reference and encounter manager.
+Find creatures, spells, equipment, and rules by name or by describing what you
+need. Save finds in lists, build encounters for your party, and track initiative,
+HP, and conditions during play.
 
 ## Quick Start
 
-Install **PF2e Atlas Desktop** on [Apple Silicon macOS](https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-desktop-aarch64-apple-darwin.dmg) or [Windows x64](https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-desktop-x86_64-pc-windows-msvc-setup.exe). Open Atlas and choose **Set up Atlas**. See the [desktop installation and first-launch instructions](docs/installation.md#macos-desktop-app).
+### Desktop app
 
-To try the newest verified development build, visit [Latest Nightly](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest). Before the first official release, use Nightly.
+Download and install the latest stable desktop app for your system.
 
-### Terminal and browser quick start
+- [Apple Silicon Mac](https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-desktop-aarch64-apple-darwin.dmg) (macOS Tahoe 26 or later) · [Installation help](docs/installation.md#macos-desktop-app)
+- [Windows x64](https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-desktop-x86_64-pc-windows-msvc-setup.exe) · [Installation help](docs/installation.md#windows-desktop-app)
 
-For Linux, command-line use, or scripts, install Atlas with the [standalone installer](docs/installation.md#standalone-cli).
+Open **PF2e Atlas** and choose **Set up Atlas**. Setup downloads the reference
+content and search data so Atlas can search locally.
 
-**1. Prepare your local data.**
+### Linux or browser use
+
+On Linux x64 or ARM64, or to use a browser on a supported Mac or Windows PC,
+use the [standalone CLI installer](docs/installation.md#standalone-cli).
+Then prepare Atlas and open it in your browser.
 
 ```bash
 atlas setup
-```
-
-Run setup after installation, when Atlas asks you to upgrade the workspace, or
-when you want to update reference data. Setup downloads and verifies the pinned
-Pathfinder reference content, precomputed embeddings, and a search model, then
-prepares them for local searching. You do not need Git. Later runs reuse work already completed.
-
-**2. Open Atlas.**
-
-```bash
 atlas web --open
 ```
 
-Keep the command running while you use Atlas. If the browser does not open,
-visit the local address printed in the terminal. Additional launches for the same
-workspace can share the running service. When the last launcher exits, the
-service shuts down. Compatible CLI searches can reuse the loaded model while the
-service is running.
+Keep the terminal command running while you use Atlas. If the browser does not
+open, visit the local address shown in the terminal.
 
-Start with something you’re looking for—a particular spell, a creature concept,
-or an idea for your next session. Explore the results, save useful finds in lists,
-or bring creatures and hazards into an encounter.
+### Try your first search
 
-See [Getting started](docs/getting-started.md) for your first list and encounter.
-For alternate versions, supported platforms or a manual download, see
-[Installation](docs/installation.md).
-
-For a CLI-only install, see [installation without the web UI](docs/installation.md#install-without-the-web-ui).
+Search for “a guardian for an enchanted forest,” then narrow the results by level
+or trait. The [Getting started guide](docs/getting-started.md) walks you through
+reading results, saving a list, and running your first encounter.
 
 ## Use the CLI or an agent
 
+Install the [standalone CLI](docs/installation.md#standalone-cli) or add the
+desktop app's bundled command to your PATH. See the terminal access instructions
+for [macOS](docs/installation.md#macos-desktop-app) or [Windows](docs/installation.md#windows-desktop-app).
+Once `atlas` is on your PATH, try a search from the terminal.
+
 ```bash
 atlas search "low level healing spell" --kind spell --limit 5
-atlas parties list --json
-atlas agent skills install
 ```
 
-The skill installer lets you choose your agent and installation scope.
-See [CLI examples](docs/cli-examples.md) for lookup, filters, characters, parties, lists and JSON,
-and [agent skill installation](docs/installation.md#agent-skill) for updates and automation.
+To let an AI agent use Atlas for Pathfinder lookups and session prep, run
+`atlas agent skills install` and choose your agent and installation scope.
+See [agent skill installation](docs/installation.md#agent-skill) for details.
 
 ## Documentation
 
 | I want to… | Read |
 | --- | --- |
-| Browse, save records and run an encounter | [Getting started](docs/getting-started.md) |
-| Change search settings or explore related records | [Search guide](docs/search.md) |
-| Install, update, try a nightly or build from source | [Installation](docs/installation.md) |
-| Check setup, clean caches or choose data locations | [Setup and maintenance](docs/setup-and-maintenance.md) |
-| Use commands or structured output | [CLI examples](docs/cli-examples.md) |
+| Explore related records or change search settings | [Search guide](docs/search.md) |
+| Update Atlas or install a different version | [Installation](docs/installation.md) |
+| Preview upcoming changes | [Nightly builds](docs/installation.md#nightly-builds) |
+| Troubleshoot setup, back up saved work, or manage downloaded files | [Setup and maintenance](docs/setup-and-maintenance.md) |
+| Use more commands or work with JSON output | [CLI examples](docs/cli-examples.md) |
 | Contribute code or documentation | [Contributing](CONTRIBUTING.md) |
-| Understand internal boundaries and decisions | [Architecture](docs/architecture/overview.md) |
 
 Questions or problems? Use the [issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
+
+Atlas uses reference content from the [Foundry PF2e project](https://github.com/foundryvtt/pf2e).
+Setup downloads the reference version supported by your Atlas release.
 
 ## Paizo Community Use Notice
 

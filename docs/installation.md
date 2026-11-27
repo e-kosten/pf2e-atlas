@@ -8,7 +8,6 @@ This guide covers platform support, alternate versions and agent integration.
 On Apple Silicon with macOS Tahoe 26 or later, download
 `atlas-desktop-aarch64-apple-darwin.dmg` from the
 [Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
-For a nightly, visit the [Latest Nightly download page](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest).
 Check the image's SHA-256 against `SHA256SUMS` on the same release. Open the
 image and drag **PF2e Atlas** into **Applications**.
 
@@ -21,7 +20,8 @@ quit Atlas, replace the app in Applications, reopen it, and choose **Update work
 Nightly use the same selected data by default.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
-Access** to link it at `~/.local/bin/atlas`. If you already installed a
+Access** to link it at `~/.local/bin/atlas`. To use `atlas` by name, add
+`~/.local/bin` to your shell's PATH if needed. If you already installed a
 standalone command there, choose **Switch to bundled CLI** and confirm the
 replacement in the macOS dialog. Run `command -v atlas` to check which
 command your shell uses. The linked command works when the app is closed
@@ -88,7 +88,6 @@ Older apps installed manually may reopen the original workspace.
 
 On Windows x64, download `atlas-desktop-x86_64-pc-windows-msvc-setup.exe` from the
 [Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
-For a nightly, visit the [Latest Nightly download page](https://github.com/e-kosten/pf2e-atlas/releases/tag/nightly/latest).
 Check its SHA-256 against `SHA256SUMS` on the same release. The installer is
 unsigned, so Windows may show a warning when you open it.
 
@@ -99,6 +98,11 @@ the newer release. When Atlas reopens, choose **Update workspace** if prompted.
 Choose a dedicated folder for the desktop app. If the installer identifies a
 conflicting file, select another folder to keep that file intact. Install the
 standalone CLI in its own folder.
+
+The app includes the matching CLI. Open **Terminal and Agent Access** in the
+app menu to see the PowerShell command. To use `atlas` by name in a terminal
+or with an agent, add the executable's folder to your user PATH and open a
+new terminal.
 
 ## Standalone CLI
 
@@ -123,7 +127,6 @@ irm https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-instal
 ```
 
 Follow the installer's PATH instructions, then run `atlas setup`.
-Before the first official release, use the [nightly installer](#nightly-builds).
 
 ## Update Atlas
 
@@ -234,8 +237,12 @@ selects a version for the installer.
 ## Nightly builds
 
 Nightlies let you try recent changes before the next stable release. New builds
-are available after automated checks pass. For the desktop downloads, see
-[macOS](#macos-desktop-app) or [Windows](#windows-desktop-app).
+are available after automated checks pass.
+
+For a first desktop install, choose a dated Nightly from [GitHub Releases](https://github.com/e-kosten/pf2e-atlas/releases)
+and follow the [macOS](#macos-desktop-app) or [Windows](#windows-desktop-app)
+installation steps using that release's desktop installer. If you already use
+Atlas Desktop, see [Switch between Stable and Nightly](#switch-between-stable-and-nightly).
 
 To install or update the CLI to the newest successful nightly on macOS/Linux,
 run the nightly installer:
