@@ -1,7 +1,8 @@
 # Getting started with PF2e Atlas
 
 [Install Atlas and run setup](../README.md#quick-start) before your first session.
-Run setup again after upgrading Atlas. To open the browser:
+If you installed the desktop app, open **PF2e Atlas**. If you installed the
+standalone CLI with the web UI, open Atlas in your browser:
 
 ```bash
 atlas web --open
