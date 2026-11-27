@@ -58,5 +58,7 @@ export function useNameSuggestions(
     },
   });
   useReferenceQueryRetirement(key);
-  return enabled && result.isSuccess && !result.isFetching ? result.data : undefined;
+  return enabled && result.isSuccess && !result.isFetching && !result.data.page.has_more
+    ? result.data
+    : undefined;
 }

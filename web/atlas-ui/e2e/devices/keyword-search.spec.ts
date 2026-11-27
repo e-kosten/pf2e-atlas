@@ -273,6 +273,22 @@ test("opens a name suggestion without submitting the draft", async ({ page }, in
   await page.goto("/search");
   await expect(page.getByText("Keyword search", { exact: true })).toBeVisible();
   const query = page.getByRole("combobox", { name: "Search records" });
+  const broad = page.waitForResponse((response) => {
+    if (!response.url().endsWith("/api/search/page")) return false;
+    const criteria = response.request().postDataJSON().criteria;
+    return (
+      criteria.query === "Watchtower Patrol" &&
+      criteria.lexical?.fields === "record_names"
+    );
+  });
+  await query.fill("Watchtower Patrol");
+  expect((await (await broad).json()).page.total).toBeGreaterThan(5);
+  // Give the successful response a chance to open the popover.
+  await page.evaluate(
+    () =>
+      new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
+  await expect(query).toHaveAttribute("aria-expanded", "false");
   await query.fill("atlas sentin");
   const option = page.getByRole("option", { name: /^Atlas Sentinel/ });
   await expect(option).toBeVisible();
