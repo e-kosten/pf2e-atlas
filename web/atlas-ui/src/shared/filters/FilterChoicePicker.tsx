@@ -488,6 +488,9 @@ function FilterChoicePicker({
         emptyMessage={query.error && !closedChoices ? null : "No matching values"}
         filterChoices={closedChoices}
         loading={!closedChoices && query.isFetching}
+        searchPending={
+          !closedChoices && (text !== search || (query.isFetching && !query.data))
+        }
         pageKey={query.data?.pageKey}
         valueEditing={
           edit.kind === "operand"

@@ -159,6 +159,10 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 36px;
 }
+.common-choice-options .common-choice-row:focus-visible {
+  outline: 2px solid var(--selection-border);
+  outline-offset: -2px;
+}
 .common-choice-marker {
   flex-shrink: 0;
   margin-inline-start: auto;
