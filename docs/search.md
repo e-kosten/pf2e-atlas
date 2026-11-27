@@ -55,6 +55,19 @@ can still explain its rules.
 For **Base Type**, search with a readable name such as “Chain Mail,” or use
 **Next** to see the next page.
 
+### Find backgrounds by boost or skill
+
+Select **Background** in **Kind**. In **Advanced filters**, add a group and
+choose **At least one condition matches**. Add **Restricted attribute boost**
+with **Charisma** and **Has a free attribute boost** with **Yes** inside the
+group. A background can match by offering Charisma in a limited slot or by
+offering a free slot that you can use for Charisma.
+
+To also require Medicine, add **Skill training option** with **Medicine**
+outside that group and keep the outer group set to **All conditions match**.
+Skill training includes named skills offered as a choice. Check the background
+description for any prerequisites and special benefits.
+
 ## Find similar options
 
 Open the **Psychic** page in the **Classes** journal and choose **Similar** to

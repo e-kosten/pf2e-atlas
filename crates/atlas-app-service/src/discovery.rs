@@ -72,6 +72,8 @@ const DIRECTORY: &[ProductGroup] = &[
     ProductGroup::Feats,
     ProductGroup::Ancestries,
     ProductGroup::Heritages,
+    ProductGroup::Backgrounds,
+    ProductGroup::Classes,
     ProductGroup::Deities,
     ProductGroup::Effects,
     ProductGroup::Campaign,
@@ -137,11 +139,8 @@ pub(crate) fn filter_editor_view(
                 }
                 FilterChoiceView {
                     value: QueryLiteral::String(value.clone()),
-                    label: if definition.path == "kind" {
-                        crate::projection::kind_label(value)
-                    } else {
-                        words(value)
-                    },
+                    label: kind_field_choice_label(&definition.path, value)
+                        .unwrap_or_else(|| words(value)),
                     parent_kind: None,
                     search_aliases: vec![],
                     help: None,
@@ -189,6 +188,12 @@ pub(crate) fn filter_editor_view(
             "has_description" => Some("Includes a record’s own description, creature background, or journal text. Carried spells, equipment, and other embedded mechanics don’t count.".into()),
             "level_or_rank" => Some("Uses a spell’s rank or another entry’s level.".into()),
             "level" => Some("Level for applicable creatures, physical items, feats, campaign features, effects and afflictions; use Level / rank to include spells.".into()),
+            "background.restricted_attribute_boosts" => Some("An attribute offered by a fixed or limited-choice boost.".into()),
+            "background.has_free_attribute_boost" => Some("A standard boost slot that offers all six attributes.".into()),
+            "background.skill_training" => Some("Includes named skills granted directly or offered as a choice. Some choices have prerequisites.".into()),
+            "class.key_attributes" => Some("Uses attributes on the base class. Class feature choices are separate.".into()),
+            "hazard.disable_skills" => Some("Uses skill checks tagged in the visible Disable section.".into()),
+            "spell.cast_range" => Some("Uses explicit distances. Touch alternatives can also match Has touch range.".into()),
             "source.document_kind" => Some("Source document classification; use Kind for reference categories.".into()),
             _ => None,
         };
@@ -239,7 +244,9 @@ pub(crate) fn filter_editor_view(
             unit_fields,
             short_choices: matches!(definition.id.as_str(), "kind" | "rarity")
                 || (!choices.is_empty() && choices.len() <= 12),
-            allow_custom_values: (definition.id == "actions").then_some(false),
+            allow_custom_values: (definition.id == "actions"
+                || definition.id == "deity.favored_weapons")
+                .then_some(false),
             definition,
             control,
             placement,
@@ -335,6 +342,19 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         _ => ProductGroup::Other,
     }
 }
+pub(crate) fn kind_field_choice_label(path: &str, value: &str) -> Option<String> {
+    match path {
+        "kind" => Some(crate::projection::kind_label(value)),
+        "background.restricted_attribute_boosts"
+        | "ancestry.default_boosts"
+        | "ancestry.default_flaws"
+        | "class.key_attributes" => Some(crate::presentation::attribute_label(value).to_owned()),
+        "deity.favored_weapons" => Some(crate::physical_labels::base_type(value)),
+        "ancestry.vision" if value == "low-light-vision" => Some("Low-light vision".into()),
+        _ => None,
+    }
+}
+
 pub(crate) fn words(value: &str) -> String {
     let spaced = value.replace(['_', '-'], " ");
     let mut chars = spaced.chars();
