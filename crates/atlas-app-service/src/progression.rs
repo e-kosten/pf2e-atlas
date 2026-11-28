@@ -72,21 +72,21 @@ impl AtlasAppService {
                 available_through: ProgressionPageView::default(),
             };
 
-            if direction == ProgressionDirection::Overview {
-                if let Some(progression) = &progression {
-                    view.prerequisites = requirement_views(progression, retrieval).0;
-                    view.ancestry_feat_pools = progression
-                        .ancestry_access
-                        .iter()
-                        .map(|access| ProgressionPoolView {
-                            trait_key: access.trait_key.clone(),
-                            label: retrieval
-                                .trait_label(&access.trait_key)
-                                .unwrap_or(&access.trait_key)
-                                .to_owned(),
-                        })
-                        .collect();
-                }
+            if direction == ProgressionDirection::Overview
+                && let Some(progression) = &progression
+            {
+                view.prerequisites = requirement_views(progression, retrieval).0;
+                view.ancestry_feat_pools = progression
+                    .ancestry_access
+                    .iter()
+                    .map(|access| ProgressionPoolView {
+                        trait_key: access.trait_key.clone(),
+                        label: retrieval
+                            .trait_label(&access.trait_key)
+                            .unwrap_or(&access.trait_key)
+                            .to_owned(),
+                    })
+                    .collect();
             }
             if matches!(
                 direction,
