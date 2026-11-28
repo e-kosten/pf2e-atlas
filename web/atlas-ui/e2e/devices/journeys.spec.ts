@@ -3290,6 +3290,10 @@ test("long Boolean filter labels leave both controls reachable", async ({
   await expect(field).toHaveAttribute("aria-expanded", "false");
   await activate(value, info);
   const choices = page.locator(".ant-select-dropdown:visible");
+  await expect(choices.locator(".ant-select-item-option-content")).toHaveText([
+    "Yes",
+    "No",
+  ]);
   await activate(choices.getByText("No", { exact: true }), info);
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
@@ -3305,33 +3309,17 @@ test("long Boolean filter labels leave both controls reachable", async ({
     await noPageOverflow(page);
   }
 
-  const clear = row.getByRole("button", {
-    name: `Clear value for ${label}`,
-    exact: true,
-  });
-  await expect(clear).toBeVisible();
-  const target = (await clear.boundingBox())!;
-  expect(target.width).toBeGreaterThanOrEqual(24);
-  expect(target.height).toBeGreaterThanOrEqual(24);
-  if (info.project.use.hasTouch) {
-    await clear.tap();
-  } else {
-    await expect(value).toBeFocused();
+  const remove = row.getByRole("button", { name: "Remove condition", exact: true });
+  if (!info.project.use.hasTouch) {
+    await value.focus();
     await page.keyboard.press("Tab");
-    await expect(clear).toBeFocused();
-    await page.keyboard.press("Space");
+    await expect(remove).toBeFocused();
   }
-  await expect(value).toBeFocused();
-  await expect(clear).toHaveCount(0);
+  await activate(remove, info);
+  await expect(row).toHaveCount(0);
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
     .toMatchObject(descriptions);
-
-  await activate(
-    row.getByRole("button", { name: "Remove condition", exact: true }),
-    info,
-  );
-  await expect(row).toHaveCount(0);
   await expect(
     advanced.getByRole("combobox", { name: "Has a description" }),
   ).toBeVisible();

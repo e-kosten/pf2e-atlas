@@ -1829,7 +1829,6 @@ function countOtherLinkRules(group: RuleGroupType, ruleId: string | undefined): 
 function BuilderValueEditor(props: ValueEditorProps) {
   const editing = useContext(RuleEditContext);
   const { editor, query, scope, workspace } = props.context as BuilderContext;
-  const { token } = theme.useToken();
   const [editingRange, setEditingRange] = useState(false);
   const links = useContext(LinkEditingContext);
   const fields = editor.groups.flatMap((group) => group.fields);
@@ -1937,35 +1936,11 @@ function BuilderValueEditor(props: ValueEditorProps) {
         rule.value === "" || rule.value == null
           ? undefined
           : String((String(rule.value) === "true") !== invert);
-      const clearSize = 24;
       return (
         <CompactSelect
           className="filter-rule-value filter-rule-boolean"
           aria-label={field.label}
           placeholder="—"
-          allowClear={{
-            clearIcon: <ClearOutlined aria-hidden="true" />,
-            label: `Clear value for ${field.label}`,
-          }}
-          trailingAffordanceWidth={token.fontSizeIcon + token.marginXXS + clearSize}
-          styles={{
-            root: {
-              paddingBlock: Math.max(
-                0,
-                (token.controlHeight - clearSize) / 2 - token.lineWidth,
-              ),
-            },
-            suffix: { opacity: 1 },
-            clear: {
-              position: "static",
-              marginTop: 0,
-              marginInlineStart: token.marginXXS,
-              inlineSize: clearSize,
-              blockSize: clearSize,
-              flex: "none",
-              opacity: 1,
-            },
-          }}
           options={[
             { label: "Yes", value: "true" },
             { label: "No", value: "false" },
