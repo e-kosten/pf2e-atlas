@@ -170,9 +170,9 @@ it("requests only active bounded page literals and preserves known zero versus m
   );
   expect(api.discoverFilterCounts).not.toHaveBeenCalled();
   rerender({ open: true, values: ["fire", "zero", "fire", "retained", "overflow"] });
-  await waitFor(() => expect(result.current.get("fire")).toBe(3));
-  expect(result.current.get("zero")).toBe(0);
-  expect(result.current.has("retained")).toBe(false);
+  await waitFor(() => expect(result.current.counts.get("fire")).toBe(3));
+  expect(result.current.counts.get("zero")).toBe(0);
+  expect(result.current.counts.has("retained")).toBe(false);
   expect(api.discoverFilterCounts).toHaveBeenCalledWith(
     {
       context,
@@ -215,7 +215,7 @@ it("abandons a count read when its popup closes without issuing a disabled reque
   await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(1));
   rerender({ open: false });
   expect(signal.aborted).toBe(true);
-  expect(result.current.size).toBe(0);
+  expect(result.current.counts.size).toBe(0);
   expect(api.discoverFilterCounts).toHaveBeenCalledTimes(1);
 });
 it.each(["unavailable", "error"])(
@@ -229,7 +229,7 @@ it.each(["unavailable", "error"])(
     else api.discoverFilterCounts.mockRejectedValue(new Error("SQL failure"));
     const { result } = renderHook(
       () => ({
-        counts: useFilterOptionCounts(
+        optionCounts: useFilterOptionCounts(
           context,
           "traits",
           "negative",
@@ -244,7 +244,7 @@ it.each(["unavailable", "error"])(
       { wrapper: wrapper() },
     );
     await waitFor(() => expect(result.current.values.data).toBeDefined());
-    expect(result.current.counts.size).toBe(0);
+    expect(result.current.optionCounts.counts.size).toBe(0);
     expect(result.current.values.data?.values.selected_values).toEqual(["retained"]);
   },
 );
@@ -274,11 +274,11 @@ it("isolates late context/profile/generation/page completions and aborts abandon
     },
     values: ["fire", "zero"],
   });
-  expect(result.current.size).toBe(0);
-  await waitFor(() => expect(result.current.get("fire")).toBe(9));
+  expect(result.current.counts.size).toBe(0);
+  await waitFor(() => expect(result.current.counts.get("fire")).toBe(9));
   expect(oldSignal.aborted).toBe(true);
   await act(async () => finish(response()));
-  expect(result.current.get("fire")).toBe(9);
+  expect(result.current.counts.get("fire")).toBe(9);
 });
 it.each([
   ["embeddinggemma", "generation-a"],
@@ -293,7 +293,7 @@ it.each([
   await act(async () => {
     await Promise.resolve();
   });
-  expect(result.current.size).toBe(0);
+  expect(result.current.counts.size).toBe(0);
 });
 it("keeps count-free scoped search/paging and separately retained selections", async () => {
   const scope = { kind: "saved_list" as const, list_ref: "research" };
@@ -345,7 +345,7 @@ it("refreshes active saved-list option counts through the existing membership in
       ]),
     { wrapper: ListWrapper },
   );
-  await waitFor(() => expect(result.current.get("fire")).toBe(3));
+  await waitFor(() => expect(result.current.counts.get("fire")).toBe(3));
   expect(api.discoverFilterCounts).toHaveBeenCalledWith(
     expect.objectContaining({ context: listContext }),
     expect.any(AbortSignal),
@@ -358,7 +358,7 @@ it("refreshes active saved-list option counts through the existing membership in
   await act(async () => {
     await invalidateSavedListQueries(client, ["research"]);
   });
-  await waitFor(() => expect(result.current.get("fire")).toBe(7));
+  await waitFor(() => expect(result.current.counts.get("fire")).toBe(7));
   expect(api.discoverFilterCounts).toHaveBeenCalledTimes(2);
 });
 
@@ -368,7 +368,7 @@ it("keeps displayed counts during a filter refresh and replaces them in place", 
       useFilterOptionCounts(activeContext, "traits", null, ["fire"], true, 128),
     { wrapper: wrapper(), initialProps: { activeContext: context } },
   );
-  await waitFor(() => expect(result.current.get("fire")).toBe(3));
+  await waitFor(() => expect(result.current.counts.get("fire")).toBe(3));
   let finish!: (value: unknown) => void;
   api.discoverFilterCounts.mockImplementationOnce(
     () =>
@@ -383,9 +383,9 @@ it("keeps displayed counts during a filter refresh and replaces them in place", 
     },
   });
   await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(2));
-  expect(result.current.get("fire")).toBe(3);
+  expect(result.current.counts.get("fire")).toBe(3);
   await act(async () => finish(response("bge-base", "generation-a", 7)));
-  await waitFor(() => expect(result.current.get("fire")).toBe(7));
+  await waitFor(() => expect(result.current.counts.get("fire")).toBe(7));
 });
 
 it.each(["artifact_generation_changed", "internal_error"])(
@@ -531,9 +531,9 @@ it.each([
         useFilterOptionCounts(activeContext, "traits", null, ["fire"], true, 128),
       { wrapper: wrapper(), initialProps: { activeContext: initial } },
     );
-    await waitFor(() => expect(result.current.get("fire")).toBe(3));
+    await waitFor(() => expect(result.current.counts.get("fire")).toBe(3));
     rerender({ activeContext: next });
-    expect(result.current.size).toBe(0);
+    expect(result.current.counts.size).toBe(0);
     await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(2));
     expect(api.discoverFilterCounts).toHaveBeenLastCalledWith(
       expect.objectContaining({ context: next }),
@@ -563,10 +563,10 @@ it("does not accept an abandoned unscoped count response after a relationship is
   );
   await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(1));
   rerender({ activeContext: relationshipContext });
-  await waitFor(() => expect(result.current.get("fire")).toBe(7));
+  await waitFor(() => expect(result.current.counts.get("fire")).toBe(7));
   expect(oldSignal.aborted).toBe(true);
   await act(async () => finish(response("bge-base", "generation-a", 99)));
-  expect(result.current.get("fire")).toBe(7);
+  expect(result.current.counts.get("fire")).toBe(7);
 });
 
 it("drops contextual vocabulary and counts across relationship scope changes", async () => {

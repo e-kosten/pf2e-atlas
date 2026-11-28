@@ -9,8 +9,14 @@ Try “a guardian for an enchanted forest,” “magic for a haunted-house adven
 or “ways to get through locked doors.” Open a result to read its details and
 follow linked names to explore related entries.
 
-When you know the name, enter it directly—for example, “Treat Wounds.” You can
-also leave the text empty to browse entries using filters alone.
+When you know the name, enter it directly. Search offers suggestions when the
+text matches up to five names. If more names match, the picker can still offer
+a single exact match. Use the arrow keys to highlight a suggestion and Enter
+to open it. With no suggestion highlighted, Enter runs a search. Exact names
+and aliases can appear as result cards while Atlas finishes ranking the page.
+Your filters apply to both suggestions and exact matches.
+
+Leave the text empty to browse entries using filters alone.
 
 ## Search selected text
 
@@ -29,7 +35,10 @@ on the button shows how many conditions are applied.
 
 Open **Kind** and type the label from a result, such as **Background** or
 **Class Feature**. You can also expand a group or select its name to include every
-kind beneath it. For example, **All spells** includes both Spell and Ritual.
+kind beneath it. Expand **All spells** and choose **Cantrip** to browse cantrips,
+including composition cantrips. Choose **Spell** or **Ritual** for those records,
+or select **All spells** to include all three. The rank in **Cantrip 1** is the
+entry’s printed base rank.
 To browse equipment except weapons, include **All equipment** and exclude **Weapon**.
 
 **All journals** contains the journal packs provided by Foundry. To find the
@@ -54,6 +63,19 @@ can still explain its rules.
 
 For **Base Type**, search with a readable name such as “Chain Mail,” or use
 **Next** to see the next page.
+
+### Find backgrounds by boost or skill
+
+Select **Background** in **Kind**. In **Advanced filters**, add a group and
+choose **At least one condition matches**. Add **Restricted attribute boost**
+with **Charisma** and **Has a free attribute boost** with **Yes** inside the
+group. A background can match by offering Charisma in a limited slot or by
+offering a free slot that you can use for Charisma.
+
+To also require Medicine, add **Skill training option** with **Medicine**
+outside that group and keep the outer group set to **All conditions match**.
+Skill training includes named skills offered as a choice. Check the background
+description for any prerequisites and special benefits.
 
 ## Find similar options
 

@@ -369,12 +369,12 @@ active reference output. Explicit setup overrides update that intent; omitted
 options preserve it. Adding a profile retains already requested profiles.
 
 Runtime composes reference and saved-domain SQL into the release checkpoint and
-one ordered migration ledger. Storage creates new workspaces at schema 51 and
-upgrades authenticated schema 42 through 50 workspaces after runtime captures saved
+one ordered migration ledger. Storage creates new workspaces at schema 52 and
+upgrades authenticated schema 42 through 51 workspaces after runtime captures saved
 state in a recovery archive. See
 [release schema and migration admission](decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
-Supported query-catalog changes rebuild typed projections from retained DTOs
-without source admission or inference. Other component changes require their corresponding
+Supported query-catalog changes rebuild typed projections from retained DTOs and
+validated prepared checks without source admission or inference. Other component changes require their corresponding
 preparation work; physical schema version alone is not an inference invalidation.
 
 The reference-entry migration moves existing trait content/evidence to its canonical
@@ -635,7 +635,14 @@ Lexical text searches can select `lexical.fields: record_names` to search
 indexed names and verified aliases. With `lexical.match: last_token_prefix`,
 the last word being typed can match the start of an indexed word anywhere in a
 label. Trailing whitespace completes that word. Each option works independently.
-The Markdown editor combines them for inline completion without model inference.
+The main Search field and Markdown editor combine them for inline completion
+without model inference. Main Search applies its current filter.
+`POST /api/search/exact` uses the shared strict name and alias resolver with the
+typed filter in one generation-checked workspace read. It returns up to five
+distinct root records and the eligible exact count without model inference.
+The browser can start this read before workspace-default profile selection
+finishes. It renders these records in the results list until the current ranked
+page supplies the list, coverage and pagination.
 An omitted Similar method selects Passage matches, Any content and decay 0.5.
 Explicit options and record preferences retain their meaning.
 Configurable Similar carries typed method, decay, part and candidate-role options
@@ -1029,7 +1036,8 @@ editor. The index owns its separate awaited deletion and action-local feedback.
 ## Deferred work
 
 New query projections are added only for useful product cases, with typed bindings,
-catalog/SQL/facet evidence and consumer tests. Skills, nuanced affliction filters,
+catalog/SQL/facet evidence and consumer tests. General character skill eligibility,
+nuanced affliction filters,
 frequency/aggregate gameplay models and tag-artifact search are deferred. Tag-file
 validation remains independent; HasMetric is explicitly unsupported rather than
 recreating a metric store.

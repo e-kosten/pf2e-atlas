@@ -1788,9 +1788,12 @@ fn reference_self_effect_navigation_survives_storage_and_selected_activity_readi
 }
 
 #[test]
-fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
+fn spell_subtype_labels_match_root_and_embedded_records_at_selected_ranks() {
     let ritual = json!({"_id":"ssssssssssssssss","name":"Resurrect","type":"spell","system":{
         "level":{"value":5},"ritual":{"primary":{"check":"Religion (expert)"},"secondary":{"casters":2,"checks":"Medicine, Society"}}
+    }});
+    let cantrip = json!({"_id":"cccccccccccccccc","name":"Dirge of Doom","type":"spell","system":{
+        "level":{"value":3},"traits":{"value":["bard","cantrip","composition"],"traditions":[]},"ritual":null
     }});
     let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
         1,
@@ -1799,48 +1802,58 @@ fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
             Ok(open_source_fixture(
                 vec![
                     record("spells", "Item", ritual.clone()),
+                    record("spells", "Item", cantrip.clone()),
                     record(
                         "actors",
                         "Actor",
-                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","items":[ritual]}),
+                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","items":[ritual,cantrip]}),
                     ),
                 ],
                 false,
             )?)
         },
     ));
-    let parent = f.worker.record_detail("actors:aaaaaaaaaaaaaaaa").unwrap();
-    let local = &actor(&parent.presentation)
-        .activities
-        .value
-        .as_ref()
-        .unwrap()[0]
-        .navigation;
-    for (key, owners, selector) in [
-        ("spells:ssssssssssssssss", vec![], "ritual"),
-        ("actors:aaaaaaaaaaaaaaaa", local.owners.clone(), "spell"),
+    for (id, root_kind, label, base_rank) in [
+        ("ssssssssssssssss", "ritual", "Ritual", 5),
+        ("cccccccccccccccc", "cantrip", "Cantrip", 3),
     ] {
-        for rank in [None, Some(6)] {
-            let detail = f
-                .worker
-                .record_detail_at(RecordDetailRequest {
-                    include_section_rendering: false,
-                    expected_artifact_generation: None,
-                    record_key: key.into(),
-                    spell_rank: rank,
-                    owners: owners.clone(),
-                    fields: vec![],
-                    passage: None,
-                    source_fingerprint: None,
-                })
-                .unwrap();
-            assert_eq!(detail.presentation.identity.kind.as_deref(), Some(selector));
-            assert_eq!(detail.presentation.identity.kind_label, "Ritual");
-            assert_eq!(
-                detail.presentation.classification,
-                format!("Ritual {}", rank.unwrap_or(5))
-            );
-            assert_eq!(detail.presentation.identity.record_key, key);
+        let root_key = format!("spells:{id}");
+        let owner = OwnedContentLocator {
+            collection: "/items".into(),
+            identity: atlas_domain::OwnedContentIdentity::Stable(id.into()),
+        };
+        for (key, owners, selector) in [
+            (root_key.as_str(), vec![], root_kind),
+            ("actors:aaaaaaaaaaaaaaaa", vec![owner], "spell"),
+        ] {
+            for rank in [None, Some(6)] {
+                let detail = f
+                    .worker
+                    .record_detail_at(RecordDetailRequest {
+                        include_section_rendering: false,
+                        expected_artifact_generation: None,
+                        record_key: key.into(),
+                        spell_rank: rank,
+                        owners: owners.clone(),
+                        fields: vec![],
+                        passage: None,
+                        source_fingerprint: None,
+                    })
+                    .unwrap();
+                let identity = &detail.presentation.identity;
+                assert_eq!(identity.kind.as_deref(), Some(selector));
+                assert_eq!(identity.kind_label, label);
+                assert_eq!(identity.source_type.as_deref(), Some("spell"));
+                assert_eq!(
+                    identity.parent_kind.as_deref(),
+                    owners.is_empty().then_some("all_spells")
+                );
+                assert_eq!(
+                    detail.presentation.classification,
+                    format!("{label} {}", rank.unwrap_or(base_rank))
+                );
+                assert_eq!(identity.record_key, key);
+            }
         }
     }
 }

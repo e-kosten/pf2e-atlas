@@ -16,6 +16,8 @@ mod cel_semantics;
 #[cfg(test)]
 mod corpus_tests;
 #[cfg(test)]
+mod kind_tests;
+#[cfg(test)]
 mod membership_tests;
 #[cfg(test)]
 mod tests;

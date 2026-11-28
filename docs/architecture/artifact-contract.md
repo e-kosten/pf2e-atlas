@@ -175,11 +175,13 @@ Saved-domain and reference migrations share the same ledger and transaction.
 Atlas executes and hashes migration SQL with LF line endings and authenticates
 the ledger against that single checksum.
 
-The current reference DDL lives in
+The reference DDL begins with
 [the index release schema](../../crates/atlas-index/src/release_schema.sql).
+The [runtime migration ledger](../../crates/atlas-runtime/src/release_history.rs)
+orders subsequent scope-specific SQL.
 The [local-state release schema](../../crates/atlas-local-state/src/release/schema.sql)
 and its three saved-owner table definitions own saved-domain DDL. The production
-paths are direct creation at schema 51 and the authenticated schema 42 through 50 upgrades
+paths are direct creation at schema 52 and the authenticated schema 42 through 51 upgrades
 described in [ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
 Migrations 1–41 are retained in Git history. Their descriptions here record
 the provenance of retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation
@@ -286,7 +288,10 @@ root and immediate equipment fields.
 
 Root `kind` selectors describe reference categories and selectable groups.
 Eligibility, facets and result summaries use the same root classification from the
-record, spell and ability projections. Groups count distinct eligible roots.
+record, spell, ability, and root trait projections. Groups count distinct eligible
+roots. All spells groups the mutually exclusive Cantrip, Spell, and Ritual choices.
+The indexed ritual discriminator takes precedence. The root Cantrip trait determines
+Cantrip membership for the remaining spells.
 The journal group admits all JournalEntry roots. `journal_pack/<pack-id>` selects
 a journal pack using source identity. Static discovery describes this namespace.
 Workspace discovery supplies present pack IDs and labels. Embedded kind predicates
@@ -298,6 +303,23 @@ projection. An offline update from v10 rebuilds query rows from retained snapsho
 and publishes the new catalog fingerprint. Saved work and stored vectors survive
 the update. New list entries snapshot the public record kind for use when the
 record is subsequently unavailable.
+
+Workspace migration 52 adds the kind-specific filter rows. Catalog v12 and
+`authored-query/v6` populate them from retained checked snapshots and the
+published root Disable check sidecar. The refresh preserves saved work and
+existing native vectors. Memberships use the same closed vocabularies, source
+states and executors as other query projections.
+
+Catalog v13 adds the Cantrip choice using the existing authored-query/v6
+projections. The standard offline catalog refresh rebuilds query rows and
+publishes the updated fingerprint. Saved work and stored vectors are preserved.
+
+Background skill training covers authored named skills and finite choices with
+a verified skill-rank binding. Hazard Disable skills use the artifact audience
+and explicit tagged check alternatives. Spell range recognizes whole-value
+distances and Touch, including an explicit Touch or distance alternative.
+Ancestry and class fields describe their base source entries. Deity
+sanctification separates the requirement from its stated options.
 
 Public filters use domain namespaces, including root `kind`, `traits`,
 `level_or_rank` and explicit `embedded.spells`/`embedded.equipment` collections.

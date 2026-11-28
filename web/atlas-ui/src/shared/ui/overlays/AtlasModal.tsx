@@ -1,4 +1,9 @@
-import { useDesktopTab, useTabCloseGuard } from "../../../app/DesktopTabContext";
+import {
+  useDesktopTab,
+  useDesktopHistoryGuard,
+  useTabCloseGuard,
+  type TabCloseGuard,
+} from "../../../app/DesktopTabContext";
 import { Button, Flex, Modal, Space, type ModalProps } from "antd";
 import { Minimize2 } from "lucide-react";
 import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
@@ -34,15 +39,16 @@ export function AtlasModal({
 }: AtlasModalProps) {
   const tab = useDesktopTab();
   const tabHidden = tab?.active === false;
-  useTabCloseGuard(() =>
+  const guard: TabCloseGuard = () =>
     open
       ? props.confirmLoading
         ? "pending"
         : confirmDiscard?.when()
           ? "dirty"
           : undefined
-      : undefined,
-  );
+      : undefined;
+  useTabCloseGuard(guard);
+  useDesktopHistoryGuard(guard);
   const [field, expand] = useState<ExpandedField | null>(null);
   const collapseIcon = useRef<SVGSVGElement>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);

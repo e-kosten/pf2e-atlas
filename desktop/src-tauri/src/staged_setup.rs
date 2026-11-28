@@ -147,7 +147,9 @@ impl StagedSetup {
                 .permission("allow-desktop-copy-link")
                 .permission("allow-desktop-copy-availability");
             #[cfg(target_os = "macos")]
-            let permission = permission.permission("allow-desktop-native-tab-title");
+            let permission = permission
+                .permission("allow-desktop-native-tab-title")
+                .permission("allow-desktop-history");
             #[cfg(windows)]
             let permission = permission
                 .permission("allow-desktop-tabs-state")
@@ -265,6 +267,8 @@ fn deliver(
         "referenceLoading": state.reference_loading, "settingsRequest": document.settings_request,
         "settingsWindow": window.label() == crate::settings::WINDOW,
         "nativeTabTitles": cfg!(target_os = "macos") && window.label() != crate::settings::WINDOW,
+        "historyNavigation": (window.label() != crate::settings::WINDOW)
+            .then_some(if cfg!(windows) { "windows" } else { "macos" }),
     });
     // Check the current document again inside the queued WebView callback.
     let origin = serde_json::json!(document.origin.ascii_serialization());
@@ -318,13 +322,24 @@ pub fn page_load(window: WebviewWindow, payload: tauri::webview::PageLoadPayload
         .as_ref()
         .map(|launcher| launcher.ready.instance.clone());
     let mut documents = lock(&desktop.staged_setup.documents);
+    if payload.event() == PageLoadEvent::Started {
+        let document = documents.get_mut(window.label());
+        #[cfg(target_os = "macos")]
+        let workspace = window.label() != crate::settings::WINDOW
+            && document.as_ref().is_some_and(|doc| {
+                instance.as_deref() == Some(&doc.instance) && payload.url().origin() == doc.origin
+            });
+        if let Some(doc) = document {
+            doc.token = None;
+        }
+        drop(documents);
+        #[cfg(target_os = "macos")]
+        crate::mac_history::document_committed(&window, workspace);
+        return;
+    }
     let Some(doc) = documents.get_mut(window.label()) else {
         return;
     };
-    if payload.event() == PageLoadEvent::Started {
-        doc.token = None;
-        return;
-    }
     if instance.as_deref() != Some(&doc.instance) || payload.url().origin() != doc.origin {
         return;
     }
@@ -1120,6 +1135,14 @@ fn terminal_action(
         }
         _ => unreachable!(),
     }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn owns_attachment(window: &WebviewWindow, instance: &str, token: &str) -> bool {
+    let desktop = window.state::<Desktop>();
+    lock(&desktop.staged_setup.documents)
+        .get(window.label())
+        .is_some_and(|doc| doc.instance == instance && doc.token.as_deref() == Some(token))
 }
 
 pub(crate) fn owns_document(window: &WebviewWindow, instance: &str, token: &str) -> bool {

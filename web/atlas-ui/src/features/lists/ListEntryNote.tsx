@@ -8,7 +8,11 @@ import {
 } from "../../shared/documents/MarkdownEditor";
 import { ReaderFooterContext } from "../../shared/records/ReaderFooterContext";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
-import { useTabCloseGuard } from "../../app/DesktopTabContext";
+import {
+  useDesktopHistoryGuard,
+  useTabCloseGuard,
+  type TabCloseGuard,
+} from "../../app/DesktopTabContext";
 import {
   skipToken,
   useMutation,
@@ -148,7 +152,10 @@ export function useListEntryNote({
   const paused = useSavedWritesPaused();
   const pending = Boolean(currentSave && save.isPending);
   const dirty = active !== null && active.text !== (active.expected ?? "");
-  useTabCloseGuard(() => (save.isPending ? "pending" : dirty ? "dirty" : undefined));
+  const guard: TabCloseGuard = () =>
+    save.isPending ? "pending" : dirty ? "dirty" : undefined;
+  useTabCloseGuard(guard);
+  useDesktopHistoryGuard(guard);
 
   const identity =
     entry && !detached ? JSON.stringify([entry.listRef, entry.recordKey]) : undefined;

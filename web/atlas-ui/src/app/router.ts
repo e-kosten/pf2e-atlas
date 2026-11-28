@@ -1,6 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { createRouter, type RouterHistory } from "@tanstack/react-router";
 import { routeTree } from "../routeTree.gen";
+import { connectMacHistory } from "./desktopMacHistory";
 import { parseSearchParams, stringifySearchParams } from "./urlState";
 
 export function createAtlasRouter(
@@ -26,6 +27,7 @@ export function createAtlasRouter(
 }
 
 export const atlasRouter = createAtlasRouter();
+connectMacHistory(atlasRouter.history);
 export function useAtlasRouter() {
   return useRouter({ warn: false }) ?? atlasRouter;
 }

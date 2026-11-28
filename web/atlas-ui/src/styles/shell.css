@@ -82,6 +82,17 @@
   justify-content: flex-end;
 }
 
+.topbar__history {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.topbar__history > .ant-btn.ant-btn-icon-only {
+  inline-size: 30px;
+}
+
 .error-banner {
   margin: 12px 22px 0;
   flex-shrink: 0;

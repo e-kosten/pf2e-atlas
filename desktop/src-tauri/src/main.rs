@@ -5,6 +5,9 @@ mod appearance;
 mod bootstrap_jobs;
 #[cfg(target_os = "macos")]
 mod find_macos;
+mod history;
+#[cfg(target_os = "macos")]
+mod mac_history;
 mod opening;
 mod process;
 mod settings;
@@ -1148,7 +1151,31 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     let view = SubmenuBuilder::new(app, "View").item(&zoom_in);
     #[cfg(target_os = "macos")]
     let view = view.item(&zoom_plus);
-    let view = view.items(&[&zoom_out, &zoom_reset]).build()?;
+    #[cfg(target_os = "macos")]
+    let back_shortcut = Some("Cmd+BracketLeft");
+    #[cfg(target_os = "macos")]
+    let forward_shortcut = Some("Cmd+BracketRight");
+    #[cfg(windows)]
+    let back_shortcut = None::<&str>;
+    #[cfg(windows)]
+    let forward_shortcut = None::<&str>;
+    #[cfg(target_os = "macos")]
+    let (back_label, forward_label) = ("Back", "Forward");
+    #[cfg(windows)]
+    let (back_label, forward_label) = ("Back\tAlt+Left", "Forward\tAlt+Right");
+    let back = MenuItem::with_id(app, "history-back", back_label, true, back_shortcut)?;
+    let forward = MenuItem::with_id(
+        app,
+        "history-forward",
+        forward_label,
+        true,
+        forward_shortcut,
+    )?;
+    let view = view
+        .items(&[&zoom_out, &zoom_reset])
+        .separator()
+        .items(&[&back, &forward])
+        .build()?;
     let window = SubmenuBuilder::new(app, "Window")
         .minimize()
         .maximize()
@@ -1211,6 +1238,8 @@ fn main() {
             tab_links::desktop_tab_link,
             #[cfg(target_os = "macos")]
             window_host::desktop_native_tab_title,
+            #[cfg(target_os = "macos")]
+            mac_history::desktop_history,
             #[cfg(windows)]
             windows_tabs::desktop_tabs_state,
             #[cfg(windows)]
@@ -1238,6 +1267,8 @@ fn main() {
                 copy_link::invalidate(app, window.label(), true);
                 #[cfg(target_os = "macos")]
                 find_macos::forget(window.label());
+                #[cfg(target_os = "macos")]
+                mac_history::forget(window.label());
                 #[cfg(windows)]
                 let interrupted_delivery = windows_tabs::forget(app, window.label());
                 let desktop = app.state::<Desktop>();
@@ -1312,6 +1343,20 @@ fn main() {
                 "close-tab" => windows_tabs::menu(app, windows_tabs::Command::CloseTab),
                 #[cfg(windows)]
                 "close-window" => windows_tabs::menu(app, windows_tabs::Command::CloseWindow),
+                action @ ("history-back" | "history-forward") => {
+                    let direction = if action == "history-back" {
+                        history::Direction::Back
+                    } else {
+                        history::Direction::Forward
+                    };
+                    #[cfg(target_os = "macos")]
+                    mac_history::menu(app, direction);
+                    #[cfg(windows)]
+                    if let Err(error) = windows_tabs::history(app, direction) {
+                        eprintln!("Could not navigate Atlas history: {error}");
+                    }
+                    Ok(())
+                }
                 tab_links::MENU_ID => tab_links::open_context_link(app),
                 action @ ("zoom-in" | "zoom-plus" | "zoom-out" | "zoom-reset") => {
                     if let Err(error) = app.state::<Desktop>().zoom.change(app, action) {

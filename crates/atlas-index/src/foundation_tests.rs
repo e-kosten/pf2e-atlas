@@ -340,6 +340,80 @@ pub(super) fn build(input: &IndexBuildInput) -> (tempfile::TempDir, std::path::P
 }
 
 #[test]
+fn disable_skill_projection_validates_and_replaces_prepared_outcomes() {
+    use atlas_record::source_record::{SourceContentRole, SourceContentStatus};
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("workspace.sqlite");
+    let mut input = fixture(false);
+    for (markup, preparation_failed, state, skills) in [
+        (
+            "<p>@Check[arcana|dc:20]</p>",
+            false,
+            "value",
+            vec!["arcana"],
+        ),
+        (
+            "<span data-visibility='none'>@Check[religion|dc:21]</span>",
+            false,
+            "value",
+            vec![],
+        ),
+        (
+            "<p>@Check[thievery|dc:22]</p>",
+            false,
+            "value",
+            vec!["thievery"],
+        ),
+        ("<p>@Check[thievery|dc:22]</p>", true, "invalid", vec![]),
+    ] {
+        let mut hazard = record(
+            "actors",
+            "Actor",
+            json!({
+                "_id":"aaaaaaaaaaaaaaaa","name":"Ward","type":"hazard",
+                "system":{"details":{"disable":markup}}
+            }),
+        );
+        if preparation_failed {
+            let disable = hazard
+                .content
+                .iter_mut()
+                .find(|field| field.role == SourceContentRole::Disable)
+                .unwrap();
+            disable.status = SourceContentStatus::PreparationFailed {
+                locator: disable.locator().clone(),
+                message: "Fixture source could not be prepared".into(),
+            };
+        }
+        hazard.preparation_context_hash = input.context.preparation_sha256().unwrap();
+        input.records[0] = hazard;
+        synchronize_fixture_terms(&mut input);
+        crate::test_support::publish_input(&path, &input).unwrap();
+        crate::validate_artifact(&path).unwrap();
+        let workspace = atlas_storage::Workspace::at(&path).unwrap();
+        let read = workspace
+            .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        let connection = read.connection();
+        let actual: String = connection.query_row(
+            "SELECT disable_skills_state FROM actor_projection JOIN records USING(record_id) WHERE name='Ward'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(actual, state);
+        let actual = connection
+            .prepare("SELECT value FROM hazard_disable_skills ORDER BY value")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(actual, skills);
+    }
+}
+
+#[test]
 fn publication_validation_observes_uncommitted_projection_and_fts_changes() {
     for (sql, expected_error) in [
         (

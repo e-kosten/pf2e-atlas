@@ -1,5 +1,9 @@
 import { setEncounterArchived } from "./encounterSummary";
-import { useTabCloseGuard } from "../../app/DesktopTabContext";
+import {
+  useDesktopHistoryGuard,
+  useTabCloseGuard,
+  type TabCloseGuard,
+} from "../../app/DesktopTabContext";
 import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
 import { conditionEventPreviewKey } from "./useConditionEventPreview";
 import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
@@ -606,7 +610,9 @@ function useEncounterMutationState<View extends EncounterSettingsView>(
     setRefreshOrigin("metadata-conflict");
     return retryRefresh();
   };
-  useTabCloseGuard(() => (inFlight.current ? "pending" : undefined));
+  const guard: TabCloseGuard = () => (inFlight.current ? "pending" : undefined);
+  useTabCloseGuard(guard);
+  useDesktopHistoryGuard(guard);
   const conflict = isEncounterConflict(mutation.error);
   const metadataConflict =
     mutation.variables?.kind === "metadata" &&

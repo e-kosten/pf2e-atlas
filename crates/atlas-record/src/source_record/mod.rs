@@ -11,6 +11,7 @@ mod core_sections_tests;
 mod declared_grant_tests;
 mod identity;
 mod item_query;
+mod kind_query;
 mod model;
 mod nodes;
 mod query;
@@ -43,6 +44,9 @@ pub use content::{
 pub use core_sections::{CoreSearchSelection, core_search_selection};
 pub use identity::{SourceIdentityError, source_record_key};
 pub use item_query::{PhysicalBaseType, spell_casting_form};
+pub use kind_query::{
+    AttributeSlotFacts, ClassProficiency, PROFICIENCY_RANKS, SpellRange, hazard_disable_skills,
+};
 pub use model::{SourceBackedRecord, SourceRecordConstructionError, source_owned_document_count};
 pub use nodes::{ItemSourceView, SourceNodeView};
 pub use query::{SourceQueryView, source_family_record_kind};

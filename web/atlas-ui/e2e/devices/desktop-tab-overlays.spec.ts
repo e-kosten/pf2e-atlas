@@ -30,18 +30,18 @@ test("only the visible tab searches selected record text and keyboard close foll
     contentType: "image/png",
   });
   await action.click();
-  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+  await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue(
     text!,
   );
   await page.keyboard.press("Control+Tab");
-  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue("");
   const empty = page.getByRole("tab", { selected: true });
   await empty.focus();
   await page.keyboard.press("Control+Shift+Tab");
   await expect(page.getByRole("tab", { selected: true })).toBeFocused();
   await page.keyboard.press("Delete");
   await expect(page.getByRole("tablist")).toHaveCount(0);
-  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue("");
 });
 
 test("desktop shortcuts keep visible edges, equal height and even spacing as statuses appear", async ({
@@ -325,7 +325,7 @@ test("Settings reopens in one tab and returns to the focused encounter draft", a
       });
     });
     await page.goto("/search");
-    const search = page.getByRole("searchbox", { name: "Search records", exact: true });
+    const search = page.getByRole("combobox", { name: "Search records", exact: true });
     await search.press("Control+,");
     await expect(
       page.getByRole("heading", { name: "Settings", exact: true }),
