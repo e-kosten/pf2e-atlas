@@ -52,7 +52,7 @@ fn archived_json(archive: WorkspaceArchive) -> serde_json::Value {
     serde_json::from_slice(&data).unwrap()
 }
 
-fn expect_new_filter_storage(
+fn expect_new_reference_storage(
     tables: &mut std::collections::BTreeMap<String, Vec<Vec<rusqlite::types::Value>>>,
 ) {
     use rusqlite::types::Value::{Null, Text};
@@ -93,6 +93,7 @@ fn expect_new_filter_storage(
         "deity_favored_weapons",
         "deity_sanctification_options",
         "hazard_disable_skills",
+        "record_progression",
     ] {
         assert_eq!(tables.insert(name.into(), vec![]), None);
     }
@@ -185,7 +186,7 @@ fn schema_42_migrates_in_place_and_archives_only_saved_work() {
             rusqlite::types::Value::Null
         ]])
     );
-    expect_new_filter_storage(&mut reference_rows);
+    expect_new_reference_storage(&mut reference_rows);
     let changed: Vec<_> = reference_rows
         .keys()
         .chain(migrated.keys())
@@ -284,7 +285,7 @@ fn schema_43_archive_migration_preserves_list_and_reference_revision() {
         list.push(rusqlite::types::Value::Integer(0));
     }
     expected.insert("encounter_adjustments".into(), vec![]);
-    expect_new_filter_storage(&mut expected);
+    expect_new_reference_storage(&mut expected);
     assert_eq!(
         atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap(),
         expected
@@ -360,27 +361,30 @@ fn publish_schema_42_reference_fixture(
     workspace: &Workspace,
     input: &atlas_index::IndexBuildInput,
 ) {
-    // The current fixture publisher clears every root family even for these legacy
-    // NPC/action fixtures. Supply empty targets during fixture construction, then
-    // remove them so the migration sees the authentic schema 42 table inventory.
-    let tables = [
+    // Supply the current publisher's empty targets during fixture construction,
+    // then remove them before testing the authentic schema 42 table inventory.
+    let projection_tables = [
         "background_projection",
         "ancestry_projection",
         "class_projection",
     ];
     {
         let write = workspace.write(42).unwrap();
-        for table in tables {
+        for table in projection_tables {
             write
                 .connection()
                 .execute_batch(&format!("CREATE TABLE {table}(root_record_id INTEGER)"))
                 .unwrap();
         }
+        write
+            .connection()
+            .execute_batch(include_str!("../../atlas-index/src/record_progression.sql"))
+            .unwrap();
         write.commit().unwrap();
     }
     atlas_index::test_support::publish_input_in(workspace, 42, input).unwrap();
     let write = workspace.write(42).unwrap();
-    for table in tables {
+    for table in projection_tables.into_iter().chain(["record_progression"]) {
         let count: usize = write
             .connection()
             .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
