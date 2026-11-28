@@ -343,6 +343,21 @@ describe("main Search scoped quick filters", () => {
     expect(change).toHaveBeenCalledWith(expect.objectContaining({ filter: null }));
   });
 
+  it("clears an unfinished group before clearing the selected Kind", () => {
+    const editor = scopedEditor();
+    editor.search_toolbar.has_refinements = false;
+    editor.search_toolbar.retained_fields = [];
+    const change = renderControls(editor, kind, null, options);
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add group" }));
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear refinements" }));
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter: kind }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear Kind" }));
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter: null }));
+  });
+
   it("keeps an applied movement condition under Advanced", () => {
     const editor = scopedEditor();
     editor.search_toolbar.retained_fields = [];

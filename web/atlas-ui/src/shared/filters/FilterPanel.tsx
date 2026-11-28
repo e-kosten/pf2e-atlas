@@ -30,6 +30,7 @@ import {
   useImperativeHandle,
   type Ref,
   useContext,
+  useEffectEvent,
   useId,
   type CSSProperties,
   type KeyboardEvent,
@@ -221,9 +222,6 @@ export function FilterControls({
   const quickControls = useRef<HTMLDivElement>(null);
   const focusedQuickControl = useRef<{ id: string; element: HTMLElement }>(null);
   const toolbar = scopedToolbar ? editor?.search_toolbar : undefined;
-  const toolbarPending =
-    scopedToolbar &&
-    !(workspace.filterToolbarCurrent ?? workspace.filterApplicabilityCurrent);
   const toolbarCriteriaPending = scopedToolbar && !workspace.filterApplicabilityCurrent;
   const toolbarIds = useMemo(
     () =>
@@ -502,11 +500,14 @@ export function FilterControls({
     prepared.query?.rules.length,
   );
   const scopedKind = toolbarCriteriaPending ? undefined : toolbar?.kind_scope;
+  const kindField = fields.find((field) => field.definition.id === "kind");
   const keepKind =
     !!scopedKind &&
     (toolbar?.has_refinements ||
       !!prepared.error ||
-      (!!prepared.query && hasDraftRefinements(prepared.query)));
+      (prepared.query &&
+        kindField &&
+        hasDraftRefinements(prepared.query, kindField.definition)));
   const clearLabel = keepKind
     ? "Clear refinements"
     : scopedKind
@@ -575,12 +576,13 @@ export function FilterControls({
           )}
           {quickFields.map((field) => {
             const id = field.definition.id;
-            const pending = toolbarPending && id !== "kind";
+            const pending = toolbarCriteriaPending && id !== "kind";
             return (
               <CommonFilter
                 key={id + ":" + draftRevision}
                 field={field}
                 pending={pending}
+                keepEditing={workspace.filterToolbarKindMatches === true}
                 layout={commonLayout}
                 compactPane={!!pane}
                 selectionContainer={
@@ -903,6 +905,7 @@ export function FilterControls({
 function CommonFilter({
   field,
   pending,
+  keepEditing,
   applied,
   range,
   onRangeChange,
@@ -916,6 +919,7 @@ function CommonFilter({
 }: {
   field: FilterEditorFieldView;
   pending: boolean;
+  keepEditing: boolean;
   selectionContainer?: HTMLElement | null;
   layout: "panel" | "toolbar";
   compactPane: boolean;
@@ -975,7 +979,9 @@ function CommonFilter({
           <ToolbarRange
             field={field}
             applied={applied}
-            disabled={pending}
+            pending={pending}
+            keepEditing={keepEditing}
+            criteria={workspace.search.filter}
             range={range}
             onChange={onRangeChange}
             trigger={rangeTrigger}
@@ -986,7 +992,8 @@ function CommonFilter({
           field={field}
           clause={condition.clause}
           applied={applied}
-          disabled={pending}
+          disabled={pending && !keepEditing}
+          editsPending={pending}
           workspace={workspace}
           selectionContainer={selectionContainer}
           onChange={update}
@@ -996,7 +1003,8 @@ function CommonFilter({
           selectionContainer={selectionContainer}
           field={field}
           applied={applied}
-          disabled={pending}
+          disabled={pending && !keepEditing}
+          editsPending={pending}
           inlineSelections={compactPane}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
@@ -1035,31 +1043,59 @@ function CommonFilter({
 function ToolbarRange({
   field,
   applied,
-  disabled,
+  pending,
+  keepEditing,
+  criteria,
   range,
   onChange,
   trigger,
 }: {
   field: FilterEditorFieldView;
   applied: boolean;
-  disabled: boolean;
+  pending: boolean;
+  keepEditing: boolean;
+  criteria: QueryPredicate | null;
   range: [string, string] | null;
   onChange: (range: [string, string]) => void;
   trigger: RefObject<HTMLButtonElement | null>;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
-  if (disabled && open) setOpen(false);
+  const [queued, setQueued] = useState<{
+    criteria: QueryPredicate | null;
+    range: [string, string];
+  } | null>(null);
+  const published = useRef<typeof queued>(null);
+  if (queued && (queued.criteria !== criteria || (pending && !keepEditing)))
+    setQueued(null);
+  if (pending && !keepEditing && open) setOpen(false);
+  // Keep keystrokes local until the editor confirms this field for the active request.
+  const commitQueued = useEffectEvent((edit: NonNullable<typeof queued>) => {
+    if (published.current === edit) return;
+    published.current = edit;
+    onChange(edit.range);
+  });
+  useLayoutEffect(() => {
+    if (!pending && queued && queued.criteria === criteria) commitQueued(queued);
+  }, [pending, queued, criteria]);
   const dialog = useRef<HTMLElement>(null);
   const minimum = useRef<InputRef>(null);
   const touchOpening = useRef(false);
   const focusAtOpen = useRef<Element | null>(null);
 
   function changeOpen(next: boolean) {
-    if (next && disabled) return;
+    if (next && pending) return;
     if (next) focusAtOpen.current = document.activeElement;
     else restoreOverlayFocus(trigger.current, dialog.current);
     setOpen(next);
+  }
+
+  function editRange(range: [string, string]) {
+    if (pending) setQueued({ criteria, range });
+    else {
+      setQueued(null);
+      onChange(range);
+    }
   }
 
   function closeOnEscape(event: KeyboardEvent<HTMLElement>) {
@@ -1096,14 +1132,14 @@ function ToolbarRange({
             )}
             <CommonRange
               field={field}
-              range={range ?? ["", ""]}
-              onChange={onChange}
+              range={queued?.range ?? range ?? ["", ""]}
+              onChange={editRange}
               minimumRef={minimum}
             />
             <Button
               style={{ alignSelf: "flex-end" }}
               tabIndex={0}
-              onClick={() => onChange(["", ""])}
+              onClick={() => editRange(["", ""])}
             >
               Clear
             </Button>
@@ -1113,7 +1149,8 @@ function ToolbarRange({
     >
       <Button
         ref={trigger}
-        disabled={disabled}
+        disabled={pending && !keepEditing}
+        aria-disabled={(pending && keepEditing) || undefined}
         color={applied ? "primary" : "default"}
         variant="outlined"
         aria-description={applied ? "Filter applied" : undefined}

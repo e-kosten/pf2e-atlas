@@ -26,7 +26,7 @@ export type FilterPanelState = {
   filterEditor: FilterEditorView | undefined;
   refreshFilterInformation?: () => Promise<void>;
   filterApplicabilityCurrent?: boolean;
-  filterToolbarCurrent?: boolean;
+  filterToolbarKindMatches?: boolean;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
   filterDiscoveryContext?: FilterDiscoveryContext;

@@ -39,6 +39,7 @@ export function ChoicePicker({
   compact = false,
   inlineSelections = false,
   disabled = false,
+  editsPending = false,
   id,
   choices,
   visibleChoices,
@@ -70,6 +71,7 @@ export function ChoicePicker({
   compact?: boolean;
   inlineSelections?: boolean;
   disabled?: boolean;
+  editsPending?: boolean;
   id: string;
   choices: ChoiceOption[];
   visibleChoices?: ChoiceOption[];
@@ -167,6 +169,7 @@ export function ChoicePicker({
         )
       : options);
   function setMenuOpen(next: boolean) {
+    if (next && (disabled || editsPending)) return;
     if (!next && reading) {
       readOrigin.current = null;
       reading.onDismiss();
@@ -184,7 +187,7 @@ export function ChoicePicker({
     initialFocusPending.current = false;
   }
   function change(value: string, state: ChoiceState) {
-    if (disabled) return;
+    if (disabled || editsPending) return;
     if (open)
       setSessionValues((current) =>
         current.includes(value) ? current : [...current, value],
@@ -307,6 +310,7 @@ export function ChoicePicker({
             <Button
               className="common-choice-row"
               block
+              aria-disabled={editsPending || undefined}
               color={
                 selectOnly
                   ? "default"
@@ -600,6 +604,7 @@ export function ChoicePicker({
       {...openerProps}
       className="common-choice-trigger"
       disabled={disabled}
+      aria-disabled={editsPending || undefined}
       color={applied ? "primary" : "default"}
       variant="outlined"
       aria-description={applied ? "Filter applied" : undefined}
@@ -626,7 +631,7 @@ export function ChoicePicker({
               color="default"
               variant="filled"
               className="applied-filter-chip"
-              disabled={disabled}
+              disabled={disabled || editsPending}
               aria-label={`Remove ${excluded ? "excluded" : "included"} ${valueLabel} from ${label}`}
               onClick={(event) => removeValue(event, value)}
             >

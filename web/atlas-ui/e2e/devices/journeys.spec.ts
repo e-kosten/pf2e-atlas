@@ -708,6 +708,64 @@ test("range filter focus follows the opening input and Escape closes only the ra
   await expect(picker).toBeVisible();
 });
 
+test("a quick range keeps typing local until the current toolbar is ready", async ({
+  page,
+}, info) => {
+  const kind = { kind: "in", field: "kind", values: ["creature"] } as const;
+  const firstBound = { kind: "compare", field: "level", op: "gte", value: 1 } as const;
+  const { promise: hold, resolve: release } = Promise.withResolvers<void>();
+  let held = false;
+  await page.route("**/api/filters/editor", async (route) => {
+    const filter = route.request().postDataJSON()?.filter;
+    if (
+      !held &&
+      filter?.children?.some(
+        (child: { field?: string; value?: number }) =>
+          child.field === firstBound.field && child.value === firstBound.value,
+      )
+    ) {
+      held = true;
+      await hold;
+    }
+    await route.continue();
+  });
+
+  try {
+    await page.goto(
+      `/search?filter=${encodeFilterUrl({ ...kind, values: [...kind.values] })}`,
+    );
+    await showSearchFilters(page, info);
+    await activate(page.getByRole("button", { name: /^Edit Level range:/ }), info);
+    const minimum = page.getByRole("textbox", { name: "Level minimum" });
+    await minimum.fill("1");
+    await expect.poll(() => held).toBe(true);
+    const pendingUrl = page.url();
+    await expect(
+      page.getByRole("button", { name: "Edit Traits filter" }),
+    ).toBeDisabled();
+    await minimum.fill("12");
+    await expect(minimum).toBeFocused();
+    await expect(minimum).toHaveValue("12");
+    expect(page.url()).toBe(pendingUrl);
+    release();
+    await expect
+      .poll(() => {
+        const filter = new URL(page.url()).searchParams.get("filter");
+        return filter && decodeFilterUrl(filter);
+      })
+      .toMatchObject({
+        kind: "all_of",
+        children: expect.arrayContaining([
+          expect.objectContaining({ ...firstBound, value: 12 }),
+        ]),
+      });
+    await expect(minimum).toBeFocused();
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
 test("filters, exact late activity, preview dismissal and Results remain usable", async ({
   page,
 }, info) => {

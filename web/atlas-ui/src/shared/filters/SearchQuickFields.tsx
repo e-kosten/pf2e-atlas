@@ -2,7 +2,11 @@ import type { MouseEvent } from "react";
 import { Button } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import type { RuleGroupType } from "react-querybuilder";
-import type { FilterEditorFieldView, QueryPredicate } from "../../generated/atlas";
+import type {
+  FilterEditorFieldView,
+  QueryFieldDefinition,
+  QueryPredicate,
+} from "../../generated/atlas";
 import { sentenceCase } from "../ui/labels";
 import { QuickSingleChoicePicker } from "./FilterChoicePicker";
 import {
@@ -12,10 +16,16 @@ import {
   type FilterPanelState,
 } from "./filterControls";
 import { filterValueLabel } from "./filterValueLabel";
+import { isClearedOperand } from "./queryBuilder";
 
-export function hasDraftRefinements(query: RuleGroupType): boolean {
+export function hasDraftRefinements(
+  query: RuleGroupType,
+  kind: QueryFieldDefinition,
+): boolean {
   return query.rules.some((rule) =>
-    "rules" in rule ? hasDraftRefinements(rule) : rule.field !== "kind",
+    "rules" in rule
+      ? !rule.rules.length || hasDraftRefinements(rule, kind)
+      : rule.field !== kind.id || isClearedOperand(rule, kind),
   );
 }
 
@@ -24,6 +34,7 @@ export function SearchQuickBooleanFilter({
   clause,
   applied,
   disabled,
+  editsPending,
   workspace,
   selectionContainer,
   onChange,
@@ -32,6 +43,7 @@ export function SearchQuickBooleanFilter({
   clause: QueryPredicate | null;
   applied: boolean;
   disabled: boolean;
+  editsPending: boolean;
   workspace: FilterPanelState;
   selectionContainer?: HTMLElement | null;
   onChange: (predicate: QueryPredicate | null) => void;
@@ -49,6 +61,7 @@ export function SearchQuickBooleanFilter({
       clauseId={clause?.clause_id ?? null}
       applied={applied}
       disabled={disabled}
+      editsPending={editsPending}
       selectionContainer={selectionContainer}
       onChange={(next) => {
         if (next === null) {

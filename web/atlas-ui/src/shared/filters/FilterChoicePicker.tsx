@@ -41,6 +41,7 @@ type DiscoveryProps = {
   inlineSelections?: boolean;
   applied?: boolean;
   disabled?: boolean;
+  editsPending?: boolean;
 };
 
 type ChoiceEdit =
@@ -120,6 +121,7 @@ function FilterChoicePicker({
   inlineSelections,
   applied,
   disabled,
+  editsPending,
 }: DiscoveryProps & { label?: string; edit: ChoiceEdit }) {
   const selected =
     edit.kind === "condition"
@@ -493,6 +495,7 @@ function FilterChoicePicker({
         }
         inlineSelections={inlineSelections}
         disabled={disabled}
+        editsPending={editsPending}
         singleChoice={edit.kind === "single"}
         reading={
           preview.destination

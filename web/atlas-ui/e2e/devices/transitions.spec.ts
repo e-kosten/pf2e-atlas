@@ -147,7 +147,7 @@ test("missing query assets leave a repairable text search and usable filter brow
   await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue(
     "lantern sentinel",
   );
-  await page.getByRole("button", { name: "Clear filters", exact: true }).click();
+  await page.getByRole("button", { name: "Clear Kind", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue(
     "lantern sentinel",
   );

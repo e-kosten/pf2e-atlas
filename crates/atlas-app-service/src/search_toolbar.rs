@@ -384,15 +384,18 @@ pub(crate) fn resolve(
             .into_iter()
             .chain(numeric)
             .chain([RARITY, TRAITS].into_iter().filter(|id| {
-                scope.named_parent == Some("all_equipment") && can_show(id)
-                    || fields.get(id).is_some_and(|field| {
-                        let parent_recommends = scope.named_parent == Some("character_advancement")
-                            || (scope.named_parent == Some("kingdom_and_warfare") && *id == TRAITS);
-                        scope.atoms.iter().all(|kind| {
-                            covers(field, kind)
-                                && (parent_recommends || common_recommended(kind, id))
-                        })
-                    })
+                fields.get(id).is_some_and(|field| {
+                    let parent_recommends = scope.named_parent == Some("character_advancement")
+                        || (scope.named_parent == Some("kingdom_and_warfare") && *id == TRAITS);
+                    let recommends = |kind: &&str| {
+                        covers(field, kind) && (parent_recommends || common_recommended(kind, id))
+                    };
+                    if scope.named_parent == Some("all_equipment") {
+                        scope.atoms.iter().any(recommends)
+                    } else {
+                        scope.atoms.iter().all(recommends)
+                    }
+                })
             }))
             .chain(quick_specialists(scope, &fields))
             .collect()
@@ -457,69 +460,71 @@ mod tests {
     }
 
     #[test]
-    fn approved_shortlists_and_named_parents() {
+    fn mixed_selections_require_coverage_or_an_explicit_named_group() {
+        let equipment = [
+            "ammunition",
+            "armor",
+            "consumable",
+            "container",
+            "general_equipment",
+            "kit",
+            "shield",
+            "treasure",
+            "weapon",
+        ];
+        let spell_kinds = ["cantrip", "spell", "ritual"];
         for (selection, expected) in [
             (
-                &["background"][..],
-                vec![
-                    "kind",
-                    RARITY,
-                    "background.restricted_attribute_boosts",
-                    "background.skill_training",
-                ],
+                &["armor", "weapon"][..],
+                vec!["kind", LEVEL, RARITY, TRAITS, PRICE, BULK],
             ),
             (
-                &["weapon"],
-                vec![
-                    "kind",
-                    LEVEL,
-                    RARITY,
-                    TRAITS,
-                    "weapon.category",
-                    "weapon.damage.type",
-                    "weapon.group",
-                    PRICE,
-                ],
-            ),
-            (
-                &["armor", "weapon"],
+                &["weapon", "armor"],
                 vec!["kind", LEVEL, RARITY, TRAITS, PRICE, BULK],
             ),
             (&["weapon", "armor", "kit"], vec!["kind", LEVEL]),
-            (&["ammunition"], vec!["kind", LEVEL, RARITY, TRAITS, PRICE]),
+            (&equipment[..], vec!["kind", LEVEL]),
             (
                 &["all_equipment", "armor"],
                 vec!["kind", LEVEL, RARITY, TRAITS, PRICE, BULK],
             ),
             (&["all_equipment", "background"], vec!["kind", LEVEL]),
-            (
-                &["all_spells"],
-                vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
-            ),
+            (&spell_kinds[..], vec!["kind", RANK, RARITY, TRAITS]),
             (&["spell", "ritual"], vec!["kind", RANK, RARITY, TRAITS]),
-            (
-                &["cantrip"],
-                vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
-            ),
             (
                 &["cantrip", "spell"],
                 vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
             ),
             (&["cantrip", "ritual"], vec!["kind", RANK, RARITY, TRAITS]),
-            (&["ritual"], vec!["kind", RANK, RARITY, TRAITS, CAST_TIME]),
             (&["spell", "background"], vec!["kind", RANK, RARITY]),
-            (&["character_creation"], vec!["kind", RARITY]),
-            (
-                &["character_advancement"],
-                vec!["kind", LEVEL, RARITY, TRAITS, "action.type"],
-            ),
-            (&["kingdom_and_warfare"], vec!["kind", LEVEL, TRAITS]),
-            (&["journal_pack/journals"], vec!["kind"]),
-            (&["creature"], vec!["kind", LEVEL, RARITY, TRAITS]),
-            (&["condition"], vec!["kind"]),
         ] {
             assert_eq!(ids(&view(kind(selection))), expected, "{selection:?}");
         }
+    }
+
+    #[test]
+    fn named_equipment_group_uses_the_remaining_children() {
+        let without = |values: &[&str]| {
+            view(json!({"kind":"all_of","children":[
+                kind(&["all_equipment"]), {"kind":"not","predicate":kind(values)}
+            ]}))
+        };
+        assert_eq!(
+            ids(&without(&["kit"])),
+            ["kind", LEVEL, RARITY, TRAITS, PRICE, BULK]
+        );
+        assert_eq!(
+            ids(&without(&[
+                "ammunition",
+                "armor",
+                "consumable",
+                "container",
+                "general_equipment",
+                "shield",
+                "weapon"
+            ])),
+            ["kind", LEVEL, PRICE, BULK]
+        );
     }
 
     #[test]
@@ -605,12 +610,149 @@ mod tests {
     }
 
     #[test]
-    fn every_static_selector_has_a_valid_toolbar() {
-        for choice in ROOT_KINDS {
-            let toolbar = view(kind(&[choice.id]));
-            let fields = ids(&toolbar);
-            assert_eq!(fields.first(), Some(&"kind"), "{}", choice.id);
-            assert_eq!(BTreeSet::from_iter(fields.iter()).len(), fields.len());
+    fn every_public_kind_has_its_approved_ordered_toolbar() {
+        let expected: &[(&str, &[&str])] = &[
+            ("action", &[TRAITS, "action.type", "action.category"]),
+            ("affliction", &[LEVEL, TRAITS]),
+            ("all_deities", &[LEVEL]),
+            ("all_equipment", &[LEVEL, RARITY, TRAITS, PRICE, BULK]),
+            (
+                "all_spells",
+                &[RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
+            ),
+            ("ammunition", &[LEVEL, RARITY, TRAITS, PRICE]),
+            (
+                "ancestry",
+                &[RARITY, TRAITS, "ancestry.default_boosts", "ancestry.vision"],
+            ),
+            ("ancestry_feat", &[LEVEL, RARITY, TRAITS, "action.type"]),
+            ("ancestry_feature", &[LEVEL, TRAITS]),
+            (
+                "armor",
+                &[
+                    LEVEL,
+                    RARITY,
+                    TRAITS,
+                    "armor.category",
+                    "armor.ac_bonus",
+                    PRICE,
+                ],
+            ),
+            ("army", &[LEVEL, RARITY]),
+            ("army_tactic", &[LEVEL, TRAITS]),
+            ("army_war_action", &[TRAITS, "action.count"]),
+            (
+                "background",
+                &[
+                    RARITY,
+                    "background.restricted_attribute_boosts",
+                    "background.skill_training",
+                ],
+            ),
+            ("bonus_feat", &[LEVEL, TRAITS, "action.type"]),
+            ("cantrip", &[RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS]),
+            ("character", &[LEVEL, "languages"]),
+            (
+                "character_advancement",
+                &[LEVEL, RARITY, TRAITS, "action.type"],
+            ),
+            ("character_creation", &[RARITY]),
+            ("class", &[RARITY, "class.key_attributes"]),
+            ("class_feat", &[LEVEL, RARITY, TRAITS, "action.type"]),
+            ("class_feature", &[LEVEL, RARITY, TRAITS]),
+            ("condition", &[]),
+            (
+                "consumable",
+                &[
+                    LEVEL,
+                    RARITY,
+                    TRAITS,
+                    "consumable.category",
+                    PRICE,
+                    "physical.usage",
+                ],
+            ),
+            ("container", &[LEVEL, RARITY, TRAITS, PRICE, BULK]),
+            ("creature", &[LEVEL, RARITY, TRAITS]),
+            ("deity", &["deity.domains.primary", "deity.favored_weapons"]),
+            ("deity_boon", &[LEVEL, RARITY, TRAITS]),
+            ("deity_curse", &[LEVEL]),
+            ("effect", &[LEVEL, "effect.duration.unit"]),
+            ("familiar", &[]),
+            (
+                "general_equipment",
+                &[LEVEL, RARITY, TRAITS, PRICE, "physical.usage", BULK],
+            ),
+            ("general_feat", &[LEVEL, RARITY, TRAITS]),
+            (
+                "hazard",
+                &[
+                    LEVEL,
+                    RARITY,
+                    TRAITS,
+                    "hazard.complexity",
+                    "hazard.disable_skills",
+                ],
+            ),
+            (
+                "heritage",
+                &[
+                    RARITY,
+                    TRAITS,
+                    "heritage.ancestry.slug",
+                    "heritage.versatile",
+                ],
+            ),
+            ("journal", &[]),
+            ("kingdom_activity", &[TRAITS]),
+            ("kingdom_and_warfare", &[LEVEL, TRAITS]),
+            ("kingdom_feat", &[LEVEL, TRAITS]),
+            ("kingdom_feature", &[LEVEL]),
+            ("kit", &[]),
+            ("mythic_calling", &[LEVEL, RARITY, TRAITS]),
+            ("ritual", &[RANK, RARITY, TRAITS, CAST_TIME]),
+            ("roll_table", &[]),
+            (
+                "shield",
+                &[
+                    LEVEL,
+                    RARITY,
+                    TRAITS,
+                    "shield.hardness",
+                    "shield.broken_threshold",
+                    PRICE,
+                ],
+            ),
+            ("skill_feat", &[LEVEL, RARITY, TRAITS, "action.type"]),
+            ("society_boon", &[LEVEL, RARITY]),
+            ("spell", &[RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS]),
+            ("treasure", &[LEVEL, PRICE]),
+            ("vehicle", &[LEVEL, RARITY, TRAITS, "body.size"]),
+            (
+                "weapon",
+                &[
+                    LEVEL,
+                    RARITY,
+                    TRAITS,
+                    "weapon.category",
+                    "weapon.damage.type",
+                    "weapon.group",
+                    PRICE,
+                ],
+            ),
+        ];
+        assert_eq!(
+            expected.iter().map(|(id, _)| *id).collect::<BTreeSet<_>>(),
+            ROOT_KINDS.iter().map(|choice| choice.id).collect(),
+        );
+        for (id, fields) in expected {
+            let expected = std::iter::once("kind")
+                .chain(fields.iter().copied())
+                .collect::<Vec<_>>();
+            assert_eq!(ids(&view(kind(&[id]))), expected, "{id}");
+        }
+        for pack in ["journal_pack/journals", "journal_pack/criticaldeck"] {
+            assert_eq!(ids(&view(kind(&[pack]))), ["kind"], "{pack}");
         }
     }
 }

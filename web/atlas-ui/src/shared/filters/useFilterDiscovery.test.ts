@@ -193,7 +193,7 @@ it("keeps Search toolbar discovery separate from other editor surfaces", async (
   expect(api.discoverFilterEditor).toHaveBeenCalledTimes(2);
 });
 
-it("keeps controls usable through unrelated edits and guards a previous Kind layout", async () => {
+it("distinguishes Kind continuity from exact discovery readiness", async () => {
   const base = editorFixture([
     fieldFixture("kind"),
     fieldFixture("spell.rank", "number"),
@@ -224,9 +224,9 @@ it("keeps controls usable through unrelated edits and guards a previous Kind lay
     children: [kind, { kind: "compare", field: "spell.rank", op: "eq", value: 2 }],
   });
   expect(result.current.filterApplicabilityCurrent).toBe(false);
-  expect(result.current.filterToolbarCurrent).toBe(true);
+  expect(result.current.filterToolbarKindMatches).toBe(true);
   rerender({ kind: "in", field: "kind", values: ["background"] });
-  expect(result.current.filterToolbarCurrent).toBe(false);
+  expect(result.current.filterToolbarKindMatches).toBe(false);
 });
 
 it("requests only active bounded page literals and preserves known zero versus missing", async () => {

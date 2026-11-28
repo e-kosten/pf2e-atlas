@@ -47,7 +47,7 @@ export function findClauseIds(
   return [];
 }
 // The service owns Kind membership. The browser only compares raw committed
-// Kind clauses to keep the same controls mounted during unrelated filter edits.
+// Kind clauses for focus continuity. Exact editor identity still gates commits.
 function toolbarKindKey(filter: QueryPredicate | null): string {
   function containsKind(node: QueryPredicate): boolean {
     if ("field" in node) return node.field === "kind";
@@ -119,7 +119,7 @@ export function useFilterDiscovery({
   });
   return {
     filterEditor: editor.data?.view,
-    filterToolbarCurrent:
+    filterToolbarKindMatches:
       enabled &&
       !!editor.data?.view.search_toolbar &&
       editor.data.toolbarKey === toolbarKey,
