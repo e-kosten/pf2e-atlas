@@ -3239,6 +3239,188 @@ test("type and select a trait with the keyboard @engine", async ({ page }, info)
   ).toBeVisible();
 });
 
+test("long Boolean filter labels leave both controls reachable", async ({
+  page,
+}, info) => {
+  const label = "Has a free attribute boost";
+  const descriptions = {
+    kind: "compare",
+    field: "has_description",
+    op: "eq",
+    value: true,
+  } as const;
+  const freeBoost = {
+    kind: "compare",
+    field: "background.has_free_attribute_boost",
+    op: "eq",
+    value: true,
+  } as const;
+  await page.goto(
+    `/search?filter=${encodeFilterUrl({
+      kind: "all_of",
+      children: [descriptions, freeBoost],
+    })}`,
+  );
+  await showSearchFilters(page, info);
+  await activate(
+    page.getByRole("button", { name: "Advanced filters", exact: true }),
+    info,
+  );
+  const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const row = advanced.locator(".rule").filter({
+    has: page.getByRole("combobox", { name: label, exact: true }),
+  });
+  const value = row.getByRole("combobox", { name: label, exact: true });
+  const field = row.getByRole("combobox", { name: "Filter field", exact: true });
+  const alignment = () =>
+    row.evaluate((element) => {
+      const fieldBox = element.querySelector(".rule-fields")!.getBoundingClientRect();
+      const valueBox = element
+        .querySelector(".filter-rule-value")!
+        .getBoundingClientRect();
+      return {
+        inline: fieldBox.right <= valueBox.left && valueBox.top < fieldBox.bottom,
+        verticalGap: Math.round(valueBox.top - fieldBox.bottom),
+      };
+    });
+
+  if (info.project.name === "desktop-chromium") {
+    await expect.poll(alignment).toMatchObject({ inline: true });
+  }
+  await activate(field, info);
+  await expect(field).toHaveAttribute("aria-expanded", "true");
+  await field.press("Escape");
+  await expect(field).toHaveAttribute("aria-expanded", "false");
+  await activate(value, info);
+  const choices = page.locator(".ant-select-dropdown:visible");
+  await expect(choices.locator(".ant-select-item-option-content")).toHaveText([
+    "Yes",
+    "No",
+  ]);
+  await activate(choices.getByText("No", { exact: true }), info);
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "all_of",
+      children: [descriptions, { ...freeBoost, value: false }],
+    });
+
+  if (info.project.name === "desktop-chromium") {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await expect(value).toBeVisible();
+    await expect.poll(alignment).toEqual({ inline: false, verticalGap: 8 });
+    await noPageOverflow(page);
+  }
+
+  const remove = row.getByRole("button", { name: "Remove condition", exact: true });
+  await expect(row.getByRole("button")).toHaveCount(1);
+  if (!info.project.use.hasTouch) {
+    await value.focus();
+    await page.keyboard.press("Tab");
+    await expect(remove).toBeFocused();
+  }
+  await activate(remove, info);
+  await expect(row).toHaveCount(0);
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({ kind: "all_of", children: [descriptions] });
+  await expect(
+    advanced.getByRole("combobox", { name: "Has a description" }),
+  ).toBeVisible();
+});
+
+test("advanced rows reflow when a comparison starts accepting several values", async ({
+  page,
+}, info) => {
+  const rankLabel = "Starting advanced weapon proficiency";
+  await page.goto(
+    `/search?filter=${encodeFilterUrl({
+      kind: "any_of",
+      children: [
+        {
+          kind: "compare",
+          field: "class.starting_proficiency.advanced_weapons",
+          op: "eq",
+          value: "trained",
+        },
+        { kind: "compare", field: "level", op: "gte", value: 2 },
+        { kind: "compare", field: "armor.strength", op: "gte", value: 2 },
+        {
+          kind: "exists",
+          collection: "embedded.equipment",
+          predicate: {
+            kind: "compare",
+            field: "embedded.equipment[].armor.strength",
+            op: "gte",
+            value: 2,
+          },
+        },
+      ],
+    })}`,
+  );
+  await showSearchFilters(page, info);
+  await activate(
+    page.getByRole("button", { name: "Advanced filters", exact: true }),
+    info,
+  );
+  const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const rank = page.getByRole("combobox", { name: rankLabel, exact: true });
+  const row = advanced.locator(".rule").filter({ has: rank });
+  const rowIsInline = () =>
+    row.evaluate((element) => {
+      const field = element.querySelector(".rule-fields")!.getBoundingClientRect();
+      const editor = element
+        .querySelector(".filter-rule-value")!
+        .getBoundingClientRect();
+      return editor.top < field.bottom && editor.left >= field.right;
+    });
+  if (info.project.name === "desktop-chromium") {
+    await expect.poll(rowIsInline).toBe(true);
+  }
+  await expect(
+    advanced.getByRole("textbox", { name: "Level minimum", exact: true }),
+  ).toHaveValue("2");
+  const armor = advanced.getByRole("textbox", {
+    name: "Armor Strength Requirement",
+    exact: true,
+  });
+  await expect(armor).toHaveValue("2");
+  await expect(advanced.getByText(/Contains · Equipment/)).toBeVisible();
+
+  const operator = row.getByRole("combobox", { name: `Condition for ${rankLabel}` });
+  await activate(operator, info);
+  await activate(
+    page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("is any of", { exact: true }),
+    info,
+  );
+  await expect.poll(rowIsInline).toBe(false);
+  await expect(row.getByText("Trained", { exact: true })).toBeVisible();
+
+  await armor.fill("");
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "any_of",
+      children: [
+        {
+          kind: "in",
+          field: "class.starting_proficiency.advanced_weapons",
+          values: ["trained"],
+        },
+        { kind: "compare", field: "level", op: "gte", value: 2 },
+        {
+          kind: "exists",
+          collection: "embedded.equipment",
+          predicate: { kind: "compare", field: "armor.strength", op: "gte", value: 2 },
+        },
+      ],
+    });
+  await expect(armor).toBeEmpty();
+  await noPageOverflow(page);
+});
+
 test("field vocabulary Read preserves selected values and unfinished filter drafts @engine", async ({
   page,
 }, info) => {

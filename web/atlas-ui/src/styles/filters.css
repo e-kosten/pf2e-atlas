@@ -243,6 +243,7 @@
 .advanced-filters .rule {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "field remove";
   gap: 8px;
   align-items: start;
   padding-block: 8px;
@@ -252,8 +253,14 @@
   min-width: 0;
 }
 .advanced-filters .rule > .rule-fields {
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: field;
+}
+.filter-select-label {
+  display: block;
+  min-inline-size: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 .filter-field-family {
   display: flex;
@@ -267,17 +274,14 @@
   flex: 0 1 110px;
 }
 .advanced-filters .rule > .rule-operators {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 1 / -1;
   width: fit-content;
 }
 .advanced-filters .rule > :is(.filter-rule-value, .filter-collection-condition) {
   grid-column: 1 / -1;
-  grid-row: 3;
 }
 .advanced-filters .rule > .rule-remove {
-  grid-column: -2;
-  grid-row: 1;
+  grid-area: remove;
 }
 .advanced-filters .rule > * {
   min-width: 0;
@@ -300,61 +304,62 @@
 }
 .filter-link-summary {
   grid-column: 1 / -1;
-  grid-row: 4;
   overflow-wrap: anywhere;
 }
-@container (min-width: 480px) {
+@container (min-width: 20rem) {
+  .advanced-filters .rule:not([data-filter-layout]):has(> .filter-rule-boolean) {
+    grid-template-columns: minmax(0, 1fr) max-content auto;
+    grid-template-areas: "field value remove";
+    align-items: center;
+  }
+  .advanced-filters .rule:not([data-filter-layout]) > .filter-rule-boolean {
+    grid-area: value;
+  }
+}
+@container (min-width: 30rem) {
   .advanced-filters .rule {
-    grid-template-columns: minmax(0, 1fr) fit-content(36%) minmax(0, 1.4fr) auto;
+    grid-template-columns: fit-content(36%) minmax(0, 1fr) auto;
+    grid-template-areas: "field field remove";
   }
   .advanced-filters .rule > .rule-operators {
-    grid-column: 2;
-    grid-row: 1;
-    width: 100%;
+    grid-column: 1;
   }
-  .advanced-filters .rule > :is(.filter-rule-value, .filter-collection-condition) {
-    grid-column: 3;
-    grid-row: 1;
-  }
-  .advanced-filters .rule > .filter-collection-condition:has(> .queryBuilder) {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-  .advanced-filters
-    .rule:is([data-filter-layout="relationship"], :not(:has(> .rule-operators)))
-    > .filter-rule-value {
+  .advanced-filters .rule:has(> .rule-operators) > .filter-rule-value {
     grid-column: 2 / -2;
   }
-  .advanced-filters
-    .rule:is([data-filter-layout="grouped"], [data-filter-layout="wide-label"])
-    > .rule-fields {
-    grid-column: 1 / -2;
+  .advanced-filters .rule:not([data-filter-layout]):has(> .filter-rule-boolean) {
+    grid-template-columns: fit-content(66%) max-content minmax(0, 1fr) auto;
+    grid-template-areas: "field value . remove";
   }
   .advanced-filters
     .rule:is(
-      [data-filter-layout="grouped"],
-      [data-filter-layout="wide-label"]:has(> .rule-operators)
+      [data-filter-layout="relationship"],
+      :not([data-filter-layout]):has(> .filter-rule-level)
     ) {
-    grid-template-columns: fit-content(36%) minmax(0, 1fr) auto;
-  }
-  .advanced-filters
-    .rule:is([data-filter-layout="grouped"], [data-filter-layout="wide-label"])
-    > .rule-operators {
-    grid-column: 1;
-    grid-row: 2;
-    width: fit-content;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+    grid-template-areas: "field value remove";
   }
   .advanced-filters
     .rule:is(
-      [data-filter-layout="grouped"],
-      [data-filter-layout="wide-label"]:has(> .rule-operators)
+      [data-filter-layout="relationship"],
+      :not([data-filter-layout]):has(> .filter-rule-level)
     )
     > .filter-rule-value {
-    grid-column: 2 / -2;
-    grid-row: 2;
+    grid-area: value;
   }
-  .filter-link-summary {
-    grid-row: 2;
+  .advanced-filters .rule:not([data-filter-layout]):has(> .filter-rule-scalar) {
+    grid-template-columns:
+      minmax(0, 1fr) fit-content(26%) clamp(7.5rem, 25cqi, 8.25rem)
+      auto;
+    grid-template-areas: "field operator value remove";
+  }
+  .advanced-filters
+    .rule:not([data-filter-layout]):has(> .filter-rule-scalar)
+    > .rule-operators {
+    grid-area: operator;
+  }
+  .advanced-filters .rule:not([data-filter-layout]) > .filter-rule-scalar {
+    grid-area: value;
   }
 }
 .filter-controls__search-row.primary-toolbar {
