@@ -18,6 +18,8 @@ export function BrowseReader({
   resultsLabel,
   resultsIdentity,
   resultsLoading,
+  suspendResultsScroll = false,
+  restoreResultsFocusOnRemoval = false,
   selectedRecordKey,
   reading,
   recordActions,
@@ -42,6 +44,8 @@ export function BrowseReader({
   resultsLabel: string;
   resultsIdentity: unknown;
   resultsLoading: boolean;
+  suspendResultsScroll?: boolean;
+  restoreResultsFocusOnRemoval?: boolean;
   selectedRecordKey: string | null;
   reading: ReferenceReading;
   readerContext?: ReactNode;
@@ -92,6 +96,7 @@ export function BrowseReader({
     };
   }, []);
   const beforePreview = useRef<HTMLElement | null>(null);
+  const focusedResult = useRef<HTMLElement | null>(null);
   const readerOpen = reading.request !== null && closedRequest !== reading.request;
   const listOnly = fullWidthUntilSelection && !readerOpen;
   useLayoutEffect(() => {
@@ -101,6 +106,7 @@ export function BrowseReader({
       if (
         layoutActive.current &&
         !navigationPending.current &&
+        !suspendResultsScroll &&
         listRef.current &&
         (!narrow || !readerOpen)
       )
@@ -115,11 +121,21 @@ export function BrowseReader({
       before();
       resolved();
     };
-  }, [saved, narrow, readerOpen, atlasRouter]);
+  }, [saved, narrow, readerOpen, atlasRouter, suspendResultsScroll]);
   useLayoutEffect(() => {
-    if (listRef.current && (!narrow || !readerOpen))
+    if (listRef.current && !suspendResultsScroll && (!narrow || !readerOpen))
       listRef.current.scrollTop = saved.readList();
-  }, [resultsIdentity, saved, narrow, readerOpen]);
+  }, [resultsIdentity, saved, narrow, readerOpen, suspendResultsScroll]);
+  useLayoutEffect(() => {
+    const focused = focusedResult.current;
+    if (!focused || focused.isConnected) return;
+    focusedResult.current = null;
+    if ((!narrow || !readerOpen) && document.activeElement === document.body) {
+      listRef.current
+        ?.closest<HTMLElement>(".reference-results")
+        ?.focus({ preventScroll: true });
+    }
+  }, [resultsIdentity, narrow, readerOpen]);
   function rememberOpener(target: EventTarget) {
     const element =
       target instanceof Element
@@ -218,6 +234,21 @@ export function BrowseReader({
       className="reference-results"
       tabIndex={-1}
       aria-label={resultsLabel}
+      onFocusCapture={
+        restoreResultsFocusOnRemoval
+          ? (event) => {
+              focusedResult.current =
+                event.target.closest<HTMLElement>("[data-record-key]") ?? null;
+            }
+          : undefined
+      }
+      onBlurCapture={
+        restoreResultsFocusOnRemoval
+          ? (event) => {
+              if (event.relatedTarget) focusedResult.current = null;
+            }
+          : undefined
+      }
       onClickCapture={(event) => {
         if (isPrimaryActivation(event)) rememberOpener(event.target);
       }}
@@ -238,6 +269,7 @@ export function BrowseReader({
           if (
             layoutActive.current &&
             !navigationPending.current &&
+            !suspendResultsScroll &&
             (!narrow || !readerOpen)
           )
             saved.saveList(event.currentTarget.scrollTop);

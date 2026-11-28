@@ -100,7 +100,7 @@ describe("search pane composition", () => {
     const searching = {
       ...state,
       search: { ...state.search, query: "heal" },
-      resultsLoading: true,
+      resultsPending: "search" as const,
     };
     rerender(content(searching));
     expect(await screen.findByRole("status", { name: "Searching…" })).toBeVisible();
@@ -118,8 +118,18 @@ describe("search pane composition", () => {
         next_page: null,
       },
     };
-    rerender(content({ ...searching, resultsLoading: false, resultPage: empty }));
-    expect(screen.getByText("No matching records.")).toBeVisible();
+    rerender(content({ ...searching, resultsPending: undefined, resultPage: empty }));
+    expect(
+      within(screen.getByRole("region", { name: "Search results" })).getByText(
+        "No matching records.",
+      ),
+    ).toBeVisible();
+    rerender(content({ ...searching, resultsPending: "refresh", resultPage: empty }));
+    expect(
+      within(screen.getByRole("region", { name: "Search results" })).getByText(
+        "No matching records.",
+      ),
+    ).toBeVisible();
     expect(screen.queryByRole("status", { name: "Searching…" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Records per page" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
@@ -127,7 +137,7 @@ describe("search pane composition", () => {
     rerender(
       content({
         ...searching,
-        resultsLoading: true,
+        resultsPending: "search" as const,
         errorMessage: "Search connection lost",
       }),
     );
@@ -148,7 +158,11 @@ describe("search pane composition", () => {
     render(
       <SearchProfileProvider>
         <SearchView
-          workspace={workspace({ search, resultPage: undefined, resultsLoading: true })}
+          workspace={workspace({
+            search,
+            resultPage: undefined,
+            resultsPending: "search" as const,
+          })}
         />
       </SearchProfileProvider>,
     );
@@ -313,6 +327,52 @@ describe("ResultPaneHeader", () => {
     expect(setPageNumber).toHaveBeenCalledExactlyOnceWith(42);
   });
 
+  it("keeps the displayed page and pager focus until the requested page arrives", () => {
+    const original = searchResultsPage();
+    const setPageNumber = vi.fn();
+    const { rerender } = render(
+      <ResultPaneHeader
+        workspace={workspace({ resultPage: original, setPageNumber })}
+      />,
+    );
+    const input = screen.getByRole("textbox", { name: "Current page" });
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "42" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(setPageNumber).toHaveBeenCalledExactlyOnceWith(42);
+    rerender(
+      <ResultPaneHeader
+        pendingLabel="Loading page 42…"
+        workspace={workspace({
+          resultPage: original,
+          pageNumber: 42,
+          resultsPending: "page",
+          setPageNumber,
+        })}
+      />,
+    );
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue(String(original.page.number));
+    expect(input).toHaveAttribute("readonly");
+    expect(screen.getByText("Loading page 42…")).toBeVisible();
+    const next = screen.getByRole("button", { name: "Next page" });
+    expect(next).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(next);
+    expect(setPageNumber).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ResultPaneHeader
+        workspace={workspace({
+          resultPage: { ...original, page: { ...original.page, number: 42 } },
+          pageNumber: 42,
+          setPageNumber,
+        })}
+      />,
+    );
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("42");
+  });
+
   it.each(["resultsPaused", "resultsRecovering"] as const)(
     "disables pagination while %s without changing the criterion",
     (state) => {
@@ -338,7 +398,7 @@ describe("ResultPaneHeader", () => {
     fireEvent.blur(input);
 
     expect(setPageNumber).toHaveBeenCalledWith(590);
-    expect(input).toHaveValue("590");
+    expect(input).toHaveValue(String(searchResultsPage().page.number));
   });
 });
 
@@ -387,8 +447,7 @@ function workspace(
     },
     vocabularyScope: { kind: "artifact" },
     filterDiscoveryError: null,
-    resultsLoading: false,
-    resultsRefreshing: false,
+    resultsPending: undefined,
     filterDiscoveryLoading: false,
     errorMessage: null,
     refresh: vi.fn(),

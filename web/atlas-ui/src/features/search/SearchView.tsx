@@ -7,14 +7,15 @@ import {
   useFilterUrlRecovery,
 } from "../../shared/filters/useFilterUrlRecovery";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button } from "antd";
+import { Alert, Button, Spin } from "antd";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import {
   FilterControls,
   type AdvancedFiltersHandle,
 } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
-import { ResultPaneHeader } from "./ResultPaneHeader";
+import { ResultPaneHeader, searchResultsCaption } from "./ResultPaneHeader";
+import { useDelayedLoading } from "../../shared/ui/LoadingStatus";
 import type { SearchResultRow } from "../../generated/atlas";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { appError } from "../../shared/feedback/errorMessages";
@@ -64,11 +65,11 @@ export function SearchView({
     workspace.search.filterError ||
     profile.error,
   );
-  const loading =
-    !failed &&
-    (workspace.resultsLoading ||
-      workspace.resultsRefreshing ||
-      (hasCriteria && profile.loading));
+  const pending = failed
+    ? undefined
+    : (workspace.resultsPending ??
+      (hasCriteria && profile.loading ? "search" : undefined));
+  const showProgress = useDelayedLoading(Boolean(pending));
   const seed = useMemo(
     () =>
       workspace.search.filterError === INVALID_SIMILARITY_SOURCE
@@ -107,6 +108,15 @@ export function SearchView({
       [],
     [page, early],
   );
+  const pendingLabel = showProgress
+    ? searchProgressLabel(pending, workspace)
+    : undefined;
+  const settledAnnouncement =
+    !failed && page
+      ? page.page.total === 0
+        ? "0 results"
+        : `Page ${page.page.number}, ${searchResultsCaption(workspace)}`
+      : undefined;
   const mode = page?.mode;
   const acknowledged =
     page &&
@@ -163,6 +173,9 @@ export function SearchView({
   return (
     <ReferenceHelpHost generation={workspace.filterEditor?.artifact_generation}>
       <main className="search-workspace">
+        <div role="status" className="sr-only" aria-label={pendingLabel}>
+          {pendingLabel ?? settledAnnouncement}
+        </div>
         {reset.notice && (
           <Alert
             type="info"
@@ -273,7 +286,9 @@ export function SearchView({
               ? null
               : hasCriteria
                 ? workspace.resultPage
-                  ? "No matching records."
+                  ? workspace.resultPage.page.total === 0
+                    ? "No matching records."
+                    : null
                   : null
                 : "Search or choose filters."
           }
@@ -293,8 +308,21 @@ export function SearchView({
           filter={workspace.resultFilter}
           generation={page?.artifact_generation ?? early?.artifact_generation}
           onRefreshResults={workspace.refreshResults}
-          loading={loading && !early}
-          loadingMoreLabel={loading && early ? "Loading more results…" : undefined}
+          resultsBusy={Boolean(pending && !early && pending !== "evidence")}
+          suspendResultsScroll={pending === "search"}
+          restoreResultsFocusOnRemoval
+          resultsFooter={
+            pending === "search" && (
+              <div
+                className={early ? "reference-loading-more" : "reference-loading"}
+                aria-hidden="true"
+                style={{ visibility: showProgress ? undefined : "hidden" }}
+              >
+                <Spin size="small" /> {early ? "Loading more results…" : "Searching…"}
+              </div>
+            )
+          }
+          readerStatus={pending === "evidence" ? pendingLabel : undefined}
           selectedRecordKey={workspace.selectedRecordKey}
           onSelect={(row, request) =>
             workspace.selectRecord(
@@ -306,7 +334,16 @@ export function SearchView({
           onClearSelection={() => workspace.selectRecord(null)}
           reading={workspace.reading}
           positions={workspace.positions}
-          resultsHeader={<ResultPaneHeader workspace={workspace} />}
+          resultsHeader={
+            <ResultPaneHeader
+              workspace={workspace}
+              pendingLabel={
+                pending === "search" || pending === "evidence"
+                  ? undefined
+                  : pendingLabel
+              }
+            />
+          }
           recordActions={(record) => (
             <AddToRecordButton
               key={record.record_key}
@@ -318,4 +355,24 @@ export function SearchView({
       </main>
     </ReferenceHelpHost>
   );
+}
+
+function searchProgressLabel(
+  pending: SearchWorkspaceState["resultsPending"],
+  workspace: SearchWorkspaceState,
+) {
+  switch (pending) {
+    case "search":
+      return workspace.earlyExactMatches ? "Loading more results…" : "Searching…";
+    case "page":
+      return `Loading page ${workspace.pageNumber}…`;
+    case "page-size":
+      return `Changing to ${workspace.search.pageSize} per page…`;
+    case "sort":
+      return "Sorting results…";
+    case "refresh":
+      return "Updating results…";
+    case "evidence":
+      return "Loading match explanations…";
+  }
 }

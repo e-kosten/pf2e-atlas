@@ -159,6 +159,65 @@ async function holdResponse(
   return { arrived: arrived.promise, release: gate.resolve };
 }
 
+test("retains readable rows for paging and clears them for a committed filter change", async ({
+  page,
+}, info) => {
+  await page.goto(`/search?filter=${creatureFilter}`);
+  const results = page.getByRole("region", { name: "Search results" });
+  const currentPage = page.getByRole("textbox", { name: "Current page" });
+  const next = page.getByRole("button", { name: "Next page" });
+  const card = results.locator("[data-record-key]").first();
+  await expect(currentPage).toHaveValue("1");
+  const firstKey = await card.getAttribute("data-record-key");
+  const request = await holdResponse(
+    page,
+    "**/api/search/page",
+    (candidate) => candidate.postDataJSON().page.number === 2,
+  );
+
+  try {
+    await activate(next, info);
+    await request.arrived;
+    await expect(currentPage).toHaveValue("1");
+    await expect(next).toHaveAttribute("aria-disabled", "true");
+    await expect(
+      page.locator(".search-results-toolbar").getByText("Loading page 2…"),
+    ).toBeVisible();
+    await expect(card).toHaveAttribute("data-record-key", firstKey!);
+    await expect(card.locator("..")).toHaveCSS("opacity", "1");
+    if (info.project.use.hasTouch !== true) await expect(next).toBeFocused();
+  } finally {
+    request.release();
+  }
+  await expect(currentPage).toHaveValue("2");
+  await expect(card).not.toHaveAttribute("data-record-key", firstKey!);
+  await expect(
+    page.locator(".search-results-toolbar").getByText("Loading page 2…"),
+  ).toBeHidden();
+
+  await showSearchFilters(page, info);
+  await activate(
+    page.getByRole("button", { name: "Edit Kind filter", exact: true }),
+    info,
+  );
+  await page.getByRole("textbox", { name: "Search kind choices" }).fill("Spell");
+  const changedFilter = await holdResponse(page, "**/api/search/page", (candidate) =>
+    JSON.stringify(candidate.postDataJSON().criteria.filter).includes('"spell"'),
+  );
+  try {
+    await activate(page.getByRole("button", { name: /^Kind: Spell,/ }), info);
+    await page.keyboard.press("Escape");
+    await changedFilter.arrived;
+    await expect(results.locator("[data-record-key]")).toHaveCount(0);
+    await expect(page.getByRole("status", { name: "Searching…" })).toBeVisible();
+    await expect(currentPage).toBeHidden();
+  } finally {
+    changedFilter.release();
+  }
+  await expect(currentPage).toHaveValue("1");
+  await expect(card).toBeVisible();
+});
+
 test("keeps submitted text and newer drafts through readiness and results", async ({
   page,
 }, info) => {

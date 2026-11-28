@@ -1152,11 +1152,17 @@ field’s trailing edge and follow [clipboard feedback](#clipboard-feedback). Ke
 and Shuffle on one row. Commit seed drafts on
 Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
 stable through paging, reload and Back. Incoming malformed combinations are errors.
-Response identity checks compare complete sort values structurally. Retain loaded
-rows and titles with updating feedback during order changes; old placeholders
-never cross seed/criterion/scope/profile/generation boundaries in the bounded
-picker/Trait consumers. Keep pager controls wrapped within narrow panes, with
-Previous/page/Next together.
+Response identity checks compare complete sort values structurally. Main Search
+keeps the last displayed page at normal contrast during compatible paging,
+page-size and sort changes. The pager describes the displayed page and the
+status names the requested update. Commit criteria changes immediately in the
+results pane, including during debounce. Clear incompatible ranked content and
+show any verified exact matches as they arrive. A same-page refresh or match
+explanation request keeps current rows and confirmed empty states readable.
+Search announces progress outside the busy results region and delays feedback
+for fast requests. Bounded pickers and Trait consumers retain their own loading
+presentation within the same seed, criteria, scope, profile and generation.
+Keep pager controls wrapped within narrow panes, with Previous/page/Next together.
 Saved-list attribute and Random orders are temporary, preserve drafts, and disable
 drag reordering. Render supplied unit-price labels verbatim in existing row
 metadata whenever any attribute rule orders by price.
