@@ -5,7 +5,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 12;
+pub const QUERY_CAPABILITY_VERSION: u32 = 13;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
