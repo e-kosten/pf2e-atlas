@@ -167,6 +167,16 @@ fn spool_input_in(
         inventory,
         expected,
     )?;
+    let mut progression_index = atlas_record::progression::ProgressionIndex::default();
+    for source in &input.records {
+        if crate::reference_pack_applies(
+            input.context.reference_preparation.as_ref(),
+            "pf2e",
+            source.record.key().pack().as_str(),
+        ) {
+            progression_index.insert(&source.record, &source.source_path);
+        }
+    }
     for source in &input.records {
         let pack = input
             .packs
@@ -195,6 +205,22 @@ fn spool_input_in(
                 preparation_context_hash: source.preparation_context_hash.clone(),
                 content: serde_json::from_slice(&serde_json::to_vec(&source.content)?)?,
                 relationships: serde_json::from_slice(&serde_json::to_vec(&source.relationships)?)?,
+                progression: source.progression.clone().or_else(|| {
+                    if crate::reference_pack_applies(
+                        input.context.reference_preparation.as_ref(),
+                        "pf2e",
+                        source.record.key().pack().as_str(),
+                    ) {
+                        atlas_record::progression::prepare(
+                            &source.record,
+                            &source.source_path,
+                            &progression_index,
+                            &source.content,
+                        )
+                    } else {
+                        None
+                    }
+                }),
                 diagnostics: source.diagnostics.clone(),
             },
             selection,

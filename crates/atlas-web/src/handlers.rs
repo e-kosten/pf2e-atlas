@@ -731,6 +731,20 @@ pub(crate) async fn creature_family(
     ))
 }
 
+#[utoipa::path(post, path = "/api/records/progression", operation_id = "recordProgression", request_body = atlas_app_model::ProgressionRequest, responses((status = 200, description = "Prerequisites and related progression options", body = atlas_app_model::ProgressionView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn record_progression(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::ProgressionRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    Ok(Json(
+        call_read_service(state, move |service, execution| {
+            service.record_progression(request, &execution)
+        })
+        .await?,
+    ))
+}
+
 #[utoipa::path(post, path = "/api/related", operation_id = "relatedRecords", request_body = atlas_app_model::RelatedRecordsRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::RelatedRecordsView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn related_records(
     State(state): State<AtlasWebState>,

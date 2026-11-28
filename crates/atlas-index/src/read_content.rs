@@ -1,4 +1,5 @@
 //! Bounded attributed content/edge reads; neither operation decodes a source body.
+use crate::progression::ORDINARY_RELATIONSHIP;
 use crate::{
     IndexError, SourceArtifactDiagnostic, SourcePreparedContent, SourceRelationshipDetails,
     SourceStoredRelationship, SqliteIndexReader,
@@ -449,7 +450,7 @@ impl SqliteIndexReader {
     ) -> Result<Vec<SourceStoredRelationship>, IndexError> {
         let sql = format!(
             "{RELATIONSHIP_SELECT} WHERE r.key=?1 AND r.document_kind<>'Macro'
-            AND o.owners_json=?2 AND (?3 IS NULL OR o.field_path=?3) AND o.target_record_id IS NULL
+            AND {ORDINARY_RELATIONSHIP} AND o.owners_json=?2 AND (?3 IS NULL OR o.field_path=?3) AND o.target_record_id IS NULL
             ORDER BY o.occurrence_id LIMIT ?4"
         );
         self.count_statement();
@@ -492,7 +493,7 @@ impl SqliteIndexReader {
         }
         let mut params = vec![Value::Text(request.record.to_string())];
         let mut sql = format!(
-            "{RELATIONSHIP_SELECT} WHERE r.document_kind<>'Macro' AND (t.document_kind IS NULL OR t.document_kind<>'Macro') AND ",
+            "{RELATIONSHIP_SELECT} WHERE r.document_kind<>'Macro' AND (t.document_kind IS NULL OR t.document_kind<>'Macro') AND {ORDINARY_RELATIONSHIP} AND ",
         );
         sql.push_str(match request.direction {
             SourceRelationshipDirection::Outgoing => "r.key=?",

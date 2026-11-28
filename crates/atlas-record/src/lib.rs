@@ -3,4 +3,5 @@
 pub mod source_content;
 pub mod source_record;
 
+pub mod progression;
 pub mod remaster;

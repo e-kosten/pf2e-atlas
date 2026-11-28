@@ -239,6 +239,8 @@ export function RecordDetailPane({
                 selection={detail.selected}
                 compact={compact}
                 relationships={detail.relationships}
+                progressionLinks={detail.progression?.inline_links}
+                showProgression={showRelated && Boolean(detail.progression)}
                 reading={{
                   generation: detail.artifact_generation,
                   parent: {

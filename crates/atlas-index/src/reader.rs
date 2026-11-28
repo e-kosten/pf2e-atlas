@@ -143,6 +143,7 @@ impl SqliteIndexReader {
             || context.selected_sections_recipe != crate::SELECTED_SECTIONS_RECIPE
             || context.relationship_policy != crate::input::RELATIONSHIP_POLICY_VERSION
             || context.asset_policy != crate::input::ASSET_POLICY_VERSION
+            || context.progression_recipe != crate::PROGRESSION_RECIPE
             || context.remaster_inputs_identity
                 != atlas_record::remaster::remaster_inputs_identity()
         {

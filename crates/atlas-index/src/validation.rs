@@ -125,6 +125,8 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     let mut reference_index = atlas_record::source_record::SourceReferenceIndex::default();
     let abilities = crate::references::audit_catalog(c, &context)?;
     let mut trait_evidence = crate::traits::TraitEvidence::default();
+    let mut progression_index = atlas_record::progression::ProgressionIndex::default();
+    let stored_progression = crate::progression::stored_roots(c)?;
     let total_roots = count(c, "records")?;
     {
         let mut cursor = root_query.query([])?;
@@ -137,6 +139,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
                 "pf2e",
                 record.key().pack().as_str(),
             ) {
+                progression_index.insert(&record, &row.get::<_, String>(4)?);
                 atlas_record::source_record::owned_action_localizations(&record, context.audience)
             } else {
                 vec![]
@@ -188,6 +191,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             preparation_context_hash: context.preparation_sha256()?,
             content,
             relationships: vec![],
+            progression: None,
             diagnostics: vec![],
         };
         let (seed, end): (i64, i64) = c
@@ -238,6 +242,29 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         }
         validate_admission_diagnostics(c, id)?;
         relationships += validate_relationships(c, id, &input.record, &reference_index)?;
+        let expected_progression = if crate::reference_pack_applies(
+            context.reference_preparation.as_ref(),
+            "pf2e",
+            input.record.key().pack().as_str(),
+        ) {
+            atlas_record::progression::prepare(
+                &input.record,
+                &input.source_path,
+                &progression_index,
+                &input.content,
+            )
+        } else {
+            None
+        };
+        if expected_progression.is_some() || stored_progression.contains(&id) {
+            relationships += crate::progression::validate(
+                c,
+                id,
+                &input.record,
+                expected_progression.as_ref(),
+                &input.content,
+            )?;
+        }
         crate::validation_units::validate_selection(
             c,
             id,
@@ -588,8 +615,9 @@ fn validate_relationships(
         atlas_record::source_record::resolve_source_relationships(record, Some(reference_index));
     let mut seen = vec![false; expected.len()];
     let mut statement = c.prepare(&format!(
-        "{} WHERE o.record_id=?",
-        crate::read_content::RELATIONSHIP_SELECT
+        "{} WHERE o.record_id=? AND {}",
+        crate::read_content::RELATIONSHIP_SELECT,
+        crate::progression::ORDINARY_RELATIONSHIP
     ))?;
     let mut n = 0;
     for stored in statement.query_map([id], crate::read_content::relationship_row)? {

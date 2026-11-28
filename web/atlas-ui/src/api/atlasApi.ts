@@ -670,6 +670,13 @@ export function getEquipmentFamily(familyId: string, signal?: AbortSignal) {
   return http.getEquipmentFamily(familyId, { intent: "read", signal });
 }
 
+export async function getProgression(
+  request: import("../generated/atlas").ProgressionRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").ProgressionView> {
+  return http.recordProgression(checkRequest(request), { intent: "read", signal });
+}
+
 export async function getRelatedRecords(
   request: import("../generated/atlas").RelatedRecordsRequest,
   signal?: AbortSignal,

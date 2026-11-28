@@ -96,6 +96,12 @@ pub use condition_events::{
     RemoveEncounterParticipantConditionRequest, ResolveDrainedConsequenceRequest,
     SetEncounterLifeSettingsRequest, WakingRuleView,
 };
+mod progression;
+pub use progression::{
+    ProgressionDirection, ProgressionEntryView, ProgressionInlineLinkView, ProgressionPageView,
+    ProgressionPoolView, ProgressionRequest, ProgressionRequirementKind,
+    ProgressionRequirementView, ProgressionView, ProgressionWitnessView, RecordProgressionHintView,
+};
 mod definitions;
 mod traits;
 pub use definitions::{

@@ -1,5 +1,5 @@
 import { useAtlasRouter } from "../../app/router";
-import { Fragment } from "react";
+import { Fragment, useContext } from "react";
 import { RecordIdentityBadges } from "./RecordIdentityBadges";
 import {
   ownerReturnHref,
@@ -30,6 +30,7 @@ import type {
   NamedCreatureLinksView,
   RecordTitleLinkView,
   PreparedContentFieldView,
+  ProgressionInlineLinkView,
   RecordNavigationView,
   RecordPresentationView,
   RecordRelationshipView,
@@ -44,6 +45,8 @@ import { SpellEffectPreview } from "./SpellEffectPreview";
 import { ActorActivity } from "./ActorReference";
 import { FactLine, factText, isEmptyFactValue } from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
+import { PrerequisiteContent } from "./PrerequisiteContent";
+import { OpenRecordProgression } from "./recordExploreLocation";
 import { SpellReference } from "./SpellReference";
 import { PhysicalReference } from "./PhysicalReference";
 import { ActionCost } from "./ActionCost";
@@ -52,7 +55,7 @@ import type { ActorEncounterContent } from "./ActorEncounterLayout";
 import { HazardReference } from "./HazardReference";
 import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
 import { activityAddress } from "./embeddedNavigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, GitFork } from "lucide-react";
 const contentRoleLabels: Record<string, string> = {
   name: "Name",
   description: "Description",
@@ -72,6 +75,8 @@ export function ContentFields({
   inlineAbility = false,
   hideDescriptionHeading = false,
   introduction,
+  progressionLinks,
+  showProgression,
   documentNavigation = false,
   sectionLanding,
 }: {
@@ -83,27 +88,48 @@ export function ContentFields({
   inlineAbility?: boolean;
   hideDescriptionHeading?: boolean;
   introduction?: PreparedContentFieldView;
+  progressionLinks?: ProgressionInlineLinkView[];
+  showProgression?: boolean;
 }) {
+  const open = useContext(OpenRecordProgression);
+  const openProgression = showProgression ? open : undefined;
   const visibleFields = fields.filter(contentFieldVisible);
   const prerequisites = visibleFields.filter((field) => field.role === "prerequisite");
   return (
     <>
-      {prerequisites.length > 0 && (
+      {(prerequisites.length > 0 || openProgression) && (
         <div className="record-fact record-reference__prerequisites">
-          <strong>Prerequisites</strong>
-          <ul>
-            {prerequisites.map((field) => (
-              <li key={JSON.stringify(field.locator)}>
-                <PreparedContent
-                  content={field}
-                  documentNavigation={documentNavigation}
-                  sectionLanding={sectionLanding}
-                  relationships={relationships}
-                  onReference={onReference}
-                />
-              </li>
-            ))}
-          </ul>
+          {openProgression ? (
+            <div className="record-reference__prerequisite-heading">
+              {prerequisites.length > 0 && <strong>Prerequisites</strong>}
+              <Button
+                type="text"
+                className="record-reference__progression-action"
+                icon={<GitFork size={15} aria-hidden="true" />}
+                onClick={openProgression}
+              >
+                Progression
+              </Button>
+            </div>
+          ) : (
+            <strong>Prerequisites</strong>
+          )}
+          {prerequisites.length > 0 && (
+            <ul>
+              {prerequisites.map((field) => (
+                <li key={JSON.stringify(field.locator)}>
+                  <PrerequisiteContent
+                    content={field}
+                    documentNavigation={documentNavigation}
+                    sectionLanding={sectionLanding}
+                    relationships={relationships}
+                    onReference={onReference}
+                    links={progressionLinks}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       {visibleFields
@@ -577,8 +603,12 @@ export function RecordPresentation({
   visibleOwnerRecordKey,
   sectionLanding,
   actorEncounter,
+  progressionLinks,
+  showProgression,
 }: {
   actorEncounter?: ActorEncounterContent;
+  progressionLinks?: ProgressionInlineLinkView[];
+  showProgression?: boolean;
   sectionLanding?: string;
   presentation: RecordPresentationView;
   root?: RecordSummaryView;
@@ -658,11 +688,13 @@ export function RecordPresentation({
       (body.kind !== "hazard" || field.role === "description"),
   );
   const flavor =
-    flavorFields.length > 0 || showInlineTitle ? (
+    flavorFields.length > 0 || showInlineTitle || showProgression ? (
       <div className="record-reference__flavor">
         {showInlineTitle && <h3>{inlineTitle}</h3>}
         <ContentFields
           fields={flavorFields}
+          progressionLinks={progressionLinks}
+          showProgression={showProgression}
           introduction={
             body.kind === "creature" &&
             !encounter &&

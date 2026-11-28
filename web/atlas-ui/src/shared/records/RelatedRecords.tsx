@@ -65,6 +65,7 @@ import { relationshipSearchRoute } from "./relationshipSearch";
 import { ExploreSearchAction } from "./ExploreSearchAction";
 import { CreatureScenarioChoices } from "./CreatureScenarioChoices";
 import { useRecordExploreLocation } from "./recordExploreLocation";
+import { RecordProgression } from "./RecordProgression";
 
 type ExploreProps = {
   detail: RecordDetailView;
@@ -129,6 +130,22 @@ export function RelatedRecords(props: ExploreProps) {
             key: "outgoing",
             label: "References",
             children: <ReferencePreview {...props} incoming={false} />,
+          },
+        ]
+      : []),
+    ...(props.detail.progression || active === "progression"
+      ? [
+          {
+            key: "progression",
+            label: "Progression",
+            children: (
+              <RecordProgression
+                detail={props.detail}
+                onReference={props.onReference}
+                onReload={props.onReload}
+                reloadLabel={props.reloadLabel}
+              />
+            ),
           },
         ]
       : []),

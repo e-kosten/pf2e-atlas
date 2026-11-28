@@ -75,6 +75,8 @@ mod numeric;
 mod persistence;
 #[cfg(test)]
 mod profile_tests;
+mod progression;
+pub use progression::{PROGRESSION_RECIPE, PrerequisiteDependent, ProgressionPage};
 mod projections;
 mod publication_delta;
 pub mod query;

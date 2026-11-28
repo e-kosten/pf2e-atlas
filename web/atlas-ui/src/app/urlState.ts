@@ -111,7 +111,8 @@ function readingRank(search: AtlasSearchParams): number | undefined {
   return Number(value);
 }
 
-export type RecordExploreTab = "incoming" | "outgoing" | "similar" | "versions";
+export type RecordExploreTab =
+  "incoming" | "outgoing" | "similar" | "versions" | "progression";
 export type ReadingViewInput = { view?: "read" | "explore"; tab?: RecordExploreTab };
 
 export function readingView(search: AtlasSearchParams): ReadingViewInput {
@@ -121,7 +122,7 @@ export function readingView(search: AtlasSearchParams): ReadingViewInput {
     throw new ReadingUrlError("This record link contains an invalid reading view.");
   if (
     tab !== undefined &&
-    !["incoming", "outgoing", "similar", "versions"].includes(tab)
+    !["incoming", "outgoing", "similar", "versions", "progression"].includes(tab)
   )
     throw new ReadingUrlError("This record link contains an invalid Explore tab.");
   return {

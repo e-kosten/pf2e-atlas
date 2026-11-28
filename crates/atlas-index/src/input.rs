@@ -102,6 +102,8 @@ pub struct SourceArtifactBuildContext {
     pub relationship_policy: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub remaster_inputs_identity: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub progression_recipe: String,
     pub query_projection_version: String,
     pub query_catalog_version: u32,
     pub lookup_version: String,
@@ -128,6 +130,7 @@ pub struct SourceArtifactRecordInput {
     pub preparation_context_hash: String,
     pub content: Vec<SourceContentOutcome>,
     pub relationships: Vec<SourceRelationshipOccurrence>,
+    pub progression: Option<atlas_record::progression::ProgressionRecord>,
     pub diagnostics: Vec<SourceArtifactDiagnostic>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

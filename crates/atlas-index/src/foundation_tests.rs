@@ -107,6 +107,7 @@ fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
         asset_policy: ASSET_POLICY_VERSION.into(),
         relationship_policy: RELATIONSHIP_POLICY_VERSION.into(),
         remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
+        progression_recipe: crate::PROGRESSION_RECIPE.into(),
         query_projection_version: SOURCE_PROJECTION_VERSION.into(),
         query_catalog_version: query_capabilities().unwrap().version,
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
@@ -140,6 +141,7 @@ pub(super) fn record(pack: &str, kind: &str, v: Value) -> SourceArtifactRecordIn
         preparation_context_hash: String::new(),
         content,
         relationships,
+        progression: None,
         diagnostics: vec![],
     }
 }
@@ -303,7 +305,7 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
     synchronize_fixture_terms(&mut input);
     input
 }
-fn synchronize_fixture_terms(input: &mut IndexBuildInput) {
+pub(super) fn synchronize_fixture_terms(input: &mut IndexBuildInput) {
     for r in &input.records {
         let selection = atlas_record::source_record::select_record_search(
             &r.record,

@@ -279,8 +279,9 @@ fn decode_persisted_input(
     }
     let mut relationships = Vec::new();
     let mut edges = c.prepare(&format!(
-        "{} WHERE o.record_id=? AND o.origin='structured' ORDER BY o.ordinal",
-        crate::read_content::RELATIONSHIP_SELECT
+        "{} WHERE o.record_id=? AND o.origin='structured' AND {} ORDER BY o.ordinal",
+        crate::read_content::RELATIONSHIP_SELECT,
+        crate::progression::ORDINARY_RELATIONSHIP
     ))?;
     for edge in edges.query_map([id], crate::read_content::relationship_row)? {
         let edge = edge?;
@@ -305,6 +306,7 @@ fn decode_persisted_input(
             preparation_context_hash: preparation_hash,
             content,
             relationships,
+            progression: None,
             diagnostics: admission.diagnostics,
         },
     }))

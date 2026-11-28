@@ -21,8 +21,10 @@ mod error;
 mod graph;
 mod neighbor_reuse;
 mod page;
+mod progression;
 #[cfg(any(test, feature = "read-metrics"))]
 mod read_metrics;
+pub use atlas_index::{PrerequisiteDependent, ProgressionPage};
 mod records;
 mod reference_resolution;
 mod references;

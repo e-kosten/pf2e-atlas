@@ -1,7 +1,18 @@
-import { useCallback, useRef } from "react";
+import { createContext, useCallback, useRef } from "react";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { atlasRouter } from "../../app/router";
 import { readingView, type RecordExploreTab } from "../../app/urlState";
+
+export const OpenRecordProgression = createContext<(() => void) | undefined>(undefined);
+
+/** The reader and Atlas browser history use the same short-lived visit identity. */
+export function useRecordReadingVisit() {
+  const contextRouter = useRouter({ warn: false });
+  return useRouterState({
+    router: contextRouter ?? atlasRouter,
+    select: ({ location }) => location.state.__TSR_key ?? location.href,
+  });
+}
 
 /** Reading mode and the active exploration task travel with this history entry. */
 export function useRecordExploreLocation() {
@@ -41,8 +52,8 @@ export function useRecordExploreLocation() {
     mode,
     tab,
     resetUnavailableVersions,
-    setMode: (mode: "read" | "explore") =>
-      void update(mode, readingView(router.latestLocation.search).tab),
+    setMode: (mode: "read" | "explore", targetTab?: RecordExploreTab) =>
+      void update(mode, targetTab ?? readingView(router.latestLocation.search).tab),
     setTab: (tab: string) =>
       void update("explore", readingView({ record_tab: tab }).tab, true),
   };

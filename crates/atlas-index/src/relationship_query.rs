@@ -1,4 +1,5 @@
 //! Relationship leaves share the query compiler's parameters and exact owner semantics.
+use crate::progression::ORDINARY_RELATIONSHIP;
 use crate::query::compiler::parameter;
 use crate::{IndexError, SourceStoredRelationship, SqliteIndexReader};
 use atlas_domain::{QueryRelationship, QueryRelationshipDirection, RecordKey};
@@ -51,6 +52,8 @@ fn occurrence_scope(
             }
         }
     }
+    sql.push_str(" AND ");
+    sql.push_str(ORDINARY_RELATIONSHIP);
     Ok(sql)
 }
 impl SqliteIndexReader {
@@ -100,7 +103,7 @@ pub(crate) fn compile_related_match(
         " AND o.owners_json='[]'"
     };
     let witnesses = format!(
-        "SELECT 1 FROM relationship_occurrences o WHERE {result}=r.record_id AND o.resolution IN ('resolved_record','resolved_owned'){target_scope}{source_scope}"
+        "SELECT 1 FROM relationship_occurrences o WHERE {result}=r.record_id AND o.resolution IN ('resolved_record','resolved_owned') AND {ORDINARY_RELATIONSHIP}{target_scope}{source_scope}"
     );
     // Compile the target predicate against one related root per occurrence.
     // A known match takes precedence over unknown related facts.
@@ -139,7 +142,7 @@ impl SqliteIndexReader {
         let (eligible, parameters) = crate::read_units::eligible_sql(parent_filter, parent_keys)?;
         self.count_statement();
         let mut statement = self.native()?.prepare(&format!(
-            "SELECT DISTINCT {candidate}.key FROM relationship_occurrences o JOIN records s ON s.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id WHERE s.document_kind<>'Macro' AND t.document_kind<>'Macro' AND o.resolution IN ('resolved_record','resolved_owned') AND {parent}.record_id IN ({eligible}){target_scope}{source_scope} ORDER BY {candidate}.key"
+            "SELECT DISTINCT {candidate}.key FROM relationship_occurrences o JOIN records s ON s.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id WHERE s.document_kind<>'Macro' AND t.document_kind<>'Macro' AND o.resolution IN ('resolved_record','resolved_owned') AND {parent}.record_id IN ({eligible}) AND {ORDINARY_RELATIONSHIP}{target_scope}{source_scope} ORDER BY {candidate}.key"
         ))?;
         let values = statement
             .query_map(params_from_iter(parameters.iter()), |row| {

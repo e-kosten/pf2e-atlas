@@ -86,6 +86,7 @@ pub(crate) fn write(
     let trait_vocabulary_changed = previous_traits != kept_traits;
     let mut next_roots = crate::BuildFrameStream::<RootUpdate>::new_in(scratch)?;
     let mut sections_to_prune = BTreeMap::<i64, BTreeSet<i64>>::new();
+    let prior_progression = crate::progression::stored_roots(c)?;
     input.records(&mut |frame|{
         let source=frame.source;
         let id=crate::writer::product_id(&ids,source.record.key())?;
@@ -117,12 +118,14 @@ pub(crate) fn write(
         }else if query_changed{c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage='projection'",[id])?;}
         if snapshot_changed || query_changed{for diagnostic in crate::projections::projection_diagnostics(&source.record){crate::writer::write_diagnostic(c,id,&diagnostic)?;}}
         if content_changed {content_root_replacements+=1;c.execute("DELETE FROM prepared_content WHERE record_id=?",[id])?;c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage='preparation'",[id])?;}
-        if relationships_changed {relationship_root_replacements+=1;c.execute("DELETE FROM relationship_occurrences WHERE record_id=?",[id])?;}
+        if relationships_changed {relationship_root_replacements+=1;c.execute("DELETE FROM relationship_occurrences WHERE record_id=? AND kind<>'Prerequisite'",[id])?;}
         if content_changed || relationships_changed{crate::writer::write_content(c,source,id,&ids,input.context.audience,content_changed,relationships_changed)?;}
         if relationships_changed {for (ordinal,relationship) in source.relationships.iter().enumerate(){
             if relationship.locator.record!=*source.record.key() || source.record.node_at(&relationship.locator.owners).is_none(){return Err(IndexError::Invalid("structured relationship owner differs".into()));}
             crate::writer::write_relationship(c,id,&SourceStoredRelationship{locator:relationship.locator.clone(),ordinal,origin:"structured".into(),kind:serde_json::from_str(&serde_json::to_string(&relationship.kind)?)?,authored_target:relationship.authored_target.clone(),occurrence_path:None,resolution:relationship.resolution.clone(),details:SourceRelationshipDetails{availability:Some(relationship.availability.clone()),reference_kind:None,label:None,audiences:Vec::new()}},&ids)?;
         }}
+        crate::progression::replace(c, &products, id, source.record.key(),
+            prior_progression.contains(&id), source.progression.as_ref())?;
         if sections_changed {
             let kept=sections_to_prune.entry(id).or_default();
             for section in derived.sections {kept.insert(crate::selected_sections::upsert(c,id,&section)?);}

@@ -212,6 +212,7 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Trait membership and owned abilities | `trait_members` retains exact membership, lookup eligibility and source labels. Prepared trait definitions retain inline links. `owned_ability_evidence` records the reading target, declaration presence and matching general ability keys for an exact owner. |
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
+| Progression | `record_progression`: sparse typed root prerequisite expressions and literal ancestry feat-pool access. Resolved record leaves use the existing `relationship_occurrences` table with kind `Prerequisite`. Pool membership uses indexed ancestry feat traits. |
 | Remaster context | `verified_aliases`, `remaster_pairs`, `record_remaster_context`: lookup aliases, explicit counterparts and compact per-record relationship/journal context. |
 | Selected sections | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
