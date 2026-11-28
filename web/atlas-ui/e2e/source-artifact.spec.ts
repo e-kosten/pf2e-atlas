@@ -942,13 +942,13 @@ test("versions compare complete records and Similar hands off to Search with bro
     .click();
   await expect(page).not.toHaveURL(/similar=/);
   await page
-    .getByRole("searchbox", { name: "Search records", exact: true })
+    .getByRole("combobox", { name: "Search records", exact: true })
     .fill("dragon");
   await page
-    .getByRole("searchbox", { name: "Search records", exact: true })
+    .getByRole("combobox", { name: "Search records", exact: true })
     .press("Enter");
   await expect(
-    page.getByRole("searchbox", { name: "Search records", exact: true }),
+    page.getByRole("combobox", { name: "Search records", exact: true }),
   ).toHaveValue("dragon");
 });
 test("missing keys and malformed selected routes report errors", async ({ page }) => {

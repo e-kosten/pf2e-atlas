@@ -72,7 +72,7 @@ test("an open reference and unfinished query survive crossing the reader breakpo
   page,
 }) => {
   await page.goto(landedSearch);
-  const input = page.getByRole("searchbox", { name: "Search records" });
+  const input = page.getByRole("combobox", { name: "Search records" });
   const profileNotice = page
     .getByRole("alert")
     .filter({ hasText: "Text search is unavailable" });
@@ -139,22 +139,20 @@ test("missing query assets leave a repairable text search and usable filter brow
 }) => {
   await page.goto(`/search?filter=${creatureFilter}`);
   await expect(page.locator("[data-record-key]").first()).toBeVisible();
-  await page
-    .getByRole("searchbox", { name: "Search records" })
-    .fill("lantern sentinel");
-  await page.getByRole("searchbox", { name: "Search records" }).press("Enter");
+  await page.getByRole("combobox", { name: "Search records" }).fill("lantern sentinel");
+  await page.getByRole("combobox", { name: "Search records" }).press("Enter");
   await expect(
     page.getByRole("alert").filter({ hasText: "Text search is unavailable" }),
   ).toBeVisible();
-  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+  await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue(
     "lantern sentinel",
   );
   await page.getByRole("button", { name: "Clear filters", exact: true }).click();
-  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+  await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue(
     "lantern sentinel",
   );
-  await page.getByRole("searchbox", { name: "Search records" }).fill("");
-  await page.getByRole("searchbox", { name: "Search records" }).press("Enter");
+  await page.getByRole("combobox", { name: "Search records" }).fill("");
+  await page.getByRole("combobox", { name: "Search records" }).press("Enter");
   await page.getByRole("button", { name: "Edit Kind filter", exact: true }).click();
   await page.getByRole("button", { name: /^Kind: Creature, neutral;/ }).click();
   await page.keyboard.press("Escape");

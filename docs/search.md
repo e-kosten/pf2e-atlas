@@ -9,8 +9,14 @@ Try “a guardian for an enchanted forest,” “magic for a haunted-house adven
 or “ways to get through locked doors.” Open a result to read its details and
 follow linked names to explore related entries.
 
-When you know the name, enter it directly—for example, “Treat Wounds.” You can
-also leave the text empty to browse entries using filters alone.
+When you know the name, enter it directly. Search offers suggestions when the
+text matches up to five names. If more names match, the picker can still offer
+a single exact match. Use the arrow keys to highlight a suggestion and Enter
+to open it. With no suggestion highlighted, Enter runs a search. Exact names
+and aliases can appear as result cards while Atlas finishes ranking the page.
+Your filters apply to both suggestions and exact matches.
+
+Leave the text empty to browse entries using filters alone.
 
 ## Search selected text
 

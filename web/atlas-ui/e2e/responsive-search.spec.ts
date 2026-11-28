@@ -199,7 +199,7 @@ for (const width of [1440, 1100, 390]) {
       await expect(row).toBeVisible();
       const search = similar
         ? page.locator(".reference-search-entry--similar")
-        : page.getByRole("searchbox", { name: "Search records", exact: true });
+        : page.getByRole("combobox", { name: "Search records", exact: true });
       await expect(search).toBeVisible();
       const entry = page.locator(
         ".reference-search-entry, .reference-search-entry--similar",
@@ -290,7 +290,7 @@ for (const width of [1440, 1100, 390]) {
           ]);
         const before = await geometry();
         await page.getByRole("button", { name: "Clear similar criterion" }).click();
-        const normalSearch = page.getByRole("searchbox", { name: "Search records" });
+        const normalSearch = page.getByRole("combobox", { name: "Search records" });
         await expect(normalSearch).toBeFocused();
         await expect(normalSearch).toHaveValue("");
         await expect(page.locator(".reference-search-entry--similar")).toHaveCount(0);
@@ -359,7 +359,7 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
     .poll(() => page.locator(".reference-results__scroll").evaluate((e) => e.scrollTop))
     .toBe(listPosition);
   // Use a long creature reader to establish actual nonzero reader continuity.
-  const search = page.getByRole("searchbox", { name: "Search records", exact: true });
+  const search = page.getByRole("combobox", { name: "Search records", exact: true });
   await search.fill("Imeckus Stroon");
   await search.press("Enter");
   await expect(page.getByRole("textbox", { name: "Current page" })).toHaveValue("1");

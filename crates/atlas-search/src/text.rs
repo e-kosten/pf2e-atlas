@@ -108,6 +108,13 @@ use atlas_index::{SourceLexicalHit, SourceVectorHit, ValidatedQuery};
 use std::collections::BTreeMap;
 const SEMANTIC_WINDOWS: [usize; 3] = [1024, 2048, 4096];
 const TARGET_ROOTS: usize = 200;
+
+pub(crate) fn identity_search_text(text: &str) -> &str {
+    let text = text.trim();
+    text.strip_prefix('"')
+        .and_then(|inner| inner.strip_suffix('"'))
+        .unwrap_or(text)
+}
 #[derive(Debug, Clone)]
 pub(crate) struct RankedRoot {
     pub key: RecordKey,
@@ -325,11 +332,7 @@ impl AtlasRetrievalService {
         } = request;
         let mut roots = BTreeMap::<RecordKey, RankedRoot>::new();
         if mode.uses_fts() {
-            let identity_text = text
-                .trim()
-                .strip_prefix('"')
-                .and_then(|s| s.strip_suffix('"'))
-                .unwrap_or(text.trim());
+            let identity_text = identity_search_text(text);
             let mut reviewed_labels = self.reviewed_creature_label_matches(identity_text)?;
             reviewed_labels.retain(|matched| {
                 request.exclude != Some(&matched.key)
