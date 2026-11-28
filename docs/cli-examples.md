@@ -62,8 +62,10 @@ atlas search --kind creature --trait undead --where 'defenses.hp.maximum >= 80'
 ```
 
 Choose a Kind group to search all its children, or use the specific type shown on a result.
-`all_spells` includes both `spell` and `ritual`; `all_equipment` includes `weapon`,
-`container` and `general_equipment`. Journal packs are children of `journal`.
+`all_spells` includes `cantrip`, `spell`, and `ritual`. Use `--kind cantrip` to
+browse just cantrips, including composition cantrips. `all_equipment` includes
+`weapon`, `container`, and `general_equipment`. Journal packs are children of
+`journal`.
 Use the current workspace to find available packs and their counts.
 
 ```bash
@@ -125,7 +127,7 @@ the returned key. Filters apply to the results. For a trait such as agile, use
 to find records with that trait.
 
 ```bash
-atlas similar 'Dirge of Doom' --kind spell --search-profile embeddinggemma --limit 8
+atlas similar 'Dirge of Doom' --kind cantrip --search-profile embeddinggemma --limit 8
 atlas search 'forest guardian' --search-content core
 atlas similar 'Lich' --sections core --search-content all
 atlas similar 'Brown Mold' --list-parts --sections core --json
@@ -139,6 +141,13 @@ and basic details; Core selects the main sections for each type of entry. A
 retained random seed keeps ordering consistent between pages; omit `--seed` to
 generate one. See [model selection details](#search-model-selection) for defaults,
 missing model files and keyword-only setup.
+
+To find backgrounds that offer Medicine and can give a Charisma boost, group the
+two boost alternatives.
+
+```bash
+atlas search --kind background --where '"medicine" in background.skill_training && ("cha" in background.restricted_attribute_boosts || background.has_free_attribute_boost == true)'
+```
 
 ## Discover filters
 

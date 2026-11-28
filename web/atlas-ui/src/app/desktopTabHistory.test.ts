@@ -43,3 +43,23 @@ it("checks one traversal at a time and abandons it if a pending save navigates",
   await save;
   expect(history.location.href).toBe("/parties");
 });
+
+it("abandons a traversal when its tab is reactivated while the guard is pending", async () => {
+  let activation = 1;
+  const history = createDesktopTabHistory("/characters", () => activation);
+  history.push("/characters/ada");
+  let finish!: (blocked: boolean) => void;
+  const pending = new Promise<boolean>((resolve) => {
+    finish = resolve;
+  });
+  const guard = vi.fn(() => pending);
+  history.block({ blockerFn: guard });
+  history.back();
+  expect(guard).toHaveBeenCalledOnce();
+  activation = 3;
+  finish(false);
+  await pending;
+  expect(history.location.href).toBe("/characters/ada");
+  history.back();
+  await vi.waitFor(() => expect(history.location.href).toBe("/characters"));
+});

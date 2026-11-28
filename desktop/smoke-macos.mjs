@@ -15,7 +15,7 @@ const defaultBundle = fileURLToPath(
 const bundle = resolve(process.argv[2] ?? defaultBundle);
 
 const pin = JSON.parse(readFileSync(new URL("../dev-tools/source-contracts/source-pin.json", import.meta.url))).commit;
-const modes = ["normal", "retry", "preflight", "reference", "selector", "links"];
+const modes = ["normal", "retry", "preflight", "reference", "selector", "links", "history"];
 const selected = process.argv[3];
 if (selected && !modes.includes(selected)) throw new Error("Unknown native smoke scenario");
 for (const mode of selected ? [selected] : modes) {
@@ -55,7 +55,7 @@ function run(mode) {
         traits: { value: [] },
       },
     });
-    if (mode === "reference" || mode === "selector" || mode === "links") {
+    if (mode === "reference" || mode === "selector" || mode === "links" || mode === "history") {
       const seeded = spawnSync(join(bundle, "Contents/MacOS/atlas"), [
         "setup", "--offline", "--no-embeddings", "--json",
         ...(mode !== "reference" ? ["--source", source] : []),

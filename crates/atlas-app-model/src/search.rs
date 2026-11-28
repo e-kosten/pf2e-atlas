@@ -1,4 +1,4 @@
-use crate::{RecordNavigationView, RecordSummaryView};
+use crate::{RecordNavigationView, RecordResolutionCandidateView, RecordSummaryView};
 use atlas_domain::QueryPredicate;
 use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -8,6 +8,23 @@ pub enum RetrievalModeView {
     Lexical,
     Semantic,
     Hybrid,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExactSearchRequest {
+    pub query: String,
+    pub filter: Option<QueryPredicate>,
+    pub expected_artifact_generation: Option<String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExactSearchView {
+    pub artifact_generation: String,
+    pub matches: Vec<RecordResolutionCandidateView>,
+    pub total: usize,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

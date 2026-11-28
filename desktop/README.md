@@ -110,6 +110,11 @@ All windows and tabs share the local workspace and service with a compatible
 `atlas web` session. Choose **Quit PF2e Atlas** to release the app’s connection
 to the service.
 
+Use the **Back** and **Forward** arrows beside Theme or the commands in **View**
+to revisit pages in the active workspace tab. On macOS, use two-finger trackpad
+swipes or **⌘[** and **⌘]**. On Windows, use **Alt+Left** and **Alt+Right**.
+On macOS, reloading or reconnecting starts a fresh history at the current page.
+
 Press **⌘F** on macOS or **Ctrl+F** on Windows to find text on the current
 page. In a running encounter, try **Speed** or **Fortitude** to bring that
 statistic into view. Use the arrows to move between matches and **Esc** to
@@ -179,6 +184,14 @@ publication. The link scenario sends real macOS URL
 events to an isolated app bundle. It checks a cold launch, a warm open with the
 same record in a Search preview, and reuse of the standalone record tab.
 Embedding generation is skipped.
+
+On a Mac with a trackpad, test both horizontal swipe directions and cancel a
+partially completed swipe. Repeat from Search and from a scrolled record.
+Check Back at the first page after startup retry. With a dirty character open,
+try repeated inputs while the discard prompt is open, then keep editing and
+verify the route and draft are still present. On Windows, exercise the header,
+View menu and Alt shortcuts in the focused tab after switching windows and
+tabs.
 
 ## Qualify Windows updater transitions
 

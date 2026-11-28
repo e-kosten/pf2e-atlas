@@ -199,6 +199,8 @@ function AtlasWorkspace({
   );
   const workspace = useSearchWorkspace({
     enabled: !routeError && section === "search",
+    referenceReady: readiness.data?.status === "ready",
+    initialReferenceGeneration: readiness.data?.artifact_generation ?? undefined,
     searchProfile: searchProfile.id,
     pendingUrlProfile: searchProfile.pendingUrlProfile,
     searchProfileStored: searchProfile.storedVectors,

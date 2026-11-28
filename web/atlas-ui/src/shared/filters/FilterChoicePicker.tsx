@@ -26,6 +26,7 @@ import {
   findClauseIds,
   useFilterOptionCounts,
   useFilterVocabulary,
+  useKindOverflowCounts,
   VOCABULARY_PAGE_SIZE,
 } from "./useFilterDiscovery";
 
@@ -38,6 +39,7 @@ type DiscoveryProps = {
   countLimit?: number;
   selectionContainer?: HTMLElement | null;
   inlineSelections?: boolean;
+  applied?: boolean;
 };
 
 type ChoiceEdit =
@@ -95,6 +97,7 @@ function FilterChoicePicker({
   countLimit = 0,
   selectionContainer,
   inlineSelections,
+  applied,
 }: DiscoveryProps & { label?: string; edit: ChoiceEdit }) {
   const selected =
     edit.kind === "condition"
@@ -302,16 +305,23 @@ function FilterChoicePicker({
   }
   const contextualCounts =
     countsEnabled && !query.error ? query.data?.counts : undefined;
-  const extraCounts = useFilterOptionCounts(
+  const kindOverflow = isRootKind && choices.length > countLimit;
+  const optionCountContext =
     countContext && query.data?.generation
       ? { ...countContext, expected_artifact_generation: query.data.generation }
-      : countContext,
+      : countContext;
+  const requestCounts =
+    open && countsEnabled && !staleConnection && (closedChoices || !!query.data);
+  // Count the whole Kind tree when it fits in one request so expansion doesn't
+  // fetch a new batch. Larger catalogs prioritize roots in fixed batches.
+  const optionCounts = useFilterOptionCounts(
+    optionCountContext,
     field.definition.id,
     clauseId,
     [
       ...new Set([
         ...selected,
-        ...(kindRows ?? choices)
+        ...choices
           .filter(
             (choice) =>
               isRootKind ||
@@ -321,13 +331,42 @@ function FilterChoicePicker({
           .map((choice) => choice.value),
       ]),
     ].filter((value) => !contextualCounts?.has(value)),
-    open && countsEnabled && !staleConnection && (closedChoices || !!query.data),
+    requestCounts && !kindOverflow,
     countLimit,
     countQueryKey,
   );
+  const overflowCounts = useKindOverflowCounts(
+    optionCountContext,
+    clauseId,
+    kindOverflow
+      ? [
+          ...choices.filter((choice) => !choice.parent),
+          ...choices.filter((choice) => choice.parent),
+        ].map((choice) => choice.value)
+      : [],
+    requestCounts && kindOverflow
+      ? [...selected, ...(kindRows?.map((choice) => choice.value) ?? [])]
+      : [],
+    countLimit,
+    countQueryKey,
+  );
+  const { counts: extraCounts, pendingValues } = kindOverflow
+    ? overflowCounts
+    : optionCounts;
   const counts = contextualCounts
     ? new Map([...contextualCounts, ...extraCounts])
     : extraCounts;
+  const awaitingKindCount = (value: string) =>
+    !text.trim() && (pendingValues?.has(value) ?? false);
+  const kindCountsPending = kindRows?.some(({ value }) => awaitingKindCount(value));
+  const visibleKindRows = kindRows?.filter(
+    (option) =>
+      text.trim() ||
+      selected.includes(option.value) ||
+      (!awaitingKindCount(option.value) && counts.get(option.value) !== 0) ||
+      // Keep the parent reachable when a selected child has zero results.
+      selected.some((value) => hierarchy?.parents.get(value) === option.value),
+  );
   // Contextual pages and the Actions catalog can carry off-search selections.
   // The Advanced operand already displays these in its field.
   const searchTerm = search.trim().toLowerCase();
@@ -454,17 +493,11 @@ function FilterChoicePicker({
         id={field.definition.id}
         label={label}
         choices={displayedChoices}
-        visibleChoices={kindRows?.filter(
-          (option) =>
-            text.trim() ||
-            selected.includes(option.value) ||
-            counts.get(option.value) !== 0 ||
-            // Keep the parent reachable when a selected child has zero results.
-            selected.some((value) => hierarchy?.parents.get(value) === option.value),
-        )}
+        visibleChoices={visibleKindRows}
         onToggleGroup={isRootKind ? toggleGroup : undefined}
         counts={counts}
         selected={selected}
+        applied={applied}
         stateOf={(value) =>
           edit.kind === "condition"
             ? choiceValueState(edit.clause, value)
@@ -487,7 +520,12 @@ function FilterChoicePicker({
         onTextChange={searchValues}
         emptyMessage={query.error && !closedChoices ? null : "No matching values"}
         filterChoices={closedChoices}
-        loading={!closedChoices && query.isFetching}
+        loading={(!closedChoices && query.isFetching) || kindCountsPending}
+        loadingLabel={isRootKind ? "Loading kinds…" : undefined}
+        searchPending={
+          (!closedChoices && (text !== search || (query.isFetching && !query.data))) ||
+          (kindCountsPending && !visibleKindRows?.length)
+        }
         pageKey={query.data?.pageKey}
         valueEditing={
           edit.kind === "operand"

@@ -109,6 +109,11 @@ pub enum Command<'a> {
     },
     CloseTab,
     CloseWindow,
+    History {
+        direction: crate::history::Direction,
+        tab: &'a str,
+        activation: u64,
+    },
     CheckExit {
         id: u64,
     },
@@ -164,8 +169,16 @@ pub fn send(window: &WebviewWindow, command: Command<'_>) -> Result<(), String> 
         .get(window.label())
         .map(|entry| entry.token.clone())
         .ok_or("Atlas tabs are still opening.")?;
-    validate(window, &token)?;
-    let token = serde_json::to_string(&token).map_err(display)?;
+    send_to_document(window, &token, command)
+}
+
+fn send_to_document(
+    window: &WebviewWindow,
+    token: &str,
+    command: Command<'_>,
+) -> Result<(), String> {
+    validate(window, token)?;
+    let token = serde_json::to_string(token).map_err(display)?;
     let detail = serde_json::to_string(&command).map_err(display)?;
     window.eval(format!(
         "if (window.__ATLAS_DESKTOP_SETUP__?.token === {token}) {{ window.dispatchEvent(new CustomEvent('atlas-windows-tab-command', {{detail: {detail}}})); }}"
@@ -389,18 +402,47 @@ pub async fn desktop_tabs_new_window(window: WebviewWindow, token: String) -> Re
     })
 }
 
-pub fn menu(app: &AppHandle, command: Command<'_>) -> Result<(), String> {
-    let Ok((base, instance)) = current_product(app) else {
-        return Ok(());
-    };
-    let views = recent_product_views(app, &base, &instance);
-    if let Some(window) = views
-        .iter()
+fn menu_window(app: &AppHandle) -> Option<WebviewWindow> {
+    let (base, instance) = current_product(app).ok()?;
+    recent_product_views(app, &base, &instance)
+        .into_iter()
         .find(|window| window.is_focused().unwrap_or(false) && ready(window))
-    {
-        send(window, command)?;
+}
+
+pub fn menu(app: &AppHandle, command: Command<'_>) -> Result<(), String> {
+    if let Some(window) = menu_window(app) {
+        send(&window, command)?;
     }
     Ok(())
+}
+
+pub fn history(app: &AppHandle, direction: crate::history::Direction) -> Result<(), String> {
+    let Some(window) = menu_window(app) else {
+        return Ok(());
+    };
+    let desktop = app.state::<Desktop>();
+    let Some((token, tab, activation)) = lock(&desktop.windows_tabs.0)
+        .windows
+        .get(window.label())
+        .map(|entry| {
+            (
+                entry.token.clone(),
+                entry.snapshot.active.clone(),
+                entry.snapshot.activation,
+            )
+        })
+    else {
+        return Ok(());
+    };
+    send_to_document(
+        &window,
+        &token,
+        Command::History {
+            direction,
+            tab: &tab,
+            activation,
+        },
+    )
 }
 
 fn workspace_window(window: &WebviewWindow) -> bool {

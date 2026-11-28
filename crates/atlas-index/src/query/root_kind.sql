@@ -18,6 +18,10 @@ CASE
         WHEN r.source_type = 'equipment' THEN 'general_equipment'
         WHEN r.source_type = 'spell' THEN CASE
             WHEN (SELECT ritual FROM spell_projection WHERE root_record_id = r.record_id) = 1 THEN 'ritual'
+            WHEN EXISTS (
+                SELECT 1 FROM trait_members t
+                WHERE t.record_key = r.key AND t.owners_json = '[]' AND t.value = 'cantrip'
+            ) THEN 'cantrip'
             ELSE 'spell'
         END
         WHEN r.source_type = 'feat' THEN CASE

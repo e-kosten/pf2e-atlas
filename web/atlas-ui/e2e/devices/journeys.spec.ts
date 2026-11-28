@@ -508,7 +508,7 @@ test("focused titles and list text filters follow their primary page", async ({
     }
     await page.goto("/search");
     await expect(page).toHaveTitle("Search · Atlas");
-    const search = page.getByRole("searchbox", { name: "Search records" });
+    const search = page.getByRole("combobox", { name: "Search records" });
     await search.fill(sentinel);
     await search.press("Enter");
     await expect(
@@ -692,7 +692,7 @@ test("range filter focus follows the opening input and Escape closes only the ra
 
   await trigger.press("Space");
   await expect(minimum).toBeFocused();
-  const search = page.getByRole("searchbox", { name: "Search records" });
+  const search = page.getByRole("combobox", { name: "Search records" });
   await activate(search, info);
   await expect(range).toBeHidden();
   await expect(search).toBeFocused();
@@ -747,7 +747,7 @@ test("filters, exact late activity, preview dismissal and Results remain usable"
   if (await results.isVisible()) {
     await activate(results, info);
     await expect(page.locator('[data-record-key][aria-current="true"]')).toBeFocused();
-    await expect(page.getByRole("searchbox", { name: "Search records" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Search records" })).toBeVisible();
   }
 });
 
@@ -2054,7 +2054,7 @@ test(
         (url) => url.pathname === "/search" && url.search === "",
       );
       await expect(
-        page.getByRole("searchbox", { name: "Search records", exact: true }),
+        page.getByRole("combobox", { name: "Search records", exact: true }),
       ).toHaveValue("");
       await expect(page.locator("[data-record-key]")).toHaveCount(0);
       expect(executed).toEqual([]);
@@ -2682,7 +2682,7 @@ test("generation replacement recovers deliberately and adopts each successful pa
       request.expected_artifact_generation ?? null,
     ]),
   ).toEqual([
-    [1, null],
+    [1, firstGeneration!],
     [2, firstGeneration!],
     [1, null],
     [2, replacement],
@@ -2809,6 +2809,9 @@ test("table rolls show the authored document name before its reading page loads"
   }
   const preview = page.getByRole("dialog", { name: /^Glossary Sword/ });
   await expect(preview).toBeVisible();
+  await expect(
+    page.locator(".record-preview-drawer-root .ant-drawer-content-wrapper"),
+  ).toHaveCSS("transform", "none");
   await activate(
     preview.getByRole("button", { name: "Close reference preview" }),
     info,
@@ -3203,6 +3206,37 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
       ),
     ).toHaveCount(0);
   }
+});
+
+test("type and select a trait with the keyboard @engine", async ({ page }, info) => {
+  await page.goto("/search");
+  await showSearchFilters(page, info);
+  const trigger = page.getByRole("button", { name: "Edit Traits filter", exact: true });
+  await activate(trigger, info);
+
+  const search = page.getByRole("textbox", { name: "Search traits choices" });
+  const magical = page.getByRole("button", { name: /^Traits: Magical, neutral/ });
+  await expect(
+    page.getByRole("button", { name: /^Traits: Fire, neutral/ }),
+  ).toBeVisible();
+  await search.fill("magi");
+  await page.keyboard.press("ArrowDown");
+  await expect(magical).toBeFocused();
+  await expect(magical.and(page.locator(":focus-visible"))).toBeVisible();
+  await test.info().attach("Keyboard-highlighted trait", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page.keyboard.press("ArrowUp");
+  await expect(search).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("button", { name: /^Traits: Magical, included/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Remove included Magical/ }),
+  ).toBeVisible();
 });
 
 test("field vocabulary Read preserves selected values and unfinished filter drafts @engine", async ({

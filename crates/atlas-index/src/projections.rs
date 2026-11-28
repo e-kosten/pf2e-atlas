@@ -8,10 +8,11 @@ use crate::{
         ProjectionRow,
     },
 };
-use atlas_domain::OwnedContentLocator;
+use atlas_domain::{OwnedContentLocator, RecordKey};
+use atlas_foundry_model::generated::SkillSlug;
 use atlas_record::source_record::{
-    ActorIwrKind, ActorIwrType, ActorQueryView, ActorSave, ItemSourceView, SourceFieldView,
-    SourceNodeView, SourceQueryView,
+    ActorIwrKind, ActorIwrType, ActorQueryView, ActorSave, ClassProficiency, ItemSourceView,
+    SourceFieldView, SourceNodeView, SourceQueryView, hazard_disable_skills,
 };
 use rusqlite::types::Value;
 use serde::Serialize;
@@ -25,6 +26,49 @@ pub(crate) const ABILITY_FIELDS: &[(&str, &str)] = &[
     ("wis", "ability_wis"),
     ("cha", "ability_cha"),
 ];
+pub(crate) const CLASS_PROFICIENCIES: &[(&str, &str, ClassProficiency)] = &[
+    (
+        "class.starting_proficiency.simple_weapons",
+        "simple_weapons",
+        ClassProficiency::Simple,
+    ),
+    (
+        "class.starting_proficiency.martial_weapons",
+        "martial_weapons",
+        ClassProficiency::Martial,
+    ),
+    (
+        "class.starting_proficiency.advanced_weapons",
+        "advanced_weapons",
+        ClassProficiency::Advanced,
+    ),
+    (
+        "class.starting_proficiency.unarmed_attacks",
+        "unarmed_attacks",
+        ClassProficiency::Unarmed,
+    ),
+    (
+        "class.starting_proficiency.unarmored",
+        "unarmored",
+        ClassProficiency::Unarmored,
+    ),
+    (
+        "class.starting_proficiency.light_armor",
+        "light_armor",
+        ClassProficiency::Light,
+    ),
+    (
+        "class.starting_proficiency.medium_armor",
+        "medium_armor",
+        ClassProficiency::Medium,
+    ),
+    (
+        "class.starting_proficiency.heavy_armor",
+        "heavy_armor",
+        ClassProficiency::Heavy,
+    ),
+];
+
 pub(crate) const SKILL_FIELDS: &[(&str, &str, &str)] = &[
     (
         "acrobatics",
@@ -107,7 +151,7 @@ fn convert<T>(
     };
     Ok(SqlFact { state, value })
 }
-fn state<T>(view: SourceFieldView<'_, T>) -> SqlFact {
+fn state<T>(view: &SourceFieldView<'_, T>) -> SqlFact {
     SqlFact {
         state: match view {
             SourceFieldView::Value(_) => "value",
@@ -194,9 +238,18 @@ pub(crate) fn root_rows(
     common_fields(q, &mut r)?;
     rows.push(r);
     match q.source {
-        SourceNodeView::Item(i) => item_rows(i, Some(record_id), None, ids, &mut rows)?,
+        SourceNodeView::Item(i) => {
+            creation_rows(i, input.record.key(), record_id, ids, &mut rows)?;
+            item_rows(i, Some(record_id), None, ids, &mut rows)?;
+        }
         SourceNodeView::Actor(_) => {
-            actor_rows(q.actor(), record_id, ids, &mut rows)?;
+            actor_rows(
+                q.actor(),
+                hazard_disable_skills(q.source, &input.content),
+                record_id,
+                ids,
+                &mut rows,
+            )?;
             let mut error = None;
             input
                 .record
@@ -232,7 +285,7 @@ fn common_fields(q: SourceQueryView<'_>, row: &mut ProjectionRow) -> Result<(), 
     choice(q.rarity())?.field(row, "rarity");
     text(q.publication_title())?.field(row, "publication_title");
     boolean(q.publication_remaster())?.field(row, "publication_remaster");
-    state(q.traits()).collection(row, "traits_state");
+    state(&q.traits()).collection(row, "traits_state");
     let (level, size) = match q.source {
         SourceNodeView::Actor(_) => (q.actor().level(), q.actor().size()),
         SourceNodeView::Item(i) => {
@@ -306,12 +359,17 @@ fn enum_name<T: Serialize>(v: &T) -> Result<String, IndexError> {
 }
 fn actor_rows(
     a: ActorQueryView<'_>,
+    disable_skills: SourceFieldView<'_, Vec<SkillSlug>>,
     root: i64,
     ids: &mut ProjectionIds,
     rows: &mut Vec<ProjectionRow>,
 ) -> Result<(), IndexError> {
     let mut r = ProjectionRow::new("actor_projection");
     r.projection_id("record_id", Root(root));
+
+    if !matches!(disable_skills, SourceFieldView::NotApplicable) {
+        state(&disable_skills).collection(&mut r, "disable_skills_state");
+    }
     number(a.armor_class())?.field(&mut r, "armor_class");
     number(a.hp_maximum())?.field(&mut r, "hp_maximum");
     number(a.hazard_hardness())?.field(&mut r, "hardness");
@@ -329,18 +387,28 @@ fn actor_rows(
         number(a.skill_rank(key))?.field(&mut r, rank);
     }
     boolean(a.hazard_complexity())?.field(&mut r, "complexity");
-    state(a.items()).collection(&mut r, "items_state");
-    state(a.languages()).collection(&mut r, "languages_state");
-    state(a.speeds()).collection(&mut r, "speeds_state");
-    state(a.senses()).collection(&mut r, "senses_state");
+    state(&a.items()).collection(&mut r, "items_state");
+    state(&a.languages()).collection(&mut r, "languages_state");
+    state(&a.speeds()).collection(&mut r, "speeds_state");
+    state(&a.senses()).collection(&mut r, "senses_state");
     for (kind, name) in [
         (ActorIwrKind::Immunity, "immunities_state"),
         (ActorIwrKind::Weakness, "weaknesses_state"),
         (ActorIwrKind::Resistance, "resistances_state"),
     ] {
-        state(a.iwr(kind)).collection(&mut r, name);
+        state(&a.iwr(kind)).collection(&mut r, name);
     }
     rows.push(r);
+    if let SourceFieldView::Value(skills) = disable_skills {
+        sets(
+            SourceFieldView::Value(skills.as_slice()),
+            rows,
+            "hazard_disable_skills",
+            "record_id",
+            Root(root),
+            enum_name,
+        )?;
+    }
     sets(
         a.languages(),
         rows,
@@ -418,6 +486,103 @@ fn owner_row(
     }
     Ok((r, id))
 }
+fn root_family_row(
+    table: &'static str,
+    root: i64,
+    ids: &mut ProjectionIds,
+) -> Result<(ProjectionRow, crate::persistence::ProjectionId), IndexError> {
+    let mut row = ProjectionRow::new(table);
+    let id = Local(ids.take()?);
+    row.projection_id("id", id);
+    row.projection_id("root_record_id", Root(root));
+    Ok((row, id))
+}
+
+fn creation_rows(
+    item: ItemSourceView<'_>,
+    key: &RecordKey,
+    root: i64,
+    ids: &mut ProjectionIds,
+    rows: &mut Vec<ProjectionRow>,
+) -> Result<(), IndexError> {
+    match item {
+        ItemSourceView::BackgroundSource(_) => {
+            let (mut row, id) = root_family_row("background_projection", root, ids)?;
+            let boosts = item.background_boosts();
+            let skills = item.background_skill_options(key);
+            state(&boosts.restricted).collection(&mut row, "restricted_boosts_state");
+            boolean(boosts.has_free)?.field(&mut row, "has_free_boost");
+            state(&skills).collection(&mut row, "skill_training_state");
+            rows.push(row);
+            if let SourceFieldView::Value(attributes) = boosts.restricted {
+                sets(
+                    SourceFieldView::Value(attributes.as_slice()),
+                    rows,
+                    "background_restricted_boosts",
+                    "background_id",
+                    id,
+                    enum_name,
+                )?;
+            }
+            if let SourceFieldView::Value(skills) = skills {
+                sets(
+                    SourceFieldView::Value(skills.as_slice()),
+                    rows,
+                    "background_skill_training",
+                    "background_id",
+                    id,
+                    enum_name,
+                )?;
+            }
+        }
+        ItemSourceView::AncestrySource(_) => {
+            let (mut row, id) = root_family_row("ancestry_projection", root, ids)?;
+            choice(item.ancestry_vision())?.field(&mut row, "vision");
+            number(item.ancestry_land_speed())?.field(&mut row, "land_speed");
+            number(item.ancestry_starting_hp())?.field(&mut row, "starting_hp");
+            let boosts = item.ancestry_default_attributes(false);
+            let flaws = item.ancestry_default_attributes(true);
+            state(&boosts).collection(&mut row, "default_boosts_state");
+            state(&flaws).collection(&mut row, "default_flaws_state");
+            rows.push(row);
+            for (attributes, table) in [
+                (boosts, "ancestry_default_boosts"),
+                (flaws, "ancestry_default_flaws"),
+            ] {
+                if let SourceFieldView::Value(attributes) = attributes {
+                    sets(
+                        SourceFieldView::Value(attributes.as_slice()),
+                        rows,
+                        table,
+                        "ancestry_id",
+                        id,
+                        enum_name,
+                    )?;
+                }
+            }
+        }
+        ItemSourceView::ClassSource(_) => {
+            let (mut row, id) = root_family_row("class_projection", root, ids)?;
+            let attributes = item.class_key_attributes().map(Vec::as_slice);
+            state(&attributes).collection(&mut row, "key_attributes_state");
+            for (_, column, proficiency) in CLASS_PROFICIENCIES {
+                text(item.class_starting_proficiency(*proficiency))?.field(&mut row, column);
+            }
+            rows.push(row);
+            sets(
+                attributes,
+                rows,
+                "class_key_attributes",
+                "class_id",
+                id,
+                enum_name,
+            )?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn item_rows(
     i: ItemSourceView<'_>,
     root: Option<i64>,
@@ -432,6 +597,13 @@ fn item_rows(
         boolean(i.spell_ritual())?.field(&mut r, "ritual");
         text(i.spell_casting_time())?.field(&mut r, "casting_time");
         text(i.spell_casting_form())?.field(&mut r, "casting_form");
+        let cast_range = i.spell_cast_range();
+        let feet = cast_range.and_then(|range| match range.feet {
+            Some(feet) => SourceFieldView::Value(feet),
+            None => SourceFieldView::NotApplicable,
+        });
+        convert(feet, |feet| Ok(Value::Integer(feet)))?.field(&mut r, "cast_range");
+        boolean(cast_range.map(|range| range.touch))?.field(&mut r, "touch_range");
         choice(i.spell_defense_save())?.field(&mut r, "save");
         boolean(i.spell_defense_basic())?.field(&mut r, "basic_save");
         choice(i.spell_defense_passive())?.field(&mut r, "passive_defense");
@@ -439,8 +611,8 @@ fn item_rows(
         number(i.spell_area_size())?.field(&mut r, "area_size");
         text(i.spell_duration_text())?.field(&mut r, "duration_text");
         boolean(i.spell_sustained())?.field(&mut r, "sustained");
-        state(i.spell_traditions()).collection(&mut r, "traditions_state");
-        state(i.spell_damage()).collection(&mut r, "damage_state");
+        state(&i.spell_traditions()).collection(&mut r, "traditions_state");
+        state(&i.spell_damage()).collection(&mut r, "damage_state");
         rows.push(r);
         sets(
             i.spell_traditions(),
@@ -462,7 +634,7 @@ fn item_rows(
                 r.text("original_key", key);
                 choice(SourceFieldView::from(&entry.r#type))?.field(&mut r, "type");
                 let kinds = SourceFieldView::from(&entry.kinds).map(Vec::as_slice);
-                state(kinds).collection(&mut r, "kinds_state");
+                state(&kinds).collection(&mut r, "kinds_state");
                 rows.push(r);
                 sets(
                     kinds,
@@ -573,10 +745,46 @@ fn item_rows(
     }
     if matches!(i, ItemSourceView::DeitySource(_)) {
         let (mut r, id) = owner_row("deity_projection", root, child, ids)?;
-        state(i.deity_domains_primary()).collection(&mut r, "primary_domains_state");
-        state(i.deity_domains_alternate()).collection(&mut r, "alternate_domains_state");
-        state(i.deity_fonts()).collection(&mut r, "fonts_state");
+        state(&i.deity_domains_primary()).collection(&mut r, "primary_domains_state");
+        state(&i.deity_domains_alternate()).collection(&mut r, "alternate_domains_state");
+        state(&i.deity_fonts()).collection(&mut r, "fonts_state");
+        let weapons = i.deity_weapons().map(Vec::as_slice);
+        let skills = i.deity_skills().map(Vec::as_slice);
+        let sanctification = i.deity_sanctification_options();
+        if root.is_some() {
+            choice(i.deity_category())?.field(&mut r, "category");
+            text(i.deity_sanctification_requirement())?.field(&mut r, "sanctification_requirement");
+            state(&weapons).collection(&mut r, "favored_weapons_state");
+            state(&skills).collection(&mut r, "divine_skills_state");
+            state(&sanctification).collection(&mut r, "sanctification_options_state");
+        }
         rows.push(r);
+        if root.is_some() {
+            sets(
+                weapons,
+                rows,
+                "deity_favored_weapons",
+                "deity_id",
+                Local(id),
+                enum_name,
+            )?;
+            sets(
+                skills,
+                rows,
+                "deity_divine_skills",
+                "deity_id",
+                Local(id),
+                enum_name,
+            )?;
+            sets(
+                sanctification,
+                rows,
+                "deity_sanctification_options",
+                "deity_id",
+                Local(id),
+                enum_name,
+            )?;
+        }
         for (kind, values) in [
             ("primary", i.deity_domains_primary()),
             ("alternate", i.deity_domains_alternate()),

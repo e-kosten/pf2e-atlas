@@ -1223,6 +1223,10 @@ Do not offer another collection scope inside an existing Exists condition.
 
 Contextual option counts are optional annotations for the active categorical
 picker's displayed page and retained selections, bounded by catalog limits.
+The Kind picker counts collapsed groups and their children together when the
+whole tree fits the limit. Larger trees use fixed batches, read as their rows
+are needed. In the unsearched tree, wait for requested counts
+before revealing unresolved rows so known-zero options never flash into view.
 They count distinct eligible parent records for each replacement value, preserving
 other conditions, same-child witnesses and edition preference. A multi-selection's
 count is for one replacement literal, rather than the union with current selections.

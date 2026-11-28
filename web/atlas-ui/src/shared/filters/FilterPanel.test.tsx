@@ -321,6 +321,7 @@ describe("shared common and maintained advanced filters", () => {
       name: "Edit Level / rank range: Any",
     });
     expect(trigger).toHaveTextContent("Level / rank");
+    expect(trigger).not.toHaveAttribute("aria-description");
     expect(
       screen.queryByRole("button", { name: "Clear Level / rank range" }),
     ).toBeNull();
@@ -335,7 +336,12 @@ describe("shared common and maintained advanced filters", () => {
       expect(screen.getByText("Minimum", { exact: true })).toBeVisible(),
     );
     expect(screen.getByText("Maximum", { exact: true })).toBeVisible();
+    fireEvent.change(minimum, { target: { value: "9007199254740993" } });
+    expect(trigger).not.toHaveAttribute("aria-description");
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.change(minimum, { target: { value: "" } });
     fireEvent.change(maximum, { target: { value: "6" } });
+    expect(trigger).toHaveAttribute("aria-description", "Filter applied");
     expect(
       screen.getByRole("button", { name: "Clear Level / rank range" }),
     ).toHaveTextContent("Level / rank: ≤ 6");
@@ -370,6 +376,7 @@ describe("shared common and maintained advanced filters", () => {
       }),
     );
     expect(trigger).toHaveTextContent("Level / rank");
+    expect(trigger).not.toHaveAttribute("aria-description");
     expect(
       screen.queryByRole("button", { name: "Clear Level / rank range" }),
     ).toBeNull();
@@ -1317,13 +1324,16 @@ describe("per-value states and the complete query", () => {
     });
     expect(await screen.findByText("Enter a finite numeric value")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
+    const trigger = screen.getByRole("button", { name: "Edit Kind filter" });
+    expect(trigger).toHaveAccessibleDescription("Filter applied");
+    fireEvent.click(trigger);
     fireEvent.click(
       screen.getByRole("button", {
         name: "Kind: Creature, included; activate to exclude",
       }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    expect(trigger).toHaveAttribute("aria-description", "Filter applied");
     expect(screen.getByRole("textbox", { name: "Maximum HP" })).toHaveValue("-");
     expect(
       screen.getByRole("button", { name: "Remove excluded Creature from Kind" }),
@@ -1672,6 +1682,9 @@ it("distinguishes a failed name lookup from an unavailable Links target", async 
     </ConfigProvider>
   );
   const view = render(ui([]));
+  expect(screen.getByRole("button", { name: "Links" })).toHaveAccessibleDescription(
+    "Filter applied",
+  );
   expect(
     screen.getByRole("button", { name: /Links to Couldn’t load record name/ }),
   ).toBeVisible();

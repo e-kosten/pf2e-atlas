@@ -26,7 +26,12 @@ import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { EntityActionsMenu } from "../../shared/ui/actions/EntityActionsMenu";
 import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { isUnconfirmedMutation } from "../../api/apiError";
-import { canFocusTabElement, useTabCloseGuard } from "../../app/DesktopTabContext";
+import {
+  canFocusTabElement,
+  useDesktopHistoryGuard,
+  useTabCloseGuard,
+  type TabCloseGuard,
+} from "../../app/DesktopTabContext";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 
@@ -129,7 +134,10 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     encounters.error ? undefined : observedMembership,
     archiveMutation.reset,
   );
-  useTabCloseGuard(() => (archiveMutation.isPending ? "pending" : undefined));
+  const guard: TabCloseGuard = () =>
+    archiveMutation.isPending ? "pending" : undefined;
+  useTabCloseGuard(guard);
+  useDesktopHistoryGuard(guard);
   const deleteMutation = useMutation({
     retry: false,
     mutationFn: (encounter: EncounterSummaryView) =>

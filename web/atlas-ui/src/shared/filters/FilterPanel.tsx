@@ -84,6 +84,7 @@ import {
   clearAllFilters,
   countAppliedFilterConditions,
   hasAdvancedFilterConditions,
+  predicateMentionsField,
   type CommonCondition,
   type FilterPanelState,
 } from "./filterControls";
@@ -91,6 +92,7 @@ import { FilterEditorPopover } from "../ui/pickers/FilterEditorPopover";
 import { CompactSelect } from "../ui/pickers/CompactSelect";
 import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
+import type { NameSuggestionContext } from "../search/useNameSuggestions";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
@@ -102,8 +104,12 @@ import {
   type LinkPickerProps,
 } from "./LinkPickerContext";
 import { LinkFilterControls } from "./LinkFilterControls";
-import { countLinkConditions, type LinkLeaf } from "./linkPredicates";
-import { sameRelationship } from "./linkPredicates";
+import {
+  countLinkConditions,
+  linkClauses,
+  sameRelationship,
+  type LinkLeaf,
+} from "./linkPredicates";
 import {
   RelatedEntryEditor,
   RelatedEntrySummary,
@@ -153,6 +159,7 @@ export function FilterControls({
   searchInputRef,
   searchInputError,
   searchEntryKey,
+  nameSuggestions,
   similarSearch,
   additionalFilters,
   children,
@@ -169,6 +176,7 @@ export function FilterControls({
   searchInputRef?: RefObject<InputRef | null>;
   searchInputError?: string;
   searchEntryKey?: number;
+  nameSuggestions?: NameSuggestionContext;
   similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
   children?: ReactNode;
@@ -403,6 +411,7 @@ export function FilterControls({
       query={search.query}
       similar={similarSearch}
       acceptedSubmission={workspace.acceptedSearchSubmission}
+      nameSuggestions={nameSuggestions}
       onSearch={(query, submission) =>
         setSearch(
           {
@@ -420,6 +429,7 @@ export function FilterControls({
     .filter((field) => editor?.common_field_ids.includes(field.definition.id))
     .map((field) => field.definition);
   const filterCount = countAppliedFilterConditions(search.filter, commonFields);
+  const linksApplied = linkClauses(search.filter).length > 0;
   const advancedApplied =
     editor &&
     (hasAdvancedFilterConditions(search.filter, commonFields) ||
@@ -482,6 +492,10 @@ export function FilterControls({
                 selectionContainer={
                   commonLayout === "toolbar" ? selectionContainer : undefined
                 }
+                applied={
+                  search.filter !== null &&
+                  predicateMentionsField(search.filter, field.definition.path)
+                }
                 condition={
                   prepared.query
                     ? commonDraftCondition(prepared.query, field.definition)
@@ -515,6 +529,9 @@ export function FilterControls({
         {includeLinks && !pane && (
           <Button
             ref={linksTrigger}
+            color={linksApplied ? "primary" : "default"}
+            variant="outlined"
+            aria-description={linksApplied ? "Filter applied" : undefined}
             onClick={() => {
               const limit = editor?.limits.relationship_leaves;
               if (limit !== undefined && countLinkConditions(search.filter) >= limit) {
@@ -750,6 +767,7 @@ export function FilterControls({
 
 function CommonFilter({
   field,
+  applied,
   range,
   onRangeChange,
   condition,
@@ -765,6 +783,7 @@ function CommonFilter({
   layout: "panel" | "toolbar";
   compactPane: boolean;
   condition: CommonCondition;
+  applied: boolean;
   range: [string, string] | null;
   onRangeChange: (range: [string, string]) => void;
   onChange: (replacement: QueryPredicate | null) => void;
@@ -797,6 +816,9 @@ function CommonFilter({
       )}
       {condition.status === "advanced" && !range ? (
         <Button
+          color={applied ? "primary" : "default"}
+          variant="outlined"
+          aria-description={applied ? "Filter applied" : undefined}
           onClick={onAdvanced}
           aria-label={`Edit ${field.label} in advanced filters`}
         >
@@ -813,6 +835,7 @@ function CommonFilter({
         ) : (
           <ToolbarRange
             field={field}
+            applied={applied}
             range={range}
             onChange={onRangeChange}
             trigger={rangeTrigger}
@@ -822,6 +845,7 @@ function CommonFilter({
         <CommonChoicePicker
           selectionContainer={selectionContainer}
           field={field}
+          applied={applied}
           inlineSelections={compactPane}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
@@ -858,11 +882,13 @@ function CommonFilter({
 
 function ToolbarRange({
   field,
+  applied,
   range,
   onChange,
   trigger,
 }: {
   field: FilterEditorFieldView;
+  applied: boolean;
   range: [string, string] | null;
   onChange: (range: [string, string]) => void;
   trigger: RefObject<HTMLButtonElement | null>;
@@ -931,6 +957,9 @@ function ToolbarRange({
     >
       <Button
         ref={trigger}
+        color={applied ? "primary" : "default"}
+        variant="outlined"
+        aria-description={applied ? "Filter applied" : undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
