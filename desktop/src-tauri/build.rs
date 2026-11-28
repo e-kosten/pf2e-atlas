@@ -25,6 +25,7 @@ fn main() {
         "desktop_startup_trace",
         "desktop_tab_link",
         "desktop_native_tab_title",
+        "desktop_history",
         "desktop_appearance",
         "desktop_copy_link",
         "desktop_copy_availability",

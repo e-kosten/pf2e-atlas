@@ -86,6 +86,63 @@ vi.mock("../api/atlasApi", async (original) => ({
 }));
 
 describe("AtlasApp routing", () => {
+  it("routes the Windows header, menu command and shortcut through the selected tab", async () => {
+    const ipc = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", {
+      token: "history-test-document",
+      historyNavigation: "windows",
+    });
+    vi.stubGlobal("__TAURI_INTERNALS__", { invoke: ipc });
+    const view = renderDom(<DesktopTabs initialHref="/search" />, {
+      wrapper: queryClientWrapper(),
+    });
+    try {
+      const history = within(await screen.findByRole("group", { name: "Tab history" }));
+      const back = history.getByRole("button", { name: "Back" });
+      const forward = history.getByRole("button", { name: "Forward" });
+      expect(back).toBeDisabled();
+      expect(forward).toBeDisabled();
+      fireEvent.click(screen.getByRole("link", { name: "Lists" }));
+      await waitFor(() =>
+        expect(screen.getByRole("link", { name: "Lists" })).toHaveAttribute(
+          "aria-current",
+          "page",
+        ),
+      );
+      expect(back).toBeEnabled();
+      fireEvent.click(back);
+      await waitFor(() => expect(forward).toBeEnabled());
+      expect(back).toBeDisabled();
+      const [{ snapshot }] = ipc.mock.calls
+        .filter(([name]) => name === "desktop_tabs_state")
+        .slice(-1)
+        .map(([, args]) => args) as [
+        { snapshot: { active: string; activation: number } },
+      ];
+      const command = (activation: number) =>
+        window.dispatchEvent(
+          new CustomEvent("atlas-windows-tab-command", {
+            detail: {
+              kind: "history",
+              direction: "forward",
+              tab: snapshot.active,
+              activation,
+            },
+          }),
+        );
+      act(() => command(snapshot.activation + 1));
+      expect(back).toBeDisabled();
+      act(() => command(snapshot.activation));
+      await waitFor(() => expect(back).toBeEnabled());
+      expect(forward).toBeDisabled();
+      fireEvent.keyDown(window, { key: "ArrowLeft", altKey: true });
+      await waitFor(() => expect(forward).toBeEnabled());
+    } finally {
+      view.unmount();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps a background reference independent of the active Search tab", async () => {
     const view = renderDom(<DesktopTabs initialHref="/search" />, {
       wrapper: queryClientWrapper(),

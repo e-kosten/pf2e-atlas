@@ -90,7 +90,8 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
             );
         }
     }
-    if forces_retry() || forces_preflight_retry() {
+    let history_mode = std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "history");
+    if forces_retry() || forces_preflight_retry() || history_mode {
         receive_link(app, FIXTURE_LINK);
     }
     let links_mode = std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "links");
@@ -109,6 +110,8 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
             run_same_channel(&app)
         } else if std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "upgrade") {
             run_upgrade(&app)
+        } else if history_mode {
+            run_history(&app)
         } else if links_mode {
             run_links(&app)
         } else if selector_mode() {
@@ -540,6 +543,9 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 .is_ok_and(|current| current == initial_window)
             && fixture_record_rendered(&window, expected_path)
     })?;
+    if forces_retry() || forces_preflight_retry() {
+        check_history_boundary(&window, deadline)?;
+    }
     // Directly launched smoke bundles can remain behind another Atlas instance.
     // The Edit menu follows the key window, as it does during normal use.
     let focused = window.clone();
@@ -585,6 +591,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 sessionStorage.getItem("atlas-smoke-token") !== window.__ATLAS_DESKTOP_SETUP__.token)"#,
         )
     })?;
+    check_history_boundary(&window, deadline)?;
     if check_find {
         find_after_reload(app, &window, deadline)?;
     }
@@ -684,6 +691,26 @@ fn run(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn run_history(app: &AppHandle) -> Result<(), String> {
+    let home = process::home()?.canonicalize().map_err(display)?;
+    let probe = process::probe(app)?;
+    if probe.status != atlas_desktop_protocol::WorkspaceStatus::Browsable
+        || !probe.workspace.starts_with(home)
+    {
+        return Err("the history smoke test requires an isolated fixture workspace".into());
+    }
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("Workspace window unavailable")?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    wait_for(deadline, "record opened in the native workspace", || {
+        lock(&app.state::<Desktop>().primary).is_product()
+            && fixture_record_rendered(&window, FIXTURE_RECORD)
+    })?;
+    check_history_boundary(&window, deadline)?;
+    check_tabs_and_zoom(app, &window)
+}
+
 fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), String> {
     let primary = primary.clone();
     let (sender, receiver) = std::sync::mpsc::channel();
@@ -767,8 +794,106 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
         return Err("Could not open Lists inside the record tab".into());
     }
     check_titles("after navigation", "Lists")?;
-    primary.eval("window.history.back()").map_err(display)?;
-    check_titles("after Back", "Handoff Test Action")
+    wait_for(
+        Instant::now() + Duration::from_secs(5),
+        "Back toolbar button enabled",
+        || {
+            evaluates_true(
+                &primary,
+                r#"document.querySelector('button[aria-label="Back"]:enabled') !== null"#,
+            )
+        },
+    )?;
+    primary
+        .eval(r#"document.querySelector('button[aria-label="Back"]').click()"#)
+        .map_err(display)?;
+    check_titles("after Back", "Handoff Test Action")?;
+    wait_for(
+        Instant::now() + Duration::from_secs(5),
+        "Forward toolbar button enabled at the document boundary",
+        || {
+            evaluates_true(
+                &primary,
+                r#"document.querySelector('button[aria-label="Forward"]:enabled') !== null && document.querySelector('button[aria-label="Back"]:disabled') !== null"#,
+            )
+        },
+    )?;
+    let (sent, received) = std::sync::mpsc::channel();
+    crate::run_on_main(app, move |_| {
+        let _ = sent.send(menu_shortcut("]", 30));
+    })?;
+    received
+        .recv_timeout(Duration::from_secs(4))
+        .map_err(display)??;
+    check_titles("after Forward shortcut", "Lists")?;
+    primary
+        .eval(
+            r#"(() => {
+        let index = history.state.__TSR_index;
+        for (const href of ["/encounters", "/characters"]) {
+            const key = crypto.randomUUID();
+            history.pushState({ __TSR_index: ++index, __TSR_key: key, key }, "", href);
+        }
+    })()"#,
+        )
+        .map_err(display)?;
+    check_titles("after two pushes in one callback", "Characters")?;
+    wait_for(
+        Instant::now() + Duration::from_secs(3),
+        "Back available after two pushes",
+        || {
+            evaluates_true(
+                &primary,
+                r#"document.querySelector('button[aria-label="Back"]:enabled') !== null"#,
+            )
+        },
+    )?;
+    primary
+        .eval(r#"document.querySelector('button[aria-label="Back"]').click()"#)
+        .map_err(display)?;
+    check_titles("after Back to the intermediate native entry", "Encounters")
+}
+
+fn check_history_boundary(window: &WebviewWindow, deadline: Instant) -> Result<(), String> {
+    wait_for(
+        deadline,
+        "desktop history starts at the attached document",
+        || {
+            evaluates_true(
+                window,
+                r#"
+            Boolean(window.__ATLAS_DESKTOP_SETUP__?.token) &&
+            document.querySelector('button[aria-label="Back"]:disabled') !== null &&
+            document.querySelector('button[aria-label="Forward"]:disabled') !== null
+        "#,
+            )
+        },
+    )?;
+    window
+        .eval(
+            r#"(() => {
+        const href = location.href;
+        const token = window.__ATLAS_DESKTOP_SETUP__.token;
+        delete document.documentElement.dataset.atlasSmokeHistoryBoundary;
+        window.history.back();
+        setTimeout(() => {
+            if (location.href === href && window.__ATLAS_DESKTOP_SETUP__?.token === token) {
+                document.documentElement.dataset.atlasSmokeHistoryBoundary = "verified";
+            }
+        }, 150);
+    })()"#,
+        )
+        .map_err(display)?;
+    wait_for(
+        deadline,
+        "raw Back stayed inside the desktop document boundary",
+        || {
+            evaluates_true(
+                window,
+                r#"document.documentElement.dataset.atlasSmokeHistoryBoundary === "verified""#,
+            )
+        },
+    )
 }
 
 fn fixture_record_rendered(window: &WebviewWindow, path: &str) -> bool {
