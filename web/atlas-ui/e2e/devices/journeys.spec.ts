@@ -1,5 +1,9 @@
 import { expectControlGaps } from "./controlGeometry";
-import { markdownSource, replaceMarkdown } from "./markdownEditor";
+import {
+  markdownSource,
+  pressMarkdownShortcut,
+  replaceMarkdown,
+} from "./markdownEditor";
 import { readUrl } from "../readingUrl";
 import type { TableRollView } from "../../src/generated/http";
 import { decodeFilterUrl, encodeFilterUrl } from "../../src/shared/filters/filterUrl";
@@ -2600,9 +2604,10 @@ test("record picker saves an optional entry note and brings the changed list fir
     await activate(noteRegion.getByRole("button", { name: "Edit", exact: true }), info);
     const editor = noteRegion.getByRole("textbox", { name: "Note", exact: true });
     await expect.poll(() => markdownSource(editor)).toBe(noteText);
-    await editor.fill(noteText);
+    await pressMarkdownShortcut(editor, "ArrowDown", "End");
     await editor.pressSequentially("Keep the route secret.");
     const edited = noteText + "Keep the route secret.";
+    await expect.poll(() => markdownSource(editor)).toBe(edited);
     await activate(noteRegion.getByRole("button", { name: "Save", exact: true }), info);
     await expect(paragraphs).toHaveText([
       "Discuss before the next session.",
