@@ -141,6 +141,7 @@ pub fn context(semantic: bool) -> SourceArtifactBuildContext {
         asset_policy: ASSET_POLICY_VERSION.into(),
         relationship_policy: RELATIONSHIP_POLICY_VERSION.into(),
         remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
+        progression_recipe: atlas_index::PROGRESSION_RECIPE.into(),
         query_projection_version: SOURCE_PROJECTION_VERSION.into(),
         query_catalog_version: query_capabilities().unwrap().version,
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
@@ -173,6 +174,7 @@ pub fn record(pack: &str, kind: &str, value: Value) -> SourceArtifactRecordInput
         record,
         content,
         relationships,
+        progression: None,
         diagnostics: vec![],
     }
 }

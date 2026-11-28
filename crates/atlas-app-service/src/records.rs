@@ -781,7 +781,28 @@ impl<'a> LoadedRecordDetail<'a> {
             }
             None => (None, None),
         };
+        let progression = if whole_document
+            && whole_reference
+            && request.address.owners.is_empty()
+            && matches!(
+                detail.summary.source_type.as_value().map(String::as_str),
+                Some(
+                    "feat"
+                        | "heritage"
+                        | "class"
+                        | "ancestry"
+                        | "background"
+                        | "spell"
+                        | "action"
+                        | "deity"
+                )
+            ) {
+            crate::progression::record_hint(r, &detail.source)?
+        } else {
+            None
+        };
         let mut view = RecordDetailView {
+            progression,
             selected_fields: if request.fields.len() > 1 {
                 request.fields.clone()
             } else {

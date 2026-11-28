@@ -1,7 +1,11 @@
 import { Activity, useRef, useState, useLayoutEffect, type ReactNode } from "react";
 import { PaneIconButton } from "../ui/actions/PaneAction";
 import { BookOpen, Compass } from "lucide-react";
-import { useRecordExploreLocation } from "./recordExploreLocation";
+import type { RecordExploreTab } from "../../app/urlState";
+import {
+  OpenRecordProgression,
+  useRecordExploreLocation,
+} from "./recordExploreLocation";
 
 /** Read and explore share one identity and the host's existing scroll surface. */
 export function RecordReadingWorkspace({
@@ -31,7 +35,7 @@ export function RecordReadingWorkspace({
     const scroller = host ?? document.scrollingElement;
     if (mode === "read" && scroller) scroller.scrollTop = bookmark.current;
   }, [mode]);
-  function changeMode(next: "read" | "explore") {
+  function changeMode(next: "read" | "explore", tab?: RecordExploreTab) {
     if (next === "explore") {
       let host = root.current?.parentElement ?? null;
       while (host && !/(auto|scroll)/.test(getComputedStyle(host).overflowY))
@@ -39,7 +43,7 @@ export function RecordReadingWorkspace({
       bookmark.current = (host ?? document.scrollingElement)?.scrollTop ?? 0;
       setExplored(true);
     }
-    setMode(next);
+    setMode(next, tab);
   }
   return (
     <div className="record-workspace" ref={root}>
@@ -54,7 +58,9 @@ export function RecordReadingWorkspace({
       {status}
       {mode === "read" && readingNotice}
       <Activity mode={mode === "read" ? "visible" : "hidden"}>
-        <div className="record-workspace__reading">{children}</div>
+        <OpenRecordProgression value={() => changeMode("explore", "progression")}>
+          <div className="record-workspace__reading">{children}</div>
+        </OpenRecordProgression>
       </Activity>
       <Activity mode={mode === "explore" ? "visible" : "hidden"}>
         {explored || mode === "explore" ? explore : null}

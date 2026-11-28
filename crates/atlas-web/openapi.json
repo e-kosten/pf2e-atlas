@@ -14218,6 +14218,221 @@
         ],
         "type": "object"
       },
+      "ProgressionDirection": {
+        "enum": [
+          "overview",
+          "required_by",
+          "pool",
+          "available_through"
+        ],
+        "type": "string"
+      },
+      "ProgressionEntryView": {
+        "properties": {
+          "level": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "navigation": {
+            "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressionRequirementView"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "witnesses": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressionWitnessView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "navigation",
+          "title",
+          "requirements",
+          "witnesses"
+        ],
+        "type": "object"
+      },
+      "ProgressionInlineLinkView": {
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "navigation": {
+            "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "text",
+          "navigation"
+        ],
+        "type": "object"
+      },
+      "ProgressionPageView": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressionEntryView"
+            },
+            "type": "array"
+          },
+          "next_offset": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "type": "object"
+      },
+      "ProgressionPoolView": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "trait_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "trait_key",
+          "label"
+        ],
+        "type": "object"
+      },
+      "ProgressionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_generation": {
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/ProgressionDirection"
+          },
+          "offset": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/RecordNavigationViewInputSchema"
+          },
+          "trait_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "selection",
+          "artifact_generation"
+        ],
+        "type": "object"
+      },
+      "ProgressionRequirementKind": {
+        "enum": [
+          "all_of",
+          "any_of",
+          "record",
+          "proficiency",
+          "attribute_minimum",
+          "unresolved"
+        ],
+        "type": "string"
+      },
+      "ProgressionRequirementView": {
+        "properties": {
+          "depth": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProgressionRequirementKind"
+          },
+          "label": {
+            "type": "string"
+          },
+          "navigation": {
+            "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "depth",
+          "label",
+          "path"
+        ],
+        "type": "object"
+      },
+      "ProgressionView": {
+        "properties": {
+          "ancestry_feat_pools": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressionPoolView"
+            },
+            "type": "array"
+          },
+          "artifact_generation": {
+            "type": "string"
+          },
+          "available_through": {
+            "$ref": "#/components/schemas/ProgressionPageView"
+          },
+          "pool": {
+            "$ref": "#/components/schemas/ProgressionPageView"
+          },
+          "prerequisites": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressionRequirementView"
+            },
+            "type": "array"
+          },
+          "required_by": {
+            "$ref": "#/components/schemas/ProgressionPageView"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/RecordNavigationView"
+          }
+        },
+        "required": [
+          "selection",
+          "artifact_generation",
+          "prerequisites",
+          "required_by",
+          "ancestry_feat_pools",
+          "pool",
+          "available_through"
+        ],
+        "type": "object"
+      },
+      "ProgressionWitnessView": {
+        "properties": {
+          "alternative": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "alternative"
+        ],
+        "type": "object"
+      },
       "QueryChoiceGroup": {
         "properties": {
           "children": {
@@ -15757,6 +15972,9 @@
           "presentation": {
             "$ref": "#/components/schemas/RecordPresentationView"
           },
+          "progression": {
+            "$ref": "#/components/schemas/RecordProgressionHintView"
+          },
           "record": {
             "$ref": "#/components/schemas/RecordSummaryView"
           },
@@ -15997,6 +16215,20 @@
           "content",
           "embedded",
           "body"
+        ],
+        "type": "object"
+      },
+      "RecordProgressionHintView": {
+        "properties": {
+          "inline_links": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressionInlineLinkView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "inline_links"
         ],
         "type": "object"
       },
@@ -27716,6 +27948,53 @@
               }
             },
             "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/records/progression": {
+      "post": {
+        "operationId": "recordProgression",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressionView"
+                }
+              }
+            },
+            "description": "Prerequisites and related progression options"
           },
           "409": {
             "content": {

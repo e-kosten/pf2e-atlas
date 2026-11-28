@@ -953,3 +953,61 @@ fn alias_journal_barrier_filters_duplicates_and_keeps_final_preparation_counts_a
     assert!(changed.work.largest_content_overlap.total() <= 32);
     assert!(changed.work.largest_semantic_overlap.total() <= 32);
 }
+
+#[test]
+fn progression_reserves_an_excluded_namesake_before_resolving_plain_text() {
+    let fixture = SourceFixture::new();
+    fs::write(
+        fixture.0.path().join("module.json"),
+        r#"{"id":"pf2e","version":"8.7.0","packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"}]}"#,
+    )
+    .unwrap();
+    let write_feat = |name: &str, id: &str, title: &str, prerequisites: Vec<&str>| {
+        fs::write(
+            fixture.0.path().join(format!("packs/items/{name}.json")),
+            serde_json::json!({
+                "_id": id, "name": title, "type": "feat",
+                "system": {
+                    "category": "general",
+                    "prerequisites": {"value": prerequisites.into_iter().map(|text| serde_json::json!({"value": text})).collect::<Vec<_>>()}
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+    };
+    write_feat("medicine", "cccccccccccccccc", "Battle Medicine", vec![]);
+    write_feat(
+        "dedication",
+        "dddddddddddddddd",
+        "Medic Dedication",
+        vec!["Battle Medicine"],
+    );
+    let read_edges = || {
+        let prepared = prepare_fixture(&fixture.options("progression")).unwrap();
+        let mut output = None;
+        prepared
+            .spool
+            .records(&mut |prepared| {
+                if prepared.source.record.key().to_string() == "items:dddddddddddddddd" {
+                    output = Some(
+                        prepared
+                            .source
+                            .progression
+                            .as_ref()
+                            .unwrap()
+                            .record_targets()
+                            .iter()
+                            .map(|link| link.target_key.to_string())
+                            .collect::<Vec<_>>(),
+                    );
+                }
+                Ok(())
+            })
+            .unwrap();
+        output.unwrap()
+    };
+    assert_eq!(read_edges(), ["items:cccccccccccccccc"]);
+    write_feat("excluded", "invalid", "Battle Medicine", vec![]);
+    assert!(read_edges().is_empty());
+}

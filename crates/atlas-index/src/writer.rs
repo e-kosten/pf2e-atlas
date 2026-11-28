@@ -76,6 +76,11 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
                 .into(),
         ));
     }
+    if c.progression_recipe != crate::PROGRESSION_RECIPE {
+        return Err(IndexError::Unsupported(
+            "progression preparation requires a reference refresh; run atlas setup".into(),
+        ));
+    }
     if c.core_sections_recipe != atlas_domain::CORE_SECTIONS_RECIPE {
         return Err(IndexError::Unsupported("Core section projection requires an offline metadata update; run atlas setup --offline".into()));
     }

@@ -172,7 +172,10 @@ fn upgrade_plan(
             )));
         }
     };
-    source_changed |= remaster_changed;
+    let progression_changed = target.progression_recipe.is_empty()
+        || older_policy(&target.progression_recipe, crate::PROGRESSION_RECIPE)?;
+    source_changed |= remaster_changed || progression_changed;
+    target.progression_recipe = crate::PROGRESSION_RECIPE.into();
     target.trait_policy = "trait-definition-centroid/v1".into();
     for (stored, current) in [
         (

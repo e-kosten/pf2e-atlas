@@ -910,3 +910,91 @@
 .comparison-source :is(.prepared-inclusion, .prepared-inclusion-unavailable) {
   background: var(--panel);
 }
+
+.record-reference__prerequisite-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-micro) var(--space-control);
+}
+.record-reference__prerequisite-heading .record-reference__progression-action {
+  min-block-size: 34px;
+  color: var(--link);
+}
+
+.record-progression {
+  display: grid;
+  gap: var(--space-group);
+  min-inline-size: 0;
+}
+.record-progression :is(h3, h4, p, ul) {
+  margin-block: 0;
+}
+.record-progression > section,
+.record-progression__branch {
+  display: grid;
+  gap: var(--space-micro);
+  min-inline-size: 0;
+}
+.record-progression ul {
+  list-style: none;
+  padding-inline-start: 0;
+}
+.record-progression li {
+  min-inline-size: 0;
+}
+.record-progression__relations > li + li {
+  border-block-start: 1px solid var(--line);
+}
+.record-progression__relation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-micro);
+  min-block-size: 34px;
+  padding-inline: var(--space-micro);
+}
+.record-progression__relation a {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-block-size: 34px;
+  padding-block: var(--space-micro);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.record-progression__level {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.record-progression__witness {
+  color: var(--muted);
+  padding-inline: var(--space-micro);
+  margin-block-end: var(--space-micro);
+}
+.record-progression__branches {
+  border-inline-start: 1px solid var(--line);
+  margin-inline-start: var(--space-micro);
+  padding-inline-start: var(--space-control);
+  margin-block-end: var(--space-control);
+}
+.record-progression__requirements > li {
+  padding-block: var(--space-micro);
+}
+.record-progression__requirements .record-progression__requirements {
+  border-inline-start: 1px solid var(--line);
+  margin-inline-start: var(--space-micro);
+  padding-inline-start: var(--space-control);
+}
+.record-progression__requirements [data-progression-witness] {
+  font-weight: 600;
+}
+.record-progression__pools > li + li {
+  margin-block-start: var(--space-micro);
+}
+.record-progression__pools summary {
+  min-block-size: 34px;
+  padding-block: var(--space-micro);
+  cursor: pointer;
+}

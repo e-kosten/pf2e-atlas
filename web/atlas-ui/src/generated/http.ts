@@ -5259,6 +5259,87 @@ export interface PreviewImportDetailsRequest {
   json: string;
 }
 
+export type ProgressionDirection = typeof ProgressionDirection[keyof typeof ProgressionDirection];
+
+
+export const ProgressionDirection = {
+  overview: 'overview',
+  required_by: 'required_by',
+  pool: 'pool',
+  available_through: 'available_through',
+} as const;
+
+export type ProgressionRequirementKind = typeof ProgressionRequirementKind[keyof typeof ProgressionRequirementKind];
+
+
+export const ProgressionRequirementKind = {
+  all_of: 'all_of',
+  any_of: 'any_of',
+  record: 'record',
+  proficiency: 'proficiency',
+  attribute_minimum: 'attribute_minimum',
+  unresolved: 'unresolved',
+} as const;
+
+export interface ProgressionRequirementView {
+  /** @minimum 0 */
+  depth: number;
+  kind: ProgressionRequirementKind;
+  label: string;
+  navigation?: RecordNavigationView;
+  path: string;
+}
+
+export interface ProgressionWitnessView {
+  alternative: boolean;
+  path: string;
+}
+
+export interface ProgressionEntryView {
+  /** @minimum 0 */
+  level?: number;
+  navigation: RecordNavigationView;
+  requirements: ProgressionRequirementView[];
+  title: string;
+  witnesses: ProgressionWitnessView[];
+}
+
+export interface ProgressionInlineLinkView {
+  field: string;
+  navigation: RecordNavigationView;
+  text: string;
+}
+
+export interface ProgressionPageView {
+  entries: ProgressionEntryView[];
+  /** @minimum 0 */
+  next_offset?: number;
+}
+
+export interface ProgressionPoolView {
+  label: string;
+  trait_key: string;
+}
+
+export interface ProgressionRequest {
+  artifact_generation: string;
+  direction?: ProgressionDirection;
+  /** @minimum 0 */
+  offset?: number;
+  selection: RecordNavigationViewInputSchema;
+  trait_key?: string;
+}
+
+export interface ProgressionView {
+  ancestry_feat_pools: ProgressionPoolView[];
+  artifact_generation: string;
+  available_through: ProgressionPageView;
+  pool: ProgressionPageView;
+  prerequisites: ProgressionRequirementView[];
+  required_by: ProgressionPageView;
+  selection: RecordNavigationView;
+}
+
 export interface RecordDetailRequest {
   embedded_path?: OwnedContentLocator[];
   /** @nullable */
@@ -5276,6 +5357,10 @@ export interface RecordDetailRequest {
      * @nullable
      */
   spell_rank?: number | null;
+}
+
+export interface RecordProgressionHintView {
+  inline_links: ProgressionInlineLinkView[];
 }
 
 export interface RemasterExplanationLinkView {
@@ -5351,6 +5436,7 @@ export interface RecordDetailView {
   has_remaster_versions?: boolean;
   named_creature_links?: NamedCreatureLinksView;
   presentation: RecordPresentationView;
+  progression?: RecordProgressionHintView;
   record: RecordSummaryView;
   relationships: RecordRelationshipView[];
   relationships_truncated: boolean;
@@ -9586,6 +9672,41 @@ return fetchGenerated<EmbeddedReadingBatchView>(getEmbeddedReadingUrl(),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(embeddedReadingRequest)
+  }
+);}
+
+
+
+export const getRecordProgressionUrl = () => {
+
+
+
+
+  return `/api/records/progression`
+}
+
+export const recordProgression = async (progressionRequest: ProgressionRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<ProgressionView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<ProgressionView>(getRecordProgressionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(progressionRequest)
   }
 );}
 

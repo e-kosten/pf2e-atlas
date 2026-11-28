@@ -116,6 +116,17 @@ The record itself remains a key and DTO. Content outcomes and resolved relations
 occurrences are separate derived outputs. Original bytes/provenance, admission
 failures and detailed reports remain ingest/developer concerns.
 
+Ingest prepares root progression after building a corpus-wide candidate index
+with known excluded names. The interpreter preserves source field attribution,
+alternative groups and unresolved text. Publication writes the expression and
+its record leaves together. Prerequisite edges share the relationship table
+but are scoped to progression reads. A later source revision can invalidate
+a previously unique target even when the dependent feat's text is unchanged.
+The progression recipe participates in reference freshness independently of
+passage text and exact numerical reuse. Source-backed verification covers
+excluded names, while standalone validation replays the admitted evidence
+and checks that the expression and its relationship rows agree.
+
 `BuildArtifactOptions` composes source paths, locale, selected profile configurations, batching/reuse and output paths.
 `CapturedBuildInputs` owns those options, the source capture and verified supplement
 bytes. Its source fingerprint remains Foundry-only provenance. Setup additionally

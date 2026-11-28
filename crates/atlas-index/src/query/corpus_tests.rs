@@ -335,6 +335,7 @@ fn pinned_corpus_item_and_common_projection_oracle() {
                 preparation_context_hash: "fixture".to_owned(),
                 content: vec![],
                 relationships: vec![],
+                progression: None,
                 diagnostics: vec![],
             };
             let rows = root_rows(&input, label, roots as i64, &mut ids)

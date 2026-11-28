@@ -142,6 +142,22 @@ These searches find references between entries. A creature linking to a piece
 of equipment, for example, does not by itself establish that the creature wears it.
 See [CLI reference searches](cli-examples.md#follow-references) for commands.
 
+## Explore feat progression
+
+Open **Battle Medicine** and choose **Progression** to see which feats use it
+as a prerequisite. Open **Medic Dedication** to see Battle Medicine alongside
+the Medicine proficiency it requires. Expand a branch to see its other
+requirements. For an alternative, Atlas shows the branch and the surrounding
+requirements together.
+
+Open **Aiuvarin** to browse the ancestry feat pools it opens. In an elf
+ancestry feat's progression view, **Available through** shows heritage
+routes when Atlas has source evidence for them.
+
+Atlas keeps written prerequisites visible when their meaning or destination
+is unclear. After upgrading, run [setup](setup-and-maintenance.md) to prepare
+the progression index for your reference data.
+
 ## Adjust search settings
 
 Open **Search settings** to compare ways of finding results. Atlas remembers your

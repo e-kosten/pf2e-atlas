@@ -13,6 +13,7 @@ use atlas_index::{
     BuildFrameOffset, BuildFrameStream, IndexBuildPack, PreparedRecordInput, PublicationSpool,
     ReferenceReuseReader, SourceArtifactDiagnostic,
 };
+use atlas_record::progression::{ProgressionCandidate, ProgressionIndex};
 use atlas_record::source_record::{
     SourceBackedRecord, SourceContentOutcome, SourceContentStatus, SourceNodeView,
     SourceReferenceContribution, SourceReferenceIndex, SourceRelationshipOccurrence,
@@ -59,6 +60,7 @@ struct Envelope {
     alias_name: Option<String>,
     family: Option<String>,
     journal: Option<BuildFrameOffset>,
+    progression: Option<ProgressionCandidate>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct AttributedNativeInput {
@@ -405,6 +407,7 @@ pub(crate) fn prepare(
                     alias_name: None,
                     family: None,
                     journal: None,
+                    progression: None,
                 };
                 if let Some(source) = admission.model {
                     report.typed_documents += 1;
@@ -429,6 +432,14 @@ pub(crate) fn prepare(
                                 observation.alias_name = node.name().value().cloned();
                             }
                             observation.family = node.source_type().value().map(str::to_owned);
+                            if atlas_index::reference_pack_applies(
+                                context.reference_preparation.as_ref(),
+                                "pf2e",
+                                &pack.pack_id,
+                            ) {
+                                observation.progression =
+                                    ProgressionCandidate::from_record(&record, &path_relative);
+                            }
                             let journal = node.document_kind() == "JournalEntry"
                                 && node
                                     .name()
@@ -462,6 +473,7 @@ pub(crate) fn prepare(
     }
     tracing::info!(target: "atlas_progress", phase = "resolve_reference_links", "Resolving reference links and aliases");
     let mut resolver = SourceReferenceIndex::default();
+    let mut progression_index = ProgressionIndex::default();
     let mut active = BTreeSet::new();
     let mut names = BTreeMap::new();
     let mut families = BTreeMap::new();
@@ -494,9 +506,21 @@ pub(crate) fn prepare(
             if let Some(contribution) = observation.contribution {
                 resolver.extend_contribution(contribution);
             }
+            if let Some(candidate) = observation.progression {
+                progression_index.insert_candidate(candidate);
+            }
         } else {
             for name in observation.names {
                 resolver.exclude_root_name(&observation.pack, &observation.kind, &name);
+                if observation.kind == "Item"
+                    && atlas_index::reference_pack_applies(
+                        context.reference_preparation.as_ref(),
+                        "pf2e",
+                        &observation.pack,
+                    )
+                {
+                    progression_index.exclude_name(&name);
+                }
             }
             let reason = observation
                 .reason
@@ -634,6 +658,20 @@ pub(crate) fn prepare(
                     &spool.context().used_trait_labels,
                 )
                 .map_err(|error| atlas_index::IndexError::Invalid(error.to_string()))?;
+                let progression = if atlas_index::reference_pack_applies(
+                    spool.context().reference_preparation.as_ref(),
+                    "pf2e",
+                    &frame.pack,
+                ) {
+                    atlas_record::progression::prepare(
+                        &record,
+                        &frame.path,
+                        &progression_index,
+                        &content,
+                    )
+                } else {
+                    None
+                };
                 prepared.push(PreparedRecordInput {
                     source: atlas_index::SourceArtifactRecordInput {
                         record,
@@ -642,6 +680,7 @@ pub(crate) fn prepare(
                         preparation_context_hash: preparation_hash.clone(),
                         content,
                         relationships,
+                        progression,
                         diagnostics: frame
                             .diagnostics
                             .into_iter()

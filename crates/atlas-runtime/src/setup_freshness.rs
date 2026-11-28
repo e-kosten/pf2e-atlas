@@ -37,13 +37,14 @@ pub(crate) fn source_is_fresh(
 }
 
 pub(crate) fn has_current_reference_preparation(context: &SourceArtifactBuildContext) -> bool {
-    context
-        .reference_preparation
-        .as_ref()
-        .is_some_and(|preparation| {
-            preparation.recipe == atlas_ingest::REFERENCE_PREPARATION_RECIPE
-                && preparation.coverage == atlas_index::ReferenceCoverage::Complete
-        })
+    context.progression_recipe == atlas_index::PROGRESSION_RECIPE
+        && context
+            .reference_preparation
+            .as_ref()
+            .is_some_and(|preparation| {
+                preparation.recipe == atlas_ingest::REFERENCE_PREPARATION_RECIPE
+                    && preparation.coverage == atlas_index::ReferenceCoverage::Complete
+            })
 }
 
 #[cfg(test)]

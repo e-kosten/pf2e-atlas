@@ -368,6 +368,7 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
+        progression: None,
         has_remaster_versions: false,
         selected_fields: vec![],
         canonical_record: None,

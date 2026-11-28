@@ -2701,6 +2701,134 @@ async fn related_request_transports_complete_selection_and_generation() {
 }
 
 #[tokio::test]
+async fn progression_transport_projects_both_directions_and_alternative_witness() {
+    use atlas_record::progression::{ProgressionIndex, prepare};
+
+    let make_feat = |id, name, requirements, level| {
+        atlas_search::test_support::record(
+            "feats",
+            "Item",
+            json!({"_id":id,"type":"feat","name":name,"system":{
+                "category":"general","level":{"value":level},"prerequisites":{"value":requirements},
+                "description":{"value":"<p>Fixture rules.</p>"}
+            }}),
+        )
+    };
+    let seed = make_feat("prerequisite0001", "Battle Medicine", json!([]), 1);
+    let alternative = make_feat("prerequisite0002", "Steady Hands", json!([]), 1);
+    let mut dependent = make_feat(
+        "prerequisite0003",
+        "Emergency Medic",
+        json!([{"value":"Battle Medicine or Steady Hands"},{"value":"trained in Medicine"}]),
+        2,
+    );
+    let mut index = ProgressionIndex::default();
+    for entry in [&seed, &alternative, &dependent] {
+        index.insert(&entry.record, &entry.source_path);
+    }
+    dependent.progression = prepare(
+        &dependent.record,
+        &dependent.source_path,
+        &index,
+        &dependent.content,
+    );
+    let fixture = Fixture::with_reference_data(
+        false,
+        None,
+        Some(true),
+        16,
+        vec![seed, alternative, dependent],
+    );
+
+    let (status, detail) = fixture
+        .json(
+            Method::POST,
+            "/api/records/detail",
+            Some(json!({"record_key":"feats:prerequisite0003"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(
+        detail["progression"]["inline_links"][0]["text"],
+        "Battle Medicine"
+    );
+    let generation = &detail["artifact_generation"];
+    let (status, forward) = fixture
+        .json(
+            Method::POST,
+            "/api/records/progression",
+            Some(json!({"selection":detail["selected"],"artifact_generation":generation})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{forward}");
+    assert_eq!(forward["prerequisites"][1]["kind"], "any_of");
+    assert_eq!(forward["prerequisites"][4]["label"], "Trained in Medicine");
+
+    let mut selected = detail["selected"].clone();
+    selected["record_key"] = json!("feats:prerequisite0001");
+    let (status, reverse) = fixture
+        .json(
+            Method::POST,
+            "/api/records/progression",
+            Some(json!({"selection":selected,"artifact_generation":generation})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{reverse}");
+    let dependent = &reverse["required_by"]["entries"][0];
+    assert_eq!(dependent["title"], "Emergency Medic");
+    assert_eq!(dependent["level"], 2);
+    assert_eq!(dependent["witnesses"][0]["alternative"], true);
+    assert_eq!(
+        dependent["witnesses"][0]["path"],
+        forward["prerequisites"][2]["path"]
+    );
+}
+
+#[tokio::test]
+async fn progression_transport_checks_exact_selection_and_generation() {
+    let fixture = Fixture::new();
+    let (status, detail) = fixture
+        .json(
+            Method::POST,
+            "/api/records/detail",
+            Some(json!({"record_key":ACTION})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert!(detail.get("progression").is_none());
+    let request = json!({
+        "selection": detail["selected"],
+        "artifact_generation": detail["artifact_generation"],
+    });
+    let (status, view) = fixture
+        .json(
+            Method::POST,
+            "/api/records/progression",
+            Some(request.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{view}");
+    assert_eq!(view["required_by"], json!({"entries":[]}));
+    assert_eq!(view["prerequisites"], json!([]));
+    assert_eq!(view["selection"], request["selection"]);
+
+    let mut stale = request.clone();
+    stale["artifact_generation"] = json!("stale-generation");
+    let (status, _) = fixture
+        .json(Method::POST, "/api/records/progression", Some(stale))
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+
+    let mut invalid_pool = request;
+    invalid_pool["direction"] = json!("pool");
+    invalid_pool["trait_key"] = json!("elf");
+    let (status, _) = fixture
+        .json(Method::POST, "/api/records/progression", Some(invalid_pool))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn similar_page_transport_carries_exact_seed_and_body_free_summary() {
     let fixture = Fixture::new();
     let(status,body)=fixture.json(Method::POST,"/api/search/page",Some(json!({"criteria":{"kind":"similar_records","seed_record_key":ACTION,"filter":null},"page":{"number":2,"size":1}}))).await;
