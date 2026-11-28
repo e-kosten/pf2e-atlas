@@ -994,7 +994,8 @@
   font-size: 1em;
   font-weight: 600;
 }
-.record-progression > .record-progression__additional {
+.record-progression
+  > .record-progression__additional:not(:has(.record-progression__branch)) {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;

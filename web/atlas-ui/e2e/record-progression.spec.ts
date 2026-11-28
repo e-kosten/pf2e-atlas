@@ -101,6 +101,35 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
   ).toBeVisible();
 });
 
+test("keeps a deep branch aligned with the full progression width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/records/" + BATTLE_MEDICINE);
+  await page.getByRole("button", { name: "Progression", exact: true }).click();
+  const explore = page.getByRole("region", { name: "Explore record", exact: true });
+  for (const name of [
+    "Mage's Field Dressing",
+    "War Mage Dedication",
+    "Arcana of Iron",
+    "Secrets of Steel",
+  ]) {
+    await explore.getByRole("button", { name: "Expand " + name, exact: true }).click();
+  }
+  await expect(explore.getByText("No further progression.")).toBeVisible();
+  const row = (name: string) =>
+    explore.locator(".record-progression__relation").filter({
+      has: page.getByRole("link", { name, exact: true }),
+    });
+  const topRight = await row("Mage's Field Dressing")
+    .first()
+    .evaluate((item) => item.getBoundingClientRect().right);
+  const deepRight = await row("Secrets of Steel").evaluate(
+    (item) => item.getBoundingClientRect().right,
+  );
+  expect(Math.abs(topRight - deepRight)).toBeLessThanOrEqual(2);
+});
+
 test("shows both alternatives and identifies the matching reverse branch", async ({
   page,
 }) => {
