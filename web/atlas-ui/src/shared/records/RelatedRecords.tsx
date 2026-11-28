@@ -141,6 +141,7 @@ export function RelatedRecords(props: ExploreProps) {
             children: (
               <RecordProgression
                 detail={props.detail}
+                onReference={props.onReference}
                 onReload={props.onReload}
                 reloadLabel={props.reloadLabel}
               />

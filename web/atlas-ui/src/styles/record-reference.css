@@ -930,11 +930,13 @@
 .record-progression :is(h3, h4, p, ul) {
   margin-block: 0;
 }
-.record-progression > section,
-.record-progression__branch {
+.record-progression > section {
   display: grid;
   gap: var(--space-micro);
   min-inline-size: 0;
+}
+.record-progression > section > h3 {
+  font-size: 1.125em;
 }
 .record-progression ul {
   list-style: none;
@@ -949,46 +951,82 @@
 .record-progression__relation {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-micro);
-  min-block-size: 34px;
-  padding-inline: var(--space-micro);
+  gap: var(--space-control);
+  padding-block: var(--space-micro);
 }
-.record-progression__relation a {
+.record-progression__identity {
   display: inline-flex;
   flex: 1 1 auto;
-  align-items: center;
-  min-block-size: 34px;
-  padding-block: var(--space-micro);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-control);
   min-inline-size: 0;
+}
+.record-progression__identity > a {
+  display: inline-block;
+  align-content: center;
+  min-block-size: 34px;
+  max-inline-size: 100%;
   overflow-wrap: anywhere;
 }
 .record-progression__level {
   color: var(--muted);
+  font-size: 0.875em;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .record-progression__witness {
   color: var(--muted);
-  padding-inline: var(--space-micro);
-  margin-block-end: var(--space-micro);
+  font-size: 0.875em;
 }
 .record-progression__branches {
+  display: grid;
+  gap: var(--space-control);
   border-inline-start: 1px solid var(--line);
   margin-inline-start: var(--space-micro);
   padding-inline-start: var(--space-control);
   margin-block-end: var(--space-control);
 }
-.record-progression__requirements > li {
-  padding-block: var(--space-micro);
+.record-progression__branches .record-progression {
+  gap: var(--space-control);
+}
+.record-progression__branches h4 {
+  color: var(--muted);
+  font-size: 1em;
+  font-weight: 600;
+}
+.record-progression > .record-progression__additional {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-micro) var(--space-control);
+}
+.record-progression__requirements > li:has(> .record-progression__witness) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-control);
+}
+.record-progression__requirements > li + li {
+  margin-block-start: var(--space-micro);
 }
 .record-progression__requirements .record-progression__requirements {
-  border-inline-start: 1px solid var(--line);
-  margin-inline-start: var(--space-micro);
-  padding-inline-start: var(--space-control);
+  padding-inline-start: var(--space-group);
 }
-.record-progression__requirements [data-progression-witness] {
-  font-weight: 600;
+.record-progression__explore-link,
+.record-progression__cycle-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-micro);
+  justify-self: start;
+  min-block-size: 34px;
+}
+.record-progression__cycle-link {
+  justify-content: center;
+  min-inline-size: 34px;
+}
+.record-progression__explore-link {
+  font-size: 0.875em;
 }
 .record-progression__pools > li + li {
   margin-block-start: var(--space-micro);

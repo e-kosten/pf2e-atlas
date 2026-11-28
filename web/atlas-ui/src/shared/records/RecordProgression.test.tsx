@@ -65,8 +65,10 @@ function setup(key: string, onReload?: () => void) {
     createMemoryHistory({ initialEntries: ["/records/" + key] }),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const onReference = vi.fn();
   return {
     router,
+    onReference,
     ...render(
       <QueryClientProvider client={client}>
         <RouterTestContext router={router}>
@@ -74,6 +76,7 @@ function setup(key: string, onReload?: () => void) {
             explore={
               <RecordProgression
                 detail={{ ...detailFixture(key), progression: { inline_links: [] } }}
+                onReference={onReference}
                 onReload={onReload}
               />
             }
@@ -147,7 +150,7 @@ it("opens a reverse alternative in place and preserves the progression history",
         })
       : response(request, { prerequisites: requirement }),
   );
-  const { router } = setup(heritage.record_key);
+  const { router, onReference } = setup(heritage.record_key);
   fireEvent.click(screen.getByRole("button", { name: "Progression" }));
   expect(await screen.findByText("Required by")).toBeVisible();
   expect(screen.getByText("Alternative prerequisite")).toBeVisible();
@@ -159,12 +162,59 @@ it("opens a reverse alternative in place and preserves the progression history",
   expect(
     screen.queryByRole("button", { name: "Expand Budding Speaker" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Speaker’s Defense" })).toBeVisible();
+  const title = screen.getByRole("link", { name: "Speaker’s Defense" });
+  expect(title).toHaveAttribute("href", "/records/" + speaker.record_key);
+  fireEvent.click(title, { metaKey: true });
+  expect(onReference).not.toHaveBeenCalled();
+  fireEvent.click(title);
+  expect(onReference).toHaveBeenCalledWith(speaker.record_key, title, speaker);
+  expect(router.latestLocation.pathname).toBe("/records/" + heritage.record_key);
+  expect(
+    screen.getByRole("link", { name: "Explore progression for Speaker’s Defense" }),
+  ).toHaveAttribute("href", expect.stringContaining("record_tab=progression"));
   await act(async () => router.history.back());
   expect(screen.getByRole("button", { name: "Progression" })).toBeVisible();
   await act(async () => router.history.forward());
   expect(await screen.findByText("Required by")).toBeVisible();
   expect(await screen.findByText("Any of")).toBeVisible();
+});
+
+it("shows only the additional conditions for a flat mandatory match", async () => {
+  const mandatory = [
+    { kind: "all_of", path: "/requirements", depth: 0, label: "All of" },
+    { ...requirement[1], depth: 1 },
+    {
+      kind: "unresolved",
+      path: "/other",
+      depth: 1,
+      label: "can't have a patron deity",
+    },
+  ] satisfies ProgressionView["prerequisites"];
+  getProgression.mockImplementation(async (request: ProgressionRequest) =>
+    request.selection.record_key === heritage.record_key
+      ? response(request, {
+          required_by: {
+            entries: [
+              {
+                title: "Dependent feat",
+                navigation: speaker,
+                requirements: mandatory,
+                witnesses: [{ path: "/0/0", alternative: false }],
+              },
+            ],
+          },
+        })
+      : response(request, { prerequisites: mandatory }),
+  );
+  setup(heritage.record_key);
+  fireEvent.click(screen.getByRole("button", { name: "Progression" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Expand Dependent feat" }));
+  expect(await screen.findByRole("heading", { name: "Also requires" })).toBeVisible();
+  expect(screen.getByText("can't have a patron deity")).toBeVisible();
+  expect(
+    screen.queryByRole("link", { name: "Budding Speaker" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("All of")).not.toBeInTheDocument();
 });
 
 it("loads a pool on demand and continues it with the returned offset", async () => {

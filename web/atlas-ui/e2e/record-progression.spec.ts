@@ -13,7 +13,7 @@ function recordHref(key: string) {
   return new RegExp(key.replace(":", "(?::|%3A)"));
 }
 
-test("follows a prerequisite in both directions and returns to the prior focus record", async ({
+test("keeps compact branches open through a drawer visit and deliberate refocus", async ({
   page,
 }) => {
   await page.goto("/records/" + BATTLE_MEDICINE);
@@ -22,6 +22,18 @@ test("follows a prerequisite in both directions and returns to the prior focus r
   await expect(
     explore.getByRole("heading", { name: "Required by", exact: true }),
   ).toBeVisible();
+  await explore
+    .getByRole("button", { name: "Expand Godless Healing", exact: true })
+    .click();
+  await expect(
+    explore.getByText("can't have a patron deity", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    explore.getByRole("link", { name: "Mortal Healing", exact: true }),
+  ).toBeVisible();
+  await expect(explore.getByText("Matching prerequisite", { exact: true })).toHaveCount(
+    0,
+  );
 
   const expand = explore.getByRole("button", {
     name: "Expand Medic Dedication",
@@ -33,7 +45,25 @@ test("follows a prerequisite in both directions and returns to the prior focus r
   ).toBeFocused();
   await expect(explore.getByText(/trained in medicine/i).first()).toBeVisible();
 
-  await explore.getByRole("link", { name: "Medic Dedication", exact: true }).click();
+  const currentUrl = page.url();
+  const medic = explore.getByRole("link", { name: "Medic Dedication", exact: true });
+  await medic.press("Enter");
+  const drawer = page.getByRole("dialog", { name: "Medic Dedication" });
+  await expect(drawer).toBeVisible();
+  await expect(page).toHaveURL(currentUrl);
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  await expect(medic).toBeFocused();
+  await expect(
+    explore.getByText("can't have a patron deity", { exact: true }),
+  ).toBeVisible();
+
+  await explore
+    .getByRole("link", {
+      name: "Explore progression for Medic Dedication",
+      exact: true,
+    })
+    .click();
   await expect(page).toHaveURL(
     (url) =>
       decodeURIComponent(url.pathname).endsWith(MEDIC) &&
@@ -51,6 +81,9 @@ test("follows a prerequisite in both directions and returns to the prior focus r
   await expect(
     explore.getByRole("link", { name: "Medic Dedication", exact: true }),
   ).toBeVisible();
+  await expect(
+    explore.getByText("can't have a patron deity", { exact: true }),
+  ).toBeVisible();
 });
 
 test("shows both alternatives and identifies the matching reverse branch", async ({
@@ -67,7 +100,12 @@ test("shows both alternatives and identifies the matching reverse branch", async
   await expect(heritage).toHaveAttribute("href", recordHref(BUDDING_SPEAKER));
   await expect(training).toHaveAttribute("href", recordHref(SPEAKER_TRAINING));
 
-  await heritage.click();
+  await explore
+    .getByRole("button", { name: /expand budding speaker centaur/i })
+    .click();
+  await explore
+    .getByRole("link", { name: /explore progression for budding speaker centaur/i })
+    .click();
   await expect(
     explore.getByRole("heading", { name: "Required by", exact: true }),
   ).toBeVisible();
@@ -76,9 +114,22 @@ test("shows both alternatives and identifies the matching reverse branch", async
   await expect(
     explore.getByText("Alternative prerequisite", { exact: true }).first(),
   ).toBeVisible();
+  await explore
+    .getByRole("button", { name: "Expand Speaker's Defense", exact: true })
+    .click();
+  await expect(explore.getByText("Any of", { exact: true })).toBeVisible();
+  await expect(training).toBeVisible();
   await page.goBack();
   await expect(training).toBeVisible();
-  await training.click();
+  await explore
+    .getByRole("button", { name: "Expand Speaker in Training", exact: true })
+    .click();
+  await explore
+    .getByRole("link", {
+      name: "Explore progression for Speaker in Training",
+      exact: true,
+    })
+    .click();
   await expect(defense).toBeVisible();
   await expect(
     explore.getByText("Alternative prerequisite", { exact: true }).first(),
@@ -106,9 +157,30 @@ test("explores Aiuvarin’s elf feat access on a narrow touch viewport", async (
     const feat = explore.getByRole("link", { name: "Elven Lore", exact: true });
     await expect(feat).toHaveAttribute("href", recordHref(ELVEN_LORE));
     await feat.scrollIntoViewIfNeeded();
-    const before = await page.evaluate(() => Math.round(window.scrollY));
-    expect(before).toBeGreaterThan(0);
+    const originUrl = page.url();
+    const drawerScroll = await page.evaluate(() => Math.round(window.scrollY));
+    expect(drawerScroll).toBeGreaterThan(0);
     await feat.tap();
+    const drawer = page.getByRole("dialog", { name: "Elven Lore" });
+    await expect(drawer).toBeVisible();
+    await expect(page).toHaveURL(originUrl);
+    await drawer.getByRole("button", { name: "Close reference preview" }).tap();
+    await expect(drawer).toBeHidden();
+    await expect(feat).toBeFocused();
+    await expect
+      .poll(() =>
+        page.evaluate((scroll) => Math.abs(window.scrollY - scroll), drawerScroll),
+      )
+      .toBeLessThanOrEqual(2);
+
+    await explore.getByRole("button", { name: "Expand Elven Lore", exact: true }).tap();
+    const refocus = explore.getByRole("link", {
+      name: "Explore progression for Elven Lore",
+      exact: true,
+    });
+    await refocus.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => Math.round(window.scrollY));
+    await refocus.tap();
     await expect(
       explore.getByRole("heading", { name: "Available through", exact: true }),
     ).toBeVisible();
@@ -117,6 +189,7 @@ test("explores Aiuvarin’s elf feat access on a narrow touch viewport", async (
 
     await page.goBack();
     await expect(feat).toBeVisible();
+    await expect(refocus).toBeVisible();
     await expect
       .poll(async () =>
         Math.abs((await page.evaluate(() => Math.round(window.scrollY))) - before),

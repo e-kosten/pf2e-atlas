@@ -1,10 +1,10 @@
 import { Button } from "antd";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Compass } from "lucide-react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import { AtlasApiError, getProgression } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
 import { recordDestination } from "../../app/destinations";
+import { isPrimaryActivation } from "../../app/navigation";
 import type {
   ProgressionPageView,
   ProgressionRequest,
@@ -19,6 +19,7 @@ import {
 } from "../queries/referenceQueries";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { PaneIconButton } from "../ui/actions/PaneAction";
+import type { RecordReferenceHandler } from "./PreparedContent";
 import { useRecordReadingVisit } from "./recordExploreLocation";
 
 interface ProgressionContext {
@@ -27,6 +28,7 @@ interface ProgressionContext {
   path: readonly string[];
   expandedBranches: readonly string[];
   setBranchExpanded: (key: string, open: boolean) => void;
+  onReference: RecordReferenceHandler;
   onReload?: () => void;
   reloadLabel?: string;
 }
@@ -37,10 +39,12 @@ const NO_EXPANDED_BRANCHES: readonly string[] = [];
 
 export function RecordProgression({
   detail,
+  onReference,
   onReload,
   reloadLabel,
 }: {
   detail: RecordDetailView;
+  onReference: RecordReferenceHandler;
   onReload?: () => void;
   reloadLabel?: string;
 }) {
@@ -77,6 +81,7 @@ export function RecordProgression({
       path={[]}
       expandedBranches={expandedBranches}
       setBranchExpanded={setBranchExpanded}
+      onReference={onReference}
       onReload={onReload}
       reloadLabel={reloadLabel}
     />
@@ -123,6 +128,8 @@ function ProgressionOverview({
   const shownRequirements = generationChanged
     ? undefined
     : (requirements ?? data?.prerequisites);
+  const additionalRequirements = alsoRequires(shownRequirements, witnesses);
+  const visibleRequirements = additionalRequirements ?? shownRequirements;
   const requiredBy = data?.required_by;
   const access = data?.available_through;
   const pools = data?.ancestry_feat_pools ?? [];
@@ -135,13 +142,19 @@ function ProgressionOverview({
 
   return (
     <div className="record-progression">
-      {shownRequirements && shownRequirements.length > 0 && (
-        <section>
-          <Heading>Prerequisites</Heading>
+      {visibleRequirements && visibleRequirements.length > 0 && (
+        <section
+          className={
+            additionalRequirements ? "record-progression__additional" : undefined
+          }
+        >
+          <Heading>
+            {additionalRequirements ? "Also requires" : "Prerequisites"}
+          </Heading>
           <RequirementList
-            entries={shownRequirements}
+            entries={visibleRequirements}
             context={branch}
-            witnesses={witnesses}
+            witnesses={additionalRequirements ? undefined : witnesses}
           />
         </section>
       )}
@@ -155,7 +168,7 @@ function ProgressionOverview({
       )}
       {requiredBy && requiredBy.entries.length > 0 && (
         <section>
-          <Heading>Required by</Heading>
+          <Heading>{ancestors.length ? "Leads to" : "Required by"}</Heading>
           <ProgressionResults
             selection={selection}
             context={branch}
@@ -352,6 +365,28 @@ interface RequirementNode {
   children: RequirementNode[];
 }
 
+function alsoRequires(
+  entries: ProgressionRequirementView[] | undefined,
+  witnesses: ProgressionWitness[] | undefined,
+) {
+  const match = witnesses?.[0];
+  if (!entries || witnesses?.length !== 1 || !match || match.alternative) return;
+  const [group, ...leaves] = entries;
+  if (
+    group?.kind !== "all_of" ||
+    group.depth !== 0 ||
+    leaves.some(
+      ({ depth, kind }) => depth !== 1 || kind === "all_of" || kind === "any_of",
+    ) ||
+    !leaves.some(({ path, kind }) => path === match.path && kind === "record")
+  ) {
+    return;
+  }
+  return leaves
+    .filter(({ path }) => path !== match.path)
+    .map((leaf) => ({ ...leaf, depth: 0 }));
+}
+
 function RequirementList({
   entries,
   context,
@@ -404,11 +439,11 @@ function RequirementNodes({
               <span>{item.label}</span>
             )}
             {witness && (
-              <p className="record-progression__witness" data-progression-witness>
+              <span className="record-progression__witness">
                 {witness.alternative
                   ? "Alternative prerequisite"
                   : "Matching prerequisite"}
-              </p>
+              </span>
             )}
             {children.length > 0 && (
               <RequirementNodes
@@ -444,36 +479,59 @@ function ProgressionReference({
   const cycle = context.ancestors.includes(navigation.record_key);
   const alternatives =
     witnesses?.length && witnesses.every((entry) => entry.alternative);
+  const address = { recordKey: navigation.record_key, selection: navigation };
   const destination = recordDestination({
-    recordKey: navigation.record_key,
-    selection: navigation,
+    ...address,
     view: "explore",
     tab: "progression",
   });
-  const row: ReactNode = (
-    <div className="record-progression__relation">
-      <AtlasLink {...destination}>{label}</AtlasLink>
-      {level != null && (
-        <span className="record-progression__level">Level {level}</span>
-      )}
-      {!cycle && (
-        <PaneIconButton
-          className="record-progression__toggle"
-          label={expanded ? "Collapse " + label : "Expand " + label}
-          aria-expanded={expanded}
-          onClick={() => context.setBranchExpanded(key, !expanded)}
-          icon={expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        />
-      )}
-    </div>
-  );
+  const exploreLabel = "Explore progression for " + label;
 
   return (
     <div className="record-progression__branch">
-      {row}
-      {Boolean(alternatives) && !expanded && (
-        <p className="record-progression__witness">Alternative prerequisite</p>
-      )}
+      <div className="record-progression__relation">
+        <div className="record-progression__identity">
+          <AtlasLink
+            {...recordDestination(address)}
+            onClick={(event) => {
+              if (!isPrimaryActivation(event)) return;
+              event.preventDefault();
+              context.onReference(
+                navigation.record_key,
+                event.currentTarget,
+                navigation,
+              );
+            }}
+          >
+            {label}
+          </AtlasLink>
+          {Boolean(alternatives) && !expanded && (
+            <span className="record-progression__witness">
+              Alternative prerequisite
+            </span>
+          )}
+        </div>
+        {level != null && (
+          <span className="record-progression__level">Level {level}</span>
+        )}
+        {!cycle ? (
+          <PaneIconButton
+            label={expanded ? "Collapse " + label : "Expand " + label}
+            aria-expanded={expanded}
+            onClick={() => context.setBranchExpanded(key, !expanded)}
+            icon={expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          />
+        ) : context.ancestors[0] !== navigation.record_key ? (
+          <AtlasLink
+            {...destination}
+            className="record-progression__cycle-link"
+            aria-label={exploreLabel}
+            title="Explore progression"
+          >
+            <Compass size={16} aria-hidden="true" />
+          </AtlasLink>
+        ) : null}
+      </div>
       {expanded && (
         <div className="record-progression__branches">
           <ProgressionOverview
@@ -482,6 +540,14 @@ function ProgressionReference({
             requirements={requirements}
             witnesses={witnesses}
           />
+          <AtlasLink
+            {...destination}
+            className="record-progression__explore-link"
+            aria-label={exploreLabel}
+          >
+            <Compass size={14} aria-hidden="true" />
+            Explore progression
+          </AtlasLink>
         </div>
       )}
     </div>
