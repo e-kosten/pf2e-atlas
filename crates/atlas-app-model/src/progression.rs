@@ -82,6 +82,8 @@ pub struct ProgressionEntryView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub level: Option<u8>,
+    /// Whether the record has dependents or ancestry feat access to browse.
+    pub has_related_progression: bool,
     pub requirements: Vec<ProgressionRequirementView>,
     pub witnesses: Vec<ProgressionWitnessView>,
 }

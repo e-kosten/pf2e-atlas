@@ -54,10 +54,16 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
       name: "Explore progression for Doctor's Visitation",
     }),
   ).toBeVisible();
+  await expect(
+    doctorsVisitation.getByRole("button", { name: "Expand Doctor's Visitation" }),
+  ).toHaveCount(0);
   await doctorsVisitation
-    .getByRole("button", { name: "Expand Doctor's Visitation" })
+    .getByRole("link", { name: "Doctor's Visitation", exact: true })
     .click();
-  await expect(explore.getByText("No further progression.")).toBeVisible();
+  const doctorDrawer = page.getByRole("dialog", { name: "Doctor's Visitation" });
+  await expect(doctorDrawer).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(doctorDrawer).toBeHidden();
   await expect(explore.getByText("Matching prerequisite", { exact: true })).toHaveCount(
     0,
   );
@@ -70,12 +76,15 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
       has: page.getByRole("button", { name: "Collapse Treat Condition", exact: true }),
     })
     .last();
-  await treatCondition
-    .getByRole("button", { name: "Expand Preventative Treatment", exact: true })
-    .click();
   await expect(
-    explore.getByText("No further progression.", { exact: true }),
-  ).toHaveCount(2);
+    treatCondition.getByRole("link", { name: "Preventative Treatment", exact: true }),
+  ).toBeVisible();
+  await expect(
+    treatCondition.getByRole("button", {
+      name: "Expand Preventative Treatment",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await expect(
     explore.getByRole("link", { name: "Medic Dedication", exact: true }),
   ).toHaveCount(1);
@@ -84,6 +93,21 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
     .click();
   await expect(
     explore.getByText("Trained in Diplomacy", { exact: true }),
+  ).toBeVisible();
+  await explore
+    .getByRole("button", { name: "Expand Preventative Treatment", exact: true })
+    .click();
+  const directPreventative = explore
+    .getByRole("listitem")
+    .filter({
+      has: page.getByRole("button", {
+        name: "Collapse Preventative Treatment",
+        exact: true,
+      }),
+    })
+    .last();
+  await expect(
+    directPreventative.getByRole("link", { name: "Treat Condition", exact: true }),
   ).toBeVisible();
 
   const currentUrl = page.url();
@@ -153,11 +177,15 @@ test("keeps a deep branch aligned with the full progression width", async ({
     "Mage's Field Dressing",
     "War Mage Dedication",
     "Arcana of Iron",
-    "Secrets of Steel",
   ]) {
     await explore.getByRole("button", { name: "Expand " + name, exact: true }).click();
   }
-  await expect(explore.getByText("No further progression.")).toBeVisible();
+  await expect(
+    explore.getByRole("link", { name: "Secrets of Steel", exact: true }),
+  ).toBeVisible();
+  await expect(
+    explore.getByRole("button", { name: "Expand Secrets of Steel", exact: true }),
+  ).toHaveCount(0);
   const row = (name: string) =>
     explore.locator(".record-progression__relation").filter({
       has: page.getByRole("link", { name, exact: true }),

@@ -28,12 +28,16 @@ const ANCESTRY_FEAT_MATCH: &str = "r.source_type='feat' AND EXISTS(
     WHERE ability.root_record_id=r.record_id AND ability.category='ancestry'
 )";
 const CURRENT_SYSTEM_PACK: &str = "NOT EXISTS(
-    SELECT 1 FROM json_each(?4) scope WHERE scope.key=r.pack_id AND scope.value IS NOT 'pf2e'
+    SELECT 1 FROM json_each(?2) scope WHERE scope.key=r.pack_id AND scope.value IS NOT 'pf2e'
 )";
 const HERITAGE_ACCESS_MATCH: &str = "EXISTS(
     SELECT 1 FROM json_each(pool.ancestry_access_json) access
     JOIN trait_members tm ON tm.value=json_extract(access.value,'$.trait_key')
     WHERE tm.record_key=r.key AND tm.owners_json='[]' AND tm.lookup_member=1
+)";
+const HAS_PREREQUISITE_DEPENDENTS: &str = "EXISTS(
+    SELECT 1 FROM relationship_occurrences o
+    WHERE o.target_record_id=r.record_id AND o.kind='Prerequisite'
 )";
 
 fn indexed_key(raw: String) -> Result<RecordKey, IndexError> {
@@ -84,8 +88,7 @@ impl SqliteIndexReader {
                 "SELECT EXISTS(
                 SELECT 1 FROM records r WHERE r.key=?1 AND (
                     EXISTS(SELECT 1 FROM record_progression p WHERE p.record_id=r.record_id)
-                    OR EXISTS(SELECT 1 FROM relationship_occurrences o
-                        WHERE o.target_record_id=r.record_id AND o.kind='Prerequisite')
+                    OR {HAS_PREREQUISITE_DEPENDENTS}
                     OR (({ANCESTRY_FEAT_MATCH}) AND EXISTS(
                         SELECT 1 FROM record_progression pool
                         WHERE pool.ancestry_access_json IS NOT NULL AND {HERITAGE_ACCESS_MATCH}
@@ -96,6 +99,35 @@ impl SqliteIndexReader {
             [key.to_string()],
             |row| row.get(0),
         )?)
+    }
+
+    pub fn related_progression_keys(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<BTreeSet<RecordKey>, IndexError> {
+        let keys = serde_json::to_string(keys)?;
+        let packs = self
+            .context()
+            .reference_preparation
+            .as_ref()
+            .filter(|p| p.source_package.as_deref() == Some("pf2e"))
+            .map(|p| serde_json::to_string(&p.pack_systems))
+            .transpose()?;
+        self.count_statement();
+        let mut statement = self.native()?.prepare_cached(&format!(
+            "SELECT r.key FROM records r
+             WHERE r.key IN (SELECT value FROM json_each(?1)) AND (
+                {HAS_PREREQUISITE_DEPENDENTS}
+                OR EXISTS(SELECT 1 FROM record_progression own
+                    WHERE own.record_id=r.record_id AND own.ancestry_access_json IS NOT NULL)
+                OR (?2 IS NOT NULL AND {CURRENT_SYSTEM_PACK} AND {ANCESTRY_FEAT_MATCH} AND EXISTS(
+                    SELECT 1 FROM record_progression pool
+                    WHERE pool.ancestry_access_json IS NOT NULL AND {HERITAGE_ACCESS_MATCH}
+                ))
+             )",
+        ))?;
+        let rows = statement.query_map(params![keys, packs], |row| row.get(0))?;
+        rows.map(|row| indexed_key(row?)).collect()
     }
 
     pub fn read_prerequisite_dependents(
@@ -141,7 +173,7 @@ impl SqliteIndexReader {
             &format!("SELECT r.key
                 FROM trait_members tm JOIN records r ON r.key=tm.record_key
                 WHERE tm.value=?1 AND tm.owners_json='[]' AND tm.lookup_member=1 AND {ANCESTRY_FEAT_MATCH} AND {CURRENT_SYSTEM_PACK}
-                ORDER BY r.level IS NULL, r.level, r.name_lookup_key, r.key LIMIT ?2 OFFSET ?3"),
+                ORDER BY r.level IS NULL, r.level, r.name_lookup_key, r.key LIMIT ?3 OFFSET ?4"),
             trait_key, offset, limit,
         )
     }
@@ -158,7 +190,7 @@ impl SqliteIndexReader {
                 JOIN records heritage ON heritage.record_id=pool.record_id
                 JOIN records r ON r.key=?1
                 WHERE pool.ancestry_access_json IS NOT NULL AND {ANCESTRY_FEAT_MATCH} AND {HERITAGE_ACCESS_MATCH} AND {CURRENT_SYSTEM_PACK}
-                ORDER BY heritage.name_lookup_key, heritage.key LIMIT ?2 OFFSET ?3"
+                ORDER BY heritage.name_lookup_key, heritage.key LIMIT ?3 OFFSET ?4"
             ),
             &key.to_string(),
             offset,
@@ -186,7 +218,7 @@ impl SqliteIndexReader {
         self.count_statement();
         let mut statement = self.native()?.prepare_cached(sql)?;
         let rows =
-            statement.query_map(params![input, requested, offset, packs], |row| row.get(0))?;
+            statement.query_map(params![input, packs, requested, offset], |row| row.get(0))?;
         let entries = rows
             .map(|row| indexed_key(row?))
             .collect::<Result<Vec<_>, _>>()?;

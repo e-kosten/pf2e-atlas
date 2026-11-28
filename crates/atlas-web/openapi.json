@@ -14229,6 +14229,10 @@
       },
       "ProgressionEntryView": {
         "properties": {
+          "has_related_progression": {
+            "description": "Whether the record has dependents or ancestry feat access to browse.",
+            "type": "boolean"
+          },
           "level": {
             "format": "int32",
             "minimum": 0,
@@ -14256,6 +14260,7 @@
         "required": [
           "navigation",
           "title",
+          "has_related_progression",
           "requirements",
           "witnesses"
         ],

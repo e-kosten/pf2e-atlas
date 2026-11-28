@@ -5296,6 +5296,8 @@ export interface ProgressionWitnessView {
 }
 
 export interface ProgressionEntryView {
+  /** Whether the record has dependents or ancestry feat access to browse. */
+  has_related_progression: boolean;
   /** @minimum 0 */
   level?: number;
   navigation: RecordNavigationView;

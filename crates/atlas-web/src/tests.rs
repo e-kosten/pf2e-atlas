@@ -2722,8 +2722,14 @@ async fn progression_transport_projects_both_directions_and_alternative_witness(
         json!([{"value":"Battle Medicine or Steady Hands"},{"value":"trained in Medicine"}]),
         2,
     );
+    let mut follow_up = make_feat(
+        "prerequisite0004",
+        "Aftercare",
+        json!([{"value":"Emergency Medic"}]),
+        4,
+    );
     let mut index = ProgressionIndex::default();
-    for entry in [&seed, &alternative, &dependent] {
+    for entry in [&seed, &alternative, &dependent, &follow_up] {
         index.insert(&entry.record, &entry.source_path);
     }
     dependent.progression = prepare(
@@ -2732,12 +2738,18 @@ async fn progression_transport_projects_both_directions_and_alternative_witness(
         &index,
         &dependent.content,
     );
+    follow_up.progression = prepare(
+        &follow_up.record,
+        &follow_up.source_path,
+        &index,
+        &follow_up.content,
+    );
     let fixture = Fixture::with_reference_data(
         false,
         None,
         Some(true),
         16,
-        vec![seed, alternative, dependent],
+        vec![seed, alternative, dependent, follow_up],
     );
 
     let (status, detail) = fixture
@@ -2763,6 +2775,9 @@ async fn progression_transport_projects_both_directions_and_alternative_witness(
     assert_eq!(status, StatusCode::OK, "{forward}");
     assert_eq!(forward["prerequisites"][1]["kind"], "any_of");
     assert_eq!(forward["prerequisites"][4]["label"], "Trained in Medicine");
+    let follow_up = &forward["required_by"]["entries"][0];
+    assert_eq!(follow_up["title"], "Aftercare");
+    assert_eq!(follow_up["has_related_progression"], false);
 
     let mut selected = detail["selected"].clone();
     selected["record_key"] = json!("feats:prerequisite0001");
@@ -2777,6 +2792,7 @@ async fn progression_transport_projects_both_directions_and_alternative_witness(
     let dependent = &reverse["required_by"]["entries"][0];
     assert_eq!(dependent["title"], "Emergency Medic");
     assert_eq!(dependent["level"], 2);
+    assert_eq!(dependent["has_related_progression"], true);
     assert_eq!(dependent["witnesses"][0]["alternative"], true);
     assert_eq!(
         dependent["witnesses"][0]["path"],

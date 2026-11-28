@@ -2,6 +2,7 @@ use crate::{AtlasRetrievalService, SearchError};
 use atlas_domain::RecordKey;
 use atlas_index::{PrerequisiteDependent, ProgressionPage};
 use atlas_record::progression::ProgressionRecord;
+use std::collections::BTreeSet;
 
 impl AtlasRetrievalService {
     pub fn read_progression(
@@ -13,6 +14,13 @@ impl AtlasRetrievalService {
 
     pub fn has_progression(&self, key: &RecordKey) -> Result<bool, SearchError> {
         Ok(self.index.has_progression(key)?)
+    }
+
+    pub fn related_progression_keys(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<BTreeSet<RecordKey>, SearchError> {
+        Ok(self.index.related_progression_keys(keys)?)
     }
 
     pub fn read_prerequisite_dependents(

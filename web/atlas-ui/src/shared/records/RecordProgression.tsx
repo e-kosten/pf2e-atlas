@@ -230,11 +230,9 @@ function ProgressionOverview({
           />
         </section>
       )}
-      {data && !hasConnections && (
+      {data && !hasConnections && !ancestors.length && (
         <p className="record-progression__empty">
-          {additionalRequirements
-            ? "No further progression."
-            : "No linked progression is available for this record."}
+          No linked progression is available for this record.
         </p>
       )}
     </div>
@@ -360,6 +358,7 @@ function ProgressionResults({
                 requirements={entry.requirements}
                 witnesses={entry.witnesses}
                 level={entry.level}
+                hasRelatedProgression={entry.has_related_progression}
               />
             </li>
           ))}
@@ -519,6 +518,7 @@ function ProgressionReference({
   requirements,
   witnesses,
   level,
+  hasRelatedProgression = true,
 }: {
   context: ProgressionContext;
   label: string;
@@ -526,11 +526,21 @@ function ProgressionReference({
   requirements?: ProgressionRequirementView[];
   witnesses?: ProgressionWitness[];
   level?: number | null;
+  hasRelatedProgression?: boolean;
 }) {
   const router = useAtlasRouter();
   const key = JSON.stringify(context.path);
-  const expanded = context.expandedBranches.includes(key);
-  const cycle = context.ancestors.includes(navigation.record_key);
+  const visibleRequirements = hasRelatedProgression
+    ? undefined
+    : (alsoRequires(
+        flatPrerequisites(requirements),
+        witnesses,
+        context.shownPrerequisiteKeys,
+      ) ?? requirements);
+  const canExpand =
+    !context.ancestors.includes(navigation.record_key) &&
+    (hasRelatedProgression || Boolean(visibleRequirements?.length));
+  const expanded = canExpand && context.expandedBranches.includes(key);
   const alternatives =
     witnesses?.length && witnesses.every((entry) => entry.alternative);
   const address = { recordKey: navigation.record_key, selection: navigation };
@@ -583,7 +593,7 @@ function ProgressionReference({
         {level != null && (
           <span className="record-progression__level">Level {level}</span>
         )}
-        {!cycle && (
+        {canExpand && (
           <PaneIconButton
             label={expanded ? "Collapse " + label : "Expand " + label}
             aria-expanded={expanded}

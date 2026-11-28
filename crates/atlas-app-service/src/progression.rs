@@ -231,6 +231,7 @@ fn project_page(
         .into_iter()
         .map(|summary| (summary.key.clone(), summary))
         .collect::<BTreeMap<_, _>>();
+    let related = retrieval.related_progression_keys(&keys)?;
     let next_offset = has_more.then_some(offset + members.len());
     let mut entries = Vec::with_capacity(members.len());
     for (key, evidence) in members {
@@ -256,6 +257,7 @@ fn project_page(
                 .as_value()
                 .and_then(serde_json::Number::as_u64)
                 .and_then(|level| u8::try_from(level).ok()),
+            has_related_progression: related.contains(&key),
             requirements,
             witnesses: witnesses
                 .into_iter()

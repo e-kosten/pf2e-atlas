@@ -954,6 +954,12 @@
   gap: var(--space-control);
   padding-block: var(--space-micro);
 }
+.record-progression__relation:has(> .record-progression__level):not(
+    :has(> .pane-toggle)
+  )::after {
+  content: "";
+  flex: 0 0 var(--control-height);
+}
 .record-progression__identity {
   display: inline-flex;
   flex: 1 1 auto;
