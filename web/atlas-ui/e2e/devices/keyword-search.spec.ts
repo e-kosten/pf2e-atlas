@@ -168,6 +168,7 @@ test("retains readable rows for paging and clears them for a committed filter ch
   const next = page.getByRole("button", { name: "Next page" });
   const card = results.locator("[data-record-key]").first();
   await expect(currentPage).toHaveValue("1");
+  await expect(card.locator("..")).toHaveCSS("opacity", "1");
   const firstKey = await card.getAttribute("data-record-key");
   const request = await holdResponse(
     page,
@@ -184,13 +185,14 @@ test("retains readable rows for paging and clears them for a committed filter ch
       page.locator(".search-results-toolbar").getByText("Loading page 2…"),
     ).toBeVisible();
     await expect(card).toHaveAttribute("data-record-key", firstKey!);
-    await expect(card.locator("..")).toHaveCSS("opacity", "1");
+    await expect(card.locator("..")).toHaveCSS("opacity", "0.9");
     if (info.project.use.hasTouch !== true) await expect(next).toBeFocused();
   } finally {
     request.release();
   }
   await expect(currentPage).toHaveValue("2");
   await expect(card).not.toHaveAttribute("data-record-key", firstKey!);
+  await expect(card.locator("..")).toHaveCSS("opacity", "1");
   await expect(
     page.locator(".search-results-toolbar").getByText("Loading page 2…"),
   ).toBeHidden();
@@ -264,6 +266,7 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
     await results.arrived;
     await expect(loadingMore).toBeVisible();
     await expect(card).toBeVisible();
+    await expect(card.locator("..")).toHaveCSS("opacity", "1");
     expect(new URL(page.url()).searchParams.get("q")).toBe("Atlas Sentinel");
     await expect(query).toHaveValue("new draft during readiness");
     await query.fill("new draft during results");

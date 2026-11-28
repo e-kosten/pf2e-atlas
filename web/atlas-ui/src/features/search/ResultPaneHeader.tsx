@@ -42,7 +42,11 @@ export function ResultPaneHeader({
         {searchResultsCaption(workspace)}
       </span>
       {pendingLabel && (
-        <span className="search-results-toolbar__status" aria-hidden="true">
+        <span
+          className="search-results-toolbar__status"
+          data-retained-page={pagerPending || undefined}
+          aria-hidden="true"
+        >
           {pendingLabel}
         </span>
       )}

@@ -1153,12 +1153,13 @@ and Shuffle on one row. Commit seed drafts on
 Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
 stable through paging, reload and Back. Incoming malformed combinations are errors.
 Response identity checks compare complete sort values structurally. Main Search
-keeps the last displayed page at normal contrast during compatible paging,
-page-size and sort changes. The pager describes the displayed page and the
-status names the requested update. Commit criteria changes immediately in the
-results pane, including during debounce. Clear incompatible ranked content and
-show any verified exact matches as they arrive. A same-page refresh or match
-explanation request keeps current rows and confirmed empty states readable.
+keeps the last displayed page visible during compatible paging, page-size and
+sort changes. Dim those rows slightly when the delayed status names the
+requested update. The pager describes the displayed page. Commit criteria
+changes immediately in the results pane, including during debounce. Clear
+incompatible ranked content and show verified exact matches as they arrive at
+normal contrast. Keep current rows at normal contrast and preserve confirmed
+empty states during a same-page refresh or match explanation request.
 Search announces progress outside the busy results region and delays feedback
 for fast requests. Bounded pickers and Trait consumers retain their own loading
 presentation within the same seed, criteria, scope, profile and generation.
