@@ -8,7 +8,7 @@ use atlas_record::source_record::{SourceBackedRecord, SourceContentOutcome, Sour
 use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const PROGRESSION_RECIPE: &str = "record-progression/v2";
+pub const PROGRESSION_RECIPE: &str = "record-progression/v3";
 pub(crate) const PREREQUISITE_KIND: &str = "Prerequisite";
 pub(crate) const ORDINARY_RELATIONSHIP: &str = "o.kind<>'Prerequisite'";
 

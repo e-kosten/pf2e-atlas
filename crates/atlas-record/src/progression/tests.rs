@@ -30,6 +30,20 @@ fn progression(
     index: &ProgressionIndex,
     resolver: &SourceReferenceIndex,
 ) -> Option<ProgressionRecord> {
+    progression_at(
+        record,
+        "packs/pf2e/feats/archetype/medic/example.json",
+        index,
+        resolver,
+    )
+}
+
+fn progression_at(
+    record: &SourceBackedRecord,
+    path: &str,
+    index: &ProgressionIndex,
+    resolver: &SourceReferenceIndex,
+) -> Option<ProgressionRecord> {
     let content = prepare_record_content(
         record,
         ContentAudience {
@@ -40,12 +54,129 @@ fn progression(
         None,
         Some(resolver),
     );
-    prepare(
-        record,
-        "packs/pf2e/feats/archetype/medic/example.json",
-        index,
-        &content,
+    prepare(record, path, index, &content)
+}
+
+#[test]
+fn shared_archetype_alternatives_resolve_the_written_dedication_qualifier() {
+    let dedication = |id, title| {
+        record(
+            "feats-srd",
+            json!({"_id":id,"type":"feat","name":title,
+                "system":{"category":"class","traits":{"value":["archetype","dedication"]}}
+            }),
+        )
+    };
+    let acrobat = dedication("AcrobatDedic0001", "Acrobat Dedication");
+    let gladiator = dedication("GladiatDedic0001", "Gladiator Dedication");
+    let sentinel = dedication("SentinelDedi0001", "Sentinel Dedication");
+    let background = record(
+        "backgrounds",
+        json!({"_id":"AcrobatBackg0001","type":"background","name":"Acrobat","system":{}}),
+    );
+    let guardian = record(
+        "classes",
+        json!({"_id":"GuardianClas0001","type":"class","name":"Guardian","system":{}}),
+    );
+    let guardian_dedication = dedication("GuardianDedi0001", "Guardian Dedication");
+    let mut index = ProgressionIndex::default();
+    for candidate in [
+        &acrobat,
+        &gladiator,
+        &sentinel,
+        &background,
+        &guardian,
+        &guardian_dedication,
+    ] {
+        index.insert(candidate, "fixture.json");
+    }
+    let resolver = SourceReferenceIndex::default();
+    let raw = "Acrobat or Gladiator Dedication";
+    let fight = feat(
+        "feats-srd",
+        "Choreography0001",
+        "Fight Choreography",
+        &[raw],
+    );
+    let path = "packs/pf2e/feats/archetype/shared-archetype-feats/fight-choreography.json";
+    let result = progression_at(&fight, path, &index, &resolver).unwrap();
+    assert_eq!(
+        result
+            .record_targets()
+            .iter()
+            .map(|target| target.target_key)
+            .collect::<Vec<_>>(),
+        [acrobat.key(), gladiator.key()]
+    );
+    let PrerequisiteExpression::AnyOf { children } = &result.requirements[0].expression else {
+        panic!("expected alternative dedications");
+    };
+    let PrerequisiteExpression::Record {
+        text_range: Some(range),
+        ..
+    } = children[0]
+    else {
+        panic!("expected exact shorthand span");
+    };
+    assert_eq!(&raw[range.start..range.end], "Acrobat");
+
+    let class_feat = feat(
+        "feats-srd",
+        "MightyBulwrk0001",
+        "Mighty Bulwark",
+        &["Guardian or Sentinel Dedication"],
+    );
+    let result = progression_at(
+        &class_feat,
+        "packs/pf2e/feats/class/guardian/mighty-bulwark.json",
+        &index,
+        &resolver,
     )
+    .unwrap();
+    assert_eq!(result.record_targets()[0].target_key, guardian.key());
+
+    index.exclude_name("Acrobat Dedication");
+    let result = progression_at(&fight, path, &index, &resolver).unwrap();
+    assert_eq!(
+        result.requirements[0].expression,
+        PrerequisiteExpression::Unresolved {
+            text: raw.to_owned()
+        }
+    );
+}
+
+#[test]
+fn bare_capabilities_and_ancestry_variants_do_not_bind_to_one_record() {
+    let names = [
+        "Animal Companion",
+        "Familiar",
+        "Scurry!",
+        "Scurry! (Gremlin)",
+    ];
+    let mut index = ProgressionIndex::default();
+    for (i, name) in names.into_iter().enumerate() {
+        index.insert(
+            &feat("feats-srd", &format!("Alternative{i:05}"), name, &[]),
+            "fixture.json",
+        );
+    }
+    let source = feat(
+        "feats-srd",
+        "OtherFeat0000001",
+        "Example",
+        &[
+            "Animal Companion or Familiar",
+            "Animal Companion feat",
+            "Scurry!",
+            "Scurry! (Gremlin)",
+        ],
+    );
+    let result = progression(&source, &index, &SourceReferenceIndex::default()).unwrap();
+    assert_eq!(result.record_targets().len(), 1);
+    assert_eq!(
+        result.record_targets()[0].target_key.to_string(),
+        "feats-srd:Alternative00003"
+    );
 }
 
 #[test]

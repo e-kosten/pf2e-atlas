@@ -85,6 +85,18 @@ impl ClauseParser<'_> {
         if let Some(children) = shared_rank(operator, &parts).or_else(|| shared_attribute(&parts)) {
             return operator.group(children);
         }
+        if operator == Operator::Or
+            && self.owner_archetype == Some("shared-archetype-feats")
+            && parts.last().is_some_and(|part| dedication_title(part.text))
+            && parts.iter().any(|part| !dedication_title(part.text))
+        {
+            return parts
+                .iter()
+                .map(|part| self.shared_dedication(*part))
+                .collect::<Option<Vec<_>>>()
+                .map(|children| operator.group(children))
+                .unwrap_or_else(|| self.unresolved());
+        }
         let children: Vec<_> = parts
             .iter()
             .map(|part| self.atom(*part).unwrap_or_else(|| part.unresolved()))
@@ -178,6 +190,10 @@ impl ClauseParser<'_> {
     }
 
     fn named_reference(&self, fragment: Fragment<'_>) -> Option<Expression> {
+        let normalized = normalize_title(fragment.text);
+        if ambiguous_record_title(&normalized) {
+            return None;
+        }
         if let Some(candidate) = self
             .index
             .resolve(fragment.text, Qualification::Unqualified)
@@ -198,7 +214,6 @@ impl ClauseParser<'_> {
             });
         }
 
-        let normalized = normalize_title(fragment.text);
         for (suffix, qualification) in [
             (" class feature", Qualification::ClassFeature),
             (" heritage", Qualification::Family("heritage")),
@@ -207,6 +222,9 @@ impl ClauseParser<'_> {
             let Some(title) = normalized.strip_suffix(suffix) else {
                 continue;
             };
+            if ambiguous_record_title(title) {
+                return None;
+            }
             let candidate = self.index.resolve(title, qualification)?;
             if &candidate.key == self.owner {
                 return None;
@@ -220,6 +238,36 @@ impl ClauseParser<'_> {
         }
         None
     }
+
+    fn shared_dedication(&self, fragment: Fragment<'_>) -> Option<Expression> {
+        let title = normalize_title(fragment.text);
+        let written = title.ends_with(" dedication");
+        let title = if written {
+            title
+        } else {
+            title + " dedication"
+        };
+        let candidate = self.index.resolve(&title, Qualification::Family("feat"))?;
+        (candidate.dedication && &candidate.key != self.owner).then(|| Expression::Record {
+            record_key: candidate.key.clone(),
+            label: fragment.text.to_owned(),
+            evidence: if written {
+                PrerequisiteEvidence::ExactTitle
+            } else {
+                PrerequisiteEvidence::QualifiedTitle
+            },
+            text_range: Some(fragment.range()),
+        })
+    }
+}
+
+fn dedication_title(text: &str) -> bool {
+    normalize_title(text).ends_with(" dedication")
+}
+
+fn ambiguous_record_title(normalized: &str) -> bool {
+    // A family suffix still leaves these capability or variant references ambiguous.
+    matches!(normalized, "animal companion" | "familiar" | "scurry!")
 }
 
 fn looks_like_reference(text: &str) -> bool {
