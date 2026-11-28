@@ -67,7 +67,7 @@ export function FilterValueInput({
         selectedChoices.includes(String(choice.value)) ||
         choice.label.toLowerCase().includes(choiceSearch.trim().toLowerCase()),
     );
-  const counts = useFilterOptionCounts(
+  const { counts } = useFilterOptionCounts(
     countContext,
     definition.id,
     clauseId,

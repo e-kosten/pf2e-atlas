@@ -1,5 +1,7 @@
 import { useDesktopTab } from "./DesktopTabContext";
 import { DesktopSettingsControls } from "./DesktopSettings";
+import { DesktopHistoryControls } from "./DesktopHistoryControls";
+import { readDesktopAttachment } from "./desktopBridge";
 import { Link, useRouter, type LinkOptions } from "@tanstack/react-router";
 import { AtlasLink } from "./AtlasLink";
 import type { AtlasSection } from "./router";
@@ -166,7 +168,10 @@ export function AppShell({
       <Typography.Link
         className="skip-link"
         href={"#" + mainId}
-        onClick={() => contentRef.current?.focus()}
+        onClick={(event) => {
+          if (readDesktopAttachment()?.historyNavigation) event.preventDefault();
+          contentRef.current?.focus();
+        }}
       >
         Skip to main content
       </Typography.Link>
@@ -191,6 +196,7 @@ export function AppShell({
           theme={resolvedColorScheme}
         />
         <div className="action-group topbar__actions">
+          <DesktopHistoryControls />
           <Popover
             trigger="click"
             open={themeOpen}

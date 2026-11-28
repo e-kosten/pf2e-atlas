@@ -159,6 +159,14 @@ state. The host validates tab snapshots against the attached product document
 and uses them for native commands and acknowledged protocol-link delivery.
 Both platforms use the same workspace service lease.
 
+Desktop workspace navigation uses the selected tab's existing history. On
+Windows the native View menu targets a verified tab activation in the React
+shell. On macOS each native WebView owns its back/forward list and gestures.
+The host bounds traversal to the attached product document and serializes it
+through Router draft decisions, including a rejected navigation's return to
+its original entry. The desktop attachment exposes the history controls in
+the workspace header.
+
 ## Browser/backend compatibility
 
 The web transport owns a compatibility check independent of workspace readiness.

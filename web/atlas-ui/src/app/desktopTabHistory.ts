@@ -3,7 +3,10 @@ import { createMemoryHistory, type RouterHistory } from "@tanstack/react-router"
 /** TanStack's memory history runs its registered blockers for pushes and
  * replacements. Browser history also runs them for traversal via popstate;
  * a Windows tab has no browser popstate event. */
-export function createDesktopTabHistory(href: string): RouterHistory {
+export function createDesktopTabHistory(
+  href: string,
+  activation: () => number | undefined = () => 0,
+): RouterHistory {
   const history = createMemoryHistory({ initialEntries: [href] });
   const locations = [history.location];
   history.subscribe(({ action, location }) => {
@@ -21,6 +24,8 @@ export function createDesktopTabHistory(href: string): RouterHistory {
     move: () => void,
     ignoreBlocker = false,
   ) {
+    const activeAtStart = activation();
+    if (activeAtStart === undefined) return;
     const currentLocation = history.location;
     const index = currentLocation.state.__TSR_index;
     const target = Math.min(Math.max(index + offset, 0), history.length - 1);
@@ -39,7 +44,8 @@ export function createDesktopTabHistory(href: string): RouterHistory {
         )
           return;
         // A pending save can navigate while the decision is outstanding.
-        if (history.location !== currentLocation) return;
+        if (history.location !== currentLocation || activation() !== activeAtStart)
+          return;
       }
       move();
     } finally {

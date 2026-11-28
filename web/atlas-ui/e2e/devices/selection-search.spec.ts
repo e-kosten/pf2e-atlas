@@ -53,7 +53,7 @@ async function expectFreshSearch(page: Page, text: string) {
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("searchbox", { name: "Search records", exact: true }),
+    page.getByRole("combobox", { name: "Search records", exact: true }),
   ).toHaveValue(text);
   await noPageOverflow(page);
 }

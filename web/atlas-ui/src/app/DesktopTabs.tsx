@@ -19,6 +19,7 @@ import {
   settingsPath,
   useDesktopAttachment,
   useSettingsRequest,
+  type HistoryDirection,
 } from "./desktopBridge";
 import { DesktopTabBar, desktopTabButtonId, desktopTabPanelId } from "./DesktopTabBar";
 import {
@@ -35,6 +36,7 @@ type Command =
   | { kind: "open"; href: string; foreground: boolean; delivery?: number }
   | { kind: "select"; id: string; href: string; delivery: number }
   | { kind: "check-exit"; id: number }
+  | { kind: "history"; direction: HistoryDirection; tab: string; activation: number }
   | { kind: "close-tab" | "close-window" };
 type Attachment = { token: string };
 type DesktopWindow = Window & {
@@ -58,8 +60,12 @@ function reportCommandFailure(error: unknown) {
 }
 
 function createTab(href: string) {
+  const id = crypto.randomUUID();
   let active = false;
-  const router = createAtlasRouter(createDesktopTabHistory(href), () => active);
+  let historyActivation: number | undefined;
+  const history = createDesktopTabHistory(href, () => historyActivation);
+  const router = createAtlasRouter(history, () => active);
+  const settings = isSettingsPath(new URL(href, window.location.href).pathname);
   const scrollByEntry = new Map<string, { x: number; y: number }>();
   const scrollKey = (location: ParsedLocation) =>
     location.state.__TSR_key ?? location.href;
@@ -76,17 +82,25 @@ function createTab(href: string) {
     if (position) window.scrollTo(position.x, position.y);
   });
   return {
-    id: crypto.randomUUID(),
-    settings: isSettingsPath(new URL(href, window.location.href).pathname),
+    id,
+    settings,
     router,
-    setVisible(visible: boolean) {
+    traverseHistory(direction: HistoryDirection) {
+      if (!settings) history[direction]();
+    },
+    setVisible(visible: boolean, activation: number) {
       active = visible;
+      historyActivation = visible ? activation : undefined;
+    },
+    cancelPendingTraversal() {
+      historyActivation = undefined;
     },
     guards: new Set<TabCloseGuard>(),
   };
 }
 
 type Tab = ReturnType<typeof createTab>;
+type TabSelection = { id: string; activation: number };
 
 function closeStatus(tab: Tab) {
   const guards = Array.from(tab.guards, (guard) => guard());
@@ -96,13 +110,17 @@ function closeStatus(tab: Tab) {
 
 export function DesktopTabs({ initialHref }: { initialHref: string }) {
   const client = useQueryClient();
+  const activeSelection = useRef<TabSelection | null>(null);
   const [first] = useState(() => createTab(initialHref));
   const [tabs, setTabs] = useState([first]);
   const showStrip = tabs.length > 1;
-  const [selection, setSelection] = useState<{ id: string; activation: number }>({
+  const [selection, setSelection] = useState<TabSelection>({
     id: first.id,
     activation: 0,
   });
+  useLayoutEffect(() => {
+    activeSelection.current ??= selection;
+  }, [selection]);
   const active = tabs.find((tab) => tab.id === selection.id)!;
   const [scheme, setScheme] = useState<ResolvedColorScheme>("light");
   const [titles, setTitles] = useState<Record<string, string>>({});
@@ -198,11 +216,15 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
 
   const select = useCallback(
     (id: string) => {
-      if (id === active.id) return;
+      const previous = activeSelection.current ?? selection;
+      if (id === previous.id) return;
       rememberPosition();
-      setSelection((previous) => ({ id, activation: previous.activation + 1 }));
+      active.cancelPendingTraversal();
+      const next = { id, activation: previous.activation + 1 };
+      activeSelection.current = next;
+      setSelection(next);
     },
-    [active.id, rememberPosition],
+    [active, rememberPosition, selection],
   );
 
   const moveTab = (id: string, target: (tabs: Tab[], index: number) => number) => {
@@ -356,6 +378,17 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
           select(command.id);
           setDelivery({ id: command.delivery, accepted: true });
           break;
+        case "history": {
+          const selected = activeSelection.current;
+          if (
+            active.id === command.tab &&
+            selected?.id === command.tab &&
+            selected.activation === command.activation
+          ) {
+            active.traverseHistory(command.direction);
+          }
+          break;
+        }
         case "check-exit": {
           const statuses = tabs.map(closeStatus);
           void invoke("desktop_tabs_exit_status", {
@@ -379,8 +412,9 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
       if (event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
         if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
           event.preventDefault();
-          if (event.key === "ArrowLeft") active.router.history.back();
-          else active.router.history.forward();
+          const direction = event.key === "ArrowLeft" ? "back" : "forward";
+          if (active.settings) active.router.history[direction]();
+          else active.traverseHistory(direction);
         }
         return;
       }
@@ -480,8 +514,8 @@ function TabPanel({
   const panel = useRef<HTMLElement>(null);
   const portal = useCallback(() => panel.current ?? document.body, []);
   useLayoutEffect(() => {
-    tab.setVisible(active);
-  }, [active, tab]);
+    tab.setVisible(active, activation);
+  }, [activation, active, tab]);
   const guard = useCallback(
     (read: TabCloseGuard) => {
       tab.guards.add(read);

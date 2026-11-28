@@ -69,6 +69,49 @@ impl Fixture {
     pub fn new() -> Self {
         Self::with_remaster(false)
     }
+    pub fn with_exact_names() -> Self {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("workspace.sqlite");
+        let mut records = vec![record(
+            "actions",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"traits":{"value":["fire"]}}}),
+        )];
+        for number in 0..6 {
+            records.push(record(
+                "actions",
+                "Item",
+                json!({"_id":format!("duplicates00000{number}"),"type":"action","name":format!("Alternate {number}")}),
+            ));
+        }
+        let alternate_keys = records[1..]
+            .iter()
+            .map(|record| record.record.key().clone())
+            .collect::<Vec<_>>();
+        let mut data = input(records, false);
+        for key in alternate_keys {
+            atlas_search::test_support::add_remaster_alias(&mut data, &key, "Test Action 1")
+                .unwrap();
+        }
+        publish_input(&path, &data).unwrap();
+        let service = AtlasAppService::start(AtlasAppServiceOptions {
+            default_search_profile: None,
+            path_mode: atlas_runtime::AtlasPathMode::Global,
+            source_root: Some(directory.path().join("unused-source")),
+            embedding_cache_root: Some(directory.path().join("unused-models")),
+            index_path: Some(path),
+            retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
+        })
+        .unwrap();
+        Self {
+            service,
+            encounter_key: String::new(),
+            participant_key: String::new(),
+            list_key: String::new(),
+            source_fingerprint: data.context.source_fingerprint,
+            _directory: directory,
+        }
+    }
     pub fn with_remaster(remaster: bool) -> Self {
         Self::with_actor_adjustment(remaster, None)
     }

@@ -581,6 +581,9 @@ fn selected_identity(
             "spell" if matches!(node, SourceNodeView::Item(i) if i.spell_ritual().value() == Some(true)) => {
                 "Ritual".into()
             }
+            "spell" if matches!(node, SourceNodeView::Item(i) if i.spell_cantrip().value() == Some(true)) => {
+                "Cantrip".into()
+            }
             "weapon" | "armor" | "shield" | "consumable" | "ammo" | "backpack" | "treasure"
             | "kit" => crate::projection::physical_kind_label(Some(family)),
             _ => crate::projection::kind_label(family),

@@ -2088,6 +2088,65 @@ async fn saved_metadata_edits_follow_keys_across_slug_reuse() {
 }
 
 #[tokio::test]
+async fn exact_search_is_model_free_filtered_and_generation_bound() {
+    let fixture = Fixture::with_exact_names();
+    let path = "/api/search/exact";
+    let (status, page) = fixture
+        .json(
+            Method::POST,
+            path,
+            Some(json!({"query":"  \"tEST  ACTION   1\" "})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert_eq!(page["total"], 7);
+    let matches = page["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 5);
+    assert_eq!(matches[0]["record"]["record_key"], ACTION);
+    assert_eq!(matches[0]["match_kind"], "normalized_name");
+    assert!(matches[1..].iter().all(|row| row["match_kind"] == "alias"));
+
+    let (status, filtered) = fixture
+        .json(Method::POST, path, Some(json!({
+            "query":"Test Action 1",
+            "filter":{"kind":"set_match","clause_id":"fire","field":"traits","op":"includes_any","values":["fire"]},
+            "expected_artifact_generation":page["artifact_generation"],
+        })))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{filtered}");
+    assert_eq!(filtered["total"], 1);
+    assert_eq!(filtered["matches"][0]["record"]["record_key"], ACTION);
+
+    let (status, missing) = fixture
+        .json(
+            Method::POST,
+            path,
+            Some(json!({"query":"test action","filter":null})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{missing}");
+    assert_eq!(missing["matches"], json!([]));
+
+    let (status, _) = fixture
+        .json(
+            Method::POST,
+            path,
+            Some(json!({
+                "query":"Test Action 1",
+                "expected_artifact_generation":"older-generation"
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    for query in [" ".into(), "\"unclosed".into(), "x".repeat(16_385)] {
+        let (status, body) = fixture
+            .json(Method::POST, path, Some(json!({"query":query})))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+}
+
+#[tokio::test]
 async fn search_page_bounds_and_lexical_defaults_match_the_request_contract() {
     let fixture = Fixture::new();
     let text = json!({"kind":"text_search", "query":"Record", "mode":"lexical"});

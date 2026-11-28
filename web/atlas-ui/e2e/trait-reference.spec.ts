@@ -188,7 +188,7 @@ test("stale trait Similar links open empty Search or trait membership", async ({
     "/search?similar=trait:agile&similarity_method=passages&search_profile=bge-base",
   );
   await expect(page).toHaveURL(/\/search$/);
-  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Search records" })).toHaveValue("");
 
   await page.goto("/traits/trait:agile?tab=similar");
   await expect(page.getByRole("heading", { name: "Agile", exact: true })).toBeVisible();

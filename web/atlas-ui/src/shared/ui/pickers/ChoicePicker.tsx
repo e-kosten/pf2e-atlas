@@ -22,6 +22,8 @@ import {
   type ReactNode,
 } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
+import { LoadingStatus } from "../LoadingStatus";
+
 type ChoiceArrow = "ArrowDown" | "ArrowUp";
 
 export type ChoiceState = "neutral" | "include" | "exclude";
@@ -49,6 +51,7 @@ export function ChoicePicker({
   onTextChange,
   filterChoices = true,
   loading = false,
+  loadingLabel,
   searchPending = false,
   children,
   emptyMessage = "No matching values",
@@ -76,6 +79,7 @@ export function ChoicePicker({
   onTextChange: (text: string) => void;
   filterChoices?: boolean;
   loading?: boolean;
+  loadingLabel?: string;
   searchPending?: boolean;
   children?: ReactNode;
   emptyMessage?: ReactNode;
@@ -396,6 +400,9 @@ export function ChoicePicker({
             <Fragment key={option.value}>{button}</Fragment>
           );
         })}
+        {!rows.length && loading && loadingLabel && (
+          <LoadingStatus label={loadingLabel} />
+        )}
         {!rows.length && !loading && emptyMessage && (
           <Typography.Text type="secondary" role="status">
             {emptyMessage}
