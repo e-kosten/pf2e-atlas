@@ -3313,6 +3313,7 @@ test("long Boolean filter labels leave both controls reachable", async ({
   }
 
   const remove = row.getByRole("button", { name: "Remove condition", exact: true });
+  await expect(row.getByRole("button")).toHaveCount(1);
   if (!info.project.use.hasTouch) {
     await value.focus();
     await page.keyboard.press("Tab");
@@ -3322,7 +3323,7 @@ test("long Boolean filter labels leave both controls reachable", async ({
   await expect(row).toHaveCount(0);
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
-    .toMatchObject(descriptions);
+    .toMatchObject({ kind: "all_of", children: [descriptions] });
   await expect(
     advanced.getByRole("combobox", { name: "Has a description" }),
   ).toBeVisible();
@@ -3399,10 +3400,23 @@ test("advanced rows reflow when a comparison starts accepting several values", a
 
   await armor.fill("");
   await expect
-    .poll(() =>
-      JSON.stringify(decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!)),
-    )
-    .not.toContain('"field":"armor.strength"');
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "any_of",
+      children: [
+        {
+          kind: "in",
+          field: "class.starting_proficiency.advanced_weapons",
+          values: ["trained"],
+        },
+        { kind: "compare", field: "level", op: "gte", value: 2 },
+        {
+          kind: "exists",
+          collection: "embedded.equipment",
+          predicate: { kind: "compare", field: "armor.strength", op: "gte", value: 2 },
+        },
+      ],
+    });
   await expect(armor).toBeEmpty();
   await noPageOverflow(page);
 });
