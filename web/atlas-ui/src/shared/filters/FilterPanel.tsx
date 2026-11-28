@@ -1,5 +1,6 @@
 import { FilterDisclosure, FilterDisclosureButton } from "./FilterDisclosure";
 import { FilterFieldSelect } from "./FilterFieldSelect";
+import { useSearchToolbarMotion } from "./useSearchToolbarMotion";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
@@ -216,6 +217,8 @@ export function FilterControls({
   );
   const prepared = useFilterEditor(search, fields, setSearch);
   const definitions = useMemo(() => fields.map((field) => field.definition), [fields]);
+  const toolbarFrame = useRef<HTMLElement>(null);
+  const toolbarChrome = useRef<HTMLDivElement>(null);
   const quickControls = useRef<HTMLDivElement>(null);
   const focusedQuickControl = useRef<{ id: string; element: HTMLElement }>(null);
   const toolbar = scopedToolbar ? editor?.search_toolbar : undefined;
@@ -223,8 +226,18 @@ export function FilterControls({
     scopedToolbar &&
     !(workspace.filterToolbarCurrent ?? workspace.filterApplicabilityCurrent);
   const toolbarCriteriaPending = scopedToolbar && !workspace.filterApplicabilityCurrent;
-  const toolbarIds =
-    toolbar?.fields.map(({ field_id }) => field_id) ?? editor?.common_field_ids ?? [];
+  const toolbarIds = useMemo(
+    () =>
+      toolbar?.fields.map(({ field_id }) => field_id) ?? editor?.common_field_ids ?? [],
+    [editor?.common_field_ids, toolbar],
+  );
+  useSearchToolbarMotion(
+    scopedToolbar && !!editor,
+    toolbarIds,
+    toolbarFrame,
+    toolbarChrome,
+    quickControls,
+  );
   useLayoutEffect(() => {
     const previous = focusedQuickControl.current;
     if (
@@ -780,6 +793,7 @@ export function FilterControls({
   return (
     <LinkEditingContext value={linkEditing}>
       <aside
+        ref={toolbarFrame}
         className={
           pane
             ? "pane-filter-controls"
@@ -806,7 +820,7 @@ export function FilterControls({
             {feedback}
           </FilterDisclosure>
         ) : (
-          <div className="filter-controls__chrome">
+          <div className="filter-controls__chrome" ref={toolbarChrome}>
             {includeSearch && (
               <PrimaryToolbar className="filter-controls__search-row">
                 {searchEntry}

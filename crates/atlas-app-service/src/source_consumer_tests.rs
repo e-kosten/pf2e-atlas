@@ -1218,12 +1218,15 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
         .find(|field| field.definition.id == "level")
         .unwrap();
     assert_eq!(level.label, "Level");
-    assert!(
-        level
-            .help
-            .as_deref()
-            .is_some_and(|help| help.contains("physical items") && help.contains("afflictions"))
-    );
+    for field in &editor.groups[0].fields {
+        if matches!(field.definition.id.as_str(), "level" | "level_or_rank") {
+            assert!(
+                field.help.is_none(),
+                "{} has help text",
+                field.definition.id
+            );
+        }
+    }
     assert_eq!(
         fields
             .iter()

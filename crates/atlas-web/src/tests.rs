@@ -1110,9 +1110,9 @@ async fn search_toolbar_is_opt_in_and_projects_committed_kind() {
             .collect::<Vec<_>>(),
         [
             "kind",
+            "rarity",
             "background.restricted_attribute_boosts",
-            "background.skill_training",
-            "rarity"
+            "background.skill_training"
         ]
     );
 

@@ -378,7 +378,6 @@ pub(crate) fn resolve(
         ["kind"]
             .into_iter()
             .chain(numeric)
-            .chain(quick_specialists(scope, &fields))
             .chain([RARITY, TRAITS].into_iter().filter(|id| {
                 scope.named_parent == Some("all_equipment") && can_show(id)
                     || fields.get(id).is_some_and(|field| {
@@ -390,6 +389,7 @@ pub(crate) fn resolve(
                         })
                     })
             }))
+            .chain(quick_specialists(scope, &fields))
             .collect()
     } else {
         editor.common_field_ids.iter().map(String::as_str).collect()
@@ -458,9 +458,9 @@ mod tests {
                 &["background"][..],
                 vec![
                     "kind",
+                    RARITY,
                     "background.restricted_attribute_boosts",
                     "background.skill_training",
-                    RARITY,
                 ],
             ),
             (
@@ -468,39 +468,39 @@ mod tests {
                 vec![
                     "kind",
                     LEVEL,
+                    RARITY,
+                    TRAITS,
                     "weapon.category",
                     "weapon.damage.type",
                     "weapon.group",
                     PRICE,
-                    RARITY,
-                    TRAITS,
                 ],
             ),
             (
                 &["armor", "weapon"],
-                vec!["kind", LEVEL, PRICE, BULK, RARITY, TRAITS],
+                vec!["kind", LEVEL, RARITY, TRAITS, PRICE, BULK],
             ),
             (&["weapon", "armor", "kit"], vec!["kind", LEVEL]),
             (
                 &["all_equipment", "armor"],
-                vec!["kind", LEVEL, PRICE, BULK, RARITY, TRAITS],
+                vec!["kind", LEVEL, RARITY, TRAITS, PRICE, BULK],
             ),
             (&["all_equipment", "background"], vec!["kind", LEVEL]),
             (
                 &["all_spells"],
-                vec!["kind", RANK, TRADITION, CAST_ACTIONS, RARITY, TRAITS],
+                vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
             ),
             (&["spell", "ritual"], vec!["kind", RANK, RARITY, TRAITS]),
-            (&["ritual"], vec!["kind", RANK, CAST_TIME, RARITY, TRAITS]),
+            (&["ritual"], vec!["kind", RANK, RARITY, TRAITS, CAST_TIME]),
             (&["spell", "background"], vec!["kind", RANK, RARITY]),
             (&["character_creation"], vec!["kind", RARITY]),
             (
                 &["character_advancement"],
-                vec!["kind", LEVEL, "action.type", RARITY, TRAITS],
+                vec!["kind", LEVEL, RARITY, TRAITS, "action.type"],
             ),
             (&["kingdom_and_warfare"], vec!["kind", LEVEL, TRAITS]),
             (&["journal_pack/journals"], vec!["kind"]),
-            (&["creature"], vec!["kind", LEVEL, MOVEMENT, RARITY, TRAITS]),
+            (&["creature"], vec!["kind", LEVEL, RARITY, TRAITS, MOVEMENT]),
             (&["condition"], vec!["kind"]),
         ] {
             assert_eq!(ids(&view(kind(selection))), expected, "{selection:?}");
@@ -556,7 +556,7 @@ mod tests {
         let exclusion = json!({"kind":"all_of","children":[kind(&["all_spells"]),
             {"kind":"not","predicate":kind(&["spell"])}]});
         let toolbar = view(exclusion.clone());
-        assert_eq!(ids(&toolbar), vec!["kind", RANK, CAST_TIME, RARITY, TRAITS]);
+        assert_eq!(ids(&toolbar), vec!["kind", RANK, RARITY, TRAITS, CAST_TIME]);
         assert_eq!(serde_json::to_value(toolbar.kind_scope).unwrap(), exclusion);
         assert!(!toolbar.has_refinements);
         let empty = view(json!({"kind":"all_of","children":[kind(&["spell"]),
