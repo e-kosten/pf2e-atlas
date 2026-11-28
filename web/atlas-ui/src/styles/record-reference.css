@@ -984,10 +984,13 @@
   border-inline-start: 1px solid var(--line);
   margin-inline-start: var(--space-micro);
   padding-inline-start: var(--space-control);
-  margin-block-end: var(--space-control);
+  margin-block-end: var(--space-micro);
 }
 .record-progression__branches .record-progression {
   gap: var(--space-control);
+}
+.record-progression__branches .record-progression__relation {
+  padding-block: 0;
 }
 .record-progression__branches h4 {
   color: var(--muted);

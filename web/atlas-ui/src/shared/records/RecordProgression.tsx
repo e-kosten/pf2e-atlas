@@ -32,6 +32,7 @@ interface ProgressionContext {
   generation: string;
   ancestors: readonly string[];
   path: readonly string[];
+  shownPrerequisiteKeys: ReadonlySet<string>;
   expandedBranches: readonly string[];
   setBranchExpanded: (key: string, open: boolean) => void;
   onReference: RecordReferenceHandler;
@@ -42,6 +43,7 @@ interface ProgressionContext {
 type ProgressionEntry = ProgressionPageView["entries"][number];
 type ProgressionWitness = ProgressionEntry["witnesses"][number];
 const NO_EXPANDED_BRANCHES: readonly string[] = [];
+const NO_SHOWN_PREREQUISITES: ReadonlySet<string> = new Set();
 
 export function RecordProgression({
   detail,
@@ -85,6 +87,7 @@ export function RecordProgression({
       generation={generation}
       ancestors={[]}
       path={[]}
+      shownPrerequisiteKeys={NO_SHOWN_PREREQUISITES}
       expandedBranches={expandedBranches}
       setBranchExpanded={setBranchExpanded}
       onReference={onReference}
@@ -128,13 +131,22 @@ function ProgressionOverview({
     staleTime: Infinity,
     retry: false,
   });
-  const branch = { ...context, ancestors: [...ancestors, selection.record_key] };
+  const branch = {
+    ...context,
+    ancestors: [...ancestors, selection.record_key],
+    shownPrerequisiteKeys: NO_SHOWN_PREREQUISITES,
+  };
   const generationChanged = isArtifactGenerationChanged(query.error);
   const data = generationChanged ? undefined : query.data;
   const shownRequirements = generationChanged
     ? undefined
     : (requirements ?? data?.prerequisites);
-  const additionalRequirements = alsoRequires(shownRequirements, witnesses);
+  const flatRequirements = flatPrerequisites(shownRequirements);
+  const additionalRequirements = alsoRequires(
+    flatRequirements,
+    witnesses,
+    context.shownPrerequisiteKeys,
+  );
   const visibleRequirements = additionalRequirements ?? shownRequirements;
   const requiredBy = data?.required_by;
   const access = data?.available_through;
@@ -145,6 +157,13 @@ function ProgressionOverview({
     access?.entries.length ||
     pools.length,
   );
+  // Carry only exact, unconditional facts along forward progression branches.
+  const shownPrerequisiteKeys = new Set(context.shownPrerequisiteKeys);
+  shownPrerequisiteKeys.add(`record:${selection.record_key}`);
+  for (const requirement of flatRequirements ?? []) {
+    const key = prerequisiteKey(requirement);
+    if (key !== undefined) shownPrerequisiteKeys.add(key);
+  }
 
   return (
     <div className="record-progression">
@@ -177,7 +196,7 @@ function ProgressionOverview({
           <Heading>{ancestors.length ? "Leads to" : "Required by"}</Heading>
           <ProgressionResults
             selection={selection}
-            context={branch}
+            context={{ ...branch, shownPrerequisiteKeys }}
             direction="required_by"
             initialPage={requiredBy}
           />
@@ -375,33 +394,49 @@ interface RequirementNode {
   children: RequirementNode[];
 }
 
+function flatPrerequisites(entries: ProgressionRequirementView[] | undefined) {
+  if (!entries?.length || entries[0].depth !== 0) return;
+  const [first, ...rest] = entries;
+  if (first.kind === "all_of") {
+    if (
+      rest.every(
+        ({ depth, kind }) => depth === 1 && kind !== "all_of" && kind !== "any_of",
+      )
+    ) {
+      return rest;
+    }
+  } else if (first.kind !== "any_of" && entries.length === 1) {
+    return entries;
+  }
+}
+
+function prerequisiteKey({ kind, label, navigation }: ProgressionRequirementView) {
+  if (navigation) return `record:${navigation.record_key}`;
+  if (kind === "proficiency" || kind === "attribute_minimum") return `${kind}:${label}`;
+}
+
 function alsoRequires(
-  entries: ProgressionRequirementView[] | undefined,
+  leaves: ProgressionRequirementView[] | undefined,
   witnesses: ProgressionWitness[] | undefined,
+  shownPrerequisiteKeys: ReadonlySet<string>,
 ) {
   const match = witnesses?.[0];
-  if (!entries || witnesses?.length !== 1 || !match || match.alternative) return;
-  const [first, ...leaves] = entries;
   if (
-    entries.length === 1 &&
-    first.depth === 0 &&
-    first.kind === "record" &&
-    first.path === match.path
-  ) {
-    return [];
-  }
-  if (
-    first?.kind !== "all_of" ||
-    first.depth !== 0 ||
-    leaves.some(
-      ({ depth, kind }) => depth !== 1 || kind === "all_of" || kind === "any_of",
-    ) ||
+    !leaves ||
+    witnesses?.length !== 1 ||
+    !match ||
+    match.alternative ||
     !leaves.some(({ path, kind }) => path === match.path && kind === "record")
-  ) {
+  )
     return;
-  }
   return leaves
-    .filter(({ path }) => path !== match.path)
+    .filter((leaf) => {
+      const key = prerequisiteKey(leaf);
+      return (
+        leaf.path !== match.path &&
+        (key === undefined || !shownPrerequisiteKeys.has(key))
+      );
+    })
     .map((leaf) => ({ ...leaf, depth: 0 }));
 }
 

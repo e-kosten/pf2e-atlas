@@ -43,7 +43,9 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
   await expect(
     explore.getByRole("button", { name: "Collapse Medic Dedication", exact: true }),
   ).toBeFocused();
-  await expect(explore.getByText(/trained in medicine/i).first()).toBeVisible();
+  await expect(explore.getByText("Trained in Medicine", { exact: true })).toHaveCount(
+    1,
+  );
   const doctorsVisitation = explore.locator(".record-progression__relation").filter({
     has: page.getByRole("link", { name: "Doctor's Visitation", exact: true }),
   });
@@ -59,6 +61,24 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
   await expect(explore.getByText("Matching prerequisite", { exact: true })).toHaveCount(
     0,
   );
+  await explore
+    .getByRole("button", { name: "Expand Treat Condition", exact: true })
+    .click();
+  await explore
+    .getByRole("button", { name: "Expand Preventative Treatment", exact: true })
+    .click();
+  await expect(
+    explore.getByText("No further progression.", { exact: true }),
+  ).toHaveCount(2);
+  await expect(
+    explore.getByRole("link", { name: "Medic Dedication", exact: true }),
+  ).toHaveCount(1);
+  await explore
+    .getByRole("button", { name: "Expand Holistic Care", exact: true })
+    .click();
+  await expect(
+    explore.getByText("Trained in Diplomacy", { exact: true }),
+  ).toBeVisible();
 
   const currentUrl = page.url();
   const medic = explore.getByRole("link", { name: "Medic Dedication", exact: true });
@@ -98,6 +118,21 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
   ).toBeVisible();
   await expect(
     explore.getByText("can't have a patron deity", { exact: true }),
+  ).toBeVisible();
+  await explore
+    .getByRole("link", {
+      name: "Explore progression for Preventative Treatment",
+      exact: true,
+    })
+    .click();
+  await expect(
+    explore.getByRole("heading", { name: "Prerequisites", exact: true }),
+  ).toBeVisible();
+  await expect(
+    explore.getByRole("link", { name: "Medic Dedication", exact: true }),
+  ).toBeVisible();
+  await expect(
+    explore.getByRole("link", { name: "Treat Condition", exact: true }),
   ).toBeVisible();
 });
 
