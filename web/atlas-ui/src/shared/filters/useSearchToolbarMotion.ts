@@ -5,6 +5,7 @@ const reducedMotion = "(prefers-reduced-motion: reduce)";
 
 export function useSearchToolbarMotion(
   enabled: boolean,
+  criteriaOpen: boolean,
   fieldIds: readonly string[],
   toolbar: RefObject<HTMLElement | null>,
   chrome: RefObject<HTMLDivElement | null>,
@@ -12,6 +13,7 @@ export function useSearchToolbarMotion(
 ) {
   const previousFields = useRef<readonly string[]>([]);
 
+  // Opening or closing Filters starts a new layout so its controls can respond immediately.
   useLayoutEffect(() => {
     const frame = toolbar.current;
     const content = chrome.current;
@@ -51,7 +53,7 @@ export function useSearchToolbarMotion(
       preference.removeEventListener("change", stop);
       stop();
     };
-  }, [chrome, enabled, toolbar]);
+  }, [chrome, criteriaOpen, enabled, toolbar]);
 
   useLayoutEffect(() => {
     const previous = previousFields.current;

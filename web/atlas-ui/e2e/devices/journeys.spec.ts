@@ -3417,10 +3417,20 @@ test("advanced rows reflow when a comparison starts accepting several values", a
     })}`,
   );
   await showSearchFilters(page, info);
-  await activate(
-    page.getByRole("button", { name: "Advanced filters", exact: true }),
-    info,
-  );
+  const advancedButton = page.getByRole("button", {
+    name: "Advanced filters",
+    exact: true,
+  });
+  if (info.project.use.hasTouch) {
+    const hit = await advancedButton.evaluate((button) => {
+      const { left, top, width, height } = button.getBoundingClientRect();
+      return button.contains(
+        document.elementFromPoint(left + width / 2, top + height / 2),
+      );
+    });
+    expect(hit, "Opening Filters makes Advanced immediately tappable").toBe(true);
+  }
+  await activate(advancedButton, info);
   const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
   const rank = page.getByRole("combobox", { name: rankLabel, exact: true });
   const row = advanced.locator(".rule").filter({ has: rank });

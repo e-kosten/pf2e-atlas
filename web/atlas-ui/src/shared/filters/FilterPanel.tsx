@@ -230,6 +230,7 @@ export function FilterControls({
   );
   useSearchToolbarMotion(
     scopedToolbar && !!editor,
+    criteriaOpen,
     toolbarIds,
     toolbarFrame,
     toolbarChrome,
