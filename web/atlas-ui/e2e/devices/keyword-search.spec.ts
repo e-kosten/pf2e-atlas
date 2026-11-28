@@ -43,7 +43,7 @@ test("a records-only workspace supports Search, trait browse and the list picker
   ).toBeGreaterThan(0);
   await page.keyboard.press("Escape");
 
-  const query = page.getByRole("searchbox", { name: "Search records" });
+  const query = page.getByRole("combobox", { name: "Search records" });
   await query.fill("Atlas Sentinel");
   const search = page.waitForResponse(
     (response) =>
@@ -161,18 +161,24 @@ async function holdResponse(
 
 test("keeps submitted text and newer drafts through readiness and results", async ({
   page,
-}) => {
+}, info) => {
   await page.goto("/search");
   await expect(page.getByText("Keyword search", { exact: true })).toBeVisible();
-  const query = page.getByRole("searchbox", { name: "Search records" });
+  const query = page.getByRole("combobox", { name: "Search records" });
   await query.fill("Atlas Sentinel");
   const readiness = await holdResponse(page, "**/api/readiness");
-  let sent = false;
+  const card = page.locator(`[data-record-key="${sentinel}"]`);
+  const loadingMore = page.getByRole("status", { name: "Loading more results…" });
+  let submittedRequests = 0;
   const results = await holdResponse(page, "**/api/search/page", (request) => {
     const criteria = request.postDataJSON().criteria;
-    if (criteria.kind !== "text_search" || criteria.query !== "Atlas Sentinel")
+    if (
+      criteria.kind !== "text_search" ||
+      criteria.query !== "Atlas Sentinel" ||
+      criteria.lexical
+    )
       return false;
-    sent = true;
+    submittedRequests += 1;
     return true;
   });
 
@@ -180,8 +186,16 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
     await query.press("Enter");
     await readiness.arrived;
     expect(await query.inputValue()).toBe("Atlas Sentinel");
-    expect(sent).toBe(false);
-    expect(new URL(page.url()).searchParams.get("q")).toBeNull();
+    await expect(page).toHaveURL(/[?&]q=Atlas(?:\+|%20)Sentinel/);
+    await expect(card).toHaveClass(/reference-result__summary--search/);
+    await expect(page.getByRole("group", { name: "Result pages" })).toBeHidden();
+    await activate(card, info);
+    await expect(
+      page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+    ).toBeVisible();
+    expect(submittedRequests).toBe(0);
+    const back = page.getByRole("button", { name: "Results", exact: true });
+    if (await back.isVisible()) await activate(back, info);
     await query.fill("new draft during readiness");
   } finally {
     readiness.release();
@@ -189,26 +203,34 @@ test("keeps submitted text and newer drafts through readiness and results", asyn
 
   try {
     await results.arrived;
+    await expect(loadingMore).toBeVisible();
+    await expect(card).toBeVisible();
     expect(new URL(page.url()).searchParams.get("q")).toBe("Atlas Sentinel");
     await expect(query).toHaveValue("new draft during readiness");
     await query.fill("new draft during results");
   } finally {
     results.release();
   }
-  await expect(page.locator(`[data-record-key="${sentinel}"]`)).toBeVisible();
+  await expect(page.getByRole("group", { name: "Result pages" })).toBeVisible();
+  await expect(loadingMore).toBeHidden();
+  await expect(card).toHaveCount(1);
+  await expect(card).toBeVisible();
   await expect(query).toHaveValue("new draft during results");
+  expect(submittedRequests).toBe(1);
+  expect(new URL(page.url()).pathname).toBe(`/search/records/${sentinel}`);
 
   const nextSearch = page.waitForRequest(
     (request) =>
       request.url().endsWith("/api/search/page") &&
-      request.postDataJSON().criteria.query === "new draft during results",
+      request.postDataJSON().criteria.query === "new draft during results" &&
+      !request.postDataJSON().criteria.lexical,
   );
   await page.getByRole("button", { name: "search", exact: true }).click();
   await nextSearch;
   await expect(query).toHaveValue("new draft during results");
 });
 
-test("retains a canceled draft on paging and cancels a pager edit on Escape", async ({
+test("cancels a pager edit and clears a submission while readiness is pending", async ({
   page,
 }) => {
   await page.goto(`/search?filter=${creatureFilter}`);
@@ -229,33 +251,131 @@ test("retains a canceled draft on paging and cancels a pager edit on Escape", as
   expect(page.url()).toBe(originalUrl);
   expect(pageRequests).not.toContain(2);
 
-  const query = page.getByRole("searchbox", { name: "Search records" });
+  const query = page.getByRole("combobox", { name: "Search records" });
   await query.fill("Atlas Sentinel");
   const readiness = await holdResponse(page, "**/api/readiness");
   const ready = page.waitForResponse((response) =>
     response.url().endsWith("/api/readiness"),
   );
-  const nextPage = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/search/page") &&
-      response.request().postDataJSON().page.number === 2,
-  );
   try {
     await query.press("Enter");
     await readiness.arrived;
-    await current.fill("2");
-    await current.press("Enter");
-    await expect(page).toHaveURL(/[?&]page=2(?:&|$)/);
-    expect(new URL(page.url()).searchParams.get("q")).toBeNull();
+    await expect(page).toHaveURL(/[?&]q=Atlas(?:\+|%20)Sentinel/);
+    await expect(current).toBeHidden();
+    await query.fill("");
+    await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBeNull();
   } finally {
     readiness.release();
   }
   expect((await ready).ok()).toBe(true);
-  expect((await nextPage).ok()).toBe(true);
+  await current.fill("2");
+  await current.press("Enter");
+  await expect(page).toHaveURL(/[?&]page=2(?:&|$)/);
   await expect(current).toHaveValue("2");
-  await expect(query).toHaveValue("Atlas Sentinel");
+  await expect(query).toHaveValue("");
   expect(new URL(page.url()).searchParams.get("q")).toBeNull();
   expect(pageRequests.filter((number) => number === 2)).toHaveLength(1);
+});
+
+test("opens a name suggestion without submitting the draft", async ({ page }, info) => {
+  await page.goto("/search");
+  await expect(page.getByText("Keyword search", { exact: true })).toBeVisible();
+  const query = page.getByRole("combobox", { name: "Search records" });
+  const exactResponse = (text: string) =>
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/search/exact") &&
+        response.request().postDataJSON().query === text,
+    );
+  const noExact = exactResponse("Watchtower Patrol");
+  const broad = page.waitForResponse((response) => {
+    if (!response.url().endsWith("/api/search/page")) return false;
+    const criteria = response.request().postDataJSON().criteria;
+    return (
+      criteria.query === "Watchtower Patrol" &&
+      criteria.lexical?.fields === "record_names"
+    );
+  });
+  await query.fill("Watchtower Patrol");
+  expect((await (await broad).json()).page.total).toBeGreaterThan(5);
+  expect((await (await noExact).json()).total).toBe(0);
+  // Give the successful response a chance to open the popover.
+  await page.evaluate(
+    () =>
+      new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
+  await expect(query).toHaveAttribute("aria-expanded", "false");
+  const pendingSuggestion = Promise.withResolvers<void>();
+  const releaseSuggestion = Promise.withResolvers<void>();
+  const completedSuggestion = Promise.withResolvers<void>();
+  await page.route("**/api/search/page", async (route) => {
+    const criteria = route.request().postDataJSON().criteria;
+    if (criteria.query !== "atlas sent" || criteria.lexical?.fields !== "record_names")
+      return route.fallback();
+    const response = await route.fetch();
+    pendingSuggestion.resolve();
+    await releaseSuggestion.promise;
+    try {
+      await route.fulfill({ response });
+    } finally {
+      completedSuggestion.resolve();
+    }
+  });
+  await query.fill("atlas sent");
+  try {
+    await pendingSuggestion.promise;
+    await query.press("Escape");
+  } finally {
+    releaseSuggestion.resolve();
+  }
+  await completedSuggestion.promise;
+  await page.evaluate(
+    () =>
+      new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
+  await expect(query).toHaveAttribute("aria-expanded", "false");
+  await query.fill("atlas sentin");
+  const option = page.getByRole("option", { name: /^Atlas Sentinel/ });
+  await expect(option).toBeVisible();
+  await query.press("Escape");
+  await expect(option).toBeHidden();
+  await expect(query).toHaveValue("atlas sentin");
+  // Keep the fixture's real exact identity while exercising the overflow path.
+  await page.route("**/api/search/page", async (route) => {
+    const criteria = route.request().postDataJSON().criteria;
+    if (
+      criteria.query !== "Atlas Sentinel" ||
+      criteria.lexical?.fields !== "record_names"
+    )
+      return route.fallback();
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({
+      response,
+      json: { ...body, page: { ...body.page, total: 6, has_more: true, next_page: 2 } },
+    });
+  });
+  const uniqueExact = exactResponse("Atlas Sentinel");
+  await query.fill("Atlas Sentinel");
+  expect((await (await uniqueExact).json()).total).toBe(1);
+  await expect(option).toBeVisible();
+  await expect(
+    page.getByRole("listbox", { name: "Name suggestions" }).getByRole("option"),
+  ).toHaveCount(1);
+  if (info.project.use.hasTouch) {
+    await activate(option, info);
+  } else {
+    await query.press("ArrowDown");
+    await expect(option).toHaveAttribute("aria-selected", "true");
+    await query.press("Enter");
+  }
+  await expect(
+    page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+  ).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("q")).toBeNull();
+  const back = page.getByRole("button", { name: "Results", exact: true });
+  if (await back.isVisible()) await activate(back, info);
+  await expect(query).toHaveValue("Atlas Sentinel");
 });
 
 test("keeps newer search text in the Add records picker", async ({ page }, info) => {

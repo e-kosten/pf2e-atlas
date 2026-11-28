@@ -59,6 +59,7 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
             s.discover_cli_filter_group(id.clone())
         } else {
             s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
+                include_search_toolbar: false,
                 filter: None,
                 selected_field_ids: vec![],
                 expected_artifact_generation: None,

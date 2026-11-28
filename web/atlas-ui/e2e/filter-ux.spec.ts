@@ -311,21 +311,21 @@ test("common filters retain valid results through drafts and exact URL reload", 
     page.getByRole("combobox", { name: "Filter field", exact: true }),
   ).toHaveCount(2);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: /Edit Level \/ rank range/i }).click();
-  await page.getByRole("textbox", { name: /Level \/ rank minimum/i }).fill("1");
+  await page.getByRole("button", { name: /Edit Level range/i }).click();
+  await page.getByRole("textbox", { name: /Level minimum/i }).fill("1");
   await expect
     .poll(() => page.locator(".result-pane-header").innerText())
     .toMatch(/\d+ records/);
   const validUrl = page.url();
   const validFilter = new URL(validUrl).searchParams.get("filter");
-  const range = page.getByRole("dialog", { name: "Level / Rank" });
-  const minimum = range.getByRole("textbox", { name: /Level \/ rank minimum/i });
+  const range = page.getByRole("dialog", { name: "Level" });
+  const minimum = range.getByRole("textbox", { name: /Level minimum/i });
   await minimum.fill("-");
   await expect(
     range.getByText("Enter a finite numeric value", { exact: true }),
   ).toBeHidden();
   await minimum.press("Tab");
-  await page.getByRole("textbox", { name: /Level \/ rank maximum/i }).press("Tab");
+  await page.getByRole("textbox", { name: /Level maximum/i }).press("Tab");
   await expect(
     range
       .getByText("Enter a finite numeric value", { exact: true })
@@ -334,10 +334,8 @@ test("common filters retain valid results through drafts and exact URL reload", 
   expect(page.url()).toBe(validUrl);
   await expect(page.locator(".result-pane-header")).toContainText("records");
   await page.reload();
-  await page.getByRole("button", { name: /Edit Level \/ rank range/i }).click();
-  await expect(
-    page.getByRole("textbox", { name: /Level \/ rank minimum/i }),
-  ).toHaveValue("1");
+  await page.getByRole("button", { name: /Edit Level range/i }).click();
+  await expect(page.getByRole("textbox", { name: /Level minimum/i })).toHaveValue("1");
   expect(new URL(page.url()).searchParams.get("filter")).toBe(validFilter);
   await expect(page.getByRole("combobox", { name: "Records per page" })).toBeVisible();
   expect(errors).toEqual([]);

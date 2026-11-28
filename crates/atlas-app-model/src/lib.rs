@@ -216,7 +216,8 @@ pub use filter::{
     FilterDiscoveryContext, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
     FilterFieldPlacement, FilterOperandView, FilterOperatorView, FilterUnitFieldView,
     FilterValidationResult, FilterValueListView, FilterValueOptionView, FilterValueOptionsView,
-    FilterVocabularyScope, FilterVocabularyView, SenseQualifierView,
+    FilterVocabularyScope, FilterVocabularyView, SearchFilterToolbarView, SearchQuickFieldView,
+    SenseQualifierView,
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
@@ -276,10 +277,11 @@ pub use record::{
 };
 pub use search::{
     ConnectionScopeUnavailableReason, ConnectionScopeView, ExactJournalPagesView,
-    JournalPageLinkView, MatchPreviewView, RelationshipClausePresentationView,
-    RelationshipClauseSummaryView, RelationshipEvidenceView, RelationshipOccurrencesPage,
-    RelationshipOccurrencesRequest, RetrievalModeView, SearchConnectionScope, SearchCoverageView,
-    SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary, SearchPageRequest,
-    SearchPageView, SearchResultDetail, SearchResultRow, SearchResultsPage, SearchResultsRequest,
+    ExactSearchRequest, ExactSearchView, JournalPageLinkView, MatchPreviewView,
+    RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
+    RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
+    SearchConnectionScope, SearchCoverageView, SearchCriteria, SearchLaneView,
+    SearchMatchSectionView, SearchModeSummary, SearchPageRequest, SearchPageView,
+    SearchResultDetail, SearchResultRow, SearchResultsPage, SearchResultsRequest,
     SearchWitnessView, StaticSearchContext,
 };

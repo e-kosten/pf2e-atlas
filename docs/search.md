@@ -9,8 +9,14 @@ Try “a guardian for an enchanted forest,” “magic for a haunted-house adven
 or “ways to get through locked doors.” Open a result to read its details and
 follow linked names to explore related entries.
 
-When you know the name, enter it directly—for example, “Treat Wounds.” You can
-also leave the text empty to browse entries using filters alone.
+When you know the name, enter it directly. Search offers suggestions when the
+text matches up to five names. If more names match, the picker can still offer
+a single exact match. Use the arrow keys to highlight a suggestion and Enter
+to open it. With no suggestion highlighted, Enter runs a search. Exact names
+and aliases can appear as result cards while Atlas finishes ranking the page.
+Your filters apply to both suggestions and exact matches.
+
+Leave the text empty to browse entries using filters alone.
 
 ## Search selected text
 
@@ -29,7 +35,10 @@ on the button shows how many conditions are applied.
 
 Open **Kind** and type the label from a result, such as **Background** or
 **Class Feature**. You can also expand a group or select its name to include every
-kind beneath it. For example, **All spells** includes both Spell and Ritual.
+kind beneath it. Expand **All spells** and choose **Cantrip** to browse cantrips,
+including composition cantrips. Choose **Spell** or **Ritual** for those records,
+or select **All spells** to include all three. The rank in **Cantrip 1** is the
+entry’s printed base rank.
 To browse equipment except weapons, include **All equipment** and exclude **Weapon**.
 
 **All journals** contains the journal packs provided by Foundry. To find the
@@ -54,6 +63,24 @@ can still explain its rules.
 
 For **Base Type**, search with a readable name such as “Chain Mail,” or use
 **Next** to see the next page.
+
+### Browse or search a kind
+
+Choose **Kind** to start browsing with an empty search box or narrow your
+current search. Search brings frequently used filters into the quick row.
+**Background** shows **Restricted boost** and **Skill training**. **All spells**
+shows **Rank**, **Tradition**, and **Cast actions**.
+
+For a selection of several kinds, quick filters generally cover the entire
+selection. Named groups can offer useful filters with narrower coverage. For
+example, **All equipment** offers **Unit price**. Setting a price leaves out
+kits that have no indexed unit price.
+
+With a straightforward Kind selection, **Clear refinements** clears the other
+filters. When only the Kind selection remains, use **Clear Kind** to return to
+all kinds. The search box has its own clear action. Applied filters stay
+visible when their quick control moves out of the toolbar, and **Advanced**
+can edit the full expression.
 
 ### Find backgrounds by boost or skill
 

@@ -10,7 +10,7 @@ use atlas_app_model::{
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
-use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
+use atlas_app_model::{DiscoverFilterCountsRequest, ExactSearchRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
 use axum::Json;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
@@ -568,6 +568,20 @@ pub(crate) async fn discover_filter_values(
     Ok(Json(
         call_read_service(state, move |service, execution| {
             service.discover_filter_values(request, &execution)
+        })
+        .await?,
+    ))
+}
+
+#[utoipa::path(post, path = "/api/search/exact", operation_id = "searchExact", request_body = ExactSearchRequest, responses((status = 200, description = "Exact record name and alias matches", body = atlas_app_model::ExactSearchView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn search_exact(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<ExactSearchRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    Ok(Json(
+        call_read_service(state, move |service, execution| {
+            service.search_exact(request, &execution)
         })
         .await?,
     ))

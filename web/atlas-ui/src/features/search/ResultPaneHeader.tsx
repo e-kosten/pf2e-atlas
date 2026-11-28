@@ -8,6 +8,8 @@ import { ResultSortControl } from "../../shared/search/ResultSortControl";
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
   const similar = workspace.resultPage?.mode.kind === "similar_records";
+  const early = workspace.earlyExactMatches;
+  const exactOverflow = early && early.total > early.matches.length;
   const displayedPageNumber = workspace.resultsRefreshing
     ? workspace.pageNumber
     : (page?.number ?? workspace.pageNumber);
@@ -20,15 +22,17 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
   return (
     <div className="result-pane-header search-results-toolbar">
       <span>
-        {workspace.resultsRefreshing
-          ? "Updating results"
-          : page
-            ? similar
-              ? "Top matches"
-              : workspace.resultPage?.coverage?.exhaustive === false
-                ? `Top ${page.total.toLocaleString()} matches`
-                : `${page.total.toLocaleString()} ${page.total === 1 ? "record" : "records"}`
-            : "Results"}
+        {exactOverflow
+          ? `${early.matches.length} of ${early.total} exact matches`
+          : workspace.resultsRefreshing && !early
+            ? "Updating results"
+            : page
+              ? similar
+                ? "Top matches"
+                : workspace.resultPage?.coverage?.exhaustive === false
+                  ? `Top ${page.total.toLocaleString()} matches`
+                  : `${page.total.toLocaleString()} ${page.total === 1 ? "record" : "records"}`
+              : "Results"}
       </span>
       {page && page.total > 0 && (
         <div className="pager__navigation" role="group" aria-label="Result pages">

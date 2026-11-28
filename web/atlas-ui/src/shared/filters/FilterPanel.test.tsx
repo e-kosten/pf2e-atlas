@@ -228,7 +228,7 @@ function renderControls(
   filterError: string | null = null,
   presentation: Pick<
     ComponentProps<typeof FilterControls>,
-    "layout" | "includeSearch"
+    "layout" | "includeSearch" | "scopedToolbar"
   > = {},
   discoveryContext?: FilterDiscoveryContext,
 ) {
@@ -270,6 +270,114 @@ function renderControls(
   );
   return onChange;
 }
+describe("main Search scoped quick filters", () => {
+  beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
+  afterEach(() => vi.restoreAllMocks());
+
+  const kind: QueryPredicate = {
+    kind: "in",
+    field: "kind",
+    values: ["spell", "general_feat"],
+  };
+  const rank: QueryPredicate = {
+    kind: "compare",
+    field: "spell.rank",
+    op: "eq",
+    value: 2,
+  };
+  const selection: QueryPredicate = { kind: "all_of", children: [kind, rank] };
+  const options = { scopedToolbar: true, layout: "toolbar" } as const;
+
+  function scopedEditor() {
+    return {
+      ...editorFixture([
+        {
+          ...fieldFixture("kind", "string", "Kind"),
+          choices: ["spell", "general_feat"],
+        },
+        fieldFixture("level_or_rank", "number", "Level / Rank"),
+        fieldFixture("spell.rank", "number", "Spell Rank"),
+      ]),
+      search_toolbar: {
+        kind_scope: kind,
+        has_refinements: true,
+        fields: [
+          { field_id: "kind", label: "Kind" },
+          { field_id: "level_or_rank", label: "Level / Rank" },
+        ],
+        retained_fields: [{ field_id: "spell.rank", label: "Rank" }],
+      },
+    };
+  }
+
+  it("keeps the original Rank criterion removable when the numeric slot becomes Level / Rank", () => {
+    const change = renderControls(scopedEditor(), selection, null, options);
+    expect(
+      screen.getByRole("button", { name: /edit level \/ rank range/i }),
+    ).toBeInTheDocument();
+    const retained = screen.getByRole("button", { name: "Remove Rank filter" });
+    expect(retained).toHaveTextContent("Rank: 2");
+    fireEvent.click(retained);
+    expect(change).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          kind: "all_of",
+          children: [expect.objectContaining(kind)],
+        }),
+      }),
+    );
+  });
+
+  it("clears refinements while preserving the selected Kind", () => {
+    const change = renderControls(scopedEditor(), selection, null, options);
+    fireEvent.click(screen.getByRole("button", { name: "Clear refinements" }));
+    expect(change).toHaveBeenCalledWith(expect.objectContaining({ filter: kind }));
+  });
+
+  it("clears Kind when no other filters remain", () => {
+    const editor = scopedEditor();
+    editor.search_toolbar.has_refinements = false;
+    editor.search_toolbar.retained_fields = [];
+    const change = renderControls(editor, kind, null, options);
+    fireEvent.click(screen.getByRole("button", { name: "Clear Kind" }));
+    expect(change).toHaveBeenCalledWith(expect.objectContaining({ filter: null }));
+  });
+
+  it("clears an unfinished group before clearing the selected Kind", () => {
+    const editor = scopedEditor();
+    editor.search_toolbar.has_refinements = false;
+    editor.search_toolbar.retained_fields = [];
+    const change = renderControls(editor, kind, null, options);
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add group" }));
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear refinements" }));
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter: kind }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear Kind" }));
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter: null }));
+  });
+
+  it("keeps an applied movement condition under Advanced", () => {
+    const editor = scopedEditor();
+    editor.search_toolbar.retained_fields = [];
+    const filter: QueryPredicate = {
+      kind: "exists",
+      collection: "movement.speeds",
+      scope_id: "movement-scope",
+      predicate: { kind: "compare", field: "type", op: "eq", value: "fly" },
+    };
+    renderControls(editor, filter, null, options);
+    expect(
+      screen.queryByRole("button", { name: /edit movement/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Advanced filters" })).toHaveAttribute(
+      "aria-description",
+      "Additional filters applied",
+    );
+  });
+});
+
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());

@@ -51,6 +51,7 @@ mod saved_edit;
 mod saved_edit_tests;
 mod search_match_sections;
 mod search_pages;
+mod search_toolbar;
 mod service;
 mod similarity;
 mod table_roll;

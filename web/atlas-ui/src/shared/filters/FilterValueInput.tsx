@@ -15,6 +15,7 @@ import { useFilterOptionCounts } from "./useFilterDiscovery";
 export function FilterValueInput({
   field,
   operator,
+  wrapSelection = false,
   excluded = false,
   value,
   onChange,
@@ -28,6 +29,7 @@ export function FilterValueInput({
 }: {
   field: FilterEditorFieldView;
   operator: string;
+  wrapSelection?: boolean;
   excluded?: boolean;
   value: unknown;
   onChange: (value: unknown) => void;
@@ -65,7 +67,7 @@ export function FilterValueInput({
         selectedChoices.includes(String(choice.value)) ||
         choice.label.toLowerCase().includes(choiceSearch.trim().toLowerCase()),
     );
-  const counts = useFilterOptionCounts(
+  const { counts } = useFilterOptionCounts(
     countContext,
     definition.id,
     clauseId,
@@ -130,11 +132,19 @@ export function FilterValueInput({
         className="filter-value-control"
         aria-label={label}
         placeholder="Choose value…"
+        labelRender={
+          wrapSelection
+            ? ({ label }) => <span className="filter-select-label">{label}</span>
+            : undefined
+        }
         styles={{
           root: {
             transitionProperty: "background-color, border-color, box-shadow, color",
             minHeight: token.controlHeight,
           },
+          content: wrapSelection
+            ? { whiteSpace: "normal", overflowWrap: "anywhere" }
+            : undefined,
           popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
         }}
         popupMatchSelectWidth={false}

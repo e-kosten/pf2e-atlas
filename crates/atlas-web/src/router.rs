@@ -163,6 +163,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::roll_content))
         .routes(routes!(crate::handlers::roll_flat_check))
         .routes(routes!(crate::handlers::roll_table))
+        .routes(routes!(crate::handlers::search_exact))
         .routes(routes!(crate::handlers::search_page))
         .routes(routes!(crate::handlers::relationship_occurrences))
         .routes(routes!(crate::handlers::similarity_source))

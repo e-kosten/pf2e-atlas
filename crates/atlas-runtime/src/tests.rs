@@ -211,7 +211,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool) {
         .unwrap();
     let mut context: atlas_index::SourceArtifactBuildContext = serde_json::from_str(&json).unwrap();
     if query_changed {
-        context.query_catalog_version = 3;
+        context.query_catalog_version = atlas_index::query::QUERY_CAPABILITY_VERSION - 1;
     }
     if lexical_changed {
         context.lexical_selection_version = "curated-lexical/v1".into();

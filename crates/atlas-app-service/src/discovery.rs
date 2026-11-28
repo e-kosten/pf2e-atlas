@@ -186,8 +186,6 @@ pub(crate) fn filter_editor_view(
             .collect::<crate::AppServiceResult<Vec<_>>>()?;
         let help = match definition.id.as_str() {
             "has_description" => Some("Includes a record’s own description, creature background, or journal text. Carried spells, equipment, and other embedded mechanics don’t count.".into()),
-            "level_or_rank" => Some("Uses a spell’s rank or another entry’s level.".into()),
-            "level" => Some("Level for applicable creatures, physical items, feats, campaign features, effects and afflictions; use Level / rank to include spells.".into()),
             "background.restricted_attribute_boosts" => Some("An attribute offered by a fixed or limited-choice boost.".into()),
             "background.has_free_attribute_boost" => Some("A standard boost slot that offers all six attributes.".into()),
             "background.skill_training" => Some("Includes named skills granted directly or offered as a choice. Some choices have prerequisites.".into()),
@@ -291,6 +289,7 @@ pub(crate) fn filter_editor_view(
         limits: catalog.limits,
         groups: groups.into_values().collect(),
         common_field_ids: COMMON.into_iter().map(str::to_owned).collect(),
+        search_toolbar: None,
         sense_qualifiers: None,
     })
 }

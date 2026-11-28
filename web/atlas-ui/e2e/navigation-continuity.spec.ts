@@ -144,7 +144,7 @@ test("encounter title trips preserve Search criteria, page, reader, drafts and s
     await expect(
       page.getByRole("heading", { name: "Ghoul", exact: true }),
     ).toBeVisible();
-    const input = page.getByRole("searchbox", { name: "Search records", exact: true });
+    const input = page.getByRole("combobox", { name: "Search records", exact: true });
     await input.fill("unfinished search intent");
     const range = page.getByRole("button", { name: /Edit Level \/ rank range/i });
     await range.click();
@@ -188,7 +188,7 @@ test("encounter title trips preserve Search criteria, page, reader, drafts and s
         try {
           await expect(copied).toHaveURL(url);
           await expect(
-            copied.getByRole("searchbox", { name: "Search records", exact: true }),
+            copied.getByRole("combobox", { name: "Search records", exact: true }),
           ).toHaveValue("magic");
           await expect(
             copied.getByRole("heading", { name: "Ghoul", exact: true }),

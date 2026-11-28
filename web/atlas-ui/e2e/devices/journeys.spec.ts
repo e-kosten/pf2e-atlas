@@ -508,7 +508,7 @@ test("focused titles and list text filters follow their primary page", async ({
     }
     await page.goto("/search");
     await expect(page).toHaveTitle("Search · Atlas");
-    const search = page.getByRole("searchbox", { name: "Search records" });
+    const search = page.getByRole("combobox", { name: "Search records" });
     await search.fill(sentinel);
     await search.press("Enter");
     await expect(
@@ -692,7 +692,7 @@ test("range filter focus follows the opening input and Escape closes only the ra
 
   await trigger.press("Space");
   await expect(minimum).toBeFocused();
-  const search = page.getByRole("searchbox", { name: "Search records" });
+  const search = page.getByRole("combobox", { name: "Search records" });
   await activate(search, info);
   await expect(range).toBeHidden();
   await expect(search).toBeFocused();
@@ -706,6 +706,64 @@ test("range filter focus follows the opening input and Escape closes only the ra
   await expect(range).toBeHidden();
   await expect(nested).toBeFocused();
   await expect(picker).toBeVisible();
+});
+
+test("a quick range keeps typing local until the current toolbar is ready", async ({
+  page,
+}, info) => {
+  const kind = { kind: "in", field: "kind", values: ["creature"] } as const;
+  const firstBound = { kind: "compare", field: "level", op: "gte", value: 1 } as const;
+  const { promise: hold, resolve: release } = Promise.withResolvers<void>();
+  let held = false;
+  await page.route("**/api/filters/editor", async (route) => {
+    const filter = route.request().postDataJSON()?.filter;
+    if (
+      !held &&
+      filter?.children?.some(
+        (child: { field?: string; value?: number }) =>
+          child.field === firstBound.field && child.value === firstBound.value,
+      )
+    ) {
+      held = true;
+      await hold;
+    }
+    await route.continue();
+  });
+
+  try {
+    await page.goto(
+      `/search?filter=${encodeFilterUrl({ ...kind, values: [...kind.values] })}`,
+    );
+    await showSearchFilters(page, info);
+    await activate(page.getByRole("button", { name: /^Edit Level range:/ }), info);
+    const minimum = page.getByRole("textbox", { name: "Level minimum" });
+    await minimum.fill("1");
+    await expect.poll(() => held).toBe(true);
+    const pendingUrl = page.url();
+    await expect(
+      page.getByRole("button", { name: "Edit Traits filter" }),
+    ).toBeDisabled();
+    await minimum.fill("12");
+    await expect(minimum).toBeFocused();
+    await expect(minimum).toHaveValue("12");
+    expect(page.url()).toBe(pendingUrl);
+    release();
+    await expect
+      .poll(() => {
+        const filter = new URL(page.url()).searchParams.get("filter");
+        return filter && decodeFilterUrl(filter);
+      })
+      .toMatchObject({
+        kind: "all_of",
+        children: expect.arrayContaining([
+          expect.objectContaining({ ...firstBound, value: 12 }),
+        ]),
+      });
+    await expect(minimum).toBeFocused();
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
 });
 
 test("filters, exact late activity, preview dismissal and Results remain usable", async ({
@@ -747,7 +805,7 @@ test("filters, exact late activity, preview dismissal and Results remain usable"
   if (await results.isVisible()) {
     await activate(results, info);
     await expect(page.locator('[data-record-key][aria-current="true"]')).toBeFocused();
-    await expect(page.getByRole("searchbox", { name: "Search records" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Search records" })).toBeVisible();
   }
 });
 
@@ -2054,7 +2112,7 @@ test(
         (url) => url.pathname === "/search" && url.search === "",
       );
       await expect(
-        page.getByRole("searchbox", { name: "Search records", exact: true }),
+        page.getByRole("combobox", { name: "Search records", exact: true }),
       ).toHaveValue("");
       await expect(page.locator("[data-record-key]")).toHaveCount(0);
       expect(executed).toEqual([]);
@@ -2682,7 +2740,7 @@ test("generation replacement recovers deliberately and adopts each successful pa
       request.expected_artifact_generation ?? null,
     ]),
   ).toEqual([
-    [1, null],
+    [1, firstGeneration!],
     [2, firstGeneration!],
     [1, null],
     [2, replacement],
@@ -2809,6 +2867,9 @@ test("table rolls show the authored document name before its reading page loads"
   }
   const preview = page.getByRole("dialog", { name: /^Glossary Sword/ });
   await expect(preview).toBeVisible();
+  await expect(
+    page.locator(".record-preview-drawer-root .ant-drawer-content-wrapper"),
+  ).toHaveCSS("transform", "none");
   await activate(
     preview.getByRole("button", { name: "Close reference preview" }),
     info,
@@ -3234,6 +3295,198 @@ test("type and select a trait with the keyboard @engine", async ({ page }, info)
   await expect(
     page.getByRole("button", { name: /Remove included Magical/ }),
   ).toBeVisible();
+});
+
+test("long Boolean filter labels leave both controls reachable", async ({
+  page,
+}, info) => {
+  const label = "Has a free attribute boost";
+  const descriptions = {
+    kind: "compare",
+    field: "has_description",
+    op: "eq",
+    value: true,
+  } as const;
+  const freeBoost = {
+    kind: "compare",
+    field: "background.has_free_attribute_boost",
+    op: "eq",
+    value: true,
+  } as const;
+  await page.goto(
+    `/search?filter=${encodeFilterUrl({
+      kind: "all_of",
+      children: [descriptions, freeBoost],
+    })}`,
+  );
+  await showSearchFilters(page, info);
+  await activate(
+    page.getByRole("button", { name: "Advanced filters", exact: true }),
+    info,
+  );
+  const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const row = advanced.locator(".rule").filter({
+    has: page.getByRole("combobox", { name: label, exact: true }),
+  });
+  const value = row.getByRole("combobox", { name: label, exact: true });
+  const field = row.getByRole("combobox", { name: "Filter field", exact: true });
+  const alignment = () =>
+    row.evaluate((element) => {
+      const fieldBox = element.querySelector(".rule-fields")!.getBoundingClientRect();
+      const valueBox = element
+        .querySelector(".filter-rule-value")!
+        .getBoundingClientRect();
+      return {
+        inline: fieldBox.right <= valueBox.left && valueBox.top < fieldBox.bottom,
+        verticalGap: Math.round(valueBox.top - fieldBox.bottom),
+      };
+    });
+
+  if (info.project.name === "desktop-chromium") {
+    await expect.poll(alignment).toMatchObject({ inline: true });
+  }
+  await activate(field, info);
+  await expect(field).toHaveAttribute("aria-expanded", "true");
+  await field.press("Escape");
+  await expect(field).toHaveAttribute("aria-expanded", "false");
+  await activate(value, info);
+  const choices = page.locator(".ant-select-dropdown:visible");
+  await expect(choices.locator(".ant-select-item-option-content")).toHaveText([
+    "Yes",
+    "No",
+  ]);
+  await activate(choices.getByText("No", { exact: true }), info);
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "all_of",
+      children: [descriptions, { ...freeBoost, value: false }],
+    });
+
+  if (info.project.name === "desktop-chromium") {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await expect(value).toBeVisible();
+    await expect.poll(alignment).toEqual({ inline: false, verticalGap: 8 });
+    await noPageOverflow(page);
+  }
+
+  const remove = row.getByRole("button", { name: "Remove condition", exact: true });
+  await expect(row.getByRole("button")).toHaveCount(1);
+  if (!info.project.use.hasTouch) {
+    await value.focus();
+    await page.keyboard.press("Tab");
+    await expect(remove).toBeFocused();
+  }
+  await activate(remove, info);
+  await expect(row).toHaveCount(0);
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({ kind: "all_of", children: [descriptions] });
+  await expect(
+    advanced.getByRole("combobox", { name: "Has a description" }),
+  ).toBeVisible();
+});
+
+test("advanced rows reflow when a comparison starts accepting several values", async ({
+  page,
+}, info) => {
+  const rankLabel = "Starting advanced weapon proficiency";
+  await page.goto(
+    `/search?filter=${encodeFilterUrl({
+      kind: "any_of",
+      children: [
+        {
+          kind: "compare",
+          field: "class.starting_proficiency.advanced_weapons",
+          op: "eq",
+          value: "trained",
+        },
+        { kind: "compare", field: "level", op: "gte", value: 2 },
+        { kind: "compare", field: "armor.strength", op: "gte", value: 2 },
+        {
+          kind: "exists",
+          collection: "embedded.equipment",
+          predicate: {
+            kind: "compare",
+            field: "embedded.equipment[].armor.strength",
+            op: "gte",
+            value: 2,
+          },
+        },
+      ],
+    })}`,
+  );
+  await showSearchFilters(page, info);
+  const advancedButton = page.getByRole("button", {
+    name: "Advanced filters",
+    exact: true,
+  });
+  if (info.project.use.hasTouch) {
+    const hit = await advancedButton.evaluate((button) => {
+      const { left, top, width, height } = button.getBoundingClientRect();
+      return button.contains(
+        document.elementFromPoint(left + width / 2, top + height / 2),
+      );
+    });
+    expect(hit, "Opening Filters makes Advanced immediately tappable").toBe(true);
+  }
+  await activate(advancedButton, info);
+  const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const rank = page.getByRole("combobox", { name: rankLabel, exact: true });
+  const row = advanced.locator(".rule").filter({ has: rank });
+  const rowIsInline = () =>
+    row.evaluate((element) => {
+      const field = element.querySelector(".rule-fields")!.getBoundingClientRect();
+      const editor = element
+        .querySelector(".filter-rule-value")!
+        .getBoundingClientRect();
+      return editor.top < field.bottom && editor.left >= field.right;
+    });
+  if (info.project.name === "desktop-chromium") {
+    await expect.poll(rowIsInline).toBe(true);
+  }
+  await expect(
+    advanced.getByRole("textbox", { name: "Level minimum", exact: true }),
+  ).toHaveValue("2");
+  const armor = advanced.getByRole("textbox", {
+    name: "Armor Strength Requirement",
+    exact: true,
+  });
+  await expect(armor).toHaveValue("2");
+  await expect(advanced.getByText(/Contains · Equipment/)).toBeVisible();
+
+  const operator = row.getByRole("combobox", { name: `Condition for ${rankLabel}` });
+  await activate(operator, info);
+  await activate(
+    page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("is any of", { exact: true }),
+    info,
+  );
+  await expect.poll(rowIsInline).toBe(false);
+  await expect(row.getByText("Trained", { exact: true })).toBeVisible();
+
+  await armor.fill("");
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "any_of",
+      children: [
+        {
+          kind: "in",
+          field: "class.starting_proficiency.advanced_weapons",
+          values: ["trained"],
+        },
+        { kind: "compare", field: "level", op: "gte", value: 2 },
+        {
+          kind: "exists",
+          collection: "embedded.equipment",
+          predicate: { kind: "compare", field: "armor.strength", op: "gte", value: 2 },
+        },
+      ],
+    });
+  await expect(armor).toBeEmpty();
+  await noPageOverflow(page);
 });
 
 test("field vocabulary Read preserves selected values and unfinished filter drafts @engine", async ({

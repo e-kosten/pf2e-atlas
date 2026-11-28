@@ -1090,6 +1090,48 @@ async fn retained_record_generation_precedes_source_lookup_and_fingerprint_check
 }
 
 #[tokio::test]
+async fn search_toolbar_is_opt_in_and_projects_committed_kind() {
+    let fixture = Fixture::new();
+    let kind = json!({"kind":"in","field":"kind","values":["background"]});
+    let request = json!({"filter":kind,"include_search_toolbar":true});
+    let (status, body) = fixture
+        .json(Method::POST, "/api/filters/editor", Some(request))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let toolbar = &body["search_toolbar"];
+    assert_eq!(toolbar["kind_scope"], kind);
+    assert_eq!(toolbar["has_refinements"], false);
+    assert_eq!(
+        toolbar["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|field| field["field_id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "kind",
+            "rarity",
+            "background.restricted_attribute_boosts",
+            "background.skill_training"
+        ]
+    );
+
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/filters/editor",
+            Some(json!({"filter":kind})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body.get("search_toolbar").is_none());
+    assert_eq!(
+        body["common_field_ids"],
+        json!(["kind", "level_or_rank", "rarity", "traits"])
+    );
+}
+
+#[tokio::test]
 async fn record_and_filter_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture
@@ -2084,6 +2126,65 @@ async fn saved_metadata_edits_follow_keys_across_slug_reuse() {
         let (ok, still_present) = fixture.json(Method::GET, &by_slug, None).await;
         assert_eq!(ok, StatusCode::OK);
         assert_eq!(still_present[domain][key_name], replacement_key);
+    }
+}
+
+#[tokio::test]
+async fn exact_search_is_model_free_filtered_and_generation_bound() {
+    let fixture = Fixture::with_exact_names();
+    let path = "/api/search/exact";
+    let (status, page) = fixture
+        .json(
+            Method::POST,
+            path,
+            Some(json!({"query":"  \"tEST  ACTION   1\" "})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert_eq!(page["total"], 7);
+    let matches = page["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 5);
+    assert_eq!(matches[0]["record"]["record_key"], ACTION);
+    assert_eq!(matches[0]["match_kind"], "normalized_name");
+    assert!(matches[1..].iter().all(|row| row["match_kind"] == "alias"));
+
+    let (status, filtered) = fixture
+        .json(Method::POST, path, Some(json!({
+            "query":"Test Action 1",
+            "filter":{"kind":"set_match","clause_id":"fire","field":"traits","op":"includes_any","values":["fire"]},
+            "expected_artifact_generation":page["artifact_generation"],
+        })))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{filtered}");
+    assert_eq!(filtered["total"], 1);
+    assert_eq!(filtered["matches"][0]["record"]["record_key"], ACTION);
+
+    let (status, missing) = fixture
+        .json(
+            Method::POST,
+            path,
+            Some(json!({"query":"test action","filter":null})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{missing}");
+    assert_eq!(missing["matches"], json!([]));
+
+    let (status, _) = fixture
+        .json(
+            Method::POST,
+            path,
+            Some(json!({
+                "query":"Test Action 1",
+                "expected_artifact_generation":"older-generation"
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    for query in [" ".into(), "\"unclosed".into(), "x".repeat(16_385)] {
+        let (status, body) = fixture
+            .json(Method::POST, path, Some(json!({"query":query})))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     }
 }
 

@@ -4555,6 +4555,9 @@
               }
             ]
           },
+          "include_search_toolbar": {
+            "type": "boolean"
+          },
           "selected_field_ids": {
             "items": {
               "type": "string"
@@ -8428,6 +8431,57 @@
         ],
         "type": "object"
       },
+      "ExactSearchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_artifact_generation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "filter": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/QueryPredicateInputSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "ExactSearchView": {
+        "properties": {
+          "artifact_generation": {
+            "type": "string"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/RecordResolutionCandidateView"
+            },
+            "type": "array"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_generation",
+          "matches",
+          "total"
+        ],
+        "type": "object"
+      },
       "FacetUnavailableReason": {
         "enum": [
           "non_conjunctive_context",
@@ -10949,6 +11003,9 @@
               "$ref": "#/components/schemas/RelationshipClausePresentationView"
             },
             "type": "array"
+          },
+          "search_toolbar": {
+            "$ref": "#/components/schemas/SearchFilterToolbarView"
           },
           "sense_qualifiers": {
             "items": {
@@ -16435,6 +16492,39 @@
         ],
         "type": "object"
       },
+      "RecordResolutionCandidateView": {
+        "properties": {
+          "evidence": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "match_kind": {
+            "type": "string"
+          },
+          "matched_text": {
+            "type": "string"
+          },
+          "normalized_query": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "record": {
+            "$ref": "#/components/schemas/RecordSummaryView"
+          }
+        },
+        "required": [
+          "record",
+          "query",
+          "normalized_query",
+          "match_kind",
+          "matched_text"
+        ],
+        "type": "object"
+      },
       "RecordSelection": {
         "additionalProperties": false,
         "properties": {
@@ -18680,6 +18770,35 @@
           }
         ]
       },
+      "SearchFilterToolbarView": {
+        "description": "Main Search presentation for the committed filter in the editor request.",
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/SearchQuickFieldView"
+            },
+            "type": "array"
+          },
+          "has_refinements": {
+            "type": "boolean"
+          },
+          "kind_scope": {
+            "$ref": "#/components/schemas/QueryPredicate"
+          },
+          "retained_fields": {
+            "items": {
+              "$ref": "#/components/schemas/SearchQuickFieldView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "fields",
+          "retained_fields",
+          "has_refinements"
+        ],
+        "type": "object"
+      },
       "SearchLaneView": {
         "enum": [
           "lexical",
@@ -18864,6 +18983,21 @@
           "stored_vectors",
           "assets_ready",
           "usable"
+        ],
+        "type": "object"
+      },
+      "SearchQuickFieldView": {
+        "properties": {
+          "field_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_id",
+          "label"
         ],
         "type": "object"
       },
@@ -28283,6 +28417,53 @@
               }
             },
             "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/search/exact": {
+      "post": {
+        "operationId": "searchExact",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExactSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExactSearchView"
+                }
+              }
+            },
+            "description": "Exact record name and alias matches"
           },
           "409": {
             "content": {

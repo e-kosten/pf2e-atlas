@@ -194,6 +194,22 @@ impl AtlasRetrievalService {
             page: info,
         })
     }
+    /// Resolve name identity for a Search query, including whole-name quotation.
+    pub fn resolve_search_name(
+        &self,
+        text: &str,
+        filter: Option<&QueryPredicate>,
+    ) -> Result<Vec<RecordResolutionResult>, SearchError> {
+        atlas_index::validate_lexical_text(text).map_err(atlas_index::IndexError::from)?;
+        let query = crate::text::identity_search_text(text);
+        if query.trim().is_empty() {
+            return Err(SearchError::invalid_search_options(
+                "query must not be empty",
+            ));
+        }
+        self.resolve_record(ResolveRecordRequest { query, filter })
+    }
+
     pub fn resolve_record(
         &self,
         request: ResolveRecordRequest<'_>,

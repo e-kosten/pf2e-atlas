@@ -1412,6 +1412,13 @@ fn embedded_collection_membership_is_independent_of_parent_kind_and_traits() {
         )
         .unwrap();
     }
+    db.execute(
+        "INSERT INTO trait_members
+         SELECT 'cantrip',r.key,json_array(json(i.owner_selector_json)),1,NULL
+         FROM actor_items i JOIN records r USING(record_id) WHERE i.id=10",
+        [],
+    )
+    .unwrap();
     db.execute("UPDATE records SET record_kind_state='value',record_kind=CASE WHEN source_type='npc' THEN 'creature' ELSE 'spell' END", []).unwrap();
     assert_eq!(
         result(
@@ -1428,6 +1435,14 @@ fn embedded_collection_membership_is_independent_of_parent_kind_and_traits() {
         .is_empty()
     );
     assert_eq!(result(&db, "'fire' in traits"), vec![2]);
+    assert_eq!(
+        result(
+            &db,
+            "embedded.spells.exists(s, s.kind == 'spell' && s.spell.cantrip == true)"
+        ),
+        vec![1]
+    );
+    assert!(result(&db, "kind == 'cantrip'").is_empty());
     assert_eq!(
         result(&db, "embedded.spells.exists(s, 'fire' in s.traits)"),
         vec![1]
@@ -2071,7 +2086,7 @@ fn filtered_links_preserve_direction_scope_and_unknown_witnesses() {
 #[test]
 fn static_kind_catalog_declares_groups_dynamic_syntax_and_independent_embedded_choices() {
     let catalog = query_capabilities().unwrap();
-    assert_eq!(catalog.version, 12);
+    assert_eq!(catalog.version, 13);
     let kind = catalog
         .fields
         .iter()
@@ -2079,7 +2094,7 @@ fn static_kind_catalog_declares_groups_dynamic_syntax_and_independent_embedded_c
         .unwrap();
     assert_eq!(kind.value_discovery, QueryValueDiscovery::OpenValues);
     let group = |id: &str| kind.choice_groups.iter().find(|g| g.id == id).unwrap();
-    assert_eq!(group("all_spells").children, ["ritual", "spell"]);
+    assert_eq!(group("all_spells").children, ["cantrip", "ritual", "spell"]);
     assert_eq!(
         group("journal").dynamic_child_prefix.as_deref(),
         Some("journal_pack/")
@@ -2113,6 +2128,8 @@ fn kind_predicates_distinguish_authored_categories_partial_records_and_groups() 
         (7, "spell"),
         (8, "weapon"),
         (9, "equipment"),
+        (10, "spell"),
+        (11, "spell"),
     ] {
         root(&db, id, family, "common");
     }
@@ -2133,7 +2150,13 @@ fn kind_predicates_distinguish_authored_categories_partial_records_and_groups() 
             ],
         );
     }
-    for (id, ritual) in [(5, Some(1)), (6, Some(0)), (7, None)] {
+    for (id, ritual, rank) in [
+        (5, Some(1), 3),
+        (6, Some(0), 1),
+        (7, None, 1),
+        (10, Some(0), 1),
+        (11, Some(0), 3),
+    ] {
         row(
             &db,
             "spell_projection",
@@ -2145,8 +2168,49 @@ fn kind_predicates_distinguish_authored_categories_partial_records_and_groups() 
                     text(if ritual.is_some() { "value" } else { "missing" }),
                 ),
                 ("ritual", ritual.map_or(Value::Null, Value::from)),
+                ("rank_state", text("value")),
+                ("rank", rank.into()),
             ],
         );
+    }
+    db.execute(
+        "INSERT INTO trait_members
+         SELECT 'cantrip',key,'[]',1,NULL FROM records WHERE record_id IN (10,11)",
+        [],
+    )
+    .unwrap();
+    db.execute(
+        "UPDATE records SET traits_state='missing' WHERE record_id=7",
+        [],
+    )
+    .unwrap();
+    // Toolbar eligibility uses the same public selectors with their declared source families.
+    for (id, selector) in [
+        (1, "class_feature"),
+        (2, "deity_curse"),
+        (4, "kingdom_and_warfare"),
+        (5, "ritual"),
+        (6, "spell"),
+        (8, "weapon"),
+        (9, "general_equipment"),
+        (10, "cantrip"),
+    ] {
+        let (kind, family): (String, String) = db
+            .query_row(
+                &format!(
+                    "SELECT {}, r.source_type FROM records r WHERE r.record_id=?",
+                    root_kind::CLASSIFICATION_SQL
+                ),
+                [id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(kind, selector);
+        let declared = atlas_domain::root_kind::ROOT_KINDS
+            .iter()
+            .find(|choice| choice.id == selector)
+            .unwrap();
+        assert_eq!(declared.source_family, Some(family.as_str()), "{selector}");
     }
     for (selector, ids) in [
         ("class_feature", vec![1]),
@@ -2154,7 +2218,8 @@ fn kind_predicates_distinguish_authored_categories_partial_records_and_groups() 
         ("all_deities", vec![2]),
         ("deity_curse", vec![2]),
         ("kingdom_and_warfare", vec![4]),
-        ("all_spells", vec![5, 6, 7]),
+        ("all_spells", vec![5, 6, 7, 10, 11]),
+        ("cantrip", vec![10, 11]),
         ("spell", vec![6, 7]),
         ("ritual", vec![5]),
         ("all_equipment", vec![8, 9]),
@@ -2168,10 +2233,27 @@ fn kind_predicates_distinguish_authored_categories_partial_records_and_groups() 
     );
     assert_eq!(
         result(&db, "kind in ['all_spells','spell','ritual']"),
+        vec![5, 6, 7, 10, 11]
+    );
+    assert_eq!(
+        result(&db, "kind in ['spell','cantrip']"),
+        vec![6, 7, 10, 11]
+    );
+    assert_eq!(
+        result(&db, "kind == 'all_spells' && kind != 'cantrip'"),
         vec![5, 6, 7]
     );
+    assert_eq!(
+        result(&db, "kind == 'all_spells' && kind != 'spell'"),
+        vec![5, 10, 11]
+    );
+    assert_eq!(
+        result(&db, "kind == 'cantrip' && spell.rank == 3"),
+        vec![11]
+    );
+    assert_eq!(result(&db, "spell.cantrip == true"), vec![10, 11]);
     assert_eq!(result(&db, "availability['kind']=='missing'"), vec![3]);
-    assert_eq!(result(&db, "spell.ritual==false"), vec![6]);
+    assert_eq!(result(&db, "spell.ritual==false"), vec![6, 10, 11]);
     assert!(!result(&db, "kind != 'army_tactic'").contains(&4));
     assert!(result(&db, "kind != 'army'").contains(&4));
     assert!(!result(&db, "!(kind=='spell')").contains(&3));
