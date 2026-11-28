@@ -74,7 +74,6 @@ function commonDraftNodes(
 export function commonDraftCondition(
   query: RuleGroupType,
   field: QueryFieldDefinition,
-  definitions: QueryFieldDefinition[] = [field],
 ): CommonCondition {
   const matching = commonDraftNodes(query, field);
   if (!matching) return { status: "advanced", clause: null };
@@ -90,7 +89,7 @@ export function commonDraftCondition(
     return { status: "advanced", clause: null };
   try {
     return commonCondition(
-      builderPredicate({ combinator: "and", rules: matching }, definitions),
+      builderPredicate({ combinator: "and", rules: matching }, [field]),
       field,
     );
   } catch {
@@ -140,10 +139,9 @@ export function commonDraftRange(
 export function canReplaceCommonDraft(
   query: RuleGroupType,
   field: QueryFieldDefinition,
-  definitions: QueryFieldDefinition[] = [field],
 ): boolean {
   return (
-    commonDraftCondition(query, field, definitions).status !== "advanced" ||
+    commonDraftCondition(query, field).status !== "advanced" ||
     commonDraftRange(query, field) !== null
   );
 }
@@ -152,9 +150,8 @@ export function replaceCommonDraft(
   query: RuleGroupType,
   field: QueryFieldDefinition,
   replacement: QueryPredicate | null,
-  definitions: QueryFieldDefinition[] = [field],
 ): RuleGroupType {
-  const next = predicateBuilder(replacement, definitions);
+  const next = predicateBuilder(replacement, [field]);
   const existingGroups = new Map<string, PredicateGroup>();
   function remember(group: PredicateGroup) {
     if (group.id) existingGroups.set(group.id, group);
@@ -183,7 +180,7 @@ export function replaceCommonDraft(
           : next,
       )
     : null;
-  if (!canReplaceCommonDraft(query, field, definitions))
+  if (!canReplaceCommonDraft(query, field))
     throw new Error("Edit this condition in advanced filters");
   return replaceCommonNodes(query, field.id, nextNode);
 }

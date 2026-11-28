@@ -95,6 +95,9 @@
   max-height: calc(100dvh - 64px);
   overflow-y: auto;
 }
+.common-choice-menu[role="dialog"][data-compact] {
+  width: min(224px, calc(100vw - 48px));
+}
 .common-choice-menu > * {
   flex-shrink: 0;
 }

@@ -145,7 +145,7 @@ export function useFilterEditor(
       change(query);
       return;
     } catch {
-      const condition = commonDraftCondition(query, field, definitions);
+      const condition = commonDraftCondition(query, field);
       if (
         condition.status === "advanced" ||
         commonCondition(search.filter, field).status === "advanced"

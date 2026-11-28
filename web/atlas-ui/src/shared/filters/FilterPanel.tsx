@@ -100,7 +100,7 @@ import { CommonChoicePicker } from "./FilterChoicePicker";
 import {
   hasDraftRefinements,
   RetainedQuickFilterChip,
-  SearchQuickSingleFilter,
+  SearchQuickBooleanFilter,
 } from "./SearchQuickFields";
 import { encodeFilterUrl } from "./filterUrl";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
@@ -216,7 +216,6 @@ export function FilterControls({
     [editor],
   );
   const prepared = useFilterEditor(search, fields, setSearch);
-  const definitions = useMemo(() => fields.map((field) => field.definition), [fields]);
   const toolbarFrame = useRef<HTMLElement>(null);
   const toolbarChrome = useRef<HTMLDivElement>(null);
   const quickControls = useRef<HTMLDivElement>(null);
@@ -581,11 +580,6 @@ export function FilterControls({
               <CommonFilter
                 key={id + ":" + draftRevision}
                 field={field}
-                collectionMember={fields.find(
-                  (candidate) =>
-                    candidate.definition.id ===
-                    field.collection_control?.category_field_id,
-                )}
                 pending={pending}
                 layout={commonLayout}
                 compactPane={!!pane}
@@ -598,11 +592,7 @@ export function FilterControls({
                 }
                 condition={
                   prepared.query
-                    ? commonDraftCondition(
-                        prepared.query,
-                        field.definition,
-                        definitions,
-                      )
+                    ? commonDraftCondition(prepared.query, field.definition)
                     : { status: "empty", clause: null }
                 }
                 range={
@@ -613,12 +603,7 @@ export function FilterControls({
                 onChange={(replacement) => {
                   if (!pending && prepared.query)
                     prepared.changeCommon(
-                      replaceCommonDraft(
-                        prepared.query,
-                        field.definition,
-                        replacement,
-                        definitions,
-                      ),
+                      replaceCommonDraft(prepared.query, field.definition, replacement),
                       field.definition,
                     );
                 }}
@@ -728,11 +713,6 @@ export function FilterControls({
               field={field}
               clause={clause}
               disabled={toolbarCriteriaPending}
-              member={fields.find(
-                (candidate) =>
-                  candidate.definition.id ===
-                  field.collection_control?.category_field_id,
-              )}
               rangeLabel={
                 field.definition.field_type === "number"
                   ? rangeSummary(conditionRange(clause))
@@ -740,8 +720,7 @@ export function FilterControls({
               }
               onRemove={(event) => {
                 const query = prepared.query;
-                const draft =
-                  query && commonDraftCondition(query, field.definition, definitions);
+                const draft = query && commonDraftCondition(query, field.definition);
                 if (
                   !query ||
                   draft?.status !== "editable" ||
@@ -757,7 +736,7 @@ export function FilterControls({
                   event.currentTarget,
                 );
                 prepared.changeCommon(
-                  replaceCommonDraft(query, field.definition, null, definitions),
+                  replaceCommonDraft(query, field.definition, null),
                   field.definition,
                 );
               }}
@@ -923,7 +902,6 @@ export function FilterControls({
 
 function CommonFilter({
   field,
-  collectionMember,
   pending,
   applied,
   range,
@@ -937,7 +915,6 @@ function CommonFilter({
   selectionContainer,
 }: {
   field: FilterEditorFieldView;
-  collectionMember?: FilterEditorFieldView;
   pending: boolean;
   selectionContainer?: HTMLElement | null;
   layout: "panel" | "toolbar";
@@ -1004,10 +981,9 @@ function CommonFilter({
             trigger={rangeTrigger}
           />
         )
-      ) : field.definition.field_type === "boolean" || collectionMember ? (
-        <SearchQuickSingleFilter
+      ) : field.definition.field_type === "boolean" ? (
+        <SearchQuickBooleanFilter
           field={field}
-          member={collectionMember}
           clause={condition.clause}
           applied={applied}
           disabled={pending}

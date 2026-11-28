@@ -48,7 +48,6 @@ export function predicateMentionsField(
 ): boolean {
   if (!predicate || typeof predicate !== "object") return false;
   if ("field" in predicate) return predicate.field === path;
-  if (predicate.kind === "exists" && predicate.collection === path) return true;
   if (predicate.kind === "all_of" || predicate.kind === "any_of")
     return (
       Array.isArray(predicate.children) &&
@@ -58,29 +57,7 @@ export function predicateMentionsField(
     return predicateMentionsField(predicate.predicate, path);
   return false;
 }
-/** Only a single positive category comparison has a quick collection editor. */
-export function collectionCategory(clause: QueryPredicate | null, path = "type") {
-  if (clause?.kind !== "exists") return null;
-  let member = clause.predicate;
-  while (member.kind === "all_of" && member.children.length === 1) {
-    member = member.children[0];
-  }
-  return member.kind === "compare" &&
-    member.field === path &&
-    member.op === "eq" &&
-    typeof member.value === "string"
-    ? member
-    : null;
-}
-
 function commonShape(predicate: QueryPredicate, field: QueryFieldDefinition): boolean {
-  if (field.field_type === "collection")
-    return (
-      field.path === "movement.speeds" &&
-      predicate.kind === "exists" &&
-      predicate.collection === field.path &&
-      !!collectionCategory(predicate)
-    );
   if (field.field_type === "boolean")
     return (
       predicate.kind === "compare" &&
@@ -342,7 +319,6 @@ export function hasAdvancedFilterConditions(
     if (
       condition.status === "editable" &&
       (field.field_type === "number" ||
-        !!collectionCategory(condition.clause) ||
         (choices.length > 0 &&
           choices.every((clause) => conditionValues(clause).length > 0)))
     ) {

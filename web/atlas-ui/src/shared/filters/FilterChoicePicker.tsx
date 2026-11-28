@@ -484,6 +484,13 @@ function FilterChoicePicker({
   return (
     <ReferenceHelpProvider onHelp={preview.openHelp} onReference={preview.open}>
       <ChoicePicker
+        compact={
+          closedChoices &&
+          !isRootKind &&
+          label.length <= 18 &&
+          catalog.length > 0 &&
+          catalog.every((choice) => choice.label.length <= 16 && !choice.help)
+        }
         inlineSelections={inlineSelections}
         disabled={disabled}
         singleChoice={edit.kind === "single"}

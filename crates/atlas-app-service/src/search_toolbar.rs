@@ -18,12 +18,11 @@ const TRAITS: &str = "traits";
 const TRADITION: &str = "spell.traditions";
 const CAST_ACTIONS: &str = "spell.casting_form";
 const CAST_TIME: &str = "spell.casting_time";
-const MOVEMENT: &str = "movement.speeds";
 
 fn specialists(kind: &str) -> &'static [&'static str] {
     match kind {
         "action" => &["action.type", "action.category"],
-        "ammunition" | "container" => &[PRICE, BULK],
+        "ammunition" | "treasure" => &[PRICE],
         "ancestry" => &["ancestry.default_boosts", "ancestry.vision"],
         "ancestry_feat" | "bonus_feat" | "class_feat" | "skill_feat" => &["action.type"],
         "armor" => &["armor.category", "armor.ac_bonus", PRICE],
@@ -35,7 +34,7 @@ fn specialists(kind: &str) -> &'static [&'static str] {
         "character" => &["languages"],
         "class" => &["class.key_attributes"],
         "consumable" => &["consumable.category", PRICE, "physical.usage"],
-        "creature" => &[MOVEMENT],
+        "container" => &[PRICE, BULK],
         "deity" => &["deity.domains.primary", "deity.favored_weapons"],
         "effect" => &["effect.duration.unit"],
         "general_equipment" => &[PRICE, "physical.usage", BULK],
@@ -43,8 +42,7 @@ fn specialists(kind: &str) -> &'static [&'static str] {
         "heritage" => &["heritage.ancestry.slug", "heritage.versatile"],
         "ritual" => &[CAST_TIME],
         "shield" => &["shield.hardness", "shield.broken_threshold", PRICE],
-        "spell" => &[TRADITION, CAST_ACTIONS],
-        "treasure" => &[PRICE],
+        "cantrip" | "spell" => &[TRADITION, CAST_ACTIONS],
         "vehicle" => &["body.size"],
         "weapon" => &[
             "weapon.category",
@@ -85,7 +83,6 @@ fn quick_view(field: &FilterEditorFieldView) -> SearchQuickFieldView {
         TRADITION => "Tradition",
         CAST_ACTIONS => "Cast actions",
         CAST_TIME => "Casting time",
-        MOVEMENT => "Movement type",
         "background.restricted_attribute_boosts" => "Restricted boost",
         "background.skill_training" => "Skill training",
         "ancestry.default_boosts" => "Default boosts",
@@ -109,7 +106,7 @@ fn family(kind: &str) -> Option<&'static str> {
 
 fn covers(field: &FilterEditorFieldView, kind: &str) -> bool {
     let usable = match field.definition.id.as_str() {
-        TRADITION | CAST_ACTIONS => kind == "spell",
+        TRADITION | CAST_ACTIONS => matches!(kind, "cantrip" | "spell"),
         CAST_TIME => kind == "ritual",
         LEVEL => !matches!(kind, "army_war_action" | "kingdom_activity"),
         _ => true,
@@ -330,7 +327,6 @@ fn active_field(predicate: &QueryPredicate, id: &str) -> bool {
         QueryExpression::Compare { field, .. }
         | QueryExpression::In { field, .. }
         | QueryExpression::SetMatch { field, .. } => field == id,
-        QueryExpression::Exists { collection, .. } => collection == id,
         _ => false,
     }
 }
@@ -345,8 +341,7 @@ pub(crate) fn resolve(
         .flat_map(|group| &group.fields)
         .filter(|field| {
             field.definition.scope.is_none()
-                && (field.definition.field_type != QueryFieldType::Collection
-                    || (field.definition.id == MOVEMENT && field.collection_control.is_some()))
+                && field.definition.field_type != QueryFieldType::Collection
         })
         .map(|field| (field.definition.id.as_str(), field))
         .collect();
@@ -481,6 +476,7 @@ mod tests {
                 vec!["kind", LEVEL, RARITY, TRAITS, PRICE, BULK],
             ),
             (&["weapon", "armor", "kit"], vec!["kind", LEVEL]),
+            (&["ammunition"], vec!["kind", LEVEL, RARITY, TRAITS, PRICE]),
             (
                 &["all_equipment", "armor"],
                 vec!["kind", LEVEL, RARITY, TRAITS, PRICE, BULK],
@@ -491,6 +487,15 @@ mod tests {
                 vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
             ),
             (&["spell", "ritual"], vec!["kind", RANK, RARITY, TRAITS]),
+            (
+                &["cantrip"],
+                vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
+            ),
+            (
+                &["cantrip", "spell"],
+                vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS],
+            ),
+            (&["cantrip", "ritual"], vec!["kind", RANK, RARITY, TRAITS]),
             (&["ritual"], vec!["kind", RANK, RARITY, TRAITS, CAST_TIME]),
             (&["spell", "background"], vec!["kind", RANK, RARITY]),
             (&["character_creation"], vec!["kind", RARITY]),
@@ -500,7 +505,7 @@ mod tests {
             ),
             (&["kingdom_and_warfare"], vec!["kind", LEVEL, TRAITS]),
             (&["journal_pack/journals"], vec!["kind"]),
-            (&["creature"], vec!["kind", LEVEL, RARITY, TRAITS, MOVEMENT]),
+            (&["creature"], vec!["kind", LEVEL, RARITY, TRAITS]),
             (&["condition"], vec!["kind"]),
         ] {
             assert_eq!(ids(&view(kind(selection))), expected, "{selection:?}");
@@ -556,9 +561,18 @@ mod tests {
         let exclusion = json!({"kind":"all_of","children":[kind(&["all_spells"]),
             {"kind":"not","predicate":kind(&["spell"])}]});
         let toolbar = view(exclusion.clone());
-        assert_eq!(ids(&toolbar), vec!["kind", RANK, RARITY, TRAITS, CAST_TIME]);
+        assert_eq!(
+            ids(&toolbar),
+            vec!["kind", RANK, RARITY, TRAITS, TRADITION, CAST_ACTIONS]
+        );
         assert_eq!(serde_json::to_value(toolbar.kind_scope).unwrap(), exclusion);
         assert!(!toolbar.has_refinements);
+        let only_rituals = view(json!({"kind":"all_of","children":[kind(&["all_spells"]),
+            {"kind":"not","predicate":kind(&["spell", "cantrip"])}]}));
+        assert_eq!(
+            ids(&only_rituals),
+            vec!["kind", RANK, RARITY, TRAITS, CAST_TIME]
+        );
         let empty = view(json!({"kind":"all_of","children":[kind(&["spell"]),
             {"kind":"not","predicate":kind(&["all_spells"])}]}));
         assert!(empty.kind_scope.is_none());

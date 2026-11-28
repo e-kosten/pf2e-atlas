@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import type { MouseEvent } from "react";
 import { Button } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import type { RuleGroupType } from "react-querybuilder";
@@ -7,7 +7,6 @@ import { sentenceCase } from "../ui/labels";
 import { QuickSingleChoicePicker } from "./FilterChoicePicker";
 import {
   choiceClauses,
-  collectionCategory,
   conditionValues,
   isExcluded,
   type FilterPanelState,
@@ -20,10 +19,8 @@ export function hasDraftRefinements(query: RuleGroupType): boolean {
   );
 }
 
-/** Boolean and collection operands keep their original typed predicates. */
-export function SearchQuickSingleFilter({
+export function SearchQuickBooleanFilter({
   field,
-  member,
   clause,
   applied,
   disabled,
@@ -32,7 +29,6 @@ export function SearchQuickSingleFilter({
   onChange,
 }: {
   field: FilterEditorFieldView;
-  member?: FilterEditorFieldView;
   clause: QueryPredicate | null;
   applied: boolean;
   disabled: boolean;
@@ -40,19 +36,17 @@ export function SearchQuickSingleFilter({
   selectionContainer?: HTMLElement | null;
   onChange: (predicate: QueryPredicate | null) => void;
 }) {
-  const current = member ? collectionCategory(clause, member.definition.path) : clause;
-  const value = current?.kind === "compare" ? String(current.value) : null;
-  const pickerField = member ? { ...member, label: field.label } : field;
+  const value = clause?.kind === "compare" ? String(clause.value) : null;
   return (
     <QuickSingleChoicePicker
-      field={pickerField}
+      field={field}
       scope={workspace.vocabularyScope ?? { kind: "artifact" }}
       countContext={workspace.filterDiscoveryContext}
       countsEnabled={workspace.filterCountsEnabled !== false}
       countLimit={workspace.filterEditor?.limits.literal_list}
       countQueryKey={workspace.filterCountQueryKey}
       value={value}
-      clauseId={current?.clause_id ?? null}
+      clauseId={clause?.clause_id ?? null}
       applied={applied}
       disabled={disabled}
       selectionContainer={selectionContainer}
@@ -61,25 +55,13 @@ export function SearchQuickSingleFilter({
           onChange(null);
           return;
         }
-        const comparison: QueryPredicate = {
+        onChange({
           kind: "compare",
-          clause_id: current?.clause_id ?? crypto.randomUUID(),
-          field: pickerField.definition.path,
+          clause_id: clause?.clause_id ?? crypto.randomUUID(),
+          field: field.definition.path,
           op: "eq",
-          value: member ? next : next === "true",
-        };
-        onChange(
-          member
-            ? {
-                kind: "exists",
-                clause_id: clause?.clause_id ?? crypto.randomUUID(),
-                collection: field.definition.path,
-                scope_id:
-                  clause?.kind === "exists" ? clause.scope_id : crypto.randomUUID(),
-                predicate: comparison,
-              }
-            : comparison,
-        );
+          value: next === "true",
+        });
       }}
     />
   );
@@ -88,26 +70,20 @@ export function SearchQuickSingleFilter({
 /** A demoted control's committed condition remains visible beside current chips. */
 export function RetainedQuickFilterChip({
   field,
-  member,
   clause,
   rangeLabel,
   disabled,
   onRemove,
 }: {
   field: FilterEditorFieldView;
-  member?: FilterEditorFieldView;
   clause: QueryPredicate;
   rangeLabel?: string;
   disabled: boolean;
   onRemove: (event: MouseEvent<HTMLElement>) => void;
 }) {
-  let label: ReactNode = rangeLabel;
-  if (member) {
-    const category = collectionCategory(clause, member.definition.path);
-    if (!category) return null;
-    label = sentenceCase(filterValueLabel(member, String(category.value)));
-  } else if (!rangeLabel) {
-    label = choiceClauses(clause)
+  const label =
+    rangeLabel ??
+    choiceClauses(clause)
       .flatMap((part) =>
         conditionValues(part).map(
           (value) =>
@@ -116,7 +92,6 @@ export function RetainedQuickFilterChip({
         ),
       )
       .join(", ");
-  }
   return (
     <Button
       className="applied-filter-chip"

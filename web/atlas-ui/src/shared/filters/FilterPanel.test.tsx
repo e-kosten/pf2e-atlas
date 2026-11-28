@@ -343,46 +343,22 @@ describe("main Search scoped quick filters", () => {
     expect(change).toHaveBeenCalledWith(expect.objectContaining({ filter: null }));
   });
 
-  it("writes the movement category as an ordinary typed collection condition", async () => {
-    const movement = fieldFixture("movement.speeds", "collection", "Movement type");
-    const member = {
-      ...fieldFixture("movement.speeds[].type"),
-      scope: "movement.speeds",
-      path: "type",
-      choices: ["fly", "swim"],
+  it("keeps an applied movement condition under Advanced", () => {
+    const editor = scopedEditor();
+    editor.search_toolbar.retained_fields = [];
+    const filter: QueryPredicate = {
+      kind: "exists",
+      collection: "movement.speeds",
+      scope_id: "movement-scope",
+      predicate: { kind: "compare", field: "type", op: "eq", value: "fly" },
     };
-    const editor: FilterEditorView = {
-      ...editorFixture([movement, member]),
-      search_toolbar: {
-        has_refinements: false,
-        fields: [{ field_id: movement.id, label: "Movement type" }],
-        retained_fields: [],
-      },
-    };
-    const entry = editor.groups[0].fields[0];
-    entry.collection_control = {
-      category_field_id: member.id,
-      amount_field_id: null,
-    };
-    editor.groups[0].fields[1].short_choices = true;
-    const change = renderControls(editor, null, null, options);
-    fireEvent.click(screen.getByRole("button", { name: "Edit Movement type filter" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Movement type: fly, activate/i }),
-    );
-    expect(change).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filter: expect.objectContaining({
-          kind: "exists",
-          collection: "movement.speeds",
-          predicate: expect.objectContaining({
-            kind: "compare",
-            field: "type",
-            op: "eq",
-            value: "fly",
-          }),
-        }),
-      }),
+    renderControls(editor, filter, null, options);
+    expect(
+      screen.queryByRole("button", { name: /edit movement/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Advanced filters" })).toHaveAttribute(
+      "aria-description",
+      "Additional filters applied",
     );
   });
 });

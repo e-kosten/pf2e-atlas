@@ -36,6 +36,7 @@ export type ChoiceOption = {
 /** Shared include/exclude interaction; callers own vocabulary and filter semantics. */
 export function ChoicePicker({
   label,
+  compact = false,
   inlineSelections = false,
   disabled = false,
   id,
@@ -66,6 +67,7 @@ export function ChoicePicker({
   selectionContainer,
 }: {
   label: string;
+  compact?: boolean;
   inlineSelections?: boolean;
   disabled?: boolean;
   id: string;
@@ -441,6 +443,7 @@ export function ChoicePicker({
       role={narrow ? "group" : "dialog"}
       onKeyDownCapture={closeOnEscape}
       onKeyDown={moveChoiceFocus}
+      data-compact={compact || undefined}
       data-reference-picker={!!optionAction || undefined}
       data-reading={isReading || undefined}
     >
