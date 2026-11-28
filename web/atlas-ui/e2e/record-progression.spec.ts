@@ -64,7 +64,13 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
   await explore
     .getByRole("button", { name: "Expand Treat Condition", exact: true })
     .click();
-  await explore
+  const treatCondition = explore
+    .getByRole("listitem")
+    .filter({
+      has: page.getByRole("button", { name: "Collapse Treat Condition", exact: true }),
+    })
+    .last();
+  await treatCondition
     .getByRole("button", { name: "Expand Preventative Treatment", exact: true })
     .click();
   await expect(
@@ -119,7 +125,7 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
   await expect(
     explore.getByText("can't have a patron deity", { exact: true }),
   ).toBeVisible();
-  await explore
+  await treatCondition
     .getByRole("link", {
       name: "Explore progression for Preventative Treatment",
       exact: true,
