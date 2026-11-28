@@ -87,8 +87,18 @@ fn quick_view(field: &FilterEditorFieldView) -> SearchQuickFieldView {
         "background.skill_training" => "Skill training",
         "ancestry.default_boosts" => "Default boosts",
         "ancestry.vision" => "Vision",
+        "action.category" | "armor.category" | "consumable.category" | "weapon.category" => {
+            "Category"
+        }
+        "armor.ac_bonus" => "AC bonus",
+        "class.key_attributes" => "Key attribute",
         "deity.domains.primary" => "Primary domain",
+        "hazard.complexity" => "Complex",
+        "hazard.disable_skills" => "Disable skill",
+        "heritage.versatile" => "Versatile",
+        "physical.usage" => "Usage",
         "weapon.damage.type" => "Damage type",
+        "weapon.group" => "Group",
         _ => &field.label,
     };
     SearchQuickFieldView {
