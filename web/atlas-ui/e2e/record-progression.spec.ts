@@ -44,6 +44,21 @@ test("keeps compact branches open through a drawer visit and deliberate refocus"
     explore.getByRole("button", { name: "Collapse Medic Dedication", exact: true }),
   ).toBeFocused();
   await expect(explore.getByText(/trained in medicine/i).first()).toBeVisible();
+  const doctorsVisitation = explore.locator(".record-progression__relation").filter({
+    has: page.getByRole("link", { name: "Doctor's Visitation", exact: true }),
+  });
+  await expect(
+    doctorsVisitation.getByRole("link", {
+      name: "Explore progression for Doctor's Visitation",
+    }),
+  ).toBeVisible();
+  await doctorsVisitation
+    .getByRole("button", { name: "Expand Doctor's Visitation" })
+    .click();
+  await expect(explore.getByText("No further progression.")).toBeVisible();
+  await expect(explore.getByText("Matching prerequisite", { exact: true })).toHaveCount(
+    0,
+  );
 
   const currentUrl = page.url();
   const medic = explore.getByRole("link", { name: "Medic Dedication", exact: true });
@@ -92,7 +107,7 @@ test("shows both alternatives and identifies the matching reverse branch", async
   await page.goto("/records/" + SPEAKERS_DEFENSE);
   await page.getByRole("button", { name: "Progression", exact: true }).click();
   const explore = page.getByRole("region", { name: "Explore record", exact: true });
-  const heritage = explore.getByRole("link", { name: /budding speaker centaur/i });
+  const heritage = explore.getByRole("link", { name: /^budding speaker centaur/i });
   const training = explore.getByRole("link", {
     name: "Speaker in Training",
     exact: true,

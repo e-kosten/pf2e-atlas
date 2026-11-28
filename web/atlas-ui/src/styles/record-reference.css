@@ -962,7 +962,7 @@
   gap: 0 var(--space-control);
   min-inline-size: 0;
 }
-.record-progression__identity > a {
+.record-progression__title {
   display: inline-block;
   align-content: center;
   min-block-size: 34px;
@@ -975,13 +975,12 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.record-progression__witness {
+.record-progression__witness,
+.record-progression__empty {
   color: var(--muted);
   font-size: 0.875em;
 }
 .record-progression__branches {
-  display: grid;
-  gap: var(--space-control);
   border-inline-start: 1px solid var(--line);
   margin-inline-start: var(--space-micro);
   padding-inline-start: var(--space-control);
@@ -1012,21 +1011,6 @@
 }
 .record-progression__requirements .record-progression__requirements {
   padding-inline-start: var(--space-group);
-}
-.record-progression__explore-link,
-.record-progression__cycle-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-micro);
-  justify-self: start;
-  min-block-size: 34px;
-}
-.record-progression__cycle-link {
-  justify-content: center;
-  min-inline-size: 34px;
-}
-.record-progression__explore-link {
-  font-size: 0.875em;
 }
 .record-progression__pools > li + li {
   margin-block-start: var(--space-micro);

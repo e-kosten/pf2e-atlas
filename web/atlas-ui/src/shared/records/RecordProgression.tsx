@@ -4,7 +4,12 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { AtlasApiError, getProgression } from "../../api/atlasApi";
 import { AtlasLink } from "../../app/AtlasLink";
 import { recordDestination } from "../../app/destinations";
-import { isPrimaryActivation } from "../../app/navigation";
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { useAtlasRouter } from "../../app/router";
 import type {
   ProgressionPageView,
   ProgressionRequest,
@@ -18,6 +23,7 @@ import {
   referenceQueryMeta,
 } from "../queries/referenceQueries";
 import { LoadingStatus } from "../ui/LoadingStatus";
+import { InlineContext, InlineIconLink } from "../ui/actions/InlineAction";
 import { PaneIconButton } from "../ui/actions/PaneAction";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { useRecordReadingVisit } from "./recordExploreLocation";
@@ -134,7 +140,7 @@ function ProgressionOverview({
   const access = data?.available_through;
   const pools = data?.ancestry_feat_pools ?? [];
   const hasConnections = Boolean(
-    shownRequirements?.length ||
+    visibleRequirements?.length ||
     requiredBy?.entries.length ||
     access?.entries.length ||
     pools.length,
@@ -206,7 +212,11 @@ function ProgressionOverview({
         </section>
       )}
       {data && !hasConnections && (
-        <p>No linked progression is available for this record.</p>
+        <p className="record-progression__empty">
+          {additionalRequirements
+            ? "No further progression."
+            : "No linked progression is available for this record."}
+        </p>
       )}
     </div>
   );
@@ -371,10 +381,18 @@ function alsoRequires(
 ) {
   const match = witnesses?.[0];
   if (!entries || witnesses?.length !== 1 || !match || match.alternative) return;
-  const [group, ...leaves] = entries;
+  const [first, ...leaves] = entries;
   if (
-    group?.kind !== "all_of" ||
-    group.depth !== 0 ||
+    entries.length === 1 &&
+    first.depth === 0 &&
+    first.kind === "record" &&
+    first.path === match.path
+  ) {
+    return [];
+  }
+  if (
+    first?.kind !== "all_of" ||
+    first.depth !== 0 ||
     leaves.some(
       ({ depth, kind }) => depth !== 1 || kind === "all_of" || kind === "any_of",
     ) ||
@@ -474,6 +492,7 @@ function ProgressionReference({
   witnesses?: ProgressionWitness[];
   level?: number | null;
 }) {
+  const router = useAtlasRouter();
   const key = JSON.stringify(context.path);
   const expanded = context.expandedBranches.includes(key);
   const cycle = context.ancestors.includes(navigation.record_key);
@@ -485,26 +504,41 @@ function ProgressionReference({
     view: "explore",
     tab: "progression",
   });
-  const exploreLabel = "Explore progression for " + label;
+  const explore = context.ancestors[0] !== navigation.record_key && (
+    <InlineIconLink
+      label={"Explore progression for " + label}
+      title="Explore progression"
+      icon={<Compass aria-hidden="true" />}
+      href={destinationHref(destination)}
+      onClick={(event) => {
+        if (!isPrimaryActivation(event)) return;
+        event.preventDefault();
+        void navigateDestination(destination, undefined, router);
+      }}
+    />
+  );
 
   return (
     <div className="record-progression__branch">
       <div className="record-progression__relation">
         <div className="record-progression__identity">
-          <AtlasLink
-            {...recordDestination(address)}
-            onClick={(event) => {
-              if (!isPrimaryActivation(event)) return;
-              event.preventDefault();
-              context.onReference(
-                navigation.record_key,
-                event.currentTarget,
-                navigation,
-              );
-            }}
-          >
-            {label}
-          </AtlasLink>
+          <InlineContext actions={explore}>
+            <AtlasLink
+              {...recordDestination(address)}
+              className="record-progression__title"
+              onClick={(event) => {
+                if (!isPrimaryActivation(event)) return;
+                event.preventDefault();
+                context.onReference(
+                  navigation.record_key,
+                  event.currentTarget,
+                  navigation,
+                );
+              }}
+            >
+              {label}
+            </AtlasLink>
+          </InlineContext>
           {Boolean(alternatives) && !expanded && (
             <span className="record-progression__witness">
               Alternative prerequisite
@@ -514,23 +548,14 @@ function ProgressionReference({
         {level != null && (
           <span className="record-progression__level">Level {level}</span>
         )}
-        {!cycle ? (
+        {!cycle && (
           <PaneIconButton
             label={expanded ? "Collapse " + label : "Expand " + label}
             aria-expanded={expanded}
             onClick={() => context.setBranchExpanded(key, !expanded)}
             icon={expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           />
-        ) : context.ancestors[0] !== navigation.record_key ? (
-          <AtlasLink
-            {...destination}
-            className="record-progression__cycle-link"
-            aria-label={exploreLabel}
-            title="Explore progression"
-          >
-            <Compass size={16} aria-hidden="true" />
-          </AtlasLink>
-        ) : null}
+        )}
       </div>
       {expanded && (
         <div className="record-progression__branches">
@@ -540,14 +565,6 @@ function ProgressionReference({
             requirements={requirements}
             witnesses={witnesses}
           />
-          <AtlasLink
-            {...destination}
-            className="record-progression__explore-link"
-            aria-label={exploreLabel}
-          >
-            <Compass size={14} aria-hidden="true" />
-            Explore progression
-          </AtlasLink>
         </div>
       )}
     </div>
