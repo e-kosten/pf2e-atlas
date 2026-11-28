@@ -36,7 +36,10 @@ export type ChoiceOption = {
 /** Shared include/exclude interaction; callers own vocabulary and filter semantics. */
 export function ChoicePicker({
   label,
+  compact = false,
   inlineSelections = false,
+  disabled = false,
+  editsPending = false,
   id,
   choices,
   visibleChoices,
@@ -58,13 +61,17 @@ export function ChoicePicker({
   labelForValue = (value) => value,
   counts,
   valueEditing,
+  singleChoice = false,
   pageKey,
   optionAction,
   reading,
   selectionContainer,
 }: {
   label: string;
+  compact?: boolean;
   inlineSelections?: boolean;
+  disabled?: boolean;
+  editsPending?: boolean;
   id: string;
   choices: ChoiceOption[];
   visibleChoices?: ChoiceOption[];
@@ -85,6 +92,7 @@ export function ChoicePicker({
   emptyMessage?: ReactNode;
   labelForValue?: (value: string) => string;
   counts?: ReadonlyMap<string, number>;
+  singleChoice?: boolean;
   valueEditing?: {
     triggerText: string;
     scalar?: boolean;
@@ -103,6 +111,7 @@ export function ChoicePicker({
   selectionContainer?: HTMLElement | null;
 }) {
   const { token } = theme.useToken();
+  const selectOnly = !!valueEditing || singleChoice;
   const [sessionValues, setSessionValues] = useState<string[]>([]);
   const input = useRef<InputRef>(null);
   const optionList = useRef<HTMLDivElement>(null);
@@ -112,7 +121,7 @@ export function ChoicePicker({
   const menuId = useId();
   const screens = Grid.useBreakpoint();
   const narrow = screens.xs === true && !screens.sm;
-  const visible = open;
+  const visible = open && !disabled;
   const readingView = useRef<HTMLDivElement>(null);
   const readOrigin = useRef<HTMLElement | null>(null);
   const isReading = !!reading;
@@ -160,6 +169,7 @@ export function ChoicePicker({
         )
       : options);
   function setMenuOpen(next: boolean) {
+    if (next && (disabled || editsPending)) return;
     if (!next && reading) {
       readOrigin.current = null;
       reading.onDismiss();
@@ -177,6 +187,7 @@ export function ChoicePicker({
     initialFocusPending.current = false;
   }
   function change(value: string, state: ChoiceState) {
+    if (disabled || editsPending) return;
     if (open)
       setSessionValues((current) =>
         current.includes(value) ? current : [...current, value],
@@ -272,7 +283,7 @@ export function ChoicePicker({
           const dimmed = count === 0 && state === "neutral";
           const inherited = option.parent ? stateOf(option.parent) : "neutral";
           const inheritedSelection =
-            !valueEditing && state === "neutral" && inherited !== "neutral";
+            !selectOnly && state === "neutral" && inherited !== "neutral";
           const applied = inheritedSelection ? inherited : state;
           const appliedLabel =
             applied === "neutral"
@@ -284,7 +295,7 @@ export function ChoicePicker({
             inheritedSelection && option.parent
               ? `${appliedLabel} by ${labelForValue(option.parent)}`
               : appliedLabel;
-          const next: ChoiceState = valueEditing
+          const next: ChoiceState = selectOnly
             ? state === "include"
               ? "neutral"
               : "include"
@@ -299,8 +310,9 @@ export function ChoicePicker({
             <Button
               className="common-choice-row"
               block
+              aria-disabled={editsPending || undefined}
               color={
-                valueEditing
+                selectOnly
                   ? "default"
                   : state === "exclude"
                     ? "danger"
@@ -309,12 +321,12 @@ export function ChoicePicker({
                       : "default"
               }
               variant="text"
-              aria-pressed={valueEditing ? state === "include" : undefined}
+              aria-pressed={selectOnly ? state === "include" : undefined}
               styles={{
                 root: {
                   minWidth: 0,
                   flex: action ? 1 : undefined,
-                  ...(valueEditing
+                  ...(selectOnly
                     ? {
                         minHeight: token.controlHeight,
                         containIntrinsicSize: `auto ${token.controlHeight}px`,
@@ -326,7 +338,7 @@ export function ChoicePicker({
                     : {}),
                   color: dimmed
                     ? token.colorTextDisabled
-                    : valueEditing || state === "neutral"
+                    : selectOnly || state === "neutral"
                       ? undefined
                       : state === "include"
                         ? "var(--filter-include-text)"
@@ -334,7 +346,7 @@ export function ChoicePicker({
                   backgroundColor:
                     state === "neutral"
                       ? undefined
-                      : valueEditing
+                      : selectOnly
                         ? token.controlItemBgActive
                         : state === "include"
                           ? "var(--filter-include-bg)"
@@ -342,7 +354,7 @@ export function ChoicePicker({
                 },
               }}
               aria-label={
-                valueEditing
+                selectOnly
                   ? label +
                     ": " +
                     option.label +
@@ -358,7 +370,7 @@ export function ChoicePicker({
               {count !== undefined && (
                 <Typography.Text
                   type="secondary"
-                  style={dimmed || valueEditing ? { color: "inherit" } : undefined}
+                  style={dimmed || selectOnly ? { color: "inherit" } : undefined}
                   aria-label={`${count} matching records`}
                 >
                   {new Intl.NumberFormat().format(count)}
@@ -366,7 +378,7 @@ export function ChoicePicker({
               )}
               {applied !== "neutral" && (
                 <span className="common-choice-marker" aria-hidden="true">
-                  {valueEditing ? (
+                  {selectOnly ? (
                     <CheckOutlined style={{ color: token.colorPrimary }} />
                   ) : applied === "include" ? (
                     <PlusOutlined />
@@ -435,6 +447,7 @@ export function ChoicePicker({
       role={narrow ? "group" : "dialog"}
       onKeyDownCapture={closeOnEscape}
       onKeyDown={moveChoiceFocus}
+      data-compact={compact || undefined}
       data-reference-picker={!!optionAction || undefined}
       data-reading={isReading || undefined}
     >
@@ -463,7 +476,7 @@ export function ChoicePicker({
     "aria-haspopup": "dialog" as const,
     "aria-expanded": visible,
     "aria-controls": visible ? menuId : undefined,
-    onClick: narrow ? () => setMenuOpen(true) : undefined,
+    onClick: narrow && !disabled ? () => setMenuOpen(true) : undefined,
     onKeyDown: valueEditing ? undefined : closeOnEscape,
   };
   const selectedLabel = (value: string) =>
@@ -590,6 +603,8 @@ export function ChoicePicker({
     <Button
       {...openerProps}
       className="common-choice-trigger"
+      disabled={disabled}
+      aria-disabled={editsPending || undefined}
       color={applied ? "primary" : "default"}
       variant="outlined"
       aria-description={applied ? "Filter applied" : undefined}
@@ -616,6 +631,7 @@ export function ChoicePicker({
               color="default"
               variant="filled"
               className="applied-filter-chip"
+              disabled={disabled || editsPending}
               aria-label={`Remove ${excluded ? "excluded" : "included"} ${valueLabel} from ${label}`}
               onClick={(event) => removeValue(event, value)}
             >

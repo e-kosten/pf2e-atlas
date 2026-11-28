@@ -2807,6 +2807,7 @@ export interface DiscoverFilterEditorRequest {
   /** @nullable */
   expected_artifact_generation?: string | null;
   filter?: QueryPredicateInputSchema | null;
+  include_search_toolbar?: boolean;
   selected_field_ids?: string[];
 }
 
@@ -4726,6 +4727,21 @@ export type RelationshipClausePresentationView = {
   status: 'unavailable';
 };
 
+export interface SearchQuickFieldView {
+  field_id: string;
+  label: string;
+}
+
+/**
+ * Main Search presentation for the committed filter in the editor request.
+ */
+export interface SearchFilterToolbarView {
+  fields: SearchQuickFieldView[];
+  has_refinements: boolean;
+  kind_scope?: QueryPredicate;
+  retained_fields: SearchQuickFieldView[];
+}
+
 export interface SenseQualifierView {
   /** @nullable */
   acuity: string | null;
@@ -4741,6 +4757,7 @@ export interface FilterEditorView {
   groups: FilterEditorGroupView[];
   limits: QueryLimits;
   relationship_clauses: RelationshipClausePresentationView[];
+  search_toolbar?: SearchFilterToolbarView;
   sense_qualifiers?: SenseQualifierView[];
 }
 

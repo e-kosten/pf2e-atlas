@@ -983,6 +983,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            include_search_toolbar: false,
             expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec!["defenses.hp.maximum".into()],
@@ -1148,6 +1149,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            include_search_toolbar: false,
             expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec![],
@@ -1216,12 +1218,15 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
         .find(|field| field.definition.id == "level")
         .unwrap();
     assert_eq!(level.label, "Level");
-    assert!(
-        level
-            .help
-            .as_deref()
-            .is_some_and(|help| help.contains("physical items") && help.contains("afflictions"))
-    );
+    for field in &editor.groups[0].fields {
+        if matches!(field.definition.id.as_str(), "level" | "level_or_rank") {
+            assert!(
+                field.help.is_none(),
+                "{} has help text",
+                field.definition.id
+            );
+        }
+    }
     assert_eq!(
         fields
             .iter()

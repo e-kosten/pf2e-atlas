@@ -142,6 +142,7 @@ export type SearchWorkspaceState = {
   filterEditor: FilterEditorView | undefined;
   refreshFilterInformation?: () => Promise<void>;
   filterApplicabilityCurrent: boolean;
+  filterToolbarKindMatches?: boolean;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
   evidencePending?: boolean;
@@ -818,6 +819,7 @@ export function useSearchWorkspace({
   );
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
+    includeSearchToolbar: true,
     enabled:
       enabled &&
       initialRoute !== null &&
@@ -1089,6 +1091,7 @@ export function useSearchWorkspace({
     filterEditor: filterDiscovery.filterEditor,
     refreshFilterInformation: refreshResults,
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
+    filterToolbarKindMatches: filterDiscovery.filterToolbarKindMatches,
     filterCountsEnabled: filterDiscovery.filterCountsEnabled && browseReady,
     filterCountQueryKey: filterDiscovery.filterCountQueryKey,
     filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,

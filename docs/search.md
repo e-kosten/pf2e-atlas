@@ -64,6 +64,24 @@ can still explain its rules.
 For **Base Type**, search with a readable name such as “Chain Mail,” or use
 **Next** to see the next page.
 
+### Browse or search a kind
+
+Choose **Kind** to start browsing with an empty search box or narrow your
+current search. Search brings frequently used filters into the quick row.
+**Background** shows **Restricted boost** and **Skill training**. **All spells**
+shows **Rank**, **Tradition**, and **Cast actions**.
+
+For a selection of several kinds, quick filters generally cover the entire
+selection. Named groups can offer useful filters with narrower coverage. For
+example, **All equipment** offers **Unit price**. Setting a price leaves out
+kits that have no indexed unit price.
+
+With a straightforward Kind selection, **Clear refinements** clears the other
+filters. When only the Kind selection remains, use **Clear Kind** to return to
+all kinds. The search box has its own clear action. Applied filters stay
+visible when their quick control moves out of the toolbar, and **Advanced**
+can edit the full expression.
+
 ### Find backgrounds by boost or skill
 
 Select **Background** in **Kind**. In **Advanced filters**, add a group and

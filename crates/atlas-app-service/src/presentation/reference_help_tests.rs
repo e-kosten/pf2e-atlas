@@ -704,6 +704,7 @@ fn size_aliases_share_label_only_editor_metadata_and_value_transport() {
         let editor = fixture
             .worker
             .discover_filter_editor(DiscoverFilterEditorRequest {
+                include_search_toolbar: false,
                 expected_artifact_generation: None,
                 filter: None,
                 selected_field_ids: vec![],

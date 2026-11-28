@@ -2438,7 +2438,11 @@ describe("useSearchWorkspace", () => {
     expect(result.current.filterEditor).toEqual(filterEditor());
     expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2);
     expect(apiMocks.discoverFilterEditor).toHaveBeenLastCalledWith(
-      { selected_field_ids: [], filter: result.current.search.filter },
+      {
+        selected_field_ids: [],
+        include_search_toolbar: true,
+        filter: result.current.search.filter,
+      },
       expect.any(AbortSignal),
     );
   });

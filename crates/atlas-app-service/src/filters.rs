@@ -61,7 +61,11 @@ impl AtlasAppService {
                     .filter
                     .as_ref()
                     .filter(|filter| retrieval.validate_filter(filter).is_ok());
-                enrich_editor(retrieval, editor, filter)
+                let mut editor = enrich_editor(retrieval, editor, filter)?;
+                if request.include_search_toolbar {
+                    editor.search_toolbar = Some(crate::search_toolbar::resolve(&editor, filter));
+                }
+                Ok(editor)
             },
         )
     }
@@ -557,6 +561,7 @@ mod tests {
 
     fn editor_request() -> DiscoverFilterEditorRequest {
         DiscoverFilterEditorRequest {
+            include_search_toolbar: false,
             expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec!["defenses.hp.maximum".into()],
@@ -638,6 +643,7 @@ mod tests {
         let editor = f
             .worker
             .discover_filter_editor(DiscoverFilterEditorRequest {
+                include_search_toolbar: false,
                 expected_artifact_generation: None,
                 filter: Some(
                     serde_json::from_value(

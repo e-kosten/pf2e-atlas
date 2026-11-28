@@ -9,6 +9,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { assertSearchIdentity } from "../search/searchIdentity";
+import { encodeFilterUrl } from "./filterUrl";
 import {
   discoverFilterCounts,
   discoverFilterEditor,
@@ -45,55 +46,83 @@ export function findClauseIds(
     return findClauseIds(predicate.predicate, field, scope, currentScope);
   return [];
 }
+// The service owns Kind membership. The browser only compares raw committed
+// Kind clauses for focus continuity. Exact editor identity still gates commits.
+function toolbarKindKey(filter: QueryPredicate | null): string {
+  function containsKind(node: QueryPredicate): boolean {
+    if ("field" in node) return node.field === "kind";
+    if (node.kind === "all_of" || node.kind === "any_of")
+      return node.children.some(containsKind);
+    return node.kind === "not" && containsKind(node.predicate);
+  }
+  function terms(node: QueryPredicate): string[] {
+    if (node.kind === "all_of") return node.children.flatMap(terms);
+    return containsKind(node) ? [encodeFilterUrl(node)] : [];
+  }
+  return JSON.stringify(filter ? terms(filter) : []);
+}
+
 export function useFilterDiscovery({
   context,
   enabled = true,
   queryKeyPrefix,
   catalogIdentity = [],
+  includeSearchToolbar = false,
   vocabularyScope = { kind: "artifact" },
 }: {
   context: FilterDiscoveryContext;
   enabled?: boolean;
   queryKeyPrefix: readonly unknown[];
   catalogIdentity?: readonly unknown[];
+  includeSearchToolbar?: boolean;
   vocabularyScope?: FilterVocabularyScope;
 }) {
-  const editor = useQuery<FilterEditorView>({
+  const toolbarKey = includeSearchToolbar
+    ? toolbarKindKey(context.filter ?? null)
+    : null;
+  const editor = useQuery<{ view: FilterEditorView; toolbarKey: string | null }>({
     queryKey: [
       "filter-discovery",
       "editor",
+      includeSearchToolbar,
       ...catalogIdentity,
       context.expected_artifact_generation,
       context.filter,
     ],
     enabled,
     staleTime: Infinity,
-    meta: { ...referenceQueryMeta, catalogIdentity },
+    meta: { ...referenceQueryMeta, catalogIdentity, includeSearchToolbar },
     placeholderData: (previous, previousQuery) =>
+      previousQuery?.meta?.includeSearchToolbar === includeSearchToolbar &&
       JSON.stringify(previousQuery?.meta?.catalogIdentity) ===
-      JSON.stringify(catalogIdentity)
+        JSON.stringify(catalogIdentity)
         ? context.expected_artifact_generation &&
-          previous?.artifact_generation !== context.expected_artifact_generation
+          previous?.view.artifact_generation !== context.expected_artifact_generation
           ? undefined
           : previous
-            ? { ...previous, relationship_clauses: [] }
+            ? { ...previous, view: { ...previous.view, relationship_clauses: [] } }
             : previous
         : undefined,
     queryFn: async ({ signal }) => {
       const response = await discoverFilterEditor(
         {
           selected_field_ids: [],
+          include_search_toolbar: includeSearchToolbar || undefined,
           filter: context.filter ?? undefined,
           expected_artifact_generation: context.expected_artifact_generation,
         },
         signal,
       );
       assertSearchIdentity(response, undefined, context.expected_artifact_generation);
-      return response;
+      return { view: response, toolbarKey };
     },
   });
   return {
-    filterEditor: editor.data,
+    filterEditor: editor.data?.view,
+    filterToolbarKindMatches:
+      enabled &&
+      !!editor.data?.view.search_toolbar &&
+      editor.data.toolbarKey === toolbarKey,
     refreshFilterInformation: async () => {
       await editor.refetch({ throwOnError: true });
     },

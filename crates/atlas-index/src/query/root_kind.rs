@@ -1,7 +1,7 @@
 //! Shared classification for result summaries, query eligibility and discovery.
 use crate::{IndexError, SqliteIndexReader};
 use atlas_domain::QueryLiteral;
-use atlas_domain::root_kind::{JOURNAL_PACK_PREFIX, ROOT_KINDS};
+use atlas_domain::root_kind::{JOURNAL_PACK_PREFIX, ROOT_KINDS, is_campaign_feature_selector};
 use rusqlite::{Connection, params_from_iter, types::Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -44,9 +44,7 @@ pub(super) fn matches(
     // A campaign feature whose authored category is unavailable still proves the
     // parent, but negating a possible campaign feature subtype must stay unknown.
     let partial_campaign = !accepted.contains("kingdom_and_warfare")
-        && accepted.iter().any(|id| {
-            *id != "army" && atlas_domain::root_kind::parent(id) == Some("kingdom_and_warfare")
-        });
+        && accepted.iter().any(|id| is_campaign_feature_selector(id));
     let classification = if partial_campaign {
         format!("nullif(({CLASSIFICATION_SQL}),'kingdom_and_warfare')")
     } else {

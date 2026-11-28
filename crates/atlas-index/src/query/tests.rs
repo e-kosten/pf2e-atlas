@@ -2184,6 +2184,34 @@ fn kind_predicates_distinguish_authored_categories_partial_records_and_groups() 
         [],
     )
     .unwrap();
+    // Toolbar eligibility uses the same public selectors with their declared source families.
+    for (id, selector) in [
+        (1, "class_feature"),
+        (2, "deity_curse"),
+        (4, "kingdom_and_warfare"),
+        (5, "ritual"),
+        (6, "spell"),
+        (8, "weapon"),
+        (9, "general_equipment"),
+        (10, "cantrip"),
+    ] {
+        let (kind, family): (String, String) = db
+            .query_row(
+                &format!(
+                    "SELECT {}, r.source_type FROM records r WHERE r.record_id=?",
+                    root_kind::CLASSIFICATION_SQL
+                ),
+                [id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(kind, selector);
+        let declared = atlas_domain::root_kind::ROOT_KINDS
+            .iter()
+            .find(|choice| choice.id == selector)
+            .unwrap();
+        assert_eq!(declared.source_family, Some(family.as_str()), "{selector}");
+    }
     for (selector, ids) in [
         ("class_feature", vec![1]),
         ("character_advancement", vec![1]),

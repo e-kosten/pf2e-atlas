@@ -6,38 +6,47 @@ use crate::PackName;
 pub struct RootKindChoice {
     pub id: &'static str,
     pub parent: Option<&'static str>,
+    /// Foundry family of roots classified directly under this selector.
+    pub source_family: Option<&'static str>,
 }
 
 macro_rules! choices {
-    ($( $parent:literal => [$( $child:literal ),*] ),* $(,)?) => {
+    ($( $parent:literal ($family:expr) => [$( $child:literal : $child_family:literal ),*] ),* $(,)?) => {
         &[$(
-            RootKindChoice { id: $parent, parent: None },
-            $(RootKindChoice { id: $child, parent: Some($parent) },)*
+            RootKindChoice { id: $parent, parent: None, source_family: $family },
+            $(RootKindChoice { id: $child, parent: Some($parent), source_family: Some($child_family) },)*
         )*]
     };
 }
 
 pub const ROOT_KINDS: &[RootKindChoice] = choices! {
-    "action" => [],
-    "affliction" => [],
-    "character" => [],
-    "character_advancement" => ["ancestry_feat", "ancestry_feature", "bonus_feat",
-        "mythic_calling", "class_feat", "class_feature", "general_feat", "skill_feat", "society_boon"],
-    "character_creation" => ["ancestry", "background", "class", "heritage"],
-    "condition" => [],
-    "creature" => [],
-    "all_deities" => ["deity", "deity_boon", "deity_curse"],
-    "effect" => [],
-    "all_equipment" => ["ammunition", "armor", "consumable", "container", "general_equipment",
-        "kit", "shield", "treasure", "weapon"],
-    "familiar" => [],
-    "hazard" => [],
-    "journal" => [],
-    "kingdom_and_warfare" => ["army", "army_tactic", "army_war_action",
-        "kingdom_activity", "kingdom_feat", "kingdom_feature"],
-    "roll_table" => [],
-    "all_spells" => ["cantrip", "ritual", "spell"],
-    "vehicle" => [],
+    "action" (Some("action")) => [],
+    "affliction" (Some("affliction")) => [],
+    "character" (Some("character")) => [],
+    "character_advancement" (None) => [
+        "ancestry_feat": "feat", "ancestry_feature": "feat", "bonus_feat": "feat",
+        "mythic_calling": "feat", "class_feat": "feat", "class_feature": "feat",
+        "general_feat": "feat", "skill_feat": "feat", "society_boon": "feat"],
+    "character_creation" (None) => [
+        "ancestry": "ancestry", "background": "background", "class": "class", "heritage": "heritage"],
+    "condition" (Some("condition")) => [],
+    "creature" (Some("npc")) => [],
+    "all_deities" (None) => ["deity": "deity", "deity_boon": "feat", "deity_curse": "feat"],
+    "effect" (Some("effect")) => [],
+    "all_equipment" (None) => [
+        "ammunition": "ammo", "armor": "armor", "consumable": "consumable", "container": "backpack",
+        "general_equipment": "equipment", "kit": "kit", "shield": "shield", "treasure": "treasure",
+        "weapon": "weapon"],
+    "familiar" (Some("familiar")) => [],
+    "hazard" (Some("hazard")) => [],
+    "journal" (None) => [],
+    "kingdom_and_warfare" (Some("campaignFeature")) => [
+        "army": "army", "army_tactic": "campaignFeature", "army_war_action": "campaignFeature",
+        "kingdom_activity": "campaignFeature", "kingdom_feat": "campaignFeature",
+        "kingdom_feature": "campaignFeature"],
+    "roll_table" (None) => [],
+    "all_spells" (None) => ["cantrip": "spell", "ritual": "spell", "spell": "spell"],
+    "vehicle" (Some("vehicle")) => [],
 };
 
 pub const JOURNAL_PACK_PREFIX: &str = "journal_pack/";
@@ -53,4 +62,10 @@ pub fn parent(id: &str) -> Option<&'static str> {
     } else {
         ROOT_KINDS.iter().find(|choice| choice.id == id)?.parent
     }
+}
+
+/// An unclassified campaign feature proves the group but cannot prove or
+/// disprove membership of one of its specific feature categories.
+pub fn is_campaign_feature_selector(id: &str) -> bool {
+    id != "army" && parent(id) == Some("kingdom_and_warfare")
 }

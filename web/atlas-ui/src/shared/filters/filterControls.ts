@@ -26,6 +26,7 @@ export type FilterPanelState = {
   filterEditor: FilterEditorView | undefined;
   refreshFilterInformation?: () => Promise<void>;
   filterApplicabilityCurrent?: boolean;
+  filterToolbarKindMatches?: boolean;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
   filterDiscoveryContext?: FilterDiscoveryContext;
@@ -57,6 +58,13 @@ export function predicateMentionsField(
   return false;
 }
 function commonShape(predicate: QueryPredicate, field: QueryFieldDefinition): boolean {
+  if (field.field_type === "boolean")
+    return (
+      predicate.kind === "compare" &&
+      predicate.field === field.path &&
+      predicate.op === "eq" &&
+      typeof predicate.value === "boolean"
+    );
   if (field.field_type === "number") {
     if (predicate.kind === "compare")
       return (

@@ -298,6 +298,7 @@ fn relationship_editor_labels_negative_and_unmatched_leaves_without_result_rows(
     let view = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            include_search_toolbar: false,
             filter: Some(filter),
             selected_field_ids: vec![],
             expected_artifact_generation: Some(generation.clone()),
@@ -313,6 +314,7 @@ fn relationship_editor_labels_negative_and_unmatched_leaves_without_result_rows(
     let invalid = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            include_search_toolbar: false,
             filter: Some(predicate(missing)),
             selected_field_ids: vec![],
             expected_artifact_generation: Some(generation),
