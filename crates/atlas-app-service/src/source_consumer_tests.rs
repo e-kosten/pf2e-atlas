@@ -983,6 +983,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            include_search_toolbar: false,
             expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec!["defenses.hp.maximum".into()],
@@ -1148,6 +1149,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            include_search_toolbar: false,
             expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec![],

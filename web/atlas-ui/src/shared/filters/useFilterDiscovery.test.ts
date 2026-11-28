@@ -156,6 +156,79 @@ it("retains field definitions without trusting applicability from a previous fil
   expect(result.current.filterEditor?.groups[0].fields[0].applicable).toBe(true);
 });
 
+it("keeps Search toolbar discovery separate from other editor surfaces", async () => {
+  const base = editorFixture([
+    fieldFixture("kind"),
+    fieldFixture("spell.rank", "number"),
+  ]);
+  api.discoverFilterEditor.mockImplementation((request) =>
+    Promise.resolve(
+      request.include_search_toolbar
+        ? {
+            ...base,
+            search_toolbar: {
+              fields: [{ field_id: "spell.rank", label: "Rank" }],
+              retained_fields: [],
+              has_refinements: false,
+            },
+          }
+        : base,
+    ),
+  );
+  const { result, rerender } = renderHook(
+    (includeSearchToolbar: boolean) =>
+      useFilterDiscovery({
+        context,
+        queryKeyPrefix: ["catalog"],
+        includeSearchToolbar,
+      }),
+    { wrapper: wrapper(), initialProps: true },
+  );
+  await waitFor(() =>
+    expect(result.current.filterEditor?.search_toolbar).toBeDefined(),
+  );
+  rerender(false);
+  expect(result.current.filterEditor?.search_toolbar).toBeUndefined();
+  await waitFor(() => expect(result.current.filterApplicabilityCurrent).toBe(true));
+  expect(api.discoverFilterEditor).toHaveBeenCalledTimes(2);
+});
+
+it("keeps controls usable through unrelated edits and guards a previous Kind layout", async () => {
+  const base = editorFixture([
+    fieldFixture("kind"),
+    fieldFixture("spell.rank", "number"),
+  ]);
+  const current = {
+    ...base,
+    search_toolbar: {
+      fields: [{ field_id: "spell.rank", label: "Rank" }],
+      retained_fields: [],
+      has_refinements: false,
+    },
+  };
+  api.discoverFilterEditor.mockResolvedValueOnce(current);
+  api.discoverFilterEditor.mockImplementation(() => new Promise(() => {}));
+  const kind: QueryPredicate = { kind: "in", field: "kind", values: ["spell"] };
+  const { result, rerender } = renderHook(
+    (filter: QueryPredicate) =>
+      useFilterDiscovery({
+        context: { ...context, filter },
+        queryKeyPrefix: ["catalog"],
+        includeSearchToolbar: true,
+      }),
+    { wrapper: wrapper(), initialProps: kind as QueryPredicate },
+  );
+  await waitFor(() => expect(result.current.filterApplicabilityCurrent).toBe(true));
+  rerender({
+    kind: "all_of",
+    children: [kind, { kind: "compare", field: "spell.rank", op: "eq", value: 2 }],
+  });
+  expect(result.current.filterApplicabilityCurrent).toBe(false);
+  expect(result.current.filterToolbarCurrent).toBe(true);
+  rerender({ kind: "in", field: "kind", values: ["background"] });
+  expect(result.current.filterToolbarCurrent).toBe(false);
+});
+
 it("requests only active bounded page literals and preserves known zero versus missing", async () => {
   const { result, rerender } = renderHook(
     ({ open, values }) =>

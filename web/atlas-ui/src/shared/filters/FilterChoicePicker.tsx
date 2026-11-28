@@ -40,6 +40,7 @@ type DiscoveryProps = {
   selectionContainer?: HTMLElement | null;
   inlineSelections?: boolean;
   applied?: boolean;
+  disabled?: boolean;
 };
 
 type ChoiceEdit =
@@ -47,6 +48,12 @@ type ChoiceEdit =
       kind: "condition";
       clause: QueryPredicate | null;
       onChange: (next: QueryPredicate | null) => void;
+    }
+  | {
+      kind: "single";
+      value: string | null;
+      clauseId: string | null;
+      onChange: (next: string | null) => void;
     }
   | {
       kind: "operand";
@@ -64,6 +71,20 @@ export function CommonChoicePicker({
 }: DiscoveryProps & Omit<Extract<ChoiceEdit, { kind: "condition" }>, "kind">) {
   return (
     <FilterChoicePicker {...discovery} edit={{ kind: "condition", clause, onChange }} />
+  );
+}
+
+export function QuickSingleChoicePicker({
+  value,
+  clauseId,
+  onChange,
+  ...discovery
+}: DiscoveryProps & Omit<Extract<ChoiceEdit, { kind: "single" }>, "kind">) {
+  return (
+    <FilterChoicePicker
+      {...discovery}
+      edit={{ kind: "single", value, clauseId, onChange }}
+    />
   );
 }
 
@@ -98,6 +119,7 @@ function FilterChoicePicker({
   selectionContainer,
   inlineSelections,
   applied,
+  disabled,
 }: DiscoveryProps & { label?: string; edit: ChoiceEdit }) {
   const selected =
     edit.kind === "condition"
@@ -106,6 +128,7 @@ function FilterChoicePicker({
           String,
         );
   const [open, setOpen] = useState(false);
+  if (disabled && open) setOpen(false);
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState<{
@@ -139,10 +162,10 @@ function FilterChoicePicker({
   );
   const loadSelectedLabels =
     !isActions && field.allow_custom_values === false && selected.length > 0;
-  const allowNarrowing = edit.kind === "condition" || edit.allowNarrowing;
+  const allowNarrowing = edit.kind !== "operand" || edit.allowNarrowing;
   const narrowingContext = countsEnabled && allowNarrowing ? countContext : undefined;
   const clauseId =
-    edit.kind === "operand"
+    edit.kind !== "condition"
       ? edit.clauseId
       : (findClauseIds(
           countContext?.filter ?? null,
@@ -330,7 +353,11 @@ function FilterChoicePicker({
           )
           .map((choice) => choice.value),
       ]),
-    ].filter((value) => !contextualCounts?.has(value)),
+    ]
+      .filter((value) => !contextualCounts?.has(value))
+      .map((value) =>
+        field.definition.field_type === "boolean" ? value === "true" : value,
+      ),
     requestCounts && !kindOverflow,
     countLimit,
     countQueryKey,
@@ -435,6 +462,9 @@ function FilterChoicePicker({
           hierarchy?.parents,
         ),
       );
+    } else if (edit.kind === "single") {
+      edit.onChange(next === "neutral" ? null : value);
+      return "close";
     } else if (edit.shape === "scalar") {
       edit.onChange(next === "neutral" ? "" : value);
       if (next !== "neutral") return "close";
@@ -455,6 +485,8 @@ function FilterChoicePicker({
     <ReferenceHelpProvider onHelp={preview.openHelp} onReference={preview.open}>
       <ChoicePicker
         inlineSelections={inlineSelections}
+        disabled={disabled}
+        singleChoice={edit.kind === "single"}
         reading={
           preview.destination
             ? {
@@ -508,7 +540,7 @@ function FilterChoicePicker({
         onChange={activate}
         open={open}
         onOpenChange={(next) => {
-          setOpen(next);
+          setOpen(next && !disabled);
           if (!next) {
             setFullCatalogKey(null);
             setText("");

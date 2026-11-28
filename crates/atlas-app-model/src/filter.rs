@@ -41,6 +41,8 @@ pub struct DiscoverFilterEditorRequest {
     pub filter: Option<QueryPredicate>,
     #[serde(default)]
     pub selected_field_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub include_search_toolbar: bool,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -96,8 +98,30 @@ pub struct FilterEditorView {
     pub common_field_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub search_toolbar: Option<SearchFilterToolbarView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub sense_qualifiers: Option<Vec<SenseQualifierView>>,
 }
+/// Main Search presentation for the committed filter in the editor request.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SearchFilterToolbarView {
+    pub fields: Vec<SearchQuickFieldView>,
+    pub retained_fields: Vec<SearchQuickFieldView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub kind_scope: Option<QueryPredicate>,
+    pub has_refinements: bool,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchQuickFieldView {
+    pub field_id: String,
+    pub label: String,
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SenseQualifierView {

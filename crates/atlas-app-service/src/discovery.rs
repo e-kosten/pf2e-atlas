@@ -291,6 +291,7 @@ pub(crate) fn filter_editor_view(
         limits: catalog.limits,
         groups: groups.into_values().collect(),
         common_field_ids: COMMON.into_iter().map(str::to_owned).collect(),
+        search_toolbar: None,
         sense_qualifiers: None,
     })
 }

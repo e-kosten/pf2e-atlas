@@ -82,6 +82,8 @@ import {
 import {
   chipLinkClauses,
   clearAllFilters,
+  commonCondition,
+  conditionRange,
   countAppliedFilterConditions,
   hasAdvancedFilterConditions,
   predicateMentionsField,
@@ -94,6 +96,12 @@ import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
 import type { NameSuggestionContext } from "../search/useNameSuggestions";
 import { CommonChoicePicker } from "./FilterChoicePicker";
+import {
+  hasDraftRefinements,
+  RetainedQuickFilterChip,
+  SearchQuickSingleFilter,
+} from "./SearchQuickFields";
+import { encodeFilterUrl } from "./filterUrl";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
 import { existingClauseId } from "./useFilterDiscovery";
@@ -155,6 +163,7 @@ export function FilterControls({
   includeLinks = true,
   layout = "panel",
   collapseToolbar = false,
+  scopedToolbar = false,
   searchRowEnd,
   searchInputRef,
   searchInputError,
@@ -171,6 +180,7 @@ export function FilterControls({
   includeLinks?: boolean;
   layout?: "panel" | "toolbar";
   collapseToolbar?: boolean;
+  scopedToolbar?: boolean;
   pane?: { narrow: boolean; summary: ReactNode };
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
@@ -205,6 +215,30 @@ export function FilterControls({
     [editor],
   );
   const prepared = useFilterEditor(search, fields, setSearch);
+  const definitions = useMemo(() => fields.map((field) => field.definition), [fields]);
+  const quickControls = useRef<HTMLDivElement>(null);
+  const focusedQuickControl = useRef<{ id: string; element: HTMLElement }>(null);
+  const toolbar = scopedToolbar ? editor?.search_toolbar : undefined;
+  const toolbarPending =
+    scopedToolbar &&
+    !(workspace.filterToolbarCurrent ?? workspace.filterApplicabilityCurrent);
+  const toolbarCriteriaPending = scopedToolbar && !workspace.filterApplicabilityCurrent;
+  const toolbarIds =
+    toolbar?.fields.map(({ field_id }) => field_id) ?? editor?.common_field_ids ?? [];
+  useLayoutEffect(() => {
+    const previous = focusedQuickControl.current;
+    if (
+      previous &&
+      !toolbarIds.includes(previous.id) &&
+      !previous.element.isConnected &&
+      document.activeElement === document.body
+    ) {
+      quickControls.current
+        ?.querySelector<HTMLElement>('[data-quick-field="kind"] button')
+        ?.focus({ preventScroll: true });
+      focusedQuickControl.current = null;
+    }
+  });
   const Picker = useContext(LinkPickerContext);
   const [picker, setPicker] = useState<
     (LinkPickerProps & { key: string; advanced: boolean }) | null
@@ -425,9 +459,24 @@ export function FilterControls({
       }
     />
   );
-  const commonFields = fields
-    .filter((field) => editor?.common_field_ids.includes(field.definition.id))
-    .map((field) => field.definition);
+  const quickFields = toolbarIds.flatMap((id) => {
+    const field = fields.find((candidate) => candidate.definition.id === id);
+    if (!field) return [];
+    const label = toolbar?.fields.find((candidate) => candidate.field_id === id)?.label;
+    return [{ ...field, label: label ?? field.label }];
+  });
+  const retained = (toolbar?.retained_fields ?? []).flatMap(({ field_id, label }) => {
+    if (toolbarIds.includes(field_id)) return [];
+    const field = fields.find((candidate) => candidate.definition.id === field_id);
+    if (!field) return [];
+    const condition = commonCondition(search.filter, field.definition);
+    return condition.status === "editable"
+      ? [{ field: { ...field, label }, clause: condition.clause }]
+      : [];
+  });
+  const commonFields = [...quickFields, ...retained.map(({ field }) => field)].map(
+    (field) => field.definition,
+  );
   const filterCount = countAppliedFilterConditions(search.filter, commonFields);
   const linksApplied = linkClauses(search.filter).length > 0;
   const advancedApplied =
@@ -440,11 +489,27 @@ export function FilterControls({
     prepared.error ||
     prepared.query?.rules.length,
   );
+  const scopedKind = toolbarCriteriaPending ? undefined : toolbar?.kind_scope;
+  const keepKind =
+    !!scopedKind &&
+    (toolbar?.has_refinements ||
+      !!prepared.error ||
+      (!!prepared.query && hasDraftRefinements(prepared.query)));
+  const clearLabel = keepKind
+    ? "Clear refinements"
+    : scopedKind
+      ? "Clear Kind"
+      : "Clear filters";
+  const clearPending =
+    toolbarCriteriaPending &&
+    !!search.filter &&
+    predicateMentionsField(search.filter, "kind");
   function clear() {
+    if (clearPending) return;
     prepared.clear();
     setDraftRevision((revision) => revision + 1);
-    setSearch(clearAllFilters(search));
-    advancedTrigger.current?.focus();
+    setSearch({ ...clearAllFilters(search), filter: keepKind ? scopedKind : null });
+    if (!keepKind) advancedTrigger.current?.focus();
   }
   const feedback = (
     <>
@@ -455,7 +520,6 @@ export function FilterControls({
           title="Filter information could not be loaded"
           description={workspace.filterDiscoveryError}
           action={
-            pane &&
             workspace.refreshFilterInformation && (
               <Button onClick={() => void workspace.refreshFilterInformation?.()}>
                 Retry filters
@@ -469,7 +533,23 @@ export function FilterControls({
   const criteria = (
     <>
       <div className="filter-controls__tools">
-        <div className="common-filters">
+        <div
+          className="common-filters"
+          ref={quickControls}
+          onFocusCapture={
+            scopedToolbar
+              ? (event) => {
+                  const field = event.target.closest<HTMLElement>("[data-quick-field]");
+                  if (field?.dataset.quickField) {
+                    focusedQuickControl.current = {
+                      id: field.dataset.quickField,
+                      element: event.target,
+                    };
+                  }
+                }
+              : undefined
+          }
+        >
           {!editor && workspace.filterDiscoveryLoading && (
             <div
               className="filter-controls__pending"
@@ -481,12 +561,19 @@ export function FilterControls({
               ))}
             </div>
           )}
-          {(editor?.common_field_ids ?? []).map((id) => {
-            const field = fields.find((candidate) => candidate.definition.id === id);
-            return field ? (
+          {quickFields.map((field) => {
+            const id = field.definition.id;
+            const pending = toolbarPending && id !== "kind";
+            return (
               <CommonFilter
                 key={id + ":" + draftRevision}
                 field={field}
+                collectionMember={fields.find(
+                  (candidate) =>
+                    candidate.definition.id ===
+                    field.collection_control?.category_field_id,
+                )}
+                pending={pending}
                 layout={commonLayout}
                 compactPane={!!pane}
                 selectionContainer={
@@ -498,7 +585,11 @@ export function FilterControls({
                 }
                 condition={
                   prepared.query
-                    ? commonDraftCondition(prepared.query, field.definition)
+                    ? commonDraftCondition(
+                        prepared.query,
+                        field.definition,
+                        definitions,
+                      )
                     : { status: "empty", clause: null }
                 }
                 range={
@@ -507,14 +598,19 @@ export function FilterControls({
                     : null
                 }
                 onChange={(replacement) => {
-                  if (prepared.query)
+                  if (!pending && prepared.query)
                     prepared.changeCommon(
-                      replaceCommonDraft(prepared.query, field.definition, replacement),
+                      replaceCommonDraft(
+                        prepared.query,
+                        field.definition,
+                        replacement,
+                        definitions,
+                      ),
                       field.definition,
                     );
                 }}
                 onRangeChange={(range) => {
-                  if (prepared.query)
+                  if (!pending && prepared.query)
                     prepared.changeCommon(
                       replaceCommonRangeDraft(prepared.query, field.definition, range),
                       field.definition,
@@ -523,7 +619,7 @@ export function FilterControls({
                 workspace={countWorkspace}
                 onAdvanced={() => setAdvanced(true)}
               />
-            ) : null;
+            );
           })}
         </div>
         {includeLinks && !pane && (
@@ -582,10 +678,11 @@ export function FilterControls({
             </Button>
           </Tooltip>
           {!pane && canClear && (
-            <Tooltip title="Clear filters" trigger={["hover", "focus"]}>
+            <Tooltip title={clearLabel} trigger={["hover", "focus"]}>
               <Button
                 icon={<ClearOutlined aria-hidden="true" />}
-                aria-label="Clear filters"
+                aria-label={clearLabel}
+                aria-disabled={clearPending || undefined}
                 onClick={clear}
               />
             </Tooltip>
@@ -610,6 +707,51 @@ export function FilterControls({
       }
     >
       <div className="filter-controls__common-selections" ref={setSelectionContainer} />
+      {retained.length > 0 && (
+        <div className="filter-controls__common-selections">
+          {retained.map(({ field, clause }) => (
+            <RetainedQuickFilterChip
+              key={field.definition.id}
+              field={field}
+              clause={clause}
+              disabled={toolbarCriteriaPending}
+              member={fields.find(
+                (candidate) =>
+                  candidate.definition.id ===
+                  field.collection_control?.category_field_id,
+              )}
+              rangeLabel={
+                field.definition.field_type === "number"
+                  ? rangeSummary(conditionRange(clause))
+                  : undefined
+              }
+              onRemove={(event) => {
+                const query = prepared.query;
+                const draft =
+                  query && commonDraftCondition(query, field.definition, definitions);
+                if (
+                  !query ||
+                  draft?.status !== "editable" ||
+                  encodeFilterUrl(draft.clause) !== encodeFilterUrl(clause)
+                ) {
+                  setAdvanced(true);
+                  return;
+                }
+                restoreOverlayFocus(
+                  quickControls.current?.querySelector<HTMLElement>(
+                    '[data-quick-field="kind"] button',
+                  ) ?? advancedTrigger.current,
+                  event.currentTarget,
+                );
+                prepared.changeCommon(
+                  replaceCommonDraft(query, field.definition, null, definitions),
+                  field.definition,
+                );
+              }}
+            />
+          ))}
+        </div>
+      )}
       {!pane && (
         <LinkFilterControls
           filter={search.filter}
@@ -767,6 +909,8 @@ export function FilterControls({
 
 function CommonFilter({
   field,
+  collectionMember,
+  pending,
   applied,
   range,
   onRangeChange,
@@ -779,6 +923,8 @@ function CommonFilter({
   selectionContainer,
 }: {
   field: FilterEditorFieldView;
+  collectionMember?: FilterEditorFieldView;
+  pending: boolean;
   selectionContainer?: HTMLElement | null;
   layout: "panel" | "toolbar";
   compactPane: boolean;
@@ -798,6 +944,7 @@ function CommonFilter({
         layout === "toolbar" ? "common-filter common-filter--toolbar" : "common-filter"
       }
       aria-label={field.label + " filter"}
+      data-quick-field={field.definition.id}
     >
       {layout === "panel" && (
         <div className="common-filter-heading">
@@ -821,6 +968,7 @@ function CommonFilter({
           aria-description={applied ? "Filter applied" : undefined}
           onClick={onAdvanced}
           aria-label={`Edit ${field.label} in advanced filters`}
+          disabled={pending}
         >
           {field.label}
         </Button>
@@ -836,16 +984,29 @@ function CommonFilter({
           <ToolbarRange
             field={field}
             applied={applied}
+            disabled={pending}
             range={range}
             onChange={onRangeChange}
             trigger={rangeTrigger}
           />
         )
+      ) : field.definition.field_type === "boolean" || collectionMember ? (
+        <SearchQuickSingleFilter
+          field={field}
+          member={collectionMember}
+          clause={condition.clause}
+          applied={applied}
+          disabled={pending}
+          workspace={workspace}
+          selectionContainer={selectionContainer}
+          onChange={update}
+        />
       ) : (
         <CommonChoicePicker
           selectionContainer={selectionContainer}
           field={field}
           applied={applied}
+          disabled={pending}
           inlineSelections={compactPane}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
@@ -866,6 +1027,7 @@ function CommonFilter({
             color="default"
             variant="filled"
             aria-label={`Clear ${field.label} range`}
+            disabled={pending}
             onClick={(event) => {
               restoreOverlayFocus(rangeTrigger.current, event.currentTarget);
               onRangeChange(["", ""]);
@@ -883,24 +1045,28 @@ function CommonFilter({
 function ToolbarRange({
   field,
   applied,
+  disabled,
   range,
   onChange,
   trigger,
 }: {
   field: FilterEditorFieldView;
   applied: boolean;
+  disabled: boolean;
   range: [string, string] | null;
   onChange: (range: [string, string]) => void;
   trigger: RefObject<HTMLButtonElement | null>;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  if (disabled && open) setOpen(false);
   const dialog = useRef<HTMLElement>(null);
   const minimum = useRef<InputRef>(null);
   const touchOpening = useRef(false);
   const focusAtOpen = useRef<Element | null>(null);
 
   function changeOpen(next: boolean) {
+    if (next && disabled) return;
     if (next) focusAtOpen.current = document.activeElement;
     else restoreOverlayFocus(trigger.current, dialog.current);
     setOpen(next);
@@ -957,6 +1123,7 @@ function ToolbarRange({
     >
       <Button
         ref={trigger}
+        disabled={disabled}
         color={applied ? "primary" : "default"}
         variant="outlined"
         aria-description={applied ? "Filter applied" : undefined}

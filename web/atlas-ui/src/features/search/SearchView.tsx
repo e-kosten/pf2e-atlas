@@ -188,6 +188,7 @@ export function SearchView({
           nameSuggestions={workspace.nameSuggestions}
           layout="toolbar"
           collapseToolbar
+          scopedToolbar
           similarSearch={
             seed
               ? {

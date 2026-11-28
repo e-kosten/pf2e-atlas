@@ -228,7 +228,7 @@ function renderControls(
   filterError: string | null = null,
   presentation: Pick<
     ComponentProps<typeof FilterControls>,
-    "layout" | "includeSearch"
+    "layout" | "includeSearch" | "scopedToolbar"
   > = {},
   discoveryContext?: FilterDiscoveryContext,
 ) {
@@ -270,6 +270,123 @@ function renderControls(
   );
   return onChange;
 }
+describe("main Search scoped quick filters", () => {
+  beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
+  afterEach(() => vi.restoreAllMocks());
+
+  const kind: QueryPredicate = {
+    kind: "in",
+    field: "kind",
+    values: ["spell", "general_feat"],
+  };
+  const rank: QueryPredicate = {
+    kind: "compare",
+    field: "spell.rank",
+    op: "eq",
+    value: 2,
+  };
+  const selection: QueryPredicate = { kind: "all_of", children: [kind, rank] };
+  const options = { scopedToolbar: true, layout: "toolbar" } as const;
+
+  function scopedEditor() {
+    return {
+      ...editorFixture([
+        {
+          ...fieldFixture("kind", "string", "Kind"),
+          choices: ["spell", "general_feat"],
+        },
+        fieldFixture("level_or_rank", "number", "Level / Rank"),
+        fieldFixture("spell.rank", "number", "Spell Rank"),
+      ]),
+      search_toolbar: {
+        kind_scope: kind,
+        has_refinements: true,
+        fields: [
+          { field_id: "kind", label: "Kind" },
+          { field_id: "level_or_rank", label: "Level / Rank" },
+        ],
+        retained_fields: [{ field_id: "spell.rank", label: "Rank" }],
+      },
+    };
+  }
+
+  it("keeps the original Rank criterion removable when the numeric slot becomes Level / Rank", () => {
+    const change = renderControls(scopedEditor(), selection, null, options);
+    expect(
+      screen.getByRole("button", { name: /edit level \/ rank range/i }),
+    ).toBeInTheDocument();
+    const retained = screen.getByRole("button", { name: "Remove Rank filter" });
+    expect(retained).toHaveTextContent("Rank: 2");
+    fireEvent.click(retained);
+    expect(change).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          kind: "all_of",
+          children: [expect.objectContaining(kind)],
+        }),
+      }),
+    );
+  });
+
+  it("clears refinements while preserving the selected Kind", () => {
+    const change = renderControls(scopedEditor(), selection, null, options);
+    fireEvent.click(screen.getByRole("button", { name: "Clear refinements" }));
+    expect(change).toHaveBeenCalledWith(expect.objectContaining({ filter: kind }));
+  });
+
+  it("clears Kind when no other filters remain", () => {
+    const editor = scopedEditor();
+    editor.search_toolbar.has_refinements = false;
+    editor.search_toolbar.retained_fields = [];
+    const change = renderControls(editor, kind, null, options);
+    fireEvent.click(screen.getByRole("button", { name: "Clear Kind" }));
+    expect(change).toHaveBeenCalledWith(expect.objectContaining({ filter: null }));
+  });
+
+  it("writes the movement category as an ordinary typed collection condition", async () => {
+    const movement = fieldFixture("movement.speeds", "collection", "Movement type");
+    const member = {
+      ...fieldFixture("movement.speeds[].type"),
+      scope: "movement.speeds",
+      path: "type",
+      choices: ["fly", "swim"],
+    };
+    const editor: FilterEditorView = {
+      ...editorFixture([movement, member]),
+      search_toolbar: {
+        has_refinements: false,
+        fields: [{ field_id: movement.id, label: "Movement type" }],
+        retained_fields: [],
+      },
+    };
+    const entry = editor.groups[0].fields[0];
+    entry.collection_control = {
+      category_field_id: member.id,
+      amount_field_id: null,
+    };
+    editor.groups[0].fields[1].short_choices = true;
+    const change = renderControls(editor, null, null, options);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Movement type filter" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Movement type: fly, activate/i }),
+    );
+    expect(change).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          kind: "exists",
+          collection: "movement.speeds",
+          predicate: expect.objectContaining({
+            kind: "compare",
+            field: "type",
+            op: "eq",
+            value: "fly",
+          }),
+        }),
+      }),
+    );
+  });
+});
+
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());

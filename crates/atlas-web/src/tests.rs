@@ -1090,6 +1090,48 @@ async fn retained_record_generation_precedes_source_lookup_and_fingerprint_check
 }
 
 #[tokio::test]
+async fn search_toolbar_is_opt_in_and_projects_committed_kind() {
+    let fixture = Fixture::new();
+    let kind = json!({"kind":"in","field":"kind","values":["background"]});
+    let request = json!({"filter":kind,"include_search_toolbar":true});
+    let (status, body) = fixture
+        .json(Method::POST, "/api/filters/editor", Some(request))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let toolbar = &body["search_toolbar"];
+    assert_eq!(toolbar["kind_scope"], kind);
+    assert_eq!(toolbar["has_refinements"], false);
+    assert_eq!(
+        toolbar["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|field| field["field_id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "kind",
+            "background.restricted_attribute_boosts",
+            "background.skill_training",
+            "rarity"
+        ]
+    );
+
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/filters/editor",
+            Some(json!({"filter":kind})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body.get("search_toolbar").is_none());
+    assert_eq!(
+        body["common_field_ids"],
+        json!(["kind", "level_or_rank", "rarity", "traits"])
+    );
+}
+
+#[tokio::test]
 async fn record_and_filter_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture
