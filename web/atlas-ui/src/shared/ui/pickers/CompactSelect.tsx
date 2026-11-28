@@ -6,9 +6,11 @@ type CompactOption = { label: string; value: string };
 export function CompactSelect({
   className,
   options,
+  trailingAffordanceWidth,
   ...props
 }: Omit<SelectProps<string, CompactOption>, "mode" | "showSearch" | "options"> & {
   options: CompactOption[];
+  trailingAffordanceWidth?: number;
 }) {
   const { token } = theme.useToken();
   return (
@@ -19,7 +21,9 @@ export function CompactSelect({
         style={{
           paddingInline: token.controlPaddingHorizontal,
           paddingInlineEnd:
-            token.controlPaddingHorizontal + token.fontSizeIcon + token.marginXS,
+            token.controlPaddingHorizontal +
+            (trailingAffordanceWidth ?? token.fontSizeIcon) +
+            token.marginXS,
         }}
       >
         {options.map(({ label, value }) => (
