@@ -84,6 +84,10 @@
   }
 }
 @media (max-width: 575px) {
+  .search-results-toolbar:has(> .search-results-toolbar__status)
+    > .search-results-toolbar__caption {
+    display: none;
+  }
   .search-results-toolbar:has(.pager__navigation) > .pager--compact {
     flex-basis: 100%;
   }
@@ -145,7 +149,13 @@
   contain-intrinsic-size: auto 135px;
 }
 .reference-results__scroll[aria-busy="true"] > .reference-result {
-  opacity: 0.5;
+  opacity: var(--reference-loading-opacity, 0.5);
+}
+.search-workspace {
+  --reference-loading-opacity: 1;
+}
+.search-workspace:has(.search-results-toolbar__status[data-retained-page]) {
+  --reference-loading-opacity: 0.9;
 }
 .reference-result--selected {
   background: var(--selection-bg);
@@ -264,6 +274,9 @@
   flex-direction: column;
   gap: 12px;
   padding: var(--panel-padding);
+  color: var(--muted);
+}
+.search-results-toolbar__status {
   color: var(--muted);
 }
 .reference-loading-more {

@@ -36,6 +36,8 @@ import {
   assertSimilarityIdentity,
   assertSimilarityResultSource,
   matchesSimilaritySource,
+  sameResultSort,
+  sameSearchPageContext,
 } from "../../shared/search/searchIdentity";
 import {
   rememberRankedSimilaritySource,
@@ -46,6 +48,7 @@ import type {
   ExactSearchView,
   FilterEditorView,
   SearchResultsPage,
+  SearchResultsRequest,
   QueryPredicate,
 } from "../../generated/atlas";
 import {
@@ -116,7 +119,27 @@ function urlReadingIdentity(route: ReturnType<typeof currentSearchLocation>) {
 }
 
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
-type ResultData = { page: SearchResultsPage; filter: QueryPredicate | null };
+type ResultData = {
+  page: SearchResultsPage;
+  request: SearchResultsRequest;
+  epoch: number;
+};
+type ResultsPending = "search" | "page" | "sort" | "page-size" | "refresh" | "evidence";
+
+function matchesRankedContext(
+  result: ResultData,
+  requested: SearchResultsRequest,
+  epoch: number,
+) {
+  return (
+    result.epoch === epoch &&
+    sameSearchPageContext(result.request, {
+      ...requested,
+      expected_artifact_generation:
+        requested.expected_artifact_generation ?? result.page.artifact_generation,
+    })
+  );
+}
 type PendingDefault = { criteria: string; profile: string | null };
 
 export type SearchWorkspaceState = {
@@ -146,8 +169,7 @@ export type SearchWorkspaceState = {
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
   evidencePending?: boolean;
-  resultsLoading: boolean;
-  resultsRefreshing: boolean;
+  resultsPending?: ResultsPending;
   resultsPaused?: boolean;
   resultsRecovering?: boolean;
   refreshResults: () => Promise<void>;
@@ -221,7 +243,7 @@ export function useSearchWorkspace({
     searchPreferences,
     (preferences) => initialWorkspaceInteractionState(preferences, atlasRouter),
   );
-  const { search, selectedRecordKey, activeSearch } = interaction;
+  const { search, selectedRecordKey, activeSearch, resetToken } = interaction;
   const searchVersion = useRef(0);
   const pendingDefault = useRef<PendingDefault | null>(null);
   const [waitingForDefault, setWaitingForDefault] = useState(false);
@@ -238,21 +260,25 @@ export function useSearchWorkspace({
     [enabled],
   );
   const location = useRouterState({ select: (state) => state.location });
-  const previousProfile = useRef(searchProfile);
-  const profileChanged =
-    previousProfile.current !== null &&
-    previousProfile.current !== searchProfile &&
-    atlasRouter.latestLocation.search.search_profile !== searchProfile;
-  const pageNumber = profileChanged
-    ? 1
-    : urlSearchPage(atlasRouter.latestLocation.search);
+  const urlPageNumber = urlSearchPage(atlasRouter.latestLocation.search);
+  const [profilePaging, setProfilePaging] = useState({
+    profile: searchProfile,
+    resetPage: false,
+  });
+  const profileChanged = profilePaging.profile !== searchProfile;
+  const resetProfilePage =
+    enabled &&
+    urlPageNumber !== 1 &&
+    (profileChanged
+      ? profilePaging.profile !== null &&
+        atlasRouter.latestLocation.search.search_profile !== searchProfile
+      : profilePaging.resetPage);
+  if (profileChanged || profilePaging.resetPage !== resetProfilePage) {
+    setProfilePaging({ profile: searchProfile, resetPage: resetProfilePage });
+  }
+  const pageNumber = resetProfilePage ? 1 : urlPageNumber;
   useLayoutEffect(() => {
-    if (previousProfile.current === searchProfile) return;
-    const shouldReset =
-      previousProfile.current !== null &&
-      atlasRouter.latestLocation.search.search_profile !== searchProfile;
-    previousProfile.current = searchProfile;
-    if (enabled && shouldReset && currentSearchLocation(atlasRouter))
+    if (resetProfilePage && currentSearchLocation(atlasRouter))
       void atlasRouter.navigate({
         to: ".",
         hash: true,
@@ -261,26 +287,24 @@ export function useSearchWorkspace({
         resetScroll: false,
         state: true,
       });
-  }, [atlasRouter, enabled, searchProfile]);
+  }, [atlasRouter, resetProfilePage]);
   const initialRoute = currentSearchLocation(atlasRouter);
   const failedTransport =
     initialRoute !== null &&
     failedFilterTransport("search", atlasRouter.latestLocation.search);
   const previousUrlCriteria = useRef(urlCriteria(atlasRouter.latestLocation.searchStr));
-  const previousReset = useRef(atlasRouter.latestLocation.state.atlasSearchReset);
   function ownsPendingDefault(pending: PendingDefault): boolean {
     const location = atlasRouter.latestLocation;
     return (
       pendingDefault.current === pending &&
       currentSearchLocation(atlasRouter) !== null &&
-      previousReset.current === location.state.atlasSearchReset &&
+      resetToken === location.state.atlasSearchReset &&
       pending.criteria === urlCriteria(location.searchStr) &&
       pending.profile === (location.search.search_profile ?? null) &&
       urlSearchPage(location.search) === 1
     );
   }
-  const resetPending =
-    previousReset.current !== atlasRouter.latestLocation.state.atlasSearchReset;
+  const resetPending = resetToken !== atlasRouter.latestLocation.state.atlasSearchReset;
   const previousUrlReading = useRef(urlReadingIdentity(initialRoute));
   const pendingUrlReading = useRef<{ incoming: string; previous: string } | null>(null);
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
@@ -317,6 +341,7 @@ export function useSearchWorkspace({
     requestProfile,
     textMode,
   );
+  const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const retrieval = useReferenceGeneration(
     activeSearchExecutionToken,
     enabled && initialRoute !== null && !failedTransport && !resetPending,
@@ -338,18 +363,37 @@ export function useSearchWorkspace({
   // A transient title failure still permits ranking to supply a verified descriptor.
   const awaitingSource =
     activeSource !== null && (!sameSource || similaritySource.isPending);
-  const canUseResults =
-    enabled &&
-    initialRoute !== null &&
-    !failedTransport &&
-    !resetPending &&
-    hasExecutableSearch(activeSearch);
+  const canUseSearch =
+    enabled && initialRoute !== null && !failedTransport && !resetPending;
+  const canUseResults = canUseSearch && hasExecutableSearch(activeSearch);
   const canRunResultSearch =
     canUseResults &&
     !waitingForDefault &&
+    !searchDebouncing &&
     activeSearchReady &&
     sameSource &&
     !awaitingSource;
+  const activeRequest = canUseResults
+    ? buildSearchRequest(
+        activeSearch,
+        pageNumber,
+        requestGeneration,
+        requestProfile,
+        textMode,
+      )
+    : null;
+  const requested =
+    canUseSearch && hasExecutableSearch(search)
+      ? searchDebouncing
+        ? buildSearchRequest(
+            search,
+            pageNumber,
+            requestGeneration,
+            requestProfile,
+            textMode,
+          )
+        : activeRequest
+      : null;
   const reading = useReferenceReading(
     initialRoute?.selectedRecordKey
       ? {
@@ -375,8 +419,7 @@ export function useSearchWorkspace({
     const restored = initialWorkspaceInteractionState(searchPreferences, atlasRouter);
     const incomingCriteria = urlCriteria(atlasRouter.latestLocation.searchStr);
     const resetChanged =
-      previousReset.current !== atlasRouter.latestLocation.state.atlasSearchReset;
-    previousReset.current = atlasRouter.latestLocation.state.atlasSearchReset;
+      resetToken !== atlasRouter.latestLocation.state.atlasSearchReset;
     const criteriaChanged =
       previousUrlCriteria.current !== incomingCriteria || resetChanged;
     const pending = pendingDefault.current;
@@ -399,6 +442,7 @@ export function useSearchWorkspace({
     ) {
       dispatch({
         type: "url.restored",
+        resetToken: restored.resetToken,
         search: restored.search,
         selectedRecordKey: route.selectedRecordKey ?? null,
       });
@@ -561,6 +605,7 @@ export function useSearchWorkspace({
     exactEnabled && exactQuery.data?.artifact_generation === requestGeneration
       ? exactQuery.data
       : undefined;
+  const [lastDisplayedPage, setLastDisplayedPage] = useState<ResultData>();
   const resultsQuery = useQuery<ResultData>({
     queryKey: resultsKey,
     meta: referenceQueryMeta,
@@ -570,31 +615,13 @@ export function useSearchWorkspace({
       !pausedError &&
       (visible || !heldPage),
     staleTime: 20000,
-    placeholderData: (previous, previousQuery) =>
-      !heldPage &&
-      previous &&
-      matchesSimilaritySource(previous.page, visibleSource) &&
-      previousQuery?.queryKey[6] === projection.detail &&
-      previousQuery.queryKey[5] === (requestProfile ?? null) &&
-      (previous.page.mode.kind !== "text_search" ||
-        previous.page.mode.mode === textMode) &&
-      previous.page.ranking === (activeSearch.ranking ?? "score") &&
-      previousQuery?.queryKey[2] === retrieval.epoch &&
-      previousQuery.queryKey[3] === requestGeneration
-        ? previous
-        : undefined,
     queryFn: async ({ signal }) => {
+      if (!activeRequest) throw new Error("Search criteria are unavailable.");
       const ticket = retrieval.capture(signal);
       const version = searchVersion.current;
       const page = await searchPage(
         {
-          ...buildSearchRequest(
-            activeSearch,
-            pageNumber,
-            requestGeneration,
-            requestProfile,
-            textMode,
-          ),
+          ...activeRequest,
           ...(projection.detail === "evidence" && { result_detail: "evidence" }),
         },
         signal,
@@ -642,11 +669,19 @@ export function useSearchWorkspace({
           retrieval.generation,
         );
       }
+      const result = {
+        page,
+        request: {
+          ...activeRequest,
+          expected_artifact_generation: page.artifact_generation,
+        },
+        epoch: retrieval.epoch,
+      };
       retrieval.adopt(ticket, page.artifact_generation, {
         queryKey: resultsKeyForGeneration(page.artifact_generation),
-        data: { page, filter: activeSearch.filter },
+        data: result,
       });
-      return { page, filter: activeSearch.filter };
+      return result;
     },
   });
   useReferenceQueryRetirement(resultsKey);
@@ -667,7 +702,6 @@ export function useSearchWorkspace({
       !response ||
       !resultsQuery.isSuccess ||
       resultsQuery.isFetching ||
-      resultsQuery.isPlaceholderData ||
       activeSearchExecutionToken !== searchExecutionToken ||
       urlSearchPage(atlasRouter.latestLocation.search) !== pageNumber ||
       response.page.number !== pageNumber ||
@@ -696,7 +730,6 @@ export function useSearchWorkspace({
     resultsQuery.data,
     resultsQuery.isSuccess,
     resultsQuery.isFetching,
-    resultsQuery.isPlaceholderData,
     activeSearchExecutionToken,
     searchExecutionToken,
     activeSearch,
@@ -714,7 +747,15 @@ export function useSearchWorkspace({
   ].find(isArtifactGenerationChanged);
   if (!pausedError && changed)
     setGenerationFailure({ epoch: retrieval.epoch, error: changed });
-  const resultsError = sameSource ? (pausedError ?? resultsQuery.error) : null;
+  const resultsError =
+    pausedError ??
+    (requested &&
+    sameSource &&
+    !waitingForDefault &&
+    !searchDebouncing &&
+    !resultsQuery.isFetching
+      ? resultsQuery.error
+      : null);
   const resultsPaused = isArtifactGenerationChanged(resultsError);
   function refreshResults() {
     clearPendingDefault();
@@ -969,42 +1010,64 @@ export function useSearchWorkspace({
       generation ?? result?.page.artifact_generation ?? retrieval.generation,
     );
   }
-  const candidateResult = resultsQuery.data ?? heldPage;
-  const result =
-    candidateResult && matchesSimilaritySource(candidateResult.page, visibleSource)
-      ? candidateResult
+  const candidate = resultsQuery.data ?? heldPage;
+  const currentPage =
+    requested &&
+    candidate &&
+    !retrieval.recovering &&
+    (canRunResultSearch ||
+      (canUseResults && (!activeSearchReady || waitingForDefault))) &&
+    matchesRankedContext(candidate, requested, retrieval.epoch) &&
+    matchesSimilaritySource(candidate.page, visibleSource) &&
+    candidate.page.page.number === pageNumber &&
+    candidate.page.page.size === search.pageSize &&
+    sameResultSort(candidate.page.sort, effectiveResultSort(search))
+      ? candidate
       : undefined;
-  const evidencePending =
-    visible &&
-    (resultsQuery.data?.page.result_detail !== "evidence" ||
-      resultsQuery.isPlaceholderData);
-  const searchInputError =
-    activeSearchExecutionToken === searchExecutionToken
-      ? lexicalInputExplanation(resultsError)
-      : undefined;
-  const errorMessage = searchInputError ? null : messageFromError(resultsError);
-  const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
-  const resultsRefreshing =
-    canRunResultSearch &&
+  const correctingPage = Boolean(
+    currentPage &&
+    !resultsError &&
+    currentPage.page.page.total > 0 &&
+    BigInt(pageNumber) > totalPages(currentPage.page.page),
+  );
+  const pendingReplacement = Boolean(
+    requested &&
+    !resultsError &&
+    !retrieval.recovering &&
     (searchDebouncing ||
-      resultsQuery.isPlaceholderData ||
-      (resultsQuery.isFetching && !resultsQuery.isLoading));
-  const hasCurrentPage =
-    result &&
-    !searchDebouncing &&
-    !resultsQuery.isPlaceholderData &&
-    result.page.page.number === pageNumber &&
-    result.page.artifact_generation === requestGeneration;
-  const canDisplayResult =
-    canRunResultSearch ||
-    (canUseResults &&
-      (!activeSearchReady ||
-        (waitingForDefault && hasCurrentPage && !retrieval.recovering)));
-  const resultPage = canDisplayResult ? result?.page : undefined;
-  const earlyExactMatches =
-    !(canDisplayResult && hasCurrentPage) && exactMatches?.matches.length
-      ? exactMatches
+      awaitingSource ||
+      waitingForDefault ||
+      resultsQuery.isFetching ||
+      correctingPage),
+  );
+  const retainedPage =
+    !currentPage &&
+    pendingReplacement &&
+    requested &&
+    lastDisplayedPage &&
+    matchesRankedContext(lastDisplayedPage, requested, retrieval.epoch) &&
+    matchesSimilaritySource(lastDisplayedPage.page, visibleSource)
+      ? lastDisplayedPage
       : undefined;
+  const result = correctingPage ? undefined : (currentPage ?? retainedPage);
+  // Record the page accepted for this render, including when clearing an incompatible page.
+  if (lastDisplayedPage !== result) setLastDisplayedPage(result);
+  const earlyExactMatches =
+    !result && exactMatches?.matches.length ? exactMatches : undefined;
+  const evidencePending = visible && result?.page.result_detail !== "evidence";
+  let resultsPending: ResultsPending | undefined;
+  if (retainedPage) {
+    if (retainedPage.page.page.size !== search.pageSize) resultsPending = "page-size";
+    else if (!sameResultSort(retainedPage.page.sort, effectiveResultSort(search)))
+      resultsPending = "sort";
+    else resultsPending = "page";
+  } else if (!result && pendingReplacement && (searchReady || earlyExactMatches)) {
+    resultsPending = "search";
+  } else if (currentPage && resultsQuery.isFetching && !resultsError) {
+    resultsPending = evidencePending ? "evidence" : "refresh";
+  }
+  const searchInputError = lexicalInputExplanation(resultsError);
+  const errorMessage = searchInputError ? null : messageFromError(resultsError);
   return {
     search,
     setSearch,
@@ -1051,7 +1114,12 @@ export function useSearchWorkspace({
     },
     recoverFilterUrl: (restored) => {
       clearPendingDefault();
-      dispatch({ type: "url.restored", search: restored, selectedRecordKey: null });
+      dispatch({
+        type: "url.restored",
+        resetToken: atlasRouter.latestLocation.state.atlasSearchReset,
+        search: restored,
+        selectedRecordKey: null,
+      });
       reading.select(null);
     },
 
@@ -1076,7 +1144,7 @@ export function useSearchWorkspace({
         });
       }
     },
-    resultPage: earlyExactMatches ? undefined : resultPage,
+    resultPage: result?.page,
     earlyExactMatches,
     nameSuggestions: {
       enabled: allowNameLookup,
@@ -1086,8 +1154,7 @@ export function useSearchWorkspace({
       onSelect: (key, generation) =>
         selectRecord(key, undefined, undefined, generation),
     },
-    resultFilter:
-      canDisplayResult && !earlyExactMatches ? (result?.filter ?? null) : null,
+    resultFilter: result?.request.criteria.filter ?? null,
     filterEditor: filterDiscovery.filterEditor,
     refreshFilterInformation: refreshResults,
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
@@ -1098,15 +1165,7 @@ export function useSearchWorkspace({
     vocabularyScope: filterDiscovery.vocabularyScope,
     filterDiscoveryError: filterDiscovery.errorMessage,
     evidencePending,
-    resultsLoading:
-      enabled &&
-      searchReady &&
-      hasExecutableSearch(search) &&
-      ((resultsQuery.isLoading && !heldPage) ||
-        awaitingSource ||
-        searchDebouncing ||
-        (waitingForDefault && !hasCurrentPage)),
-    resultsRefreshing,
+    resultsPending,
     resultsPaused,
     resultsRecovering: retrieval.recovering,
     refreshResults,

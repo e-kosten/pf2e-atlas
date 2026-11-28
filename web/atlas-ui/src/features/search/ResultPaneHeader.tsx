@@ -1,81 +1,89 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button, Select } from "antd";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { ResultSortControl } from "../../shared/search/ResultSortControl";
 
-export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
+export function searchResultsCaption(workspace: SearchWorkspaceState) {
+  const { resultPage, earlyExactMatches } = workspace;
+  const page = resultPage?.page;
+  if (earlyExactMatches && earlyExactMatches.total > earlyExactMatches.matches.length)
+    return `${earlyExactMatches.matches.length} of ${earlyExactMatches.total} exact matches`;
+  if (!page) return "Results";
+  if (resultPage.mode.kind === "similar_records") return "Top matches";
+  if (resultPage.coverage?.exhaustive === false)
+    return `Top ${page.total.toLocaleString()} matches`;
+  return `${page.total.toLocaleString()} ${page.total === 1 ? "record" : "records"}`;
+}
+
+export function ResultPaneHeader({
+  workspace,
+  pendingLabel,
+}: {
+  workspace: SearchWorkspaceState;
+  pendingLabel?: string;
+}) {
   const page = workspace.resultPage?.page;
-  const similar = workspace.resultPage?.mode.kind === "similar_records";
-  const early = workspace.earlyExactMatches;
-  const exactOverflow = early && early.total > early.matches.length;
-  const displayedPageNumber = workspace.resultsRefreshing
-    ? workspace.pageNumber
-    : (page?.number ?? workspace.pageNumber);
-  const pageCount = useMemo(() => (page ? totalPages(page) : 0n), [page]);
+  const pageCount = page ? totalPages(page) : 0n;
   const pageCountNumber =
     pageCount > BigInt(Number.MAX_SAFE_INTEGER)
       ? Number.MAX_SAFE_INTEGER
       : Number(pageCount);
+  const pagerPending =
+    workspace.resultsPending === "page" ||
+    workspace.resultsPending === "page-size" ||
+    workspace.resultsPending === "sort";
+  const pagerDisabled = workspace.resultsPaused || workspace.resultsRecovering;
 
   return (
     <div className="result-pane-header search-results-toolbar">
-      <span>
-        {exactOverflow
-          ? `${early.matches.length} of ${early.total} exact matches`
-          : workspace.resultsRefreshing && !early
-            ? "Updating results"
-            : page
-              ? similar
-                ? "Top matches"
-                : workspace.resultPage?.coverage?.exhaustive === false
-                  ? `Top ${page.total.toLocaleString()} matches`
-                  : `${page.total.toLocaleString()} ${page.total === 1 ? "record" : "records"}`
-              : "Results"}
+      <span className="search-results-toolbar__caption">
+        {searchResultsCaption(workspace)}
       </span>
+      {pendingLabel && (
+        <span
+          className="search-results-toolbar__status"
+          data-retained-page={pagerPending || undefined}
+          aria-hidden="true"
+        >
+          {pendingLabel}
+        </span>
+      )}
       {page && page.total > 0 && (
         <div className="pager__navigation" role="group" aria-label="Result pages">
           <Button
             aria-label="Previous page"
+            aria-disabled={pagerPending || page.number <= 1 || undefined}
+            tabIndex={page.number <= 1 ? -1 : undefined}
             size="small"
-            disabled={
-              workspace.pageNumber <= 1 ||
-              workspace.resultsRefreshing ||
-              workspace.resultsPaused ||
-              workspace.resultsRecovering
-            }
+            disabled={pagerDisabled}
             icon={<ChevronLeft size={15} />}
-            onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
+            onClick={() => {
+              if (!pagerPending && page.number > 1)
+                workspace.setPageNumber(page.number - 1);
+            }}
             type="text"
           />
           <PageJump
-            key={displayedPageNumber}
-            disabled={
-              workspace.resultsRefreshing ||
-              workspace.resultsLoading ||
-              Boolean(workspace.resultsPaused) ||
-              Boolean(workspace.resultsRecovering)
-            }
-            displayedPageNumber={displayedPageNumber}
+            disabled={Boolean(pagerDisabled)}
+            pending={pagerPending}
+            displayedPageNumber={page.number}
             onPageChange={workspace.setPageNumber}
             pageCount={pageCount}
             pageCountNumber={pageCountNumber}
-            requestedPageNumber={workspace.pageNumber}
           />
           <Button
             aria-label="Next page"
+            aria-disabled={pagerPending || !page.has_more || undefined}
+            tabIndex={!page.has_more ? -1 : undefined}
             size="small"
-            disabled={
-              !page?.has_more ||
-              workspace.resultsRefreshing ||
-              workspace.resultsPaused ||
-              workspace.resultsRecovering
-            }
+            disabled={pagerDisabled}
             icon={<ChevronRight size={15} />}
-            onClick={() =>
-              workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
-            }
+            onClick={() => {
+              if (!pagerPending && page.has_more)
+                workspace.setPageNumber(page.next_page ?? page.number + 1);
+            }}
             type="text"
           />
         </div>
@@ -89,17 +97,19 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         {page && page.total > 0 && (
           <Select
             aria-label="Records per page"
+            aria-disabled={pagerPending || undefined}
+            open={pagerPending ? false : undefined}
             size="small"
             style={{ width: 128 }}
-            disabled={workspace.resultsPaused || workspace.resultsRecovering}
-            value={workspace.search.pageSize}
+            disabled={pagerDisabled}
+            value={page.size}
             options={[10, 25, 50, 100].map((value) => ({
               value,
               label: value + " / page",
             }))}
-            onChange={(pageSize) =>
-              workspace.setSearch({ ...workspace.search, pageSize })
-            }
+            onChange={(pageSize) => {
+              if (!pagerPending) workspace.setSearch({ ...workspace.search, pageSize });
+            }}
           />
         )}
       </div>
@@ -109,8 +119,8 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
 
 type PageJumpProps = {
   disabled: boolean;
+  pending: boolean;
   displayedPageNumber: number;
-  requestedPageNumber: number;
   pageCount: bigint;
   pageCountNumber: number;
   onPageChange: (page: number) => void;
@@ -118,30 +128,23 @@ type PageJumpProps = {
 
 function PageJump({
   disabled,
+  pending,
   displayedPageNumber,
-  requestedPageNumber,
   pageCount,
   pageCountNumber,
   onPageChange,
 }: PageJumpProps) {
-  const [pageDraft, setPageDraft] = useState(displayedPageNumber.toString());
+  const [draft, setDraft] = useState<{ page: number; value: string }>();
   const cancelingBlur = useRef(false);
+  if (draft && (pending || displayedPageNumber !== draft.page)) setDraft(undefined);
 
   function commitPageDraft() {
-    const parsedPage = Number.parseInt(pageDraft, 10);
-    if (!Number.isFinite(parsedPage) || parsedPage < 1) {
-      setPageDraft(displayedPageNumber.toString());
-      return;
-    }
-
-    const nextPage =
-      pageCountNumber > 0
-        ? Math.min(pageCountNumber, Math.max(1, parsedPage))
-        : parsedPage;
-    setPageDraft(nextPage.toString());
-    if (nextPage !== requestedPageNumber) {
-      onPageChange(nextPage);
-    }
+    if (disabled || pending || !draft) return;
+    setDraft(undefined);
+    const parsedPage = Number.parseInt(draft.value, 10);
+    if (!Number.isFinite(parsedPage) || parsedPage < 1) return;
+    const nextPage = Math.min(pageCountNumber, parsedPage);
+    if (nextPage !== displayedPageNumber) onPageChange(nextPage);
   }
 
   return (
@@ -151,20 +154,24 @@ function PageJump({
         aria-label="Current page"
         className="inline-editable"
         disabled={disabled}
+        readOnly={pending}
         inputMode="numeric"
-        max={pageCountNumber > 0 ? pageCountNumber : undefined}
+        max={pageCountNumber}
         min={1}
         onBlur={() => {
           if (!cancelingBlur.current) commitPageDraft();
         }}
-        onChange={(event) => setPageDraft(event.target.value)}
+        onChange={(event) =>
+          setDraft({ page: displayedPageNumber, value: event.target.value })
+        }
         onKeyDown={(event) => {
           if (event.key === "Enter") {
-            event.currentTarget.blur();
+            event.preventDefault();
+            commitPageDraft();
           }
           if (event.key === "Escape") {
             event.preventDefault();
-            setPageDraft(displayedPageNumber.toString());
+            setDraft(undefined);
             cancelingBlur.current = true;
             event.currentTarget.blur();
             cancelingBlur.current = false;
@@ -172,7 +179,7 @@ function PageJump({
         }}
         pattern="[0-9]*"
         type="text"
-        value={pageDraft}
+        value={draft?.value ?? displayedPageNumber}
       />
       <span>/ {pageCount.toLocaleString()}</span>
     </label>

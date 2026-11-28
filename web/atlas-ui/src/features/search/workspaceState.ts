@@ -94,11 +94,13 @@ export type WorkspaceInteractionState = {
   search: SearchFormState;
   selectedRecordKey: string | null;
   activeSearch: SearchFormState;
+  resetToken?: string;
   acceptedSearchSubmission?: SearchSubmission;
 };
 export type WorkspaceInteractionEvent =
   | {
       type: "url.restored";
+      resetToken?: string;
       search: SearchFormState;
       selectedRecordKey: string | null;
     }
@@ -140,6 +142,7 @@ export function initialWorkspaceInteractionState(
     search,
     selectedRecordKey: route?.selectedRecordKey ?? null,
     activeSearch: search,
+    resetToken: router.latestLocation.state.atlasSearchReset,
   };
 }
 export function workspaceInteractionReducer(
@@ -152,6 +155,7 @@ export function workspaceInteractionReducer(
         ...state,
         search: event.search,
         activeSearch: event.search,
+        resetToken: event.resetToken,
         selectedRecordKey: event.selectedRecordKey,
         acceptedSearchSubmission: undefined,
       };

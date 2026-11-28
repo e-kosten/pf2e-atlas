@@ -20,7 +20,10 @@ import { ReferenceResult } from "./ReferenceResult";
 import { SearchMatchContext } from "./SearchMatchContext";
 export function ReferenceBrowser({
   rows,
-  loading,
+  loading = false,
+  resultsBusy = loading,
+  suspendResultsScroll = false,
+  restoreResultsFocusOnRemoval = false,
   selectedRecordKey,
   onSelect,
   reading,
@@ -48,14 +51,17 @@ export function ReferenceBrowser({
   readerFooter,
   showMatchContext = true,
   loadingLabel = "Searching…",
-  loadingMoreLabel,
+  resultsFooter,
 }: {
   rows: SearchResultRow[];
   query?: string;
   matchDisplay?: MatchDisplay;
   showSmallerWeights?: boolean;
   searchCards?: boolean;
-  loading: boolean;
+  loading?: boolean;
+  resultsBusy?: boolean;
+  suspendResultsScroll?: boolean;
+  restoreResultsFocusOnRemoval?: boolean;
   selectedRecordKey: string | null;
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
   reading: ReferenceReading;
@@ -79,7 +85,7 @@ export function ReferenceBrowser({
   readerFooter?: ReaderFooter;
   showMatchContext?: boolean;
   loadingLabel?: string;
-  loadingMoreLabel?: string;
+  resultsFooter?: ReactNode;
 }) {
   const selected = rows.find((row) => row.record.record_key === selectedRecordKey);
   const detail = reading.detail;
@@ -100,7 +106,9 @@ export function ReferenceBrowser({
         resultsHeader={resultsHeader}
         resultsLabel="Search results"
         resultsIdentity={rows}
-        resultsLoading={loading}
+        resultsLoading={resultsBusy}
+        suspendResultsScroll={suspendResultsScroll}
+        restoreResultsFocusOnRemoval={restoreResultsFocusOnRemoval}
         recordActions={recordActions}
         readerStatus={readerStatus}
         onReaderClose={onReaderClose}
@@ -157,12 +165,7 @@ export function ReferenceBrowser({
                 }}
               />
             ))}
-            {loadingMoreLabel && (
-              <LoadingStatus
-                className="reference-loading-more"
-                label={loadingMoreLabel}
-              />
-            )}
+            {resultsFooter}
           </>
         )}
       </BrowseReader>

@@ -752,7 +752,7 @@ describe("useSearchWorkspace", () => {
     );
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
     expect(result.current.resultPage).toEqual(original);
-    expect(result.current.resultsRefreshing).toBe(true);
+    expect(result.current.resultsPending).toBe("sort");
     await act(async () =>
       finish({
         ...original,
@@ -775,7 +775,7 @@ describe("useSearchWorkspace", () => {
         rules: [{ field: "level", direction: "desc" }],
       }),
     );
-    expect(result.current.resultsRefreshing).toBe(false);
+    expect(result.current.resultsPending).toBeUndefined();
     expect(result.current.resultPage?.rows[0].record.record_key).toBe("items:new");
   });
 
@@ -2209,7 +2209,7 @@ describe("useSearchWorkspace", () => {
     });
 
     expect(result.current.search.query).toBe("fi");
-    expect(result.current.resultsLoading).toBe(true);
+    expect(result.current.resultsPending).toBe("search");
     expect(result.current.resultPage).toBeUndefined();
     await waitFor(() => expect(window.location.pathname).toBe("/search"));
     expect(window.location.search).toBe(
@@ -2217,7 +2217,7 @@ describe("useSearchWorkspace", () => {
     );
     await delay(150);
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
-    expect(result.current.resultsLoading).toBe(true);
+    expect(result.current.resultsPending).toBe("search");
 
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     const request = apiMocks.searchPage.mock.calls[0][0] as SearchResultsRequest;
@@ -2256,7 +2256,7 @@ describe("useSearchWorkspace", () => {
         });
       });
       expect(result.current.search.query).toBe("fire");
-      expect(result.current.resultsLoading).toBe(true);
+      expect(result.current.resultsPending).toBe("search");
       await act(async () => vi.advanceTimersByTimeAsync(299));
       expect(new URLSearchParams(location.search).get("q")).toBe("fire");
       expect(new URLSearchParams(location.search).get("ranking")).toBe("rrf");
@@ -2294,7 +2294,7 @@ describe("useSearchWorkspace", () => {
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
-    expect(result.current.resultsLoading).toBe(false);
+    expect(result.current.resultsPending).toBeUndefined();
   });
 
   it("keeps preview selection explicit and restores the search URL when cleared", async () => {
@@ -2599,8 +2599,7 @@ describe("useSearchWorkspace", () => {
 
     act(() => result.current.setPageNumber(2));
 
-    await waitFor(() => expect(result.current.resultsRefreshing).toBe(true));
-    expect(result.current.resultsLoading).toBe(false);
+    await waitFor(() => expect(result.current.resultsPending).toBe("page"));
     expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
       "spell:dirge-of-doom",
     );
@@ -2610,10 +2609,113 @@ describe("useSearchWorkspace", () => {
       await nextPage.promise;
     });
 
-    await waitFor(() => expect(result.current.resultsRefreshing).toBe(false));
+    await waitFor(() => expect(result.current.resultsPending).toBeUndefined());
     expect(result.current.resultPage?.page.number).toBe(2);
     expect(result.current.resultPage?.rows[0]?.record.record_key).toBe("spell:heal");
   });
+
+  it("keeps a failed superseded request out of the new filter's loading state", async () => {
+    seedSearchUrl();
+    let rejectPrevious!: (error: Error) => void;
+    const previous = new Promise<SearchResultsPage>((_resolve, reject) => {
+      rejectPrevious = reject;
+    });
+    const next = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:old"]))
+      .mockReturnValueOnce(previous)
+      .mockReturnValueOnce(next.promise);
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage?.rows).toHaveLength(1));
+    act(() => result.current.refresh());
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        filter: { kind: "compare", field: "level", op: "gte", value: 2 },
+      }),
+    );
+    expect(result.current.resultPage).toBeUndefined();
+    expect(result.current.resultsPending).toBe("search");
+    await act(async () => {
+      rejectPrevious(new Error("Earlier search failed"));
+      await previous.catch(() => undefined);
+    });
+    expect(result.current.errorMessage).toBeNull();
+    expect(result.current.resultsPending).toBe("search");
+
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(3));
+    await act(async () => {
+      next.resolve(searchResultsPage(["spell:current"]));
+      await next.promise;
+    });
+    await waitFor(() =>
+      expect(result.current.resultPage?.rows[0].record.record_key).toBe(
+        "spell:current",
+      ),
+    );
+    expect(result.current.resultsError).toBeNull();
+  });
+
+  it.each(["sort", "page-size"] as const)(
+    "keeps the displayed later page through a %s change even with old page one cached",
+    async (change) => {
+      seedSearchUrl();
+      const obsolete = deferred<SearchResultsPage>();
+      const replacement = deferred<SearchResultsPage>();
+      apiMocks.searchPage
+        .mockResolvedValueOnce(searchResultsPage(["spell:old-page-one"]))
+        .mockResolvedValueOnce(searchResultsPage(["spell:viewed"], { pageNumber: 3 }))
+        .mockReturnValueOnce(obsolete.promise)
+        .mockReturnValueOnce(replacement.promise);
+      const { result } = renderHook(
+        () => useSearchWorkspace({ searchProfile: "bge-base" }),
+        { wrapper: queryClientWrapper() },
+      );
+      await waitFor(() => expect(result.current.resultPage?.page.number).toBe(1));
+      act(() => result.current.setPageNumber(3));
+      await waitFor(() => expect(result.current.resultPage?.page.number).toBe(3));
+      act(() => result.current.setPageNumber(4));
+      await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(3));
+
+      const next =
+        change === "sort"
+          ? {
+              ...result.current.search,
+              sort: {
+                kind: "attributes",
+                rules: [{ field: "name", direction: "desc" }],
+              } satisfies ResultSort,
+            }
+          : { ...result.current.search, pageSize: 50 };
+      act(() => result.current.setSearch(next));
+      await act(async () => {
+        obsolete.resolve(searchResultsPage(["spell:late"], { pageNumber: 4 }));
+        await obsolete.promise;
+      });
+      expect(result.current.pageNumber).toBe(1);
+      expect(result.current.resultPage?.page.number).toBe(3);
+      expect(result.current.resultsPending).toBe(change);
+      await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(4));
+      expect(result.current.resultPage?.rows[0].record.record_key).toBe("spell:viewed");
+      const fresh = searchResultsPage(["spell:fresh"]);
+      await act(async () => {
+        replacement.resolve({
+          ...fresh,
+          sort: effectiveResultSort(next),
+          page: { ...fresh.page, size: next.pageSize },
+        });
+        await replacement.promise;
+      });
+      await waitFor(() => expect(result.current.resultPage?.page.number).toBe(1));
+      expect(result.current.resultPage?.rows[0].record.record_key).toBe("spell:fresh");
+      expect(result.current.resultsPending).toBeUndefined();
+    },
+  );
 
   it("resets page execution when search changes from a later page", async () => {
     seedSearchUrl();
@@ -2777,7 +2879,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-it("pages retained link evidence with its producing OR tree while a new NOT tree is pending", async () => {
+it("retains the producing filter during paging and clears its evidence on changed criteria", async () => {
   vi.clearAllMocks();
   apiMocks.discoverFilterEditor.mockResolvedValue(editorFixture());
   const leaf = linkLeaf(
@@ -2849,12 +2951,8 @@ it("pages retained link evidence with its producing OR tree while a new NOT tree
   render(<Harness />, { wrapper: queryClientWrapper() });
   await screen.findByRole("button", { name: "Next links page" });
   const producing = live.resultFilter;
-  act(() =>
-    live.setSearch({ ...live.search, filter: { kind: "not", predicate: leaf } }),
-  );
-  await waitFor(() =>
-    expect(apiMocks.searchPage.mock.lastCall?.[0].criteria.filter.kind).toBe("not"),
-  );
+  act(() => live.setPageNumber(2));
+  expect(live.resultsPending).toBe("page");
   expect(live.resultFilter).toEqual(producing);
   fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
   await waitFor(() =>
@@ -2868,4 +2966,14 @@ it("pages retained link evidence with its producing OR tree while a new NOT tree
       expect.any(AbortSignal),
     ),
   );
+  act(() =>
+    live.setSearch({ ...live.search, filter: { kind: "not", predicate: leaf } }),
+  );
+  expect(live.resultPage).toBeUndefined();
+  expect(live.resultFilter).toBeNull();
+  expect(screen.queryByRole("button", { name: "Next links page" })).toBeNull();
+  await waitFor(() =>
+    expect(apiMocks.searchPage.mock.lastCall?.[0].criteria.filter.kind).toBe("not"),
+  );
+  expect(live.resultPage).toBeUndefined();
 });
